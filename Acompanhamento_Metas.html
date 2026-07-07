@@ -1,0 +1,1391 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acompanhamento de Metas</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════ */
+:root {
+  --bg:          #EEF1F8;
+  --surface:     #FFFFFF;
+  --surface2:    #F5F7FC;
+  --border:      #DDE2EE;
+  --border-hi:   #BBC5DA;
+  --ink:         #0C1830;
+  --ink2:        #3D4E6B;
+  --muted:       #8594AF;
+  --blue:        #1547C0;
+  --blue-lt:     #E8EFFE;
+  --blue-mid:    #4472D9;
+  --green:       #0A7C5C;
+  --green-lt:    #E3F5EF;
+  --red:         #C8281E;
+  --red-lt:      #FDECEA;
+  --amber:       #B45309;
+  --amber-lt:    #FEF3DC;
+  --navy:        #0C1830;
+  --r:           12px;
+  --r-sm:        7px;
+  --radius:      14px;
+  --sh:          0 1px 6px rgba(12,24,48,.07);
+  --sh-md:       0 4px 18px rgba(12,24,48,.11);
+  --tr:          .18s cubic-bezier(.4,0,.2,1);
+  --hh:          62px;
+  --fh:          56px;
+  --side-w:      232px;
+  --side-w-collapsed: 74px;
+  --font-head:   'Outfit', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ─── SIDEBAR MENU ─── */
+.sidebar {
+  position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
+  background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
+  z-index: 300;
+  display:flex; flex-direction:column;
+  font-family: var(--font-body);
+  overflow: visible;
+  transition: transform .25s ease, width .25s ease;
+}
+.sidebar.collapsed { width: var(--side-w-collapsed); }
+.side-brand {
+  display:flex; align-items:center; gap:11px;
+  padding: 18px 18px 16px; flex-shrink:0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 8px;
+}
+.sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
+.side-brand svg { width:22px; height:22px; color: #C8961A; flex-shrink:0; }
+.side-brand-text { white-space:nowrap; overflow:hidden; }
+.side-brand-text .t { font-family: var(--font-head); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+.side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
+.sidebar.collapsed .side-brand-text { display:none; }
+
+.side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
+.side-item { display:flex; flex-direction:column; }
+.side-link {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  background:none; border:none; cursor:pointer;
+  color: rgba(255,255,255,.7);
+  font-family: var(--font-head); font-weight:600; font-size:13px; letter-spacing:.01em;
+  padding: 10px 11px; border-radius: 10px;
+  transition: background .15s ease, color .15s ease;
+}
+.side-link svg { width:18px; height:18px; flex-shrink:0; opacity:.85; }
+.side-link .chev { margin-left:auto; width:13px; height:13px; opacity:.5; transition: transform .18s ease; }
+.side-item.open > .side-link .chev { transform: rotate(180deg); }
+.side-link:hover { background: rgba(255,255,255,.07); color:#fff; }
+.side-item.active > .side-link { color:#fff; background: rgba(255,255,255,.09); }
+
+.side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
+
+.sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
+.sidebar.collapsed.peek { width: 232px; box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+.sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
+.sidebar.collapsed.peek .side-brand-text { display:block; }
+.sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
+.sidebar.collapsed.peek .side-link span,
+.sidebar.collapsed.peek .side-link .chev { display:inline-flex; }
+.sidebar.collapsed.peek .side-item.open > .side-sub { display:flex; }
+
+.sidebar.collapsed .side-link span,
+.sidebar.collapsed .side-link .chev,
+.sidebar.collapsed .side-sub { display:none; }
+
+.sidebar.collapsed:not(.peek) .side-item { position:relative; }
+.sidebar.collapsed:not(.peek) .side-link::after {
+  content: attr(data-label);
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+  background: #12233C; color:#fff;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-head); font-weight:600; font-size:12.5px; white-space:nowrap;
+  box-shadow: 0 4px 24px rgba(15,22,40,0.10);
+  opacity:0; pointer-events:none; visibility:hidden;
+  transition: opacity .15s ease;
+  z-index: 320;
+}
+.sidebar.collapsed:not(.peek) .side-link:hover::after {
+  opacity:1; visibility:visible;
+}
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-sub a {
+  display:flex; align-items:center; gap:9px;
+  padding: 8px 10px; border-radius:8px;
+  font-size:12.5px; font-weight:500;
+  color: rgba(255,255,255,.52); text-decoration:none;
+  transition: background .12s ease, color .12s ease;
+}
+.side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
+.side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
+.side-sub a.active { color: #C8961A; font-weight:600; background: rgba(200,150,26,.13); }
+
+.side-toggle {
+  position:fixed; top:14px; left:14px; z-index:301;
+  width:38px; height:38px; border-radius:10px;
+  background: #0C1830; border:1px solid rgba(255,255,255,.12);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.side-toggle svg { width:19px; height:19px; color:#fff; }
+.side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
+
+@media (max-width: 960px){
+  .sidebar { transform: translateX(-100%); box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+  body.side-open .sidebar { transform: translateX(0); }
+  body.side-open .side-overlay { display:block; }
+  .hdr { left: 0 !important; width: 100% !important; }
+  .filters { left: 0 !important; width: 100% !important; }
+  .main { margin-left: 0 !important; }
+}
+
+/* ─── HEADER ─── */
+.hdr {
+  position: sticky; top: 0; z-index: 200;
+  left: var(--side-w-collapsed);
+  width: calc(100% - var(--side-w-collapsed));
+  height: var(--hh);
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 18px;
+  box-shadow: 0 2px 16px rgba(12,24,48,.28);
+  transition: left .25s ease, width .25s ease;
+}
+.hdr-logo {
+  width: 36px; height: 36px;
+  background: var(--blue);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hdr-logo svg { color: #fff; }
+.hdr-title {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 20px; font-weight: 800;
+  color: #fff; letter-spacing: -.3px;
+  flex: 1;
+}
+.hdr-sub { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.45); font-weight: 400; }
+.hdr-right { display: flex; align-items: center; gap: 16px; }
+.upd-label { font-size: 11px; color: rgba(255,255,255,.4); }
+.upd-val   { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.75); }
+.btn-refresh {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: var(--tr);
+  white-space: nowrap;
+}
+.btn-refresh:hover { background: #1038a0; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,71,192,.4); }
+.btn-refresh.loading svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── FILTERS ─── */
+.filters {
+  position: sticky; top: var(--hh); z-index: 190;
+  left: var(--side-w-collapsed);
+  width: calc(100% - var(--side-w-collapsed));
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  min-height: var(--fh);
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 18px; flex-wrap: wrap;
+  box-shadow: 0 2px 8px rgba(12,24,48,.05);
+  transition: left .25s ease, width .25s ease;
+}
+.f-grp { display: flex; flex-direction: column; gap: 2px; }
+.f-lbl { font-size: 10px; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .7px; }
+.f-sel {
+  appearance: none; -webkit-appearance: none;
+  padding: 6px 26px 6px 10px;
+  border: 1.5px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' viewBox='0 0 24 24' fill='none' stroke='%238594AF' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E") no-repeat right 8px center;
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px; font-weight: 500;
+  color: var(--ink); cursor: pointer;
+  min-width: 115px; transition: var(--tr);
+}
+.f-sel:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px rgba(20,71,192,.1); }
+.f-div { width: 1px; height: 24px; background: var(--border); }
+
+/* Meta input */
+.meta-wrap {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
+  background: var(--blue-lt);
+  border: 1.5px solid #b3c6f4;
+  border-radius: var(--r-sm);
+  padding: 5px 12px;
+}
+.meta-label { font-size: 11px; font-weight: 600; color: var(--blue); }
+.meta-input {
+  border: none; background: transparent;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600; color: var(--blue);
+  width: 130px; outline: none;
+}
+.meta-input::placeholder { color: #9ab0e0; font-weight: 400; }
+
+/* ─── MAIN LAYOUT ─── */
+.main { padding: 22px 28px 56px; max-width: 1800px; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
+
+/* ─── SECTION HEADER ─── */
+.sh {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.sh-bar { width: 4px; height: 22px; border-radius: 2px; background: var(--blue); flex-shrink: 0; }
+.sh-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+.sh-sub { font-size: 11px; color: var(--muted); margin-left: auto; }
+.mb { margin-bottom: 24px; }
+
+/* ─── INDICATOR CARDS ─── */
+.ind-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.ind-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px 22px 18px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+.ind-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.ind-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: none;
+  pointer-events: none;
+}
+.ind-card.blue .ind-accent,
+.ind-card.green .ind-accent,
+.ind-card.red .ind-accent,
+.ind-card.amber .ind-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.ind-card.blue .ind-accent  { background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); }
+.ind-card.green .ind-accent { background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 100%); }
+.ind-card.red .ind-accent   { background: linear-gradient(90deg, var(--rust) 0%, var(--rust-mid) 100%); }
+.ind-card.amber .ind-accent { background: linear-gradient(90deg, var(--olive) 0%, var(--olive-mid) 100%); }
+.ind-card.red {
+  background: linear-gradient(135deg, #FDECEA 0%, #F8D7DA 100%);
+  border-color: #F5C6CB;
+}
+.ind-card.red .ind-val { color: #DC3545; }
+.ind-card.red .ind-label { color: #DC3545; }
+.ind-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.ind-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 17px;
+}
+.ind-icon.blue  { background: var(--blue-xl);  color: var(--blue-mid); }
+.ind-icon.green { background: var(--teal-lt);  color: var(--teal); }
+.ind-icon.red   { background: var(--rust-lt);  color: var(--rust-mid); }
+.ind-icon.amber { background: var(--olive-lt); color: var(--olive); }
+.ind-label {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.ind-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.ind-val {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 26px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: -.02em; line-height: 1;
+  text-align: center;
+  margin-bottom: 5px;
+}
+.ind-sub {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: auto;
+}
+
+/* ─── KPI ROW ─── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.kpi-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 22px 22px 18px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.kpi-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.kpi-lbl {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.kpi-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.kpi-val {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 26px; font-weight: 700;
+  letter-spacing: -.02em; line-height: 1;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 5px;
+}
+.kpi-foot {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: auto;
+}
+.kpi-foot b { color: var(--text-primary); font-weight: 600; }
+
+/* ─── CHARTS ─── */
+.charts-2 {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  padding: 18px 18px 14px;
+  box-shadow: var(--sh);
+}
+.chart-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.chart-sub   { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+.chart-wrap  { position: relative; height: 230px; }
+
+/* ─── TABLE CARD ─── */
+.tbl-card {
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.tbl-head {
+  padding: 14px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tbl-head-title { font-size: 14px; font-weight: 700; }
+.tbl-head-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tbl-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--blue-lt); color: var(--blue);
+  white-space: nowrap;
+}
+.tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
+/* ─── TABLE STYLES ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11.5px;
+}
+
+/* Group header row */
+.tr-grp th {
+  padding: 8px 7px;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .5px;
+  white-space: nowrap;
+  border-right: 2px solid rgba(255,255,255,.25);
+}
+.tr-grp th:last-child { border-right: none; }
+.grp-aa    { background: #2B3F6B; color: #fff; }
+.grp-atual { background: var(--blue); color: #fff; }
+.grp-desv  { background: #07523B; color: #fff; }
+.grp-tkt   { background: #7A3800; color: #fff; }
+.grp-pe    { background: #1C2E6B; color: #fff; }
+
+/* Sub-header row */
+.tr-sub th {
+  padding: 6px 7px;
+  text-align: right;
+  font-size: 10px; font-weight: 600;
+  color: var(--ink2);
+  background: var(--surface2);
+  border-bottom: 2px solid var(--border-hi);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tr-sub th.tl { text-align: left; }
+.tr-sub th.sep { border-right: 2px solid var(--border-hi); }
+
+/* Body */
+tbody tr { border-bottom: 1px solid var(--border); transition: background var(--tr); }
+tbody tr:hover { background: #F0F4FF; }
+tbody tr.future { opacity: .4; }
+tbody tr.today  { background: #EFF5FF; }
+
+td {
+  padding: 5px 7px;
+  text-align: right;
+  vertical-align: middle;
+  border-right: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 11px;
+  white-space: nowrap;
+  color: var(--ink);
+}
+td:last-child { border-right: none; }
+td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--ink2); }
+td.sep { border-right: 2px solid var(--border-hi); }
+td.pos { color: var(--green); font-weight: 600; }
+td.neg { color: var(--red); font-weight: 600; }
+td.blu { color: var(--blue); font-weight: 600; }
+td.dash { color: var(--muted); }
+
+.pill {
+  display: inline-block;
+  padding: 1px 6px; border-radius: 4px;
+  font-size: 10.5px; font-weight: 600;
+}
+.pill-pos { background: var(--green-lt); color: #085C44; }
+.pill-neg { background: var(--red-lt);   color: #991B13; }
+
+/* Footer/summary rows */
+.tr-media {
+  background: #EFF5FF;
+  border-top: 2px solid var(--blue-mid);
+}
+.tr-media td {
+  font-weight: 600; color: var(--blue);
+  font-size: 11px;
+}
+.tr-total {
+  background: var(--navy);
+  border-top: 2px solid #3D5098;
+}
+.tr-total td {
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+/* ─── LOADING / ERROR ─── */
+.loading-box {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 80px 32px; text-align: center;
+}
+.spinner {
+  width: 38px; height: 38px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+.loading-txt { font-size: 13px; color: var(--muted); font-weight: 500; }
+.err-box {
+  margin: 28px; padding: 22px;
+  background: var(--red-lt); border: 1px solid #f5c6c3;
+  border-radius: var(--r); text-align: center;
+}
+.err-box h3 { color: var(--red); font-size: 15px; margin-bottom: 6px; }
+.err-box p  { color: #7D1A14; font-size: 12px; }
+.err-box button {
+  margin-top: 12px; padding: 7px 18px;
+  background: var(--red); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 960px) {
+  .hdr   { padding: 0 14px; left: 0 !important; width: 100% !important; }
+  .filters { padding: 0 14px; gap: 10px; left: 0 !important; width: 100% !important; }
+  .main  { padding: 16px 14px 40px; margin-left: 0 !important; }
+  .ind-row, .kpi-row { grid-template-columns: repeat(2,1fr); }
+  .charts-2 { grid-template-columns: 1fr; }
+  .hdr-sub, .upd-label, .upd-val { display: none; }
+}
+@media (max-width: 520px) {
+  .ind-row, .kpi-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR MENU -->
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+
+<aside class="sidebar collapsed" id="sidebar">
+  <div class="side-brand">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text">
+      <div class="t">Dashboards</div>
+      <div class="s">Painel de Gestão</div>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <div class="side-item" data-menu="comercial">
+      <button class="side-link" type="button" data-label="Comercial">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Comercial</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Analise_Comercial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Análise Comercial
+        </a>
+        <a href="Faturamento_Lucro.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+          Faturamento x Lucro
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="financeiro">
+      <button class="side-link" type="button" data-label="Financeiro">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>Financeiro</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="DRE_Gerencial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          DRE Gerencial
+        </a>
+        <a href="contas_pagar.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
+          Contas a Pagar
+        </a>
+        <a href="contas_receber.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
+          Contas a Receber
+        </a>
+        <a href="fluxo_caixa.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          Fluxo de Caixa
+        </a>
+        <a href="Banco_Declaracao.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          Banco
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item open" data-menu="metas">
+      <button class="side-link" type="button" data-label="Metas">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        <span>Metas</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Elaboracao_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Elaboração de Metas
+        </a>
+        <a href="Acompanhamento_Metas.html" class="active">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4L12 14.01l-3-3"/></svg>
+          Acompanhamento de Metas
+        </a>
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<!-- ════ HEADER ════ -->
+<header class="hdr">
+  <div class="hdr-logo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+      <polyline points="16 7 22 7 22 13"/>
+    </svg>
+  </div>
+  <div style="flex:1">
+    <div class="hdr-title">Acompanhamento de Metas</div>
+    <div class="hdr-sub">Performance Executiva · Visão Diária</div>
+  </div>
+  <div class="hdr-right">
+    <div style="text-align:right">
+      <div class="upd-label">Última atualização</div>
+      <div class="upd-val" id="lastUpd">—</div>
+    </div>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+      Atualizar dados
+    </button>
+  </div>
+</header>
+
+<!-- ════ FILTERS ════ -->
+<div class="filters" id="filtersBar">
+  <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">Filtros</span>
+  <div class="f-grp">
+    <span class="f-lbl">Ano</span>
+    <select class="f-sel" id="fAno" onchange="applyFilters()"></select>
+  </div>
+  <div class="f-div"></div>
+  <div class="f-grp">
+    <span class="f-lbl">Mês</span>
+    <select class="f-sel" id="fMes" onchange="applyFilters()"></select>
+  </div>
+  <div class="f-div"></div>
+  <div class="f-grp">
+    <span class="f-lbl">Loja</span>
+    <select class="f-sel" id="fLoja" onchange="applyFilters()"></select>
+  </div>
+  <div class="meta-wrap">
+    <span class="meta-label">Meta mensal R$</span>
+    <input class="meta-input" type="text" id="inputMeta"
+      placeholder="Ex: 450.000"
+      title="Digite o valor da meta mensal"
+      oninput="applyFilters()">
+  </div>
+</div>
+
+<!-- ════ MAIN ════ -->
+<main class="main" id="mainContent">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-txt">Carregando dados da planilha…</div>
+  </div>
+</main>
+
+<script>
+// ── SIDEBAR: recolher/expandir ──
+let lastOpenMenu = 'metas';
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
+  });
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+// ── SIDEBAR: abrir/fechar submenus e botão mobile ──
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        sidebar.classList.remove('peek');
+        expandSidebar();
+        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+        item.classList.add('open');
+        return;
+      }
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        expandSidebar();
+      } else {
+        collapseSidebar();
+      }
+    });
+  }
+})();
+
+/* ════════════════════════════════════════════════════
+   CSV_URL ─ cole aqui o link publicado do Google Sheets
+════════════════════════════════════════════════════ */
+// Apps Script publicado como Web App: lê o arquivo certo no Drive
+// e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+// Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
+// então basta buscar todos e juntar as linhas num único conjunto.
+const STORE_KEYS = ["anisio", "bady", "belvedere", "damha"];
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+/* ════════════════════════════════════════════════════ */
+
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS_SEMANA = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+
+let rawData = [];
+let charts  = {};
+
+/* ═══════════════ UTILS ═══════════════ */
+function normHeader(h) {
+  return String(h).trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_\-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
+function parseNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  let s = String(v).trim().replace(/\s/g, '').replace(/[R$"']/g, '');
+  if (!s || s === '-') return null;
+  if (/^-?\d{1,3}(\.\d{3})*(,\d*)?$/.test(s)) return parseFloat(s.replace(/\./g,'').replace(',','.'));
+  if (/^-?\d+(,\d+)?$/.test(s)) return parseFloat(s.replace(',','.'));
+  const n = parseFloat(s.replace(/,/g, ''));
+  return isNaN(n) ? null : n;
+}
+function parseMesN(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Math.round(parseFloat(String(v).replace(',', '.')));
+  if (!isNaN(n) && n >= 1 && n <= 12) return n;
+  const u = String(v).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const i = MESES.findIndex(m => m.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').startsWith(u.slice(0,3)));
+  return i >= 0 ? i + 1 : null;
+}
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+function dateStr(y, m, d) {
+  return String(d).padStart(2,'0') + '/' + String(m).padStart(2,'0') + '/' + y;
+}
+
+function R(v, dec=2) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function R0(v) { return R(v, 0); }
+function N0(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+function Pct(v, d=1) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return (v >= 0 ? '+' : '') + Number(v).toFixed(d) + '%';
+}
+
+/* ═══════════════ CSV PARSE ═══════════════ */
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  if (lines.length < 2) throw new Error('CSV vazio ou sem dados.');
+  const sep = (lines[0].match(/;/g)||[]).length > (lines[0].match(/,/g)||[]).length ? ';' : ',';
+  const hdrs = lines[0].split(sep).map(normHeader);
+  console.log('[CSV] Headers normalizados:', hdrs);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(sep);
+    if (cols.every(c => !c.trim())) continue;
+    const r = {};
+    hdrs.forEach((h, j) => { r[h] = (cols[j] || '').trim(); });
+    rows.push(r);
+  }
+  return { headers: hdrs, rows };
+}
+
+function transform(rows, headers) {
+  const find = cands => cands.find(c => headers.includes(c));
+  const cAno    = find(['ano']);
+  const cLoja   = find(['loja', 'filial', 'unidade']);
+  const cMes    = find(['mes', 'm_s', 'ms', 'me_s']);
+  const cVenda  = find(['total_venda','totalvenda','venda','faturamento','total']);
+  const cCupons = find(['cupons','cupom','pessoas','clientes','passage','passageiros']);
+  const cTicket = find(['ticket','tkm','ticket_medio','ticketmedio']);
+  const cQuebra = find(['quebras','baixas','quebra']);
+  const cData   = find(['data', 'dt', 'data_venda', 'dt_venda', 'dia']);
+
+  if (!cAno || !cLoja || !cMes || !cVenda)
+    throw new Error('Colunas obrigatórias não encontradas. Detectadas: [' + headers.join(', ') + ']. Necessárias: ANO, LOJA, MÊS, Total_Venda');
+
+  console.log('[CSV] Coluna data detectada:', cData || 'NENHUMA (usando cálculo)');
+
+  const result = [];
+  for (const row of rows) {
+    const ano   = parseInt(row[cAno]);
+    const loja  = String(row[cLoja] || '').trim().toUpperCase().replace(/^["']|["']$/g, '');
+    const mes   = parseMesN(row[cMes]);
+    const venda = parseNum(row[cVenda]);
+    if (!ano || isNaN(ano) || !loja || !mes || venda === null) continue;
+
+    let dia = null;
+    if (cData) {
+      const raw = String(row[cData] || '').trim().replace(/["']/g, '');
+      const num = parseInt(raw);
+      if (num >= 1 && num <= 31) {
+        dia = num;
+      } else if (raw.length === 8 && !isNaN(num)) {
+        const dd = parseInt(raw.slice(6, 8));
+        if (dd >= 1 && dd <= 31) dia = dd;
+      }
+    }
+
+    result.push({
+      ano, loja, mes, dia,
+      venda:   Number(venda),
+      cupons:  parseNum(row[cCupons])  || 0,
+      ticket:  parseNum(row[cTicket])  || 0,
+      quebras: parseNum(row[cQuebra])  || 0,
+    });
+  }
+  console.log('[CSV]', result.length, 'registros | anos:', [...new Set(result.map(d=>d.ano))].sort(),
+    '| lojas:', [...new Set(result.map(d=>d.loja))].sort(),
+    '| meses:', [...new Set(result.map(d=>d.mes))].sort((a,b)=>a-b));
+  return result;
+}
+
+/* ═══════════════ FETCH ═══════════════ */
+async function loadData() {
+  const btn = document.getElementById('btnRefresh');
+  btn.classList.add('loading'); btn.disabled = true;
+  showLoading();
+  try {
+    const cacheBust = '&_cb=' + Date.now();
+    const responses = await Promise.all(
+      CSV_URLS.map(url => fetch(url + cacheBust, { cache: 'no-store' }))
+    );
+    responses.forEach((res, i) => {
+      if (!res.ok) throw new Error('HTTP ' + res.status + ' (arquivo ' + (i+1) + ' de ' + CSV_URLS.length + ')');
+    });
+    const texts = await Promise.all(responses.map(res => res.text()));
+    let headers = [];
+    let allRows = [];
+    texts.forEach(txt => {
+      const parsed = parseCSV(txt);
+      if (!headers.length) headers = parsed.headers;
+      allRows = allRows.concat(parsed.rows);
+    });
+    rawData = transform(allRows, headers);
+    if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
+    buildFilters();
+    applyFilters();
+    const now = new Date();
+    document.getElementById('lastUpd').textContent =
+      now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+  } catch(e) {
+    console.error(e);
+    showError(e.message);
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+/* ═══════════════ FILTERS ═══════════════ */
+function buildFilters() {
+  const anos  = [...new Set(rawData.map(d => d.ano))].sort((a,b) => b-a);
+  const lojas = [...new Set(rawData.map(d => d.loja))].sort();
+  const meses = [...new Set(rawData.map(d => d.mes))].sort((a,b) => a-b);
+
+  setOpts('fAno',  anos,  v => v, v => v, '', 'Todos os Anos');
+  setOpts('fLoja', lojas, v => v, v => v, '', 'Todas as Lojas');
+  setOpts('fMes',  meses, v => v, v => MESES[v-1], '', 'Todos os Meses');
+
+  const anoAtual = String(new Date().getFullYear());
+  const selAno = document.getElementById('fAno');
+  if ([...selAno.options].find(o => o.value === anoAtual)) selAno.value = anoAtual;
+  const selMes = document.getElementById('fMes');
+  if (meses.length) selMes.value = meses[meses.length - 1];
+}
+
+function setOpts(id, vals, vFn, lFn, emptyVal, emptyLabel) {
+  const s = document.getElementById(id);
+  const cur = s.value;
+  s.innerHTML = `<option value="${emptyVal}">${emptyLabel}</option>`;
+  vals.forEach(v => {
+    const o = document.createElement('option');
+    o.value = vFn(v); o.textContent = lFn(v);
+    if (String(vFn(v)) === cur) o.selected = true;
+    s.appendChild(o);
+  });
+}
+
+function getF() {
+  const metaRaw = document.getElementById('inputMeta').value
+    .replace(/[^0-9.,]/g, '').replace('.','').replace(',','.');
+  return {
+    ano:  parseInt(document.getElementById('fAno').value)  || null,
+    mes:  parseInt(document.getElementById('fMes').value)  || null,
+    loja: document.getElementById('fLoja').value           || null,
+    meta: parseFloat(metaRaw) || 0,
+  };
+}
+
+function query(ano, mes, loja, field) {
+  return rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja)
+    )
+    .reduce((s, d) => s + (d[field] || 0), 0);
+}
+
+function dayQuery(ano, mes, loja, day, field) {
+  return rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      (d.dia === day)
+    )
+    .reduce((s, d) => s + (d[field] || 0), 0);
+}
+
+function hasDailyData(ano, mes, loja) {
+  return rawData.some(d =>
+    (!ano  || d.ano  === ano)  &&
+    (!mes  || d.mes  === mes)  &&
+    (!loja || d.loja === loja) &&
+    d.dia !== null && d.dia >= 1 && d.dia <= 31
+  );
+}
+
+function applyFilters() { renderDashboard(getF()); }
+
+/* ═══════════════ RENDER ═══════════════ */
+function renderDashboard(f) {
+  destroyCharts();
+  const main = document.getElementById('mainContent');
+
+  if (!f.ano || !f.mes) {
+    main.innerHTML = `<div class="loading-box"><div class="loading-txt" style="color:var(--muted)">Selecione Ano e Mês para visualizar os dados.</div></div>`;
+    return;
+  }
+
+  const anoA = f.ano, anoAnt = f.ano - 1, mes = f.mes, loja = f.loja;
+  const dias = daysInMonth(anoA, mes);
+  const metaMes = f.meta;
+  const metaDia = metaMes > 0 ? metaMes / dias : 0;
+  const mesLbl = MESES[mes - 1];
+
+  const vA    = query(anoA,   mes, loja, 'venda');
+  const vAnt  = query(anoAnt, mes, loja, 'venda');
+  const cA    = query(anoA,   mes, loja, 'cupons');
+  const cAnt  = query(anoAnt, mes, loja, 'cupons');
+  const tktA  = cA   > 0 ? vA   / cA   : 0;
+  const tktAn = cAnt > 0 ? vAnt / cAnt : 0;
+  const qA    = query(anoA,   mes, loja, 'quebras');
+
+  const pctMeta   = metaMes > 0 ? ((vA - metaMes) / metaMes) * 100    : null;
+  const pctVsAnt  = vAnt > 0    ? ((vA - vAnt)    / vAnt)    * 100    : null;
+  const pctPessAA = cAnt > 0    ? ((cA - cAnt)    / cAnt)    * 100    : null;
+  const pctTktAA  = tktAn > 0   ? ((tktA - tktAn) / tktAn)  * 100    : null;
+
+  const vDia    = vA   / dias;
+  const vDiaAnt = vAnt / dias;
+  const cDia    = cA   / dias;
+  const cDiaAnt = cAnt / dias;
+  const qDia    = qA   / dias;
+  const tktDia  = cDia    > 0 ? vDia    / cDia    : (query(anoA,mes,loja,'ticket') || tktA);
+  const tktDiaAnt = cDiaAnt > 0 ? vDiaAnt / cDiaAnt : tktAn;
+
+  const dailyCurrent = hasDailyData(anoA, mes, loja);
+  const dailyPrev    = hasDailyData(anoAnt, mes, loja);
+
+  const today = new Date();
+  const isThisMon = (anoA === today.getFullYear() && mes === today.getMonth() + 1);
+
+  main.innerHTML = `
+  <div class="sh mb">
+    <div class="sh-bar"></div>
+    <div class="sh-title">Indicadores Acumulados — ${mesLbl} ${anoA}</div>
+    <div class="sh-sub">${loja || 'Todas as lojas'}</div>
+  </div>
+  <div class="ind-row" id="indRow"></div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="charts-2">
+    <div class="chart-card">
+      <div class="chart-title">Venda Diária × Meta Diária — ${mesLbl} ${anoA}</div>
+      <div class="chart-sub">Acumulado realizado vs acumulado meta vs acumulado AA</div>
+      <div class="chart-wrap"><canvas id="cAcum"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Faturamento Mensal — ${anoA} vs ${anoAnt}</div>
+      <div class="chart-sub">Comparativo anual por mês</div>
+      <div class="chart-wrap"><canvas id="cAnual"></canvas></div>
+    </div>
+  </div>
+  <div class="sh mb">
+    <div class="sh-bar" style="background:var(--green)"></div>
+    <div class="sh-title">Planilha de Acompanhamento de Metas — ${mesLbl} ${anoA}</div>
+    <div class="sh-sub">Meta mensal: ${metaMes > 0 ? R0(metaMes) : 'Informe a meta acima'} · Meta diária: ${metaMes > 0 ? R(metaDia) : '—'}</div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div>
+        <div class="tbl-head-title">Abertura Diária do Mês</div>
+        <div class="tbl-head-sub">${dailyCurrent ? 'Dados reais extraídos do arquivo diário' : 'Valores distribuídos uniformemente pelos ' + dias + ' dias do mês'}</div>
+      </div>
+      <span class="tbl-badge">${mesLbl} ${anoA} · ${dias} dias · Meta/dia: ${metaMes > 0 ? R(metaDia) : '—'}</span>
+    </div>
+    <div class="tbl-scroll" id="tblScroll"></div>
+  </div>`;
+
+  const inds = [
+    { lbl: '% META ACUM. ATUAL × VENDA', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
+    { lbl: '% VENDA ACUM. ATUAL × AA',   val: pctVsAnt, clr: pctVsAnt === null ? 'blue' : pctVsAnt >= 0 ? 'green' : 'red', note: '', ico: '📈' },
+    { lbl: '% PESSOAS ANO ANTERIOR',     val: pctPessAA,clr: pctPessAA=== null ? 'blue' : pctPessAA>= 0 ? 'green' : 'red', note: '', ico: '👥' },
+    { lbl: '% TK ANO ANTERIOR',          val: pctTktAA, clr: pctTktAA === null ? 'blue' : pctTktAA >= 0 ? 'green' : 'red', note: '', ico: '🛒' },
+  ];
+  document.getElementById('indRow').innerHTML = inds.map(i =>
+    `<div class="ind-card ${i.clr}">
+      <div class="ind-accent"></div>
+      <div class="ind-header">
+        <div class="ind-icon ${i.clr}">${i.ico || '📊'}</div>
+        <div class="ind-label">${i.lbl}</div>
+      </div>
+      <div class="ind-body">
+        <div class="ind-val">${i.val !== null ? Pct(i.val) : (i.note || '—')}</div>
+        ${i.note ? '' : `<div class="ind-sub">vs ${i.lbl.includes('META') ? 'meta' : 'ano anterior'}</div>`}
+      </div>
+    </div>`).join('');
+
+  const kpis = [
+    { lbl:'Faturamento Realizado', val:R0(vA),   dlt:pctVsAnt, ico:'💰', accent:'#1547C0', clr:'blue', inv:false },
+    { lbl:'Meta Mensal',           val:metaMes>0?R0(metaMes):'—', dlt:pctMeta,  ico:'🎯', accent:'#0A7C5C', clr:'green', inv:false },
+    { lbl:'Ticket Médio (TKM)',    val:R(tktA),  dlt:pctTktAA, ico:'🛒', accent:'#B45309', clr:'amber', inv:false },
+    { lbl:'Quebras / Baixas',      val:R0(qA),   dlt:vA>0?((qA/vA)*100):null, ico:'⚠️', accent:'#C8281E', clr:'red', inv:true },
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => {
+    const d = k.dlt, isNull = d === null || isNaN(d);
+    const dc = isNull ? 'neu' : (k.inv ? (d <= 0 ? 'up' : 'down') : (d >= 0 ? 'up' : 'down'));
+    const dt = isNull ? 'Sem comparação' : Pct(d) + ' vs ' + (k.lbl.includes('Fatur') ? 'AA' : k.lbl.includes('Meta') ? 'meta' : 'AA');
+    return `<div class="kpi-card">
+      <div class="kpi-accent" style="background:${k.accent}"></div>
+      <div class="kpi-header">
+        <div class="ind-icon ${k.clr}">${k.ico}</div>
+        <div class="kpi-lbl">${k.lbl}</div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">${k.val}</div>
+        <div class="kpi-foot"><b>${dc==='up'?'▲':dc==='down'?'▼':'·'} ${dt}</b></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const rows = [];
+  let acumAnt = 0, acumMeta = 0, acumReal = 0;
+
+  for (let d = 1; d <= dias; d++) {
+    const isFuture = isThisMon && d > today.getDate();
+    const v    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'venda')   : vDia);
+    const vAn  = isFuture ? null : (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'venda') : vDiaAnt);
+    const c    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'cupons')  : cDia);
+    const cAn  = isFuture ? null : (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'cupons'): cDiaAnt);
+    const tk   = c    > 0 && v    ? v / c    : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'ticket')  : tktDia);
+    const tkAn = cAn  > 0 && vAn  ? vAn / cAn: (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'ticket'): tktDiaAnt);
+    const q    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'quebras') : qDia);
+
+    acumAnt  += (vAn  || 0);
+    acumMeta += metaDia;
+    acumReal += (v    || 0);
+
+    const difVal   = v !== null && metaDia > 0 ? v - metaDia : null;
+    const pctDif   = difVal !== null && metaDia > 0 ? (difVal / metaDia) * 100 : null;
+    const pctAcum  = acumMeta > 0 ? ((acumReal - acumMeta) / acumMeta) * 100 : null;
+    const pctVsAnt2= acumAnt  > 0 ? ((acumReal - acumAnt)  / acumAnt)  * 100 : null;
+    const pctTktDay= tkAn && tkAn > 0 ? ((tk - tkAn) / tkAn) * 100 : null;
+    const pctBaixas= v && v > 0 ? (q / v) * 100 : null;
+    const isToday  = isThisMon && d === today.getDate();
+
+    rows.push({ d, isFuture, isToday,
+      dateAnt: dateStr(anoAnt, mes, d),
+      dateCurr: dateStr(anoA, mes, d),
+      vAn, cAn, tkAn, acumAnt: isFuture ? null : acumAnt,
+      metaDia: metaMes > 0 ? metaDia : null,
+      acumMeta: metaMes > 0 ? acumMeta : null,
+      v, acumReal: isFuture ? null : acumReal,
+      difVal, pctDif, pctAcum, pctVsAnt: pctVsAnt2,
+      c, tk, pctTktDay, q, pctBaixas,
+    });
+  }
+
+  const tblH = `<table>
+    <thead>
+      <tr class="tr-grp">
+        <th class="grp-aa" colspan="5">ANO ANTERIOR (${anoAnt})</th>
+        <th class="grp-atual" colspan="5">ANO ATUAL (${anoA})</th>
+        <th class="grp-desv" colspan="4">DESVIOS META × REALIZADO</th>
+        <th class="grp-tkt" colspan="3">TÍQUETE MÉDIO</th>
+        <th class="grp-pe" colspan="2">BAIXAS</th>
+      </tr>
+      <tr class="tr-sub">
+        <th class="tl">Data AA</th>
+        <th>Venda Diária AA</th>
+        <th>Pessoas AA</th>
+        <th>TKM AA</th>
+        <th class="sep">Venda Acum. AA</th>
+        <th class="tl">Data Atual</th>
+        <th>Meta Diária</th>
+        <th>Meta Acum.</th>
+        <th>Venda Real.</th>
+        <th class="sep">Venda Real. Acum.</th>
+        <th>Dif. Val. (V−M)</th>
+        <th>% Dif. Diária</th>
+        <th>% Dif. Acum.</th>
+        <th class="sep">% Cresc. s/ AA</th>
+        <th>Pessoas</th>
+        <th>TKM</th>
+        <th class="sep">% s/ AA</th>
+        <th>Baixas Totais</th>
+        <th>% Baixas/Fat.</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => {
+        const rc = r.isFuture ? 'future' : r.isToday ? 'today' : '';
+        const td = (v, cls='') => `<td class="${cls}">${v}</td>`;
+        const tdSep = (v, cls='') => `<td class="${cls} sep">${v}</td>`;
+        const pill = (v) => v === null || isNaN(v) ? '<td class="dash">—</td>' :
+          `<td><span class="pill ${v >= 0 ? 'pill-pos':'pill-neg'}">${Pct(v)}</span></td>`;
+        const pillSep = (v) => v === null || isNaN(v) ? '<td class="dash sep">—</td>' :
+          `<td class="sep"><span class="pill ${v >= 0 ? 'pill-pos':'pill-neg'}">${Pct(v)}</span></td>`;
+        const pct = (v) => v === null || isNaN(v) ? '<td class="dash">—</td>' :
+          `<td class="${v >= 0 ? 'pos' : 'neg'}">${Pct(v)}</td>`;
+        const pctSep = (v) => v === null || isNaN(v) ? '<td class="dash sep">—</td>' :
+          `<td class="${v >= 0 ? 'pos sep' : 'neg sep'}">${Pct(v)}</td>`;
+        const def = (v, fn) => v === null ? '<td class="dash">—</td>' : `<td>${fn(v)}</td>`;
+        const defSep = (v, fn) => v === null ? '<td class="dash sep">—</td>' : `<td class="sep">${fn(v)}</td>`;
+        const difCls = r.difVal === null ? 'dash' : r.difVal >= 0 ? 'pos' : 'neg';
+
+        return `<tr class="${rc}">
+          ${td(r.dateAnt, 'tl')}
+          ${def(r.vAn, R0)}
+          ${def(r.cAn, N0)}
+          ${def(r.tkAn, v => R(v))}
+          ${defSep(r.acumAnt, R0)}
+          ${td(r.dateCurr, 'tl')}
+          ${r.metaDia !== null ? `<td>${R(r.metaDia)}</td>` : '<td class="dash">—</td>'}
+          ${r.acumMeta !== null ? `<td>${R0(r.acumMeta)}</td>` : '<td class="dash">—</td>'}
+          ${def(r.v, R0)}
+          ${defSep(r.acumReal, R0)}
+          ${r.difVal !== null ? `<td class="${difCls}">${R0(r.difVal)}</td>` : '<td class="dash">—</td>'}
+          ${pct(r.pctDif)}
+          ${pill(r.pctAcum)}
+          ${pillSep(r.pctVsAnt)}
+          ${def(r.c, N0)}
+          ${def(r.tk, v => R(v))}
+          ${pctSep(r.pctTktDay)}
+          ${def(r.q, R0)}
+          ${r.pctBaixas !== null ? `<td class="${r.pctBaixas > 5 ? 'neg' : 'pos'}">${Pct(r.pctBaixas, 2)}</td>` : '<td class="dash">—</td>'}
+        </tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot>
+      <tr class="tr-media">
+        <td class="tl sep" colspan="2" style="font-weight:700;color:var(--blue)">VENDA MÉDIA DIA AA: ${R(vDiaAnt)}</td>
+        <td style="color:var(--ink2);font-weight:600">${N0(cAnt/dias)}</td>
+        <td colspan="2" class="sep" style="color:var(--ink2);font-weight:600">MÉDIA TK AA: ${R(tktDiaAnt)}</td>
+        <td class="tl sep" colspan="2" style="color:var(--blue);font-weight:700">VENDA MÉDIA DIA: ${R(vDia)}</td>
+        <td style="color:var(--blue);font-weight:700">${metaMes > 0 ? R(metaDia) : '—'}</td>
+        <td colspan="2" class="sep" style="color:var(--blue);font-weight:700">${R0(vA)}</td>
+        <td colspan="4" class="sep" style="color:var(--ink2)">
+          ${pctMeta !== null ? `<span class="pill ${pctMeta >= 0 ? 'pill-pos':'pill-neg'}">Meta: ${Pct(pctMeta)}</span>` : '—'}
+          &nbsp;
+          ${pctVsAnt !== null ? `<span class="pill ${pctVsAnt >= 0 ? 'pill-pos':'pill-neg'}">AA: ${Pct(pctVsAnt)}</span>` : ''}
+        </td>
+        <td>${N0(cA/dias)}</td>
+        <td colspan="2" class="sep" style="color:var(--amber);font-weight:700">MÉDIA TK: ${R(tktA)}</td>
+        <td colspan="2" style="color:var(--ink2)">${R0(qA)}</td>
+      </tr>
+      <tr class="tr-total">
+        <td class="tl sep" colspan="5">TOTAL AA: ${R0(vAnt)}</td>
+        <td class="tl sep" colspan="5">TOTAL REALIZADO: ${R0(vA)}</td>
+        <td colspan="4" class="sep">${metaMes > 0 ? 'META: ' + R0(metaMes) : '—'}</td>
+        <td>${N0(cA)}</td>
+        <td colspan="2" class="sep">TK ACUM: ${R(tktA)}</td>
+        <td colspan="2">BAIXAS: ${R0(qA)}</td>
+      </tr>
+    </tfoot>
+  </table>`;
+
+  document.getElementById('tblScroll').innerHTML = tblH;
+
+  buildChartAcum(anoA, anoAnt, mes, loja, dias, metaDia, dailyCurrent, dailyPrev, isThisMon, today);
+  buildChartAnual(anoA, anoAnt, loja);
+}
+
+/* ═══════════════ CHARTS ═══════════════ */
+const PAL = ['#1547C0','#0A7C5C','#B45309','#C8281E','#7C3AED','#0891B2'];
+
+function buildChartAcum(anoA, anoAnt, mes, loja, dias, metaDia, dailyCurrent, dailyPrev, isThisMon, today) {
+  const labels = [], dReal = [], dMeta = [], dAnt = [];
+  let sa = 0, sm = 0, sb = 0;
+  const vDiaAvg    = query(anoA,   mes, loja, 'venda') / dias;
+  const vDiaAntAvg = query(anoAnt, mes, loja, 'venda') / dias;
+  for (let d = 1; d <= dias; d++) {
+    labels.push(d);
+    const isFut = isThisMon && d > today.getDate();
+    const vCur = dailyCurrent ? dayQuery(anoA, mes, loja, d, 'venda') : vDiaAvg;
+    const vPrev = dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'venda') : vDiaAntAvg;
+    sa += isFut ? 0 : vCur;
+    sm += metaDia;
+    sb += vPrev;
+    dReal.push(isFut ? null : Math.round(sa));
+    dMeta.push(metaDia > 0 ? Math.round(sm) : null);
+    dAnt.push(Math.round(sb));
+  }
+  const ctx = document.getElementById('cAcum').getContext('2d');
+  charts.acum = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Venda Acum.', data: dReal, borderColor: '#1547C0', backgroundColor: 'rgba(21,71,192,.08)', fill: true, tension: .4, borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 5 },
+      { label: 'Meta Acum.',  data: dMeta, borderColor: '#0A7C5C', borderDash: [6,3], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Venda AA Acum.', data: dAnt, borderColor: '#B45309', borderDash: [3,3], fill: false, tension: .4, borderWidth: 1.5, pointRadius: 0 },
+    ]},
+    options: baseChartOpts({ legendPos: 'top' }),
+  });
+}
+
+function buildChartAnual(anoA, anoAnt, loja) {
+  const labels = MESES.map((_,i) => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][i]);
+  const d1 = labels.map((_, i) => {
+    const v = rawData.filter(d => d.ano === anoA && d.mes === i+1 && (!loja || d.loja === loja)).reduce((s,d)=>s+d.venda,0);
+    return v || null;
+  });
+  const d2 = labels.map((_, i) => {
+    const v = rawData.filter(d => d.ano === anoAnt && d.mes === i+1 && (!loja || d.loja === loja)).reduce((s,d)=>s+d.venda,0);
+    return v || null;
+  });
+  const ctx = document.getElementById('cAnual').getContext('2d');
+  charts.anual = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: String(anoA),   data: d1, backgroundColor: '#1547C0', borderRadius: 5, borderSkipped: false },
+      { label: String(anoAnt), data: d2, backgroundColor: '#B8CCF4', borderRadius: 5, borderSkipped: false },
+    ]},
+    options: baseChartOpts({ legendPos: 'top' }),
+  });
+}
+
+function baseChartOpts({ legendPos = 'top' } = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: legendPos, labels: { font: { family: 'Outfit', size: 11 }, boxWidth: 12, padding: 12 } },
+      tooltip: {
+        backgroundColor: '#0C1830', titleColor: '#fff', bodyColor: '#9BB0CC',
+        padding: 10, cornerRadius: 8, borderColor: '#223368', borderWidth: 1,
+        callbacks: { label: c => ` ${c.dataset.label}: R$ ${(c.parsed.y||0).toLocaleString('pt-BR',{minimumFractionDigits:0})}` }
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: 'Outfit', size: 10 }, color: '#8594AF', maxTicksLimit: 12 } },
+      y: {
+        grid: { color: '#E8ECF5' }, border: { display: false },
+        ticks: { font: { family: 'Outfit', size: 10 }, color: '#8594AF',
+          callback: v => 'R$ ' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }
+      }
+    }
+  };
+}
+
+/* ═══════════════ UI HELPERS ═══════════════ */
+function showLoading() {
+  document.getElementById('mainContent').innerHTML =
+    `<div class="loading-box"><div class="spinner"></div><div class="loading-txt">Carregando dados da planilha…</div></div>`;
+  destroyCharts();
+}
+function showError(msg) {
+  const d = document.createElement('div'); d.className = 'err-box';
+  d.innerHTML = `<h3>⚠️ Erro ao carregar dados</h3><p>${msg}</p><button onclick="loadData()">Tentar novamente</button>`;
+  const m = document.getElementById('mainContent'); m.innerHTML = ''; m.appendChild(d);
+  destroyCharts();
+}
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+
+window.addEventListener('DOMContentLoaded', loadData);
+</script>
+</body>
+</html>

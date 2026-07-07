@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard · Faturamento & Lucro</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg: #f4f6f9; --surface: #ffffff; --surface2: #f9fafb;
+    --border: #e5e9f0; --text-primary: #0f1923; --text-secondary: #5a6474;
+    --text-muted: #9aa3b0; --accent: #1a56db; --accent-light: #eff4ff;
+    --accent2: #0ea472; --accent2-light: #ecfdf5; --accent3: #f97316;
+    --accent3-light: #fff7ed; --danger: #ef4444;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
+    --shadow: 0 4px 12px rgba(0,0,0,0.07),0 2px 4px rgba(0,0,0,0.04);
+    --radius: 14px; --font: 'Sora',sans-serif; --mono: 'JetBrains Mono',monospace;
+    --gold: #C8961A; --ease: cubic-bezier(.4,0,.2,1);
+    --side-w: 232px; --side-w-collapsed: 74px;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:var(--font);background:var(--bg);color:var(--text-primary);min-height:100vh;font-size:14px;line-height:1.5}
+
+  /* ── SIDEBAR MENU (mesmo do Análise Comercial) ── */
+  .sidebar {
+    position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
+    background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
+    z-index: 300;
+    display:flex; flex-direction:column;
+    font-family: 'Epilogue', var(--font);
+    overflow: visible;
+    transition: transform .25s ease, width .25s ease;
+  }
+  .sidebar.collapsed { width: var(--side-w-collapsed); }
+  .side-brand {
+    display:flex; align-items:center; gap:11px;
+    padding: 18px 18px 16px; flex-shrink:0;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+    margin-bottom: 8px;
+  }
+  .sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
+  .side-brand svg { width:22px; height:22px; color: var(--gold); flex-shrink:0; }
+  .side-brand-text { white-space:nowrap; overflow:hidden; }
+  .side-brand-text .t { font-family: 'Syne', var(--font); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+  .side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
+  .sidebar.collapsed .side-brand-text { display:none; }
+
+  .side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
+  .side-item { display:flex; flex-direction:column; }
+  .side-link {
+    display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+    background:none; border:none; cursor:pointer;
+    color: rgba(255,255,255,.7);
+    font-family: 'Syne', var(--font); font-weight:600; font-size:13px; letter-spacing:.01em;
+    padding: 10px 11px; border-radius: 10px;
+    transition: background .15s ease, color .15s ease;
+  }
+  .side-link svg { width:18px; height:18px; flex-shrink:0; opacity:.85; }
+  .side-link .chev { margin-left:auto; width:13px; height:13px; opacity:.5; transition: transform .18s ease; }
+  .side-item.open > .side-link .chev { transform: rotate(180deg); }
+  .side-link:hover { background: rgba(255,255,255,.07); color:#fff; }
+  .side-item.active > .side-link { color:#fff; background: rgba(255,255,255,.09); }
+
+  .side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
+
+  .sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
+  .sidebar.collapsed.peek { width: 232px; box-shadow: var(--shadow); }
+  .sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
+  .sidebar.collapsed.peek .side-brand-text { display:block; }
+  .sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
+  .sidebar.collapsed.peek .side-link span,
+  .sidebar.collapsed.peek .side-link .chev { display:inline-flex; }
+  .sidebar.collapsed.peek .side-item.open > .side-sub { display:flex; }
+
+  .sidebar.collapsed .side-link span,
+  .sidebar.collapsed .side-link .chev,
+  .sidebar.collapsed .side-sub { display:none; }
+
+  .sidebar.collapsed:not(.peek) .side-item { position:relative; }
+  .sidebar.collapsed:not(.peek) .side-link::after {
+    content: attr(data-label);
+    position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+    background: #12233C; color:#fff;
+    padding: 7px 12px; border-radius: 8px;
+    font-family: 'Syne', var(--font); font-weight:600; font-size:12.5px; white-space:nowrap;
+    box-shadow: var(--shadow);
+    opacity:0; pointer-events:none; visibility:hidden;
+    transition: opacity .15s ease;
+    z-index: 320;
+  }
+  .sidebar.collapsed:not(.peek) .side-link:hover::after {
+    opacity:1; visibility:visible;
+  }
+  .side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+  .side-sub a {
+    display:flex; align-items:center; gap:9px;
+    padding: 8px 10px; border-radius:8px;
+    font-size:12.5px; font-weight:500;
+    color: rgba(255,255,255,.52); text-decoration:none;
+    transition: background .12s ease, color .12s ease;
+  }
+  .side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
+  .side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
+  .side-sub a.active { color: var(--gold); font-weight:600; background: rgba(200,150,26,.13); }
+
+  .side-toggle {
+    display:none; position:fixed; top:14px; left:14px; z-index:301;
+    width:38px; height:38px; border-radius:10px;
+    background: #0f1923; border:1px solid rgba(255,255,255,.12);
+    align-items:center; justify-content:center; cursor:pointer;
+  }
+  .side-toggle svg { width:19px; height:19px; color:#fff; }
+  .side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
+
+  /* Desloca o conteúdo para a direita da sidebar */
+  .header, .filters-wrap, .main { margin-left: var(--side-w); transition: margin-left .25s ease; }
+
+  @media (max-width: 900px){
+    .sidebar { transform: translateX(-100%); box-shadow: var(--shadow); }
+    body.side-open .sidebar { transform: translateX(0); }
+    body.side-open .side-overlay { display:block; }
+    .side-toggle { display:flex; }
+    .header, .filters-wrap, .main { margin-left: 0 !important; }
+    .header { padding-left: 62px; }
+  }
+
+  .header{background:linear-gradient(90deg, #16283F 0%, #2C4E78 100%);border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;color:#fff;box-shadow:var(--shadow-sm)}
+  .header-brand{display:flex;align-items:center;gap:12px}
+  .header-logo{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center}
+  .header-logo svg{width:20px;height:20px;fill:white}
+  .header-title{font-family:'Calibri','Trebuchet MS',system-ui,sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.3px}
+  .header-sub{font-family:var(--font-body);font-size:12px;color:rgba(255,255,255,.65)}
+  .header-right{display:flex;align-items:center;gap:12px}
+  .last-updated{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:5px 10px;border-radius:6px}
+  .btn-refresh{display:flex;align-items:center;gap:7px;background:var(--accent);color:white;border:none;cursor:pointer;padding:8px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;transition:background .2s,transform .15s;box-shadow:0 2px 8px rgba(26,86,219,.3)}
+  .btn-refresh:hover{background:#1647c7;transform:translateY(-1px)}
+  .btn-refresh svg{width:14px;height:14px;fill:white;transition:transform .4s}
+  .btn-refresh.loading svg{animation:spin .6s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .filters-wrap{position:sticky;top:0;z-index:100;background:rgba(244,246,249,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 32px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
+  .filters-inner{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+  .filter-group{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:4px 10px 4px 12px;box-shadow:var(--shadow-sm)}
+  .filter-group label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+  .filter-group select{border:none;outline:none;font-family:var(--font);font-size:13px;font-weight:500;color:var(--text-primary);background:transparent;cursor:pointer;min-width:100px}
+  .filter-divider{width:1px;height:26px;background:var(--border)}
+  .filter-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.7px}
+
+  .main{padding:24px 32px 48px;max-width:1600px;margin:0 auto}
+  .section-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
+  .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:24px}
+  .kpi-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:16px 18px;box-shadow:var(--shadow-sm);position:relative;overflow:hidden;transition:box-shadow .2s,transform .2s}
+  .kpi-card:hover{box-shadow:var(--shadow);transform:translateY(-2px)}
+  .kpi-card::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;border-radius:var(--radius) var(--radius) 0 0}
+  .kpi-card.blue::before{background:var(--accent)}
+  .kpi-card.green::before{background:var(--accent2)}
+  .kpi-card.orange::before{background:var(--accent3)}
+  .kpi-card.indigo::before{background:#8b5cf6}
+  .kpi-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+  .kpi-card.blue .kpi-icon{background:var(--accent-light)}
+  .kpi-card.green .kpi-icon{background:var(--accent2-light)}
+  .kpi-card.orange .kpi-icon{background:var(--accent3-light)}
+  .kpi-card.indigo .kpi-icon{background:#f5f3ff}
+  .kpi-icon svg{width:18px;height:18px}
+  .kpi-card.blue .kpi-icon svg{fill:var(--accent)}
+  .kpi-card.green .kpi-icon svg{fill:var(--accent2)}
+  .kpi-card.orange .kpi-icon svg{fill:var(--accent3)}
+  .kpi-card.indigo .kpi-icon svg{fill:#8b5cf6}
+  .kpi-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+  .kpi-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
+  .kpi-value{font-size:22px;font-weight:700;letter-spacing:-0.8px;line-height:1;text-align:center;width:100%;margin-bottom:4px}
+  .kpi-sub{font-size:11px;color:var(--text-muted);text-align:right}
+
+  .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  .charts-full{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
+  .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:24px;box-shadow:var(--shadow-sm);transition:box-shadow .2s}
+  .chart-card:hover{box-shadow:var(--shadow)}
+  .chart-header{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:20px}
+  .chart-title{font-size:14px;font-weight:700}
+  .chart-subtitle{font-size:12px;color:var(--text-muted);margin-top:2px}
+  .chart-legend{display:flex;gap:12px;flex-wrap:wrap}
+  .legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text-secondary);font-weight:500}
+  .legend-dot{width:8px;height:8px;border-radius:2px}
+
+  .table-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);box-shadow:var(--shadow-sm);overflow:hidden;margin-bottom:28px}
+  .table-header{padding:18px 24px 14px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between}
+  .table-badge{font-size:11px;font-weight:600;background:var(--accent-light);color:var(--accent);padding:3px 10px;border-radius:20px}
+  table{width:100%;border-collapse:collapse}
+  thead th{background:var(--surface2);font-size:11px;font-weight:700;color:#0f1923;text-transform:none;letter-spacing:0;padding:7px 14px;text-align:center;border-bottom:1px solid var(--border);border-right:1px dashed var(--border);white-space:nowrap}
+  thead th:last-child{border-right:none}
+  thead th.num{text-align:center}
+  tbody tr{border-bottom:1px solid var(--border);transition:background .15s}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:var(--surface2)}
+  tbody td{padding:7px 14px;font-size:12px;white-space:nowrap;border-right:1px dashed var(--border)}
+  tbody td:last-child{border-right:none}
+  tbody td.num{text-align:center;font-family:var(--mono);font-size:11px}
+  tbody td.pct{text-align:center;font-family:var(--mono);font-size:11px;font-weight:600}
+  .pct-good{color:var(--accent2)} .pct-warn{color:var(--accent3)} .pct-bad{color:var(--danger)}
+  .row-loja{font-weight:600;color:var(--accent)}
+  .row-total td{background:#f8faff;font-weight:700;border-top:3px solid var(--accent);padding-top:12px;padding-bottom:12px}
+  .row-total-loja td{background:#f0fdf8;font-weight:700;border-top:3px solid var(--accent2);padding-top:12px;padding-bottom:12px}
+  .prog-wrap{width:70px;height:4px;background:var(--border);border-radius:2px;display:inline-block;vertical-align:middle;margin-left:8px}
+  .prog-bar{height:100%;border-radius:2px}
+
+  .status-center{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:60px 24px;gap:14px;color:var(--text-muted)}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+  .status-msg{font-size:14px;font-weight:600}
+  .status-sub{font-size:12px;color:var(--text-muted);text-align:center;max-width:400px}
+
+  /* Debug panel */
+  .debug-panel{background:#1e293b;color:#94a3b8;border-radius:var(--radius);padding:16px 20px;margin-bottom:24px;font-family:var(--mono);font-size:11px;line-height:1.7}
+  .debug-panel strong{color:#e2e8f0}
+  .debug-panel .ok{color:#4ade80} .debug-panel .err{color:#f87171} .debug-panel .warn{color:#fbbf24}
+  .debug-toggle{display:flex;align-items:center;gap:8px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text-muted);margin-bottom:14px;user-select:none}
+  .debug-toggle:hover{color:var(--text-secondary)}
+
+  @media(max-width:1200px){.charts-grid,.charts-full{grid-template-columns:1fr}}
+  @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
+  @media(max-width:768px){.main{padding:14px}.header{padding:0 14px}.filters-wrap{padding:8px 14px}}
+  @media(max-width:480px){.kpi-grid{grid-template-columns:1fr 1fr}}
+
+  /* ── Canal multi-select ── */
+  .canal-wrap{position:relative;display:inline-flex;align-items:center}
+  .canal-trigger{
+    display:flex;align-items:center;gap:7px;
+    background:var(--surface);border:1px solid var(--border);border-radius:9px;
+    padding:4px 28px 4px 12px;cursor:pointer;user-select:none;
+    font-family:var(--font);font-size:13px;font-weight:500;color:var(--text-primary);
+    min-width:110px;max-width:200px;white-space:nowrap;
+    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa3b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat:no-repeat;background-position:right 9px center;
+    transition:border-color .15s,box-shadow .15s;
+    box-shadow:var(--shadow-sm);
+  }
+  .canal-trigger:hover{border-color:#a0aec0}
+  .canal-trigger.open{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,86,219,.15)}
+  .canal-trigger.has-sel{border-color:#f97316;color:#c2500a;background-color:#fff7ed}
+  .canal-trigger.has-sel.open{box-shadow:0 0 0 3px rgba(249,115,22,.15)}
+
+  .canal-badge{
+    display:inline-flex;align-items:center;justify-content:center;
+    background:#f97316;color:#fff;border-radius:20px;
+    font-size:9px;font-weight:800;min-width:16px;height:16px;padding:0 4px;line-height:1;
+  }
+
+  .canal-dropdown{
+    display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:500;
+    background:var(--surface);border:1px solid var(--border);border-radius:12px;
+    box-shadow:0 8px 32px rgba(0,0,0,.13);min-width:210px;max-width:270px;overflow:hidden;
+  }
+  .canal-dropdown.open{display:block}
+
+  .canal-dd-head{
+    padding:9px 13px 7px;border-bottom:1px solid var(--border);
+    display:flex;align-items:center;justify-content:space-between;
+    background:var(--surface2);
+  }
+  .canal-dd-title{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
+  .canal-dd-actions{display:flex;gap:10px}
+  .canal-dd-btn{
+    font-size:10px;font-weight:700;color:var(--accent);
+    background:none;border:none;cursor:pointer;padding:0;
+    text-decoration:underline;text-underline-offset:2px;
+  }
+  .canal-dd-btn:hover{color:#1647c7}
+
+  .canal-dd-list{max-height:210px;overflow-y:auto;padding:5px 0}
+  .canal-dd-list::-webkit-scrollbar{width:4px}
+  .canal-dd-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+
+  .canal-item{
+    display:flex;align-items:center;gap:9px;
+    padding:7px 14px;cursor:pointer;transition:background .12s;
+  }
+  .canal-item:hover{background:var(--surface2)}
+  .canal-item input[type=checkbox]{
+    width:14px;height:14px;flex-shrink:0;
+    accent-color:#f97316;cursor:pointer;
+  }
+  .canal-item-label{
+    font-size:12.5px;font-weight:500;color:var(--text-primary);
+    flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  }
+  .canal-item.checked .canal-item-label{color:#c2500a;font-weight:600}
+  .canal-filter-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR MENU -->
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="side-brand">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text">
+      <div class="t">Dashboards</div>
+      <div class="s">Painel de Gestão</div>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <div class="side-item active open" data-menu="comercial">
+      <button class="side-link" type="button" id="side-link-comercial" data-label="Comercial">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Comercial</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Analise_Comercial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Análise Comercial
+        </a>
+        <a href="Faturamento_Lucro.html" class="active">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+          Faturamento x Lucro
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="financeiro">
+      <button class="side-link" type="button" data-label="Financeiro">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>Financeiro</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="DRE_Gerencial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          DRE Gerencial
+        </a>
+        <a href="contas_pagar.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
+          Contas a Pagar
+        </a>
+        <a href="contas_receber.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
+          Contas a Receber
+        </a>
+        <a href="fluxo_caixa.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          Fluxo de Caixa
+        </a>
+        <a href="Banco_Declaracao.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          Banco
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="metas">
+      <button class="side-link" type="button" data-label="Metas">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        <span>Metas</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Elaboracao_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Elaboração de Metas
+        </a>
+        <a href="Acompanhamento_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4L12 14.01l-3-3"/></svg>
+          Acompanhamento de Metas
+        </a>
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<header class="header">
+
+  <div class="header-brand">
+    <div class="header-logo"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg></div>
+    <div>
+      <div class="header-title">Faturamento & Lucro Bruto</div>
+      <div class="header-sub">Business Intelligence · Resultado Operacional</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="last-updated" id="lastUpdated">—</div>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+      <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      Atualizar
+    </button>
+  </div>
+</header>
+
+<div class="filters-wrap">
+  <div class="filters-inner">
+    <span class="filter-label">Filtros</span>
+    <div class="filter-group">
+      <label>Ano</label>
+      <select id="filterAno" onchange="applyFilters()"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-divider"></div>
+    <div class="filter-group">
+      <label>Loja</label>
+      <select id="filterLoja" onchange="applyFilters()"><option value="">Todas</option></select>
+    </div>
+    <div class="filter-divider"></div>
+    <div class="filter-group">
+      <label>Mês</label>
+      <select id="filterMes" onchange="applyFilters()"><option value="">Todos</option></select>
+    </div>
+    <div class="filter-divider"></div>
+    <span class="canal-filter-label">Canal</span>
+    <div class="canal-wrap" id="canalWrap">
+      <div class="canal-trigger" id="canalTrigger" onclick="toggleCanalDrop(event)">
+        <span id="canalTxt">Todos</span>
+        <span class="canal-badge" id="canalBadge" style="display:none"></span>
+      </div>
+      <div class="canal-dropdown" id="canalDrop">
+        <div class="canal-dd-head">
+          <span class="canal-dd-title">Canais</span>
+          <div class="canal-dd-actions">
+            <button class="canal-dd-btn" onclick="canalSelAll()">Todos</button>
+            <button class="canal-dd-btn" onclick="canalClear()">Limpar</button>
+          </div>
+        </div>
+        <div class="canal-dd-list" id="canalList"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="main" id="mainContent">
+  <div class="status-center" id="statusBox">
+    <div class="spinner"></div>
+    <div class="status-msg">Carregando dados…</div>
+    <div class="status-sub">Buscando planilhas do Google Sheets</div>
+  </div>
+</main>
+
+<script>
+// ══════════════════════════════════════════════════
+//  ⚙️  CONFIGURAÇÃO — URLs dos CSVs publicados
+// ══════════════════════════════════════════════════
+// Apps Script publicado como Web App: lê o arquivo certo no Drive
+// e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+// Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
+// então basta buscar todos e juntar as linhas num único conjunto.
+const STORE_KEYS = ["anisio", "bady", "belvedere", "damha"];
+const CSV_URLS_FATURAMENTO = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+const CSV_CMV = "https://script.google.com/macros/s/AKfycby-NZhu7IcSv3T5UCxeOG6MDlKoRt4UC9WXTg601894qQDdnHlBBt8IbDqqgWir1UCQ/exec?arquivo=cmv";
+// ══════════════════════════════════════════════════
+
+const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+const MESES_FULL = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+const MESES_MAP = {
+  'janeiro':1,'fevereiro':2,'março':3,'marco':3,'abril':4,'maio':5,'junho':6,
+  'julho':7,'agosto':8,'setembro':9,'outubro':10,'novembro':11,'dezembro':12,
+  'jan':1,'fev':2,'mar':3,'abr':4,'mai':5,'jun':6,
+  'jul':7,'ago':8,'set':9,'out':10,'nov':11,'dez':12
+};
+
+let rawFat = [], rawCmv = [], chartInstances = {}, debugLog = [];
+
+// ─── NORMALIZE header: remove accents, spaces, lowercase
+function norm(s) {
+  return String(s).trim()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '') // remove accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '_')  // non-alphanum → underscore
+    .replace(/^_+|_+$/g, '');      // trim underscores
+}
+
+// ─── Parse MÊS — handles numbers AND text
+function parseMes(v) {
+  if (!v && v !== 0) return 0;
+  const s = String(v).trim();
+  const n = parseInt(s);
+  if (!isNaN(n) && n >= 1 && n <= 12) return n;
+  const key = norm(s);
+  return MESES_MAP[key] || 0;
+}
+
+// ─── Parse ANO
+function parseAno(v) {
+  const s = String(v||'').trim();
+  const n = parseInt(s);
+  return (n > 2000 && n < 2100) ? String(n) : s;
+}
+
+// ─── Parse number: handles R$ 1.234,56 or 1234.56 or 1,234.56
+function parseNum(v) {
+  if (v === null || v === undefined) return 0;
+  let s = String(v).trim().replace(/[R$\s]/g,'');
+  if (!s) return 0;
+  // Detect Brazilian format: ends with ,XX (2 decimals after comma)
+  if (/,\d{1,2}$/.test(s) && s.indexOf(',') > s.indexOf('.')) {
+    s = s.replace(/\./g,'').replace(',','.');
+  } else if (/\.\d{1,2}$/.test(s) && s.split('.').length === 2) {
+    // already dot decimal
+    s = s.replace(/,/g,'');
+  } else {
+    // just remove any separators that look like thousands
+    s = s.replace(/[.,]/g, match => {
+      // if last separator — keep as decimal; otherwise it's thousands
+      const lastComma = s.lastIndexOf(',');
+      const lastDot   = s.lastIndexOf('.');
+      const lastSep   = Math.max(lastComma, lastDot);
+      return (s.indexOf(match) === lastSep) ? '.' : '';
+    });
+  }
+  return parseFloat(s) || 0;
+}
+
+// ─── Detect CSV separator
+function detectSep(firstLine) {
+  const sc = (firstLine.match(/;/g)||[]).length;
+  const cc = (firstLine.match(/,/g)||[]).length;
+  return sc > cc ? ';' : ',';
+}
+
+// ─── Parse CSV robustly (handles quoted fields)
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  const nonEmpty = lines.filter(l => l.trim());
+  if (!nonEmpty.length) return { rows: [], headers: [] };
+
+  const sep = detectSep(nonEmpty[0]);
+  debugLog.push(`Separador detectado: "<strong>${sep}</strong>"`);
+
+  // Parse with quote support
+  function splitLine(line) {
+    const result = [], re = new RegExp(`(?:^|${sep === ',' ? ',' : ';'})(\"(?:[^\"]+|\"\")*\"|[^${sep === ',' ? ',' : ';'}]*)`, 'g');
+    let m;
+    while ((m = re.exec(line)) !== null) {
+      let val = m[1].trim();
+      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1,-1).replace(/""/g,'"');
+      result.push(val);
+    }
+    return result;
+  }
+
+  const rawHeaders = splitLine(nonEmpty[0]);
+  const headers = rawHeaders.map(norm);
+  debugLog.push(`Colunas Faturamento (raw): <strong>${rawHeaders.join(' | ')}</strong>`);
+  debugLog.push(`Colunas Faturamento (norm): <strong>${headers.join(' | ')}</strong>`);
+
+  const rows = [];
+  for (let i = 1; i < nonEmpty.length; i++) {
+    const line = nonEmpty[i].trim();
+    if (!line) continue;
+    const vals = splitLine(line);
+    if (vals.every(v => !v)) continue;
+    const obj = {};
+    headers.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim(); });
+    rows.push(obj);
+  }
+  return { rows, headers };
+}
+
+// ─── Find column by multiple possible names
+function findCol(headers, candidates) {
+  for (const c of candidates) {
+    const n = norm(c);
+    if (headers.includes(n)) return n;
+  }
+  // fuzzy: starts with
+  for (const c of candidates) {
+    const n = norm(c);
+    const found = headers.find(h => h.startsWith(n) || n.startsWith(h));
+    if (found) return found;
+  }
+  return null;
+}
+
+// ─── Fetch with anti-cache
+async function fetchCSV(url) {
+  const r = await fetch(url + '&_nc=' + Date.now(), {
+    cache: 'no-store',
+    headers: { 'Cache-Control': 'no-cache' }
+  });
+  if (!r.ok) throw new Error(`HTTP ${r.status} ao buscar CSV`);
+  return r.text();
+}
+
+// ─── LOAD
+async function loadData() {
+  debugLog = [];
+  const btn = document.getElementById('btnRefresh');
+  btn.classList.add('loading');
+  showLoading();
+
+  try {
+    debugLog.push(`<span class="ok">✓ Iniciando fetch dos CSVs…</span>`);
+    const [fatTexts, cmvText] = await Promise.all([
+      Promise.all(CSV_URLS_FATURAMENTO.map(url => fetchCSV(url))),
+      fetchCSV(CSV_CMV)
+    ]);
+    debugLog.push(`<span class="ok">✓ CSVs recebidos — Fat: ${fatTexts.length} arquivo(s), CMV: ${cmvText.length} chars</span>`);
+
+    // Sample first line for debugging
+    fatTexts.forEach((t, i) => debugLog.push(`Primeira linha Fat[${i}]: <strong>${t.split('\n')[0].substring(0,120)}</strong>`));
+    debugLog.push(`Primeira linha CMV: <strong>${cmvText.split('\n')[0].substring(0,120)}</strong>`);
+
+    // ── Parse Faturamento (mescla os 4 arquivos, um por loja)
+    let fatHeaders = [];
+    let fatRows = [];
+    fatTexts.forEach(fatText => {
+      const parsed = parseCSV(fatText);
+      if (!fatHeaders.length) fatHeaders = parsed.headers;
+      fatRows = fatRows.concat(parsed.rows);
+    });
+
+    const colFatAno    = findCol(fatHeaders, ['ano','year','ano_','ano2']);
+    const colFatLoja   = findCol(fatHeaders, ['loja','store','loja_','filial','unidade']);
+    const colFatMes    = findCol(fatHeaders, ['mes','m_s','month','mês','mes_','periodo']);
+    const colFatVenda  = findCol(fatHeaders, ['total_venda','totalvenda','venda','vendas','faturamento','receita','total','valor_venda','vlr_venda','fat']);
+    const colFatCanal  = findCol(fatHeaders, ['canais','canal','channel','canal_venda','canal_distribuicao','categoria']);
+
+    debugLog.push(`Mapeamento Fat — ano:<strong>${colFatAno}</strong> loja:<strong>${colFatLoja}</strong> mes:<strong>${colFatMes}</strong> venda:<strong>${colFatVenda}</strong> canal:<strong>${colFatCanal||'não encontrado'}</strong>`);
+
+    if (!colFatVenda) {
+      throw new Error(`Coluna de venda não encontrada em Faturamento. Colunas disponíveis: ${fatHeaders.join(', ')}`);
+    }
+
+    rawFat = fatRows.map(r => ({
+      ano:         colFatAno   ? parseAno(r[colFatAno])                         : '',
+      loja:        colFatLoja  ? String(r[colFatLoja]||'').trim().toUpperCase() : 'SEM LOJA',
+      mes:         colFatMes   ? parseMes(r[colFatMes])                         : 0,
+      canal:       colFatCanal ? String(r[colFatCanal]||'').trim()              : '',
+      total_venda: parseNum(r[colFatVenda])
+    })).filter(r => r.total_venda !== 0 || (r.ano && r.loja));
+
+    debugLog.push(`<span class="ok">✓ Faturamento: ${rawFat.length} linhas válidas de ${fatRows.length} lidas</span>`);
+    if (rawFat.length > 0) {
+      debugLog.push(`Amostra Fat[0]: ${JSON.stringify(rawFat[0])}`);
+    }
+
+    // ── Parse CMV
+    const { rows: cmvRows, headers: cmvHeaders } = (() => {
+      const r = parseCSV(cmvText);
+      // Relabel for CMV
+      debugLog.push(`Colunas CMV (norm): <strong>${r.headers.join(' | ')}</strong>`);
+      return r;
+    })();
+
+    const colCmvAno   = findCol(cmvHeaders, ['ano','year']);
+    const colCmvLoja  = findCol(cmvHeaders, ['loja','store','filial','unidade']);
+    const colCmvMes   = findCol(cmvHeaders, ['mes','m_s','month','mês','periodo']);
+    const colCmvCanal = findCol(cmvHeaders, ['canais','canal','channel','categoria']);
+    const colCmvValor = findCol(cmvHeaders, ['valor','value','cmv','custo','total','venda','receita']);
+
+    debugLog.push(`Mapeamento CMV — ano:<strong>${colCmvAno}</strong> loja:<strong>${colCmvLoja}</strong> mes:<strong>${colCmvMes}</strong> valor:<strong>${colCmvValor}</strong>`);
+
+    rawCmv = cmvRows.map(r => ({
+      ano:   colCmvAno  ? parseAno(r[colCmvAno])  : '',
+      loja:  colCmvLoja ? String(r[colCmvLoja]||'').trim().toUpperCase() : 'SEM LOJA',
+      mes:   colCmvMes  ? parseMes(r[colCmvMes])  : 0,
+      canais: colCmvCanal ? String(r[colCmvCanal]||'').trim() : '',
+      valor: colCmvValor ? parseNum(r[colCmvValor]) : 0
+    })).filter(r => r.valor !== 0 || r.ano);
+
+    debugLog.push(`<span class="ok">✓ CMV: ${rawCmv.length} linhas válidas de ${cmvRows.length} lidas</span>`);
+    if (rawCmv.length > 0) debugLog.push(`Amostra CMV[0]: ${JSON.stringify(rawCmv[0])}`);
+
+    if (rawFat.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
+
+    populateFilters();
+    renderDashboard();
+    document.getElementById('lastUpdated').textContent =
+      'Atualizado: ' + new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+
+  } catch(e) {
+    debugLog.push(`<span class="err">✗ ERRO: ${e.message}</span>`);
+    showError(e.message);
+  } finally {
+    btn.classList.remove('loading');
+  }
+}
+
+function showLoading() {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="status-center">
+      <div class="spinner"></div>
+      <div class="status-msg">Carregando dados…</div>
+      <div class="status-sub">Conectando ao Google Sheets</div>
+    </div>`;
+}
+
+function showError(msg) {
+  document.getElementById('mainContent').innerHTML = `
+    <div class="status-center">
+      <div style="font-size:32px">⚠️</div>
+      <div class="status-msg">Erro ao carregar dados</div>
+      <div class="status-sub">${msg}</div>
+    </div>
+    ${buildDebugPanel()}`;
+}
+
+function buildDebugPanel() {
+  return `
+    <div style="margin:0 auto;max-width:900px">
+      <div class="debug-toggle" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+        🔍 Diagnóstico técnico (clique para expandir)
+      </div>
+      <div class="debug-panel" style="display:none">
+        ${debugLog.map(l=>`<div>${l}</div>`).join('')}
+      </div>
+    </div>`;
+}
+
+// ── FILTERS
+let selectedCanais = new Set(); // vazio = todos
+let _allCanais = [];
+
+function populateFilters() {
+  const anos  = [...new Set(rawFat.map(r=>r.ano))].filter(Boolean).sort();
+  const lojas = [...new Set(rawFat.map(r=>r.loja))].filter(Boolean).sort();
+  const meses = [...new Set(rawFat.map(r=>r.mes))].filter(m=>m>0).sort((a,b)=>a-b);
+  // Canais: lê da planilha Faturamento (campo canal)
+  const canais = [...new Set(rawFat.map(r=>r.canal))].filter(Boolean).sort();
+  setSelect('filterAno', anos);
+  setSelect('filterLoja', lojas);
+  setSelect('filterMes', meses, m => `${MESES_NOME[m]||m}`);
+  _allCanais = canais;
+  buildCanalList();
+  // Selecionar ano atual ao abrir; fallback para o mais recente disponível
+  const selAno = document.getElementById('filterAno');
+  if (!selAno.value) {
+    const anoAtual = String(new Date().getFullYear());
+    selAno.value = anos.includes(anoAtual) ? anoAtual : (anos[anos.length-1] || '');
+  }
+}
+function setSelect(id, vals, lFn=v=>v) {
+  const sel = document.getElementById(id);
+  const cur = sel.value;
+  while (sel.options.length > 1) sel.remove(1);
+  vals.forEach(v => sel.add(new Option(lFn(v), v)));
+  if ([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+}
+function getFilters() {
+  return {
+    ano:    document.getElementById('filterAno').value,
+    loja:   document.getElementById('filterLoja').value,
+    mes:    parseInt(document.getElementById('filterMes').value)||0,
+    canais: selectedCanais
+  };
+}
+function filterData(rows) {
+  // Faturamento: filtra por ano/loja/mes/canal
+  const f = getFilters();
+  return rows.filter(r =>
+    (!f.ano  || r.ano  === f.ano)  &&
+    (!f.loja || r.loja === f.loja) &&
+    (!f.mes  || r.mes  === f.mes)  &&
+    (f.canais.size === 0 || !r.canal || f.canais.has(r.canal))
+  );
+}
+function filterDataCmv(rows) {
+  // CMV: filtrar apenas por ano/loja/mes — canal NÃO interfere no CMV
+  const f = getFilters();
+  return rows.filter(r =>
+    (!f.ano  || r.ano  === f.ano)  &&
+    (!f.loja || r.loja === f.loja) &&
+    (!f.mes  || r.mes  === f.mes)
+  );
+}
+function applyFilters() { renderDashboard(); }
+
+// Canais pré-selecionados ao iniciar (comparação sem diferença de maiúsculas)
+const DEFAULT_CANAIS = ['loja', 'delivery'];
+
+// ── Canal dropdown UI
+function buildCanalList() {
+  const list = document.getElementById('canalList');
+  if (!list) return;
+
+  // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery
+  if (selectedCanais.size === 0) {
+    _allCanais.forEach(canal => {
+      if (DEFAULT_CANAIS.includes(canal.toLowerCase())) {
+        selectedCanais.add(canal);
+      }
+    });
+    // Se todos os canais foram selecionados, mantém comportamento "Todos"
+    if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
+  }
+
+  list.innerHTML = '';
+  _allCanais.forEach(canal => {
+    const lbl = document.createElement('label');
+    lbl.className = 'canal-item' + (selectedCanais.has(canal) ? ' checked' : '');
+    lbl.innerHTML = `
+      <input type="checkbox" value="${canal.replace(/"/g,'&quot;')}"
+        ${selectedCanais.has(canal)?'checked':''}
+        onchange="onCanalChk(this)">
+      <span class="canal-item-label" title="${canal}">${canal}</span>`;
+    list.appendChild(lbl);
+  });
+  updateCanalTrigger();
+}
+
+function onCanalChk(cb) {
+  const v = cb.value;
+  cb.checked ? selectedCanais.add(v) : selectedCanais.delete(v);
+  // se todos marcados → equivale a "todos" → limpa
+  if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
+  cb.closest('.canal-item').classList.toggle('checked', cb.checked && selectedCanais.size > 0);
+  updateCanalTrigger();
+  renderDashboard();
+}
+
+function canalSelAll() {
+  selectedCanais.clear();
+  document.querySelectorAll('#canalList input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateCanalTrigger();
+  renderDashboard();
+}
+
+function canalClear() { canalSelAll(); }
+
+function updateCanalTrigger() {
+  const n       = selectedCanais.size;
+  const badge   = document.getElementById('canalBadge');
+  const txt     = document.getElementById('canalTxt');
+  const trigger = document.getElementById('canalTrigger');
+  if (!trigger) return;
+  if (n === 0) {
+    txt.textContent = 'Todos';
+    badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else if (n === 1) {
+    const [v] = selectedCanais;
+    txt.textContent = v.length > 13 ? v.slice(0,12)+'…' : v;
+    badge.style.display = 'none';
+    trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} canais`;
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+    trigger.classList.add('has-sel');
+  }
+}
+
+function toggleCanalDrop(e) {
+  e.stopPropagation();
+  const dd = document.getElementById('canalDrop');
+  const tr = document.getElementById('canalTrigger');
+  const open = dd.classList.toggle('open');
+  tr.classList.toggle('open', open);
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#canalWrap')) {
+    const dd = document.getElementById('canalDrop');
+    const tr = document.getElementById('canalTrigger');
+    if (dd) dd.classList.remove('open');
+    if (tr) tr.classList.remove('open');
+  }
+});
+
+// ── HELPERS
+const sumBy = (rows, key) => rows.reduce((s,r)=>s+(r[key]||0), 0);
+const groupBy = (rows, key) => rows.reduce((acc,r)=>{ const k=r[key]||'?'; (acc[k]=acc[k]||[]).push(r); return acc; }, {});
+const fmt  = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0});
+const fmtK = n => { if(Math.abs(n)>=1e6) return (n/1e6).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'M'; if(Math.abs(n)>=1e3) return (n/1e3).toLocaleString('pt-BR',{maximumFractionDigits:0})+'K'; return n.toLocaleString('pt-BR'); };
+const fmtPct = n => n.toFixed(2).replace('.',',')+'%';
+const fmtNum = n => n.toLocaleString('pt-BR',{maximumFractionDigits:0});  // sem símbolo R$
+const P = { blue:'#1a56db', bS:'rgba(26,86,219,.12)', green:'#0ea472', gS:'rgba(14,164,114,.12)', orange:'#f97316', oS:'rgba(249,115,22,.12)', purple:'#8b5cf6', pS:'rgba(139,92,246,.1)' };
+function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy(); delete chartInstances[id]; } }
+
+// ── RENDER
+function renderDashboard() {
+  const fatF = filterData(rawFat);
+  const cmvF = filterDataCmv(rawCmv);
+
+  const tFat   = sumBy(fatF, 'total_venda');
+  const tCmv   = sumBy(cmvF, 'valor');
+  const tLucro = tFat - tCmv;
+  const pctLB  = tFat > 0 ? (tLucro/tFat)*100 : 0;
+
+  // By month — meses guiados pelo faturamento; CMV mantém valores completos
+  const fatByM = groupBy(fatF, 'mes');
+  const cmvByM = groupBy(cmvF, 'mes');
+  const allM   = [...new Set(Object.keys(fatByM))].map(Number).filter(m=>m>0).sort((a,b)=>a-b);
+  const fatMA  = allM.map(m => sumBy(fatByM[m]||[], 'total_venda'));
+  const cmvMA  = allM.map(m => sumBy(cmvByM[m]||[], 'valor'));
+  const lucMA  = fatMA.map((f,i) => f - cmvMA[i]);
+  const mesLbl     = allM.map(m => MESES_NOME[m]||m);   // short — for charts
+  const mesLblFull = allM.map(m => MESES_FULL[m]||MESES_NOME[m]||m); // full — for table
+
+  // By loja
+  const lojas  = [...new Set([...fatF.map(r=>r.loja),...cmvF.map(r=>r.loja)])].filter(Boolean).sort();
+  const fatLA  = lojas.map(l => sumBy(fatF.filter(r=>r.loja===l), 'total_venda'));
+  const cmvLA  = lojas.map(l => sumBy(cmvF.filter(r=>r.loja===l), 'valor'));
+  const lucLA  = fatLA.map((f,i) => f - cmvLA[i]);
+  const pctLA  = fatLA.map((f,i) => f>0 ? ((f-cmvLA[i])/f)*100 : 0);
+
+  const main = document.getElementById('mainContent');
+  main.innerHTML = '';
+
+  // ── KPIs
+  const kpiWrap = el('div');
+  kpiWrap.innerHTML = `<div class="section-title">Indicadores Gerais</div>
+  <div class="kpi-grid">
+    ${kpi('blue','M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z','Faturamento Total',fmt(tFat),`${fatF.length} registros`)}
+    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total',fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
+    ${kpi('green','M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z','Lucro Bruto',fmt(tLucro),`Margem de ${fmtPct(pctLB)}`)}
+    ${kpi('indigo','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4h2v4zm0-6h-2V7h2v4z','% Lucro Bruto',fmtPct(pctLB),pctLB>=30?'✓ Acima do esperado':pctLB>=15?'→ Dentro do esperado':'↓ Abaixo do esperado')}
+  </div>`;
+  main.appendChild(kpiWrap);
+
+  // ── Charts mensais
+  const row1 = el('div');
+  row1.innerHTML = `<div class="section-title">Evolução Mensal</div>`;
+  const g1 = el('div','charts-grid');
+  g1.innerHTML = `
+    <div class="chart-card">
+      <div class="chart-header">
+        <div><div class="chart-title">Faturamento vs CMV vs Lucro Bruto</div><div class="chart-subtitle">Comparativo mensal</div></div>
+        <div class="chart-legend">
+          <div class="legend-item"><div class="legend-dot" style="background:${P.blue}"></div>Faturamento</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${P.orange}"></div>CMV</div>
+          <div class="legend-item"><div class="legend-dot" style="background:${P.green}"></div>Lucro</div>
+        </div>
+      </div>
+      <canvas id="cEvo" height="120"></canvas>
+    </div>
+    <div class="chart-card">
+      <div class="chart-header"><div><div class="chart-title">% Lucro Bruto / Mês</div><div class="chart-subtitle">Margem mensal</div></div></div>
+      <canvas id="cMar" height="160"></canvas>
+    </div>`;
+  row1.appendChild(g1);
+  main.appendChild(row1);
+
+  // ── Charts por loja
+  if (lojas.length > 1) {
+    const row2 = el('div');
+    row2.innerHTML = `<div class="section-title">Por Loja</div>`;
+    const g2 = el('div','charts-full');
+    g2.innerHTML = `
+      <div class="chart-card">
+        <div class="chart-header">
+          <div><div class="chart-title">Faturamento por Loja</div><div class="chart-subtitle">Receita e lucro comparados</div></div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:${P.blue}"></div>Faturamento</div>
+            <div class="legend-item"><div class="legend-dot" style="background:${P.green}"></div>Lucro</div>
+          </div>
+        </div>
+        <canvas id="cLoj" height="120"></canvas>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header"><div><div class="chart-title">% Lucro Bruto por Loja</div><div class="chart-subtitle">Margem operacional</div></div></div>
+        <canvas id="cML" height="120"></canvas>
+      </div>`;
+    row2.appendChild(g2);
+    main.appendChild(row2);
+  }
+
+  // ── Tabela
+  const tWrap = el('div');
+  tWrap.innerHTML = `<div class="section-title">Tabela Comparativa Detalhada</div>`;
+  const anoFiltro = document.getElementById('filterAno').value;
+  if (!anoFiltro) {
+    // Comparativo entre os últimos 2 anos
+    const todosAnos = [...new Set(rawFat.map(r=>r.ano))].filter(Boolean).sort();
+    const ultimos2  = todosAnos.slice(-2);
+    if (ultimos2.length === 2) {
+      buildTableComparativo(ultimos2, lojas).forEach(c => tWrap.appendChild(c));
+    } else {
+      buildTable(allM, mesLblFull, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucLA, pctLA).forEach(c => tWrap.appendChild(c));
+    }
+  } else {
+    buildTable(allM, mesLblFull, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucLA, pctLA).forEach(c => tWrap.appendChild(c));
+  }
+  main.appendChild(tWrap);
+
+  // ── Draw charts
+  requestAnimationFrame(() => {
+    mkChart('cEvo', 'bar', mesLbl, [
+      { label:'Faturamento', data:fatMA, backgroundColor:P.bS, borderColor:P.blue, borderWidth:2, borderRadius:6, borderSkipped:false },
+      { label:'CMV',         data:cmvMA, backgroundColor:P.oS, borderColor:P.orange, borderWidth:2, borderRadius:6, borderSkipped:false },
+      { label:'Lucro',       data:lucMA, type:'line', fill:true, backgroundColor:'rgba(14,164,114,.08)', borderColor:P.green, borderWidth:2.5, tension:.4, pointBackgroundColor:P.green, pointRadius:4 }
+    ], 'currency');
+
+    const pctM = fatMA.map((f,i) => f>0 ? ((f-cmvMA[i])/f)*100 : 0);
+    mkChartPct2('cMar', mesLbl, [{
+      label:'% Lucro', data:pctM, fill:true,
+      backgroundColor:P.pS, borderColor:P.purple, borderWidth:2.5,
+      tension:.4, pointBackgroundColor:P.purple, pointRadius:5
+    }]);
+
+    if (lojas.length > 1) {
+      mkChart('cLoj', 'bar', lojas, [
+        { label:'Faturamento', data:fatLA, backgroundColor:P.bS, borderColor:P.blue, borderWidth:2, borderRadius:6, borderSkipped:false },
+        { label:'Lucro',       data:lucLA, backgroundColor:P.gS, borderColor:P.green, borderWidth:2, borderRadius:6, borderSkipped:false }
+      ], 'currency');
+      mkChart('cML', 'bar', lojas, [{
+        label:'% Lucro', data:pctLA,
+        backgroundColor: pctLA.map(p=>p>=30?P.gS:p>=15?P.oS:'rgba(239,68,68,.12)'),
+        borderColor:     pctLA.map(p=>p>=30?P.green:p>=15?P.orange:'#ef4444'),
+        borderWidth:2, borderRadius:6, borderSkipped:false
+      }], 'percent');
+    }
+  });
+}
+
+function el(tag, cls='') {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  return e;
+}
+
+function kpi(color, d, label, value, sub) {
+  return `<div class="kpi-card ${color}">
+    <div class="kpi-header">
+      <div class="kpi-icon"><svg viewBox="0 0 24 24"><path d="${d}"/></svg></div>
+      <div class="kpi-label">${label}</div>
+    </div>
+    <div class="kpi-value">${value}</div>
+    <div class="kpi-sub">${sub}</div>
+  </div>`;
+}
+
+function mkChartPct2(id, labels, datasets) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  const allVals = datasets.flatMap(ds => ds.data).filter(v => v != null && isFinite(v));
+  const dataMin = allVals.length ? Math.min(...allVals) : 0;
+  const dataMax = allVals.length ? Math.max(...allVals) : 2;
+  const step = 2;
+  const yMin = Math.floor(dataMin / step) * step;
+  const yMax = Math.ceil((dataMax * 1.10) / step) * step;
+  chartInstances[id] = new Chart(el, {
+    type:'line', data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#0f1923', padding:12, cornerRadius:10,
+          bodyFont:{family:"'Sora',sans-serif",size:12},
+          titleFont:{family:"'Sora',sans-serif",size:11,weight:'600'},
+          callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${fmtPct(ctx.parsed.y)}` }
+        }
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{family:"'Sora',sans-serif",size:11},color:'#9aa3b0'} },
+        y:{
+          min: yMin, max: yMax,
+          grid:{color:'rgba(0,0,0,0.05)',drawBorder:false},
+          border:{display:false},
+          ticks:{
+            stepSize: step,
+            font:{family:"'JetBrains Mono',monospace",size:10}, color:'#9aa3b0',
+            callback: v => fmtPct(v)
+          }
+        }
+      }
+    }
+  });
+}
+
+function mkChart(id, type, labels, datasets, fmt) {
+  destroyChart(id);
+  const el = document.getElementById(id);
+  if (!el) return;
+  chartInstances[id] = new Chart(el, {
+    type, data: { labels, datasets },
+    options: {
+      responsive:true, maintainAspectRatio:true,
+      interaction:{ mode:'index', intersect:false },
+      plugins:{
+        legend:{display:false},
+        tooltip:{
+          backgroundColor:'#0f1923', padding:12, cornerRadius:10,
+          bodyFont:{family:"'Sora',sans-serif",size:12},
+          titleFont:{family:"'Sora',sans-serif",size:11,weight:'600'},
+          callbacks:{
+            label: ctx => {
+              const v = ctx.parsed.y;
+              if(fmt==='currency') return ` ${ctx.dataset.label}: ${fmt_(v)}`;
+              if(fmt==='percent')  return ` ${ctx.dataset.label}: ${fmtPct(v)}`;
+              return ` ${ctx.dataset.label}: ${v}`;
+            }
+          }
+        }
+      },
+      scales:{
+        x:{ grid:{display:false}, ticks:{font:{family:"'Sora',sans-serif",size:11},color:'#9aa3b0'} },
+        y:{
+          grid:{color:'rgba(0,0,0,0.05)',drawBorder:false},
+          border:{display:false},
+          ticks:{
+            font:{family:"'JetBrains Mono',monospace",size:10},color:'#9aa3b0',
+            callback: v => fmt==='currency' ? 'R$'+fmtK(v) : fmt==='percent' ? fmtPct(v) : v
+          }
+        }
+      }
+    }
+  });
+}
+const fmt_ = fmt; // alias
+
+// ── Helper: AH% badge
+function ahBadge(v) {
+  if (v === null || !isFinite(v)) return `<span style="color:var(--text-muted)">—</span>`;
+  const cls = v >= 0 ? 'color:#0ea472;font-weight:700' : 'color:#ef4444;font-weight:700';
+  const arrow = v >= 0 ? '▲' : '▼';
+  return `<span style="${cls}">${arrow} ${fmtPct(Math.abs(v))}</span>`;
+}
+
+function buildTableComparativo(anos, lojas) {
+  const [anoA, anoB] = anos; // anoA = mais antigo, anoB = mais recente
+  const lojaSel = document.getElementById('filterLoja').value;
+  const mesSel  = parseInt(document.getElementById('filterMes').value)||0;
+
+  function filtrar(anoVal) {
+    return rawFat.filter(r =>
+      r.ano === anoVal &&
+      (!lojaSel || r.loja === lojaSel) &&
+      (!mesSel  || r.mes  === mesSel)  &&
+      (selectedCanais.size === 0 || !r.canal || selectedCanais.has(r.canal))
+    );
+  }
+  function filtrarCmv(anoVal) {
+    return rawCmv.filter(r =>
+      r.ano === anoVal &&
+      (!lojaSel || r.loja === lojaSel) &&
+      (!mesSel  || r.mes === mesSel)
+    );
+  }
+
+  const fatA = filtrar(anoA), fatB = filtrar(anoB);
+  const cmvA = filtrarCmv(anoA), cmvB = filtrarCmv(anoB);
+
+  // Meses guiados pelo faturamento de cada ano; CMV permanece completo
+  const allM = [...new Set([
+    ...fatA.map(r=>r.mes),
+    ...fatB.map(r=>r.mes)
+  ])].filter(m=>m>0).sort((a,b)=>a-b);
+
+  // ── Comparativo Mensal card
+  const thStyle = 'style="text-align:center;border-left:1px solid var(--border)"';
+  const thFirst = 'style="text-align:left"';
+  const sepTh   = `style="text-align:center;background:#f0f4ff;border-left:2px solid var(--accent)"`;
+
+  let thead = `
+    <tr>
+      <th rowspan="2" style="text-align:left;vertical-align:middle;border-bottom:1px solid var(--border)">Mês</th>
+      <th colspan="4" style="text-align:center;background:#f0f4ff;border-left:1px solid var(--border);border-bottom:1px solid var(--accent)">${anoA}</th>
+      <th colspan="4" style="text-align:center;background:#f0f4ff;border-left:2px solid var(--accent);border-bottom:1px solid var(--accent)">${anoB}</th>
+      <th rowspan="2" style="text-align:center;background:#fff7ed;border-left:2px solid var(--accent3);vertical-align:middle;border-bottom:1px solid var(--border)">Var. Fat.</th>
+    </tr>
+    <tr>
+      <th style="text-align:center;border-left:1px solid var(--border)">Fat.</th><th style="text-align:center">CMV</th><th style="text-align:center">Lucro</th><th style="text-align:center">%LB</th>
+      <th style="text-align:center;border-left:2px solid var(--accent)">Fat.</th><th style="text-align:center">CMV</th><th style="text-align:center">Lucro</th><th style="text-align:center">%LB</th>
+    </tr>`;
+
+  let rows = '', tFA=0,tCA=0, tFB=0,tCB=0;
+
+  allM.forEach(m => {
+    const fA = sumBy(fatA.filter(r=>r.mes===m),'total_venda');
+    const cA = sumBy(cmvA.filter(r=>r.mes===m),'valor');
+    const lA = fA - cA, pA = fA>0?(lA/fA)*100:0;
+    const fB = sumBy(fatB.filter(r=>r.mes===m),'total_venda');
+    const cB = sumBy(cmvB.filter(r=>r.mes===m),'valor');
+    const lB = fB - cB, pB = fB>0?(lB/fB)*100:0;
+    if (fA===0 && cA===0 && fB===0 && cB===0) return;
+    tFA+=fA; tCA+=cA; tFB+=fB; tCB+=cB;
+    const varF = fA>0 ? (fB-fA)/fA*100 : null;
+    rows += `<tr>
+      <td><strong>${MESES_FULL[m]||m}</strong></td>
+      <td class="num">${fmtNum(fA)}</td><td class="num">${fmtNum(cA)}</td><td class="num" style="font-weight:600">${fmtNum(lA)}</td>
+      <td class="pct ${pA>=30?'pct-good':pA>=15?'pct-warn':'pct-bad'}">${fmtPct(pA)}</td>
+      <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(fB)}</td><td class="num">${fmtNum(cB)}</td><td class="num" style="font-weight:600">${fmtNum(lB)}</td>
+      <td class="pct ${pB>=30?'pct-good':pB>=15?'pct-warn':'pct-bad'}">${fmtPct(pB)}</td>
+      <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(varF)}</td>
+    </tr>`;
+  });
+
+  const tLA=tFA-tCA, tPa=tFA>0?(tLA/tFA)*100:0;
+  const tLB=tFB-tCB, tPb=tFB>0?(tLB/tFB)*100:0;
+  const varTot = tFA>0 ? (tFB-tFA)/tFA*100 : null;
+  rows += `<tr class="row-total">
+    <td>TOTAL GERAL</td>
+    <td class="num">${fmtNum(tFA)}</td><td class="num">${fmtNum(tCA)}</td><td class="num">${fmtNum(tLA)}</td>
+    <td class="pct ${tPa>=30?'pct-good':tPa>=15?'pct-warn':'pct-bad'}">${fmtPct(tPa)}</td>
+    <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(tFB)}</td><td class="num">${fmtNum(tCB)}</td><td class="num">${fmtNum(tLB)}</td>
+    <td class="pct ${tPb>=30?'pct-good':tPb>=15?'pct-warn':'pct-bad'}">${fmtPct(tPb)}</td>
+    <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(varTot)}</td>
+  </tr>`;
+
+  const card1 = el('div','table-card');
+  card1.innerHTML = `
+    <div class="table-header">
+      <div class="chart-title">Faturamento × CMV × Lucro Bruto × % L.B.</div>
+      <div class="table-badge">Comparativo ${anoA} vs ${anoB}</div>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px;padding:10px 20px 8px;background:linear-gradient(90deg,#eff4ff 0%,transparent 100%);border-bottom:1px solid var(--border)">
+      <div style="width:4px;height:20px;background:var(--accent);border-radius:2px;flex-shrink:0"></div>
+      <span style="font-size:12px;font-weight:700;color:#0f1923">Comparativo Mensal — ${anoA} vs ${anoB}</span>
+    </div>
+    <div style="overflow-x:auto">
+      <table><thead>${thead}</thead><tbody>${rows}</tbody></table>
+    </div>`;
+
+  const cards = [card1];
+
+  // ── Resumo por Loja card
+  if (lojas.length > 1) {
+    let lRows = '';
+    lojas.forEach(loja => {
+      const fA2 = sumBy(filtrar(anoA).filter(r=>r.loja===loja),'total_venda');
+      const cA2 = sumBy(filtrarCmv(anoA).filter(r=>r.loja===loja),'valor');
+      const lA2 = fA2-cA2, pA2 = fA2>0?(lA2/fA2)*100:0;
+      const fB2 = sumBy(filtrar(anoB).filter(r=>r.loja===loja),'total_venda');
+      const cB2 = sumBy(filtrarCmv(anoB).filter(r=>r.loja===loja),'valor');
+      const lB2 = fB2-cB2, pB2 = fB2>0?(lB2/fB2)*100:0;
+      const varF2 = fA2>0?(fB2-fA2)/fA2*100:null;
+      lRows += `<tr>
+        <td class="row-loja">${loja}</td>
+        <td class="num">${fmtNum(fA2)}</td><td class="num">${fmtNum(cA2)}</td><td class="num" style="font-weight:600">${fmtNum(lA2)}</td>
+        <td class="pct ${pA2>=30?'pct-good':pA2>=15?'pct-warn':'pct-bad'}">${fmtPct(pA2)}</td>
+        <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(fB2)}</td><td class="num">${fmtNum(cB2)}</td><td class="num" style="font-weight:600">${fmtNum(lB2)}</td>
+        <td class="pct ${pB2>=30?'pct-good':pB2>=15?'pct-warn':'pct-bad'}">${fmtPct(pB2)}</td>
+        <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(varF2)}</td>
+      </tr>`;
+    });
+    const tFL2A=fatA.reduce((s,r)=>s+(r.total_venda||0),0), tCL2A=cmvA.reduce((s,r)=>s+(r.valor||0),0);
+    const tFL2B=fatB.reduce((s,r)=>s+(r.total_venda||0),0), tCL2B=cmvB.reduce((s,r)=>s+(r.valor||0),0);
+    const tLL2A=tFL2A-tCL2A,tPL2A=tFL2A>0?(tLL2A/tFL2A)*100:0;
+    const tLL2B=tFL2B-tCL2B,tPL2B=tFL2B>0?(tLL2B/tFL2B)*100:0;
+    const varTL=tFL2A>0?(tFL2B-tFL2A)/tFL2A*100:null;
+    lRows += `<tr class="row-total-loja">
+      <td>TOTAL GERAL</td>
+      <td class="num">${fmtNum(tFL2A)}</td><td class="num">${fmtNum(tCL2A)}</td><td class="num">${fmtNum(tLL2A)}</td>
+      <td class="pct ${tPL2A>=30?'pct-good':tPL2A>=15?'pct-warn':'pct-bad'}">${fmtPct(tPL2A)}</td>
+      <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(tFL2B)}</td><td class="num">${fmtNum(tCL2B)}</td><td class="num">${fmtNum(tLL2B)}</td>
+      <td class="pct ${tPL2B>=30?'pct-good':tPL2B>=15?'pct-warn':'pct-bad'}">${fmtPct(tPL2B)}</td>
+      <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(varTL)}</td>
+    </tr>`;
+
+    const card2 = el('div','table-card'); card2.style.marginTop='20px';
+    card2.innerHTML = `
+      <div style="display:flex;align-items:center;gap:10px;padding:10px 20px 8px;background:linear-gradient(90deg,#ecfdf5 0%,transparent 100%);border-bottom:1px solid var(--border)">
+        <div style="width:4px;height:20px;background:#0ea472;border-radius:2px;flex-shrink:0"></div>
+        <span style="font-size:12px;font-weight:700;color:#0f1923">Resumo por Loja — ${anoA} vs ${anoB}</span>
+      </div>
+      <div style="overflow-x:auto">
+        <table><thead>${thead.replace('>Mês</th>','>Loja</th>')}</thead><tbody>${lRows}</tbody></table>
+      </div>`;
+    cards.push(card2);
+  }
+
+  return cards;
+}
+
+function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucLA, pctLA) {
+  const card = el('div','table-card');
+  card.innerHTML = `<div class="table-header"><div class="chart-title">Faturamento × CMV × Lucro Bruto × % L.B.</div><div class="table-badge">Comparativo Mensal</div></div>
+  <div style="display:flex;align-items:center;gap:10px;padding:10px 20px 8px;background:linear-gradient(90deg,#eff4ff 0%,transparent 100%);border-bottom:1px solid var(--border)">
+    <div style="width:4px;height:20px;background:var(--accent);border-radius:2px;flex-shrink:0"></div>
+    <span style="font-size:12px;font-weight:700;color:#0f1923;letter-spacing:-.1px">Comparativo Mensal</span>
+  </div>`;
+
+  let rows='', tF=0, tC=0;
+  allM.forEach((m,i)=>{
+    const f=fatMA[i],c=cmvMA[i],l=lucMA[i],p=f>0?(l/f)*100:0;
+    if(f===0 && c===0) return; // ocultar meses sem valores
+    tF+=f; tC+=c;
+    rows+=`<tr>
+      <td><strong>${mesLbl[i]}</strong></td>
+      <td class="num">${fmtNum(f)}</td>
+      <td class="num">${fmtNum(c)}</td>
+      <td class="num" style="font-weight:600">${fmtNum(l)}</td>
+      <td class="pct ${p>=30?'pct-good':p>=15?'pct-warn':'pct-bad'}">${fmtPct(p)}</td>
+    </tr>`;
+  });
+  const tL=tF-tC, tP=tF>0?(tL/tF)*100:0;
+  rows+=`<tr class="row-total"><td>TOTAL GERAL</td><td class="num">${fmtNum(tF)}</td><td class="num">${fmtNum(tC)}</td><td class="num">${fmtNum(tL)}</td><td class="pct ${tP>=30?'pct-good':tP>=15?'pct-warn':'pct-bad'}">${fmtPct(tP)}</td></tr>`;
+
+  const div1 = el('div'); div1.style.overflowX='auto';
+  div1.innerHTML=`<table><thead><tr><th style="text-align:left">Mês</th><th class="num" style="text-align:center">Faturamento</th><th class="num" style="text-align:center">CMV</th><th class="num" style="text-align:center">Lucro Bruto</th><th class="num" style="text-align:center">% L.B.</th></tr></thead><tbody>${rows}</tbody></table>`;
+  card.appendChild(div1);
+
+  if (lojas.length > 1) {
+    let lRows='';
+    lojas.forEach((l,i)=>{
+      const f=fatLA[i],c=cmvLA[i],lb=lucLA[i],p=pctLA[i];
+      lRows+=`<tr><td class="row-loja">${l}</td><td class="num">${fmtNum(f)}</td><td class="num">${fmtNum(c)}</td><td class="num" style="font-weight:600">${fmtNum(lb)}</td><td class="pct ${p>=30?'pct-good':p>=15?'pct-warn':'pct-bad'}">${fmtPct(p)}</td></tr>`;
+    });
+    const tFL=fatLA.reduce((s,v)=>s+v,0), tCL=cmvLA.reduce((s,v)=>s+v,0), tLL=tFL-tCL, tPL=tFL>0?(tLL/tFL)*100:0;
+    lRows+=`<tr class="row-total-loja"><td>TOTAL GERAL</td><td class="num">${fmtNum(tFL)}</td><td class="num">${fmtNum(tCL)}</td><td class="num">${fmtNum(tLL)}</td><td class="pct ${tPL>=30?'pct-good':tPL>=15?'pct-warn':'pct-bad'}">${fmtPct(tPL)}</td></tr>`;
+    const card2 = el('div','table-card'); card2.style.marginTop='20px';
+    card2.innerHTML=`<div style="display:flex;align-items:center;gap:10px;padding:10px 20px 8px;background:linear-gradient(90deg,#ecfdf5 0%,transparent 100%);border-bottom:1px solid var(--border)"><div style="width:4px;height:20px;background:#0ea472;border-radius:2px;flex-shrink:0"></div><span style="font-size:12px;font-weight:700;color:#0f1923;letter-spacing:-.1px">Resumo por Loja</span></div><div style="overflow-x:auto"><table><thead><tr><th style="text-align:left">Loja</th><th class="num">Faturamento</th><th class="num">CMV</th><th class="num">Lucro Bruto</th><th class="num">% L.B.</th></tr></thead><tbody>${lRows}</tbody></table></div>`;
+    return [card, card2];
+  }
+  return [card];
+}
+
+// ── SIDEBAR: recolher/expandir ──
+let lastOpenMenu = 'comercial';
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
+  });
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+// ── SIDEBAR: abrir/fechar submenus e botão mobile ──
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        sidebar.classList.remove('peek');
+        expandSidebar();
+        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+        item.classList.add('open');
+        return;
+      }
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=> document.body.classList.toggle('side-open'));
+  }
+})();
+
+loadData();
+// Recolhe o menu automaticamente no desktop ao abrir este dashboard,
+// igual já acontece na Análise Comercial.
+if(window.innerWidth > 900) collapseSidebar();
+</script>
+</body>
+</html>

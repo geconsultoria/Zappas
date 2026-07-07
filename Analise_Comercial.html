@@ -1,0 +1,2277 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Análise Comercial</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<style>
+/* ╔═══════════════════════════════════════╗
+   ║  DESIGN TOKENS                       ║
+   ╚═══════════════════════════════════════╝ */
+:root {
+  --bg:       #F7F6F2;
+  --bg-2:     #EDECE6;
+  --surface:  #FFFFFF;
+  --surf-2:   #FAFAF7;
+
+  --border:   #E8E6DE;
+  --border-2: #D8D5CC;
+
+  --ink:      #16160F;
+  --ink-2:    #3A3A2E;
+  --ink-3:    #787868;
+  --ink-4:    #AEADA0;
+
+  --blue:     #1B3D6E;
+  --blue-mid: #2460A7;
+  --blue-lt:  #D9E8F7;
+  --blue-xl:  #EEF4FC;
+
+  --teal:     #0B5563;
+  --teal-mid: #197A8A;
+  --teal-lt:  #D0EDF2;
+
+  --olive:    #3D5416;
+  --olive-mid:#5A7A22;
+  --olive-lt: #DCF0C2;
+
+  --rust:     #6B2010;
+  --rust-mid: #A83218;
+  --rust-lt:  #FAD9D0;
+
+  --amber:    #7A4A05;
+  --amber-mid:#B87010;
+  --amber-lt: #FDECD0;
+
+  --gold:     #C8961A;
+
+  --r:    10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  --sh: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+  --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
+  --sh-lg: 0 8px 40px rgba(0,0,0,.12);
+
+  --font-head: 'Syne', system-ui, sans-serif;
+  --font-body: 'Epilogue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-num:  'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+
+  --bar-h: 64px; /* sticky bar height */
+  --side-w: 232px; /* sidebar width */
+  --side-w-collapsed: 74px; /* sidebar width when collapsed */
+  --ease: cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ╔═══════════════════════════════════════╗
+   ║  LOADING                             ║
+   ╚═══════════════════════════════════════╝ */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+  transition: opacity .4s var(--ease), visibility .4s;
+}
+#loader.out { opacity: 0; visibility: hidden; pointer-events: none; }
+.ld-logo { display: flex; align-items: center; gap: 13px; }
+.ld-mark {
+  width: 42px; height: 42px; border-radius: 11px;
+  background: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+}
+.ld-mark svg { width: 22px; height: 22px; color: var(--blue); }
+.ld-name { font-family: var(--font-head); font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -.01em; }
+.ld-sub  { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: .12em; text-transform: uppercase; margin-top: 1px; }
+.ld-track { width: 200px; height: 2px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+.ld-fill  { height: 100%; background: var(--gold); border-radius: 2px; animation: ldAnim 1.8s var(--ease) forwards; }
+@keyframes ldAnim { 0%{width:0} 55%{width:70%} 100%{width:100%} }
+.ld-txt { font-size: 11.5px; color: rgba(255,255,255,.4); letter-spacing: .05em; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  SIDEBAR MENU                        ║
+   ╚═══════════════════════════════════════╝ */
+.sidebar {
+  position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
+  background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
+  z-index: 300;
+  display:flex; flex-direction:column;
+  font-family: var(--font-body);
+  overflow: visible;
+  transition: transform .25s ease, width .25s ease;
+}
+.sidebar.collapsed { width: var(--side-w-collapsed); }
+.side-brand {
+  display:flex; align-items:center; gap:11px;
+  padding: 18px 18px 16px; flex-shrink:0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 8px;
+}
+.sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
+.side-brand svg { width:22px; height:22px; color: var(--gold); flex-shrink:0; }
+.side-brand-text { white-space:nowrap; overflow:hidden; }
+.side-brand-text .t { font-family: var(--font-head); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+.side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
+.sidebar.collapsed .side-brand-text { display:none; }
+
+.side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
+.side-item { display:flex; flex-direction:column; }
+.side-link {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  background:none; border:none; cursor:pointer;
+  color: rgba(255,255,255,.7);
+  font-family: var(--font-head); font-weight:600; font-size:13px; letter-spacing:.01em;
+  padding: 10px 11px; border-radius: 10px;
+  transition: background .15s ease, color .15s ease;
+}
+.side-link svg { width:18px; height:18px; flex-shrink:0; opacity:.85; }
+.side-link .chev { margin-left:auto; width:13px; height:13px; opacity:.5; transition: transform .18s ease; }
+.side-item.open > .side-link .chev { transform: rotate(180deg); }
+.side-link:hover { background: rgba(255,255,255,.07); color:#fff; }
+.side-item.active > .side-link { color:#fff; background: rgba(255,255,255,.09); }
+
+.side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
+
+/* Modo recolhido: só ícones */
+.sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
+.sidebar.collapsed.peek { width: 232px; box-shadow: var(--sh-lg); }
+.sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
+.sidebar.collapsed.peek .side-brand-text { display:block; }
+.sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
+.sidebar.collapsed.peek .side-link span,
+.sidebar.collapsed.peek .side-link .chev { display:inline-flex; }
+.sidebar.collapsed.peek .side-item.open > .side-sub { display:flex; }
+
+.sidebar.collapsed .side-link span,
+.sidebar.collapsed .side-link .chev,
+.sidebar.collapsed .side-sub { display:none; }
+
+/* Tooltip com o nome do menu ao passar o mouse rapidamente (antes do peek expandir) */
+.sidebar.collapsed:not(.peek) .side-item { position:relative; }
+.sidebar.collapsed:not(.peek) .side-link::after {
+  content: attr(data-label);
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+  background: #12233C; color:#fff;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-head); font-weight:600; font-size:12.5px; white-space:nowrap;
+  box-shadow: var(--sh-md);
+  opacity:0; pointer-events:none; visibility:hidden;
+  transition: opacity .15s ease;
+  z-index: 320;
+}
+.sidebar.collapsed:not(.peek) .side-link:hover::after {
+  opacity:1; visibility:visible;
+}
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-sub a {
+  display:flex; align-items:center; gap:9px;
+  padding: 8px 10px; border-radius:8px;
+  font-size:12.5px; font-weight:500;
+  color: rgba(255,255,255,.52); text-decoration:none;
+  transition: background .12s ease, color .12s ease;
+}
+.side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
+.side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
+.side-sub a.active { color: var(--gold); font-weight:600; background: rgba(200,150,26,.13); }
+
+.side-toggle {
+  display:none; position:fixed; top:14px; left:14px; z-index:301;
+  width:38px; height:38px; border-radius:10px;
+  background: var(--ink); border:1px solid rgba(255,255,255,.12);
+  align-items:center; justify-content:center; cursor:pointer;
+}
+.side-toggle svg { width:19px; height:19px; color:#fff; }
+.side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
+
+@media (max-width: 900px){
+  .sidebar { transform: translateX(-100%); box-shadow: var(--sh-lg); }
+  body.side-open .sidebar { transform: translateX(0); }
+  body.side-open .side-overlay { display:block; }
+  .side-toggle { display:flex; }
+  .filter-bar, .sub-filter-bar, .content { margin-left: 0 !important; }
+  .filter-bar { padding-left: 62px; }
+}
+
+/* ╔═══════════════════════════════════════╗
+   ║  STICKY FILTER BAR                   ║
+   ╚═══════════════════════════════════════╝ */
+.filter-bar {
+  position: sticky; top: 0; z-index: 100;
+  margin-left: var(--side-w);
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 2px 20px rgba(0,0,0,.15);
+  height: var(--bar-h);
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 0;
+  transition: box-shadow .25s, margin-left .25s ease;
+}
+.filter-bar.scrolled { box-shadow: 0 4px 30px rgba(0,0,0,.25); }
+
+/* Sub filter bar - sticky below brand bar */
+.sub-filter-bar {
+  position: sticky; top: var(--bar-h); z-index: 99;
+  margin-left: var(--side-w);
+  transition: margin-left .25s ease;
+  background: rgba(237,236,230,.97);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  padding: 10px 28px;
+  display: flex; align-items: center;
+}
+
+.fb-brand {
+  display: flex; align-items: center; gap: 10px;
+  padding-right: 24px;
+  border-right: 1px solid rgba(255,255,255,.15);
+  margin-right: 24px; flex-shrink: 0;
+}
+.fb-mark {
+  width: 30px; height: 30px; border-radius: 8px;
+  background: rgba(255,255,255,.12);
+  display: flex; align-items: center; justify-content: center;
+}
+.fb-mark svg { width: 16px; height: 16px; color: #fff; }
+.fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+.fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
+
+.fb-filters { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+.fb-group   { display: flex; align-items: center; gap: 7px; }
+.fb-label   { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+
+.fb-select {
+  font-family: var(--font-body);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+  background: var(--bg);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23AEADA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+  transition: all .18s var(--ease);
+  min-width: 130px;
+}
+.fb-select:focus { outline: none; border-color: var(--blue-mid); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
+
+/* ── Canal multi-select ── */
+.canal-wrap { position: relative; }
+
+.canal-trigger {
+  font-family: var(--font-body);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+  background: var(--bg);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  cursor: pointer; white-space: nowrap;
+  min-width: 140px; max-width: 220px;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .18s var(--ease);
+  user-select: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23AEADA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+.canal-trigger:hover,
+.canal-trigger.open { border-color: var(--blue-mid); background-color: var(--surface); }
+.canal-trigger.open { box-shadow: 0 0 0 3px var(--blue-lt); }
+.canal-trigger.has-sel { border-color: var(--amber-mid); color: var(--amber); background-color: var(--amber-lt); }
+.canal-trigger.has-sel.open { box-shadow: 0 0 0 3px var(--amber-lt); }
+
+.canal-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--amber-mid); color: #fff;
+  border-radius: 20px; font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  line-height: 1;
+}
+
+.canal-dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lg);
+  min-width: 200px; max-width: 280px;
+  overflow: hidden;
+}
+.canal-dropdown.open { display: block; }
+
+.canal-dd-head {
+  padding: 9px 12px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surf-2);
+}
+.canal-dd-title { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); }
+.canal-dd-actions { display: flex; gap: 8px; }
+.canal-dd-btn {
+  font-size: 9.5px; font-weight: 700; color: var(--blue-mid);
+  background: none; border: none; cursor: pointer; padding: 0;
+  letter-spacing: .03em; text-decoration: underline; text-underline-offset: 2px;
+}
+.canal-dd-btn:hover { color: var(--blue); }
+
+.canal-dd-list {
+  max-height: 220px; overflow-y: auto;
+  padding: 6px 0;
+}
+.canal-dd-list::-webkit-scrollbar { width: 4px; }
+.canal-dd-list::-webkit-scrollbar-track { background: transparent; }
+.canal-dd-list::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+
+.canal-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 13px; cursor: pointer;
+  transition: background .12s;
+}
+.canal-item:hover { background: var(--bg); }
+.canal-item input[type=checkbox] {
+  width: 14px; height: 14px; flex-shrink: 0;
+  accent-color: var(--amber-mid); cursor: pointer;
+}
+.canal-item-label { font-size: 12px; font-weight: 500; color: var(--ink-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canal-item.checked .canal-item-label { color: var(--amber); font-weight: 600; }
+
+.fb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
+
+.fb-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-shrink: 0; }
+
+.btn-refresh {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--r);
+  padding: 8px 14px; font-family: var(--font-body);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap;
+  transition: all .2s var(--ease);
+}
+.btn-refresh:hover { background: var(--blue-mid); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(27,61,110,.3); }
+.btn-refresh svg { width: 13px; height: 13px; flex-shrink: 0; }
+.btn-refresh.spin svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.fb-ts { font-family: var(--font-mono); font-size: 10px; color: rgba(255,255,255,.5); white-space: nowrap; }
+.fb-ts span { color: rgba(255,255,255,.85); font-weight: 500; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  MAIN CONTENT                        ║
+   ╚═══════════════════════════════════════╝ */
+.dashboard-view.hidden { display: none; }
+
+.home-screen {
+  position: fixed; inset: 0; left: var(--side-w); z-index: 10;
+  transition: left .25s ease;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--bg);
+}
+.home-screen.hidden { display: none; }
+.home-card { display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; max-width:360px; }
+.home-card svg { width:52px; height:52px; color: var(--border-2); }
+.home-title { font-family: var(--font-head); font-weight:700; font-size:22px; color: var(--ink); }
+.home-sub { font-family: var(--font-body); font-size:14px; color: var(--ink-3); }
+@media (max-width: 900px){ .home-screen { left:0; } }
+
+.content { padding: 20px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w); transition: margin-left .25s ease; }
+.content.hidden { display: none; }
+
+/* Section header */
+.sec { display: flex; align-items: center; gap: 12px; margin: 28px 0 14px; }
+.sec:first-child { margin-top: 0; }
+.sec-title { font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+.sec-line  { flex:1; height:1px; background: var(--border); }
+.sec-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); background: var(--bg-2); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  KPI CARDS                           ║
+   ╚═══════════════════════════════════════╝ */
+.kpi-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 13px; margin-bottom: 14px; }
+
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 22px; box-shadow: var(--sh); position: relative; overflow: hidden; transition: box-shadow .2s var(--ease), transform .2s var(--ease); display: flex; flex-direction: column; }
+.kpi:hover { box-shadow: var(--sh-md); transform: translateY(-2px); }
+.kpi-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+}
+.ac-blue  { background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); }
+.ac-teal  { background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 100%); }
+.ac-olive { background: linear-gradient(90deg, var(--olive) 0%, var(--olive-mid) 100%); }
+.ac-rust  { background: linear-gradient(90deg, var(--rust) 0%, var(--rust-mid) 100%); }
+
+.kpi-icon {
+  width: 36px; height: 36px; border-radius: var(--r);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.kpi-icon svg { width: 19px; height: 19px; }
+.ic-blue  { background: var(--blue-xl);  color: var(--blue-mid); }
+.ic-teal  { background: var(--teal-lt);  color: var(--teal); }
+.ic-olive { background: var(--olive-lt); color: var(--olive); }
+.ic-rust  { background: var(--rust-lt);  color: var(--rust-mid); }
+
+.kpi-header { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+.kpi-lbl { font-family: var(--font-head); font-size: 14px; font-weight: 700; letter-spacing: -0.3px; color: var(--ink-4); }
+
+/* KPI body: stacked layout */
+.kpi-body { display: flex; flex-direction: column; flex: 1; }
+.kpi-right { display: flex; flex-direction: column; align-items: flex-end; }
+
+.kpi-val { font-family: var(--font-num); font-size: 26px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; line-height: 1; text-align: center; }
+.kpi-val.sm { font-size: 26px; }
+.kpi-val.xs { font-size: 26px; }
+.kpi-foot { font-size: 10.5px; color: var(--ink-4); margin-top: auto; padding-top: 8px; text-align: right; }
+.kpi-foot b { color: var(--ink-3); font-weight: 600; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  CHART CARDS                         ║
+   ╚═══════════════════════════════════════╝ */
+.row { display: grid; gap: 10px; margin-bottom: 10px; }
+.row.c21 { grid-template-columns: 2fr 1fr; }
+.row.c12 { grid-template-columns: 1fr 2fr; }
+.row.c2  { grid-template-columns: 1fr 1fr; }
+.row.c3  { grid-template-columns: 1fr 1fr 1fr; }
+.row.c1  { grid-template-columns: 1fr; }
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh);
+  overflow: hidden;
+  transition: box-shadow .2s var(--ease);
+}
+.card:hover { box-shadow: var(--sh-md); }
+.card-head {
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px;
+  padding: 18px 20px 0;
+}
+.card-title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); letter-spacing: -.01em; }
+.card-sub   { font-size: 11px; color: var(--ink-4); margin-top: 3px; }
+.card-pill  {
+  font-size: 9.5px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; padding: 4px 9px; border-radius: 20px;
+  white-space: nowrap; flex-shrink: 0; margin-top: 2px;
+}
+.p-blue  { background: var(--blue-xl);  color: var(--blue-mid);  border: 1px solid var(--blue-lt); }
+.p-teal  { background: var(--teal-lt);  color: var(--teal);      border: 1px solid #B0DDE7; }
+.p-olive { background: var(--olive-lt); color: var(--olive);     border: 1px solid #C8E8A0; }
+.p-amber { background: var(--amber-lt); color: var(--amber-mid); border: 1px solid #F8D8A8; }
+.p-rust  { background: var(--rust-lt);  color: var(--rust-mid);  border: 1px solid #F0B8A8; }
+
+.card-body { padding: 12px 16px 14px; }
+.chart-wrap { position: relative; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  COMPARATIVE TABLE                   ║
+   ╚═══════════════════════════════════════╝ */
+.comp-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh);
+  overflow: hidden;
+  margin-bottom: 13px;
+}
+.comp-card-head {
+  background: var(--surf-2);
+  border-bottom: 1px solid var(--border);
+  padding: 16px 22px;
+  display: flex; align-items: flex-start;
+  justify-content: space-between; gap: 12px; flex-wrap: wrap;
+}
+.comp-card-head-left .title { font-family: var(--font-head); font-size: 16px; font-weight: 700; color: var(--ink); }
+.comp-card-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 3px; }
+
+.comp-legend {
+  display: flex; align-items: center; gap: 16px; flex-wrap: wrap;
+}
+.leg-item { display: flex; align-items: center; gap: 5px; font-size: 10px; color: var(--ink-3); font-weight: 500; }
+.leg-dot  { width: 8px; height: 8px; border-radius: 2px; }
+
+.comp-scroll { overflow-x: auto; }
+.comp-table {
+  width: 100%; border-collapse: collapse;
+  font-size: 12.5px; min-width: 700px;
+}
+.comp-table thead tr { border-bottom: 2px solid var(--border); }
+.comp-table thead .th-group {
+  font-size: 9px; font-weight: 800; letter-spacing: .12em;
+  text-transform: uppercase; color: var(--ink-4);
+  padding: 7px 12px 4px; text-align: center;
+  border-bottom: 1px solid var(--border);
+}
+.comp-table thead .th-group.b-left { border-left: 1px dashed var(--border-2); }
+.comp-table thead .th-col {
+  font-size: 10px; font-weight: 800; letter-spacing: .07em;
+  text-transform: uppercase; color: var(--ink-2);
+  padding: 4px 12px 7px; text-align: right; white-space: nowrap;
+}
+.comp-table thead .th-col.left  { text-align: left; border-right: 2px solid var(--border-2); }
+.comp-table thead .th-col.b-left { border-left: 1px dashed var(--border-2); }
+
+.comp-table tbody tr { border-bottom: 1px solid #F0EDE5; transition: background .12s; }
+.comp-table tbody tr:hover td { background: var(--bg) !important; }
+.comp-table tbody tr.total-row td { background: var(--blue-xl) !important; font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
+.comp-table tbody tr.total-row .td-metric { color: var(--blue) !important; font-weight: 800; }
+.comp-table tbody tr.sub-row td { background: var(--surf-2); }
+.comp-table tbody tr.sub-row .td-metric { font-size: 11.5px; color: var(--ink-3); padding-left: 30px; }
+
+.comp-table td {
+  padding: 6px 12px; text-align: right;
+  color: var(--ink-2); white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  font-family: var(--font-num);
+}
+.comp-table td.td-metric { text-align: left; font-weight: 600; color: var(--ink); }
+.comp-table td.b-left    { border-left: 1px dashed var(--border-2); }
+
+/* Primeira coluna (Mês) com a mesma largura em todos os quadros:
+   Faturamento por Loja, Faturamento Total, Cupons Emitidos, Ticket Médio, Quebras (Perdas) */
+#ct-loja .th-col.left, #ct-loja td.td-metric,
+#ct-fat .th-col.left, #ct-fat td.td-metric,
+#ct-cupons .th-col.left, #ct-cupons td.td-metric,
+#ct-ticket .th-col.left, #ct-ticket td.td-metric,
+#ct-quebras .th-col.left, #ct-quebras td.td-metric {
+  width: 132px !important;
+  min-width: 132px !important;
+}
+
+/* AV% column */
+.comp-table td.av-col {
+  border-left: 1px dashed var(--border-2) !important;
+  border-right: 1px dashed var(--border-2) !important;
+  color: var(--ink-3);
+  font-size: 11.5px;
+}
+.comp-table thead .th-col.av-col {
+  border-left: 1px dashed var(--border-2) !important;
+  border-right: 1px dashed var(--border-2) !important;
+}
+
+/* Hide detail rows in semanal2 */
+#scroll-semanal2.det-hidden tr.mes-row { display: none; }
+/* Hide "Semana Detalhada" column (header th and body td.sem2-col2) */
+#scroll-semanal2.det-hidden th.th-col.left:nth-child(2),
+#scroll-semanal2.det-hidden td.sem2-col2 { display: none; }
+/* When detail hidden, col1 gets right border to close the table */
+#scroll-semanal2.det-hidden td.sem2-col1 { border-right: 2px solid var(--border-2) !important; }
+
+/* Legenda global */
+.comp-legend-bar {
+  display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r-lg); padding: 8px 16px;
+  margin-bottom: 10px; box-shadow: var(--sh);
+}
+
+/* Card cabeçalho com cores */
+.comp-card-head { padding: 10px 16px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.cc-head-blue  { background: linear-gradient(135deg, var(--blue-xl) 0%, #F0F7FF 100%); border-bottom-color: var(--blue-lt) !important; }
+.cc-head-teal  { background: linear-gradient(135deg, var(--teal-lt)  0%, #EAF6F8 100%); border-bottom-color: #B0DDE7 !important; }
+.cc-head-olive { background: linear-gradient(135deg, var(--olive-lt) 0%, #EEF8E0 100%); border-bottom-color: #C8E8A0 !important; }
+.cc-head-rust  { background: linear-gradient(135deg, var(--rust-lt)  0%, #FFF0EC 100%); border-bottom-color: #F0B8A8 !important; }
+
+.comp-card-head-left { display: flex; align-items: center; gap: 12px; }
+.cc-icon { width: 34px; height: 34px; border-radius: 9px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cc-icon-blue  { background: var(--blue);     color: #fff; }
+.cc-icon-teal  { background: var(--teal);     color: #fff; }
+.cc-icon-olive { background: var(--olive-mid);color: #fff; }
+.cc-icon-rust  { background: var(--rust-mid); color: #fff; }
+
+/* Table row accents */
+.comp-table tbody tr.mes-row td { }
+.comp-table tbody tr.total-row td { background: var(--blue-xl) !important; font-weight: 700; border-top: 2px solid var(--blue-lt); }
+.comp-table tbody tr.total-row-teal  td { background: var(--teal-lt)  !important; border-top-color: #B0DDE7; }
+.comp-table tbody tr.total-row-olive td { background: var(--olive-lt) !important; border-top-color: #C8E8A0; }
+.comp-table tbody tr.total-row-rust  td { background: var(--rust-lt)  !important; border-top-color: #F0B8A8; }
+
+/* AH% badges */
+.ah-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 2px 7px; border-radius: 20px;
+  font-size: 10.5px; font-weight: 700;
+  font-family: var(--font-mono);
+}
+.ah-pos { background: var(--olive-lt); color: var(--olive); }
+.ah-neg { background: var(--rust-lt);  color: var(--rust-mid); }
+.ah-neu { background: var(--bg-2);     color: var(--ink-4); }
+
+/* ╔═══════════════════════════════════════╗
+   ║  ERROR BANNER                        ║
+   ╚═══════════════════════════════════════╝ */
+#error-wrap {
+  display: none; padding: 60px 28px;
+  align-items: center; justify-content: center;
+}
+#error-wrap.show { display: flex; }
+.err-box {
+  background: var(--surface); border: 1.5px solid #F0CCCC;
+  border-radius: var(--r-xl); padding: 36px 40px;
+  text-align: center; max-width: 480px;
+  box-shadow: var(--sh-md);
+}
+.err-icon { font-size: 40px; margin-bottom: 14px; }
+.err-title { font-family: var(--font-head); font-size: 20px; font-weight: 700; color: var(--rust); margin-bottom: 8px; }
+.err-msg   { font-size: 13px; color: var(--ink-3); line-height: 1.6; }
+.err-code  { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-4); margin-top: 12px; background: var(--bg); padding: 8px 12px; border-radius: var(--r); }
+
+/* ╔═══════════════════════════════════════╗
+   ║  RESPONSIVE                          ║
+   ╚═══════════════════════════════════════╝ */
+@media (max-width: 1100px) {
+  .kpi-row { grid-template-columns: repeat(2,1fr); }
+  .row.c21,.row.c12 { grid-template-columns: 1fr; }
+}
+@media (max-width: 800px) {
+  .row.c2,.row.c3 { grid-template-columns: 1fr; }
+  .content { padding: 18px 14px 40px; }
+  .filter-bar { padding: 0 14px; gap: 8px; }
+  .fb-brand { display: none; }
+  .page-head h1 { font-size: 24px; }
+}
+
+/* fade-in */
+.fi { animation: fi .45s var(--ease) both; opacity: 0; }
+.fi:nth-child(1){animation-delay:.04s}.fi:nth-child(2){animation-delay:.08s}
+.fi:nth-child(3){animation-delay:.12s}.fi:nth-child(4){animation-delay:.16s}
+.fi:nth-child(5){animation-delay:.20s}.fi:nth-child(6){animation-delay:.24s}
+@keyframes fi { to { opacity:1; } }
+
+/* no-data */
+.nd { text-align:center; padding:36px 16px; color:var(--ink-4); font-size:13px; }
+.nd-icon { font-size:28px; margin-bottom:8px; opacity:.5; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  SECTION TITLE VARIANTS              ║
+   ╚═══════════════════════════════════════╝ */
+.sec-title-anomes {
+  font-size: 11px; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--blue); white-space: nowrap;
+  background: var(--blue-xl); border: 1px solid var(--blue-lt);
+  padding: 5px 14px; border-radius: 20px;
+}
+.sec-title-loja {
+  font-size: 11px; font-weight: 800; letter-spacing: .14em;
+  text-transform: uppercase; color: var(--teal); white-space: nowrap;
+  background: var(--teal-lt); border: 1px solid #B0DDE7;
+  padding: 5px 14px; border-radius: 20px;
+}
+
+/* AV toggle button */
+.btn-av-toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: var(--surface); color: var(--ink-3);
+  border: 1px solid var(--border-2); border-radius: var(--r);
+  padding: 5px 12px; font-family: var(--font-body);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap;
+  transition: all .2s var(--ease);
+}
+.btn-av-toggle:hover { border-color: var(--teal-mid); color: var(--teal); background: var(--teal-lt); }
+.btn-av-toggle.active { background: var(--teal-lt); color: var(--teal); border-color: var(--teal-mid); }
+.btn-av-toggle svg { width: 12px; height: 12px; }
+
+/* Hidden AV columns */
+.av-hidden .av-col { display: none !important; }
+.av-hidden thead .th-col.av-col { display: none !important; }
+/* Total column never hides */
+.av-hidden td.tot-col,
+.av-hidden th.tot-col { display: table-cell !important; }
+</style>
+</head>
+<body>
+
+<!-- LOADER -->
+<div id="loader" class="out">
+  <div class="ld-logo">
+    <div class="ld-mark">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    </div>
+    <div>
+      <div class="ld-name">Análise Comercial</div>
+      <div class="ld-sub">Carregando dados…</div>
+    </div>
+  </div>
+  <div class="ld-track"><div class="ld-fill"></div></div>
+  <div class="ld-txt" id="ld-txt">Conectando à fonte de dados…</div>
+</div>
+
+<!-- SIDEBAR MENU -->
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="side-brand">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text">
+      <div class="t">Dashboards</div>
+      <div class="s">Painel de Gestão</div>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <div class="side-item" data-menu="comercial">
+      <button class="side-link" type="button" id="side-link-comercial" data-label="Comercial">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Comercial</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Analise_Comercial.html" id="link-analise-comercial">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Análise Comercial
+        </a>
+        <a href="Faturamento_Lucro.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+          Faturamento x Lucro
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="financeiro">
+      <button class="side-link" type="button" data-label="Financeiro">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>Financeiro</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="DRE_Gerencial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          DRE Gerencial
+        </a>
+        <a href="contas_pagar.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
+          Contas a Pagar
+        </a>
+        <a href="contas_receber.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
+          Contas a Receber
+        </a>
+        <a href="fluxo_caixa.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          Fluxo de Caixa
+        </a>
+        <a href="Banco_Declaracao.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          Banco
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="metas">
+      <button class="side-link" type="button" data-label="Metas">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        <span>Metas</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Elaboracao_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Elaboração de Metas
+        </a>
+        <a href="Acompanhamento_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4L12 14.01l-3-3"/></svg>
+          Acompanhamento de Metas
+        </a>
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<!-- HOME SCREEN -->
+<div class="home-screen" id="home-screen">
+  <div class="home-card">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="home-title">Painel de Gestão</div>
+    <div class="home-sub">Selecione um item no menu ao lado para começar</div>
+  </div>
+</div>
+
+<div class="dashboard-view hidden" id="dashboard-view">
+<!-- STICKY TOP BAR: brand + refresh only -->
+<header class="filter-bar" id="filter-bar">
+  <div class="fb-brand" style="border-right:none;margin-right:0;padding-right:0;">
+    <div class="fb-mark">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    </div>
+    <div>
+      <div class="fb-title">Análise Comercial</div>
+      <div class="fb-sub">Analytics</div>
+    </div>
+  </div>
+  <div class="fb-right" style="margin-left:auto;">
+    <div class="fb-ts">Atualizado: <span id="fb-ts">—</span></div>
+    <button class="btn-refresh" id="btn-refresh" onclick="loadData()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Atualizar
+    </button>
+  </div>
+</header>
+
+<!-- FILTER ROW below brand bar -->
+<div class="sub-filter-bar" id="sub-filter-bar">
+  <div class="fb-filters">
+    <div class="fb-group">
+      <span class="fb-label">Ano</span>
+      <select class="fb-select" id="f-ano"><option value="">Todos</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Loja</span>
+      <select class="fb-select" id="f-loja"><option value="">Todas</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Mês</span>
+      <select class="fb-select" id="f-mes"><option value="">Todos</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Canal</span>
+      <div class="canal-wrap" id="canal-wrap">
+        <div class="canal-trigger" id="canal-trigger" onclick="toggleCanalDropdown(event)">
+          <span id="canal-trigger-txt">Todos</span>
+          <span class="canal-badge" id="canal-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="canal-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Canais de Distribuição</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllCanais()">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllCanais()">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="canal-dd-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN CONTENT -->
+<div class="content hidden" id="content">
+
+  <!-- ERROR -->
+  <div id="error-wrap">
+    <div class="err-box">
+      <div class="err-icon">⚠️</div>
+      <div class="err-title">Não foi possível carregar</div>
+      <div class="err-msg" id="err-msg">Verifique o link do CSV.</div>
+      <div class="err-code" id="err-code"></div>
+    </div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="sec"><span class="sec-title">Indicadores do Período</span><div class="sec-line"></div><span class="sec-count" id="sec-count">—</span></div>
+  <div class="kpi-row" id="kpi-row">
+    <div class="kpi fi">
+      <div class="kpi-accent ac-blue"></div>
+      <div class="kpi-body">
+        <div class="kpi-header">
+          <div class="kpi-icon ic-blue">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          </div>
+          <div class="kpi-lbl">Faturamento Total</div>
+        </div>
+        <div class="kpi-val" id="kv-fat">—</div>
+        <div class="kpi-foot"><b id="kv-regs">—</b> registros no período</div>
+      </div>
+    </div>
+    <div class="kpi fi">
+      <div class="kpi-accent ac-teal"></div>
+      <div class="kpi-body">
+        <div class="kpi-header">
+          <div class="kpi-icon ic-teal">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+          </div>
+          <div class="kpi-lbl">Cupons Emitidos</div>
+        </div>
+        <div class="kpi-val" id="kv-cupons">—</div>
+        <div class="kpi-foot">Total de cupons no período</div>
+      </div>
+    </div>
+    <div class="kpi fi">
+      <div class="kpi-accent ac-olive"></div>
+      <div class="kpi-body">
+        <div class="kpi-header">
+          <div class="kpi-icon ic-olive">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+          </div>
+          <div class="kpi-lbl">Ticket Médio</div>
+        </div>
+        <div class="kpi-val" id="kv-ticket">—</div>
+        <div class="kpi-foot">Faturamento ÷ Cupons</div>
+      </div>
+    </div>
+    <div class="kpi fi">
+      <div class="kpi-accent ac-rust"></div>
+      <div class="kpi-body">
+        <div class="kpi-header">
+          <div class="kpi-icon ic-rust">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+          </div>
+          <div class="kpi-lbl">Quebras</div>
+        </div>
+        <div class="kpi-val" id="kv-quebras">—</div>
+        <div class="kpi-foot">Total de perdas no período</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 1 -->
+  <div class="sec"><span class="sec-title">Evolução Temporal</span><div class="sec-line"></div></div>
+  <div class="row c2">
+    <div class="card fi">
+      <div class="card-head">
+        <div><div class="card-title">Faturamento por Mês</div><div class="card-sub">Evolução mensal das vendas no período selecionado</div></div>
+        <span class="card-pill p-blue">Barras</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="ch-fat-mes" height="140"></canvas></div></div>
+    </div>
+    <div class="card fi">
+      <div class="card-head">
+        <div><div class="card-title">Ticket Médio / Mês</div><div class="card-sub">Variação mensal</div></div>
+        <span class="card-pill p-olive">Linha</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="ch-ticket-mes" height="140"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 2 -->
+  <div class="row c2">
+    <div class="card fi">
+      <div class="card-head">
+        <div><div class="card-title">Ranking por Loja</div><div class="card-sub">Faturamento total por unidade</div></div>
+        <span class="card-pill p-teal">Horizontal</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="ch-fat-loja" height="130"></canvas></div></div>
+    </div>
+    <div class="card fi">
+      <div class="card-head">
+        <div><div class="card-title">Distribuição por Canal</div><div class="card-sub">Participação percentual no faturamento</div></div>
+        <span class="card-pill p-amber">Rosca</span>
+      </div>
+      <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:180px">
+        <canvas id="ch-canal" style="max-width:240px;max-height:190px"></canvas>
+        <div id="canal-legend" style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:center;align-items:center;font-size:10px;font-family:var(--font-body);color:var(--ink-3);"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CHARTS ROW 3 -->
+  <div class="row c2">
+    <div class="card fi">
+      <div class="card-head">
+        <div><div class="card-title">Cupons por Mês</div><div class="card-sub">Quantidade de cupons emitidos</div></div>
+        <span class="card-pill p-teal">Barras</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="ch-cupons-mes" height="140"></canvas></div></div>
+    </div>
+    <div class="card fi">
+      <div class="card-head">
+        <div><div class="card-title">Quebras por Mês</div><div class="card-sub">Total de perdas mensais</div></div>
+        <span class="card-pill p-rust">Linha</span>
+      </div>
+      <div class="card-body"><div class="chart-wrap"><canvas id="ch-quebras-mes" height="140"></canvas></div></div>
+    </div>
+  </div>
+
+  <!-- ══ COMPARATIVE TABLES ══ -->
+
+  <!-- ══ ANÁLISE POR LOJA ══ -->
+  <div class="sec" style="margin-top:32px">
+    <span class="sec-title-loja">📊 Análise Comparativa por Loja</span>
+    <div class="sec-line"></div>
+  </div>
+
+  <!-- Legenda loja -->
+  <div class="comp-legend-bar">
+    <div class="leg-item"><div class="leg-dot" style="background:var(--teal-mid)"></div> Faturamento mensal por loja · período filtrado</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--border-2)"></div> AV% = participação da loja no total do mês</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--blue-mid)"></div> Coluna <b>Lojas</b> = soma total de todas as lojas</div>
+  </div>
+
+  <!-- Tabela por Loja -->
+  <div class="comp-card fi" id="cc-loja">
+    <div class="comp-card-head cc-head-teal" style="justify-content:space-between">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-teal">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"/></svg>
+        </div>
+        <div>
+          <div class="title">Faturamento por Loja</div>
+          <div class="sub">Receita mensal por loja · AV% = participação no total do mês · filtros ativos</div>
+        </div>
+      </div>
+      <button class="btn-av-toggle" id="btn-av-loja" onclick="toggleAV('loja')" title="Ocultar colunas AV%">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+        Ocultar AV%
+      </button>
+    </div>
+    <div class="comp-scroll" id="scroll-loja">
+      <table class="comp-table" id="ct-loja"><thead id="cth-loja"></thead><tbody id="ctb-loja"></tbody></table>
+    </div>
+  </div>
+
+  <!-- ══ ANÁLISE POR ANO E MÊS ══ -->
+  <div class="sec" style="margin-top:32px">
+    <span class="sec-title-anomes">📅 Análise Comparativa por Ano e Mês</span>
+    <div class="sec-line"></div>
+  </div>
+
+  <!-- Legenda global -->
+  <div class="comp-legend-bar">
+    <div class="leg-item"><div class="leg-dot" style="background:var(--olive-mid)"></div> AH% positivo (crescimento)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--rust-mid)"></div> AH% negativo (queda)</div>
+    <div class="leg-item"><div class="leg-dot" style="background:var(--border-2)"></div> AV% = participação no total anual</div>
+    <div class="leg-item"><span style="font-size:9px;font-weight:700;color:var(--ink-4)">AH%</span> = variação vs ano anterior</div>
+  </div>
+
+  <!-- 1. Faturamento -->
+  <div class="comp-card fi" id="cc-fat">
+    <div class="comp-card-head cc-head-blue">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-blue">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1"/></svg>
+        </div>
+        <div>
+          <div class="title">Faturamento Total</div>
+          <div class="sub">Receita por mês e ano · AH% e AV%</div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-fat"><thead id="cth-fat"></thead><tbody id="ctb-fat"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 2. Cupons -->
+  <div class="comp-card fi" id="cc-cupons">
+    <div class="comp-card-head cc-head-teal">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-teal">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l6-6m-5.5.5h.01m4.99 5h.01M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16l3.5-2 3.5 2 3.5-2 3.5 2z"/></svg>
+        </div>
+        <div>
+          <div class="title">Cupons Emitidos</div>
+          <div class="sub">Quantidade de cupons por mês e ano · AH% e AV%</div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-cupons"><thead id="cth-cupons"></thead><tbody id="ctb-cupons"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 3. Ticket Médio -->
+  <div class="comp-card fi" id="cc-ticket">
+    <div class="comp-card-head cc-head-olive">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-olive">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/></svg>
+        </div>
+        <div>
+          <div class="title">Ticket Médio</div>
+          <div class="sub">Faturamento ÷ Cupons por mês e ano · AH% e AV%</div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-ticket"><thead id="cth-ticket"></thead><tbody id="ctb-ticket"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 4. Quebras -->
+  <div class="comp-card fi" id="cc-quebras">
+    <div class="comp-card-head cc-head-rust">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-rust">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        </div>
+        <div>
+          <div class="title">Quebras (Perdas)</div>
+          <div class="sub">Total de perdas por mês e ano · AH% e AV%</div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-quebras"><thead id="cth-quebras"></thead><tbody id="ctb-quebras"></tbody></table>
+    </div>
+  </div>
+
+  <!-- 6. Faturamento Semana Detalhado -->
+  <div class="comp-card fi" id="cc-semanal2">
+    <div class="comp-card-head cc-head-teal" style="justify-content:space-between">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-teal">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        </div>
+        <div>
+          <div class="title">Faturamento Semana Detalhado</div>
+          <div class="sub">Receita por semana detalhada (Dom–Sáb) e ano · AH% e AV%</div>
+        </div>
+      </div>
+      <button class="btn-av-toggle" id="btn-det-semanal2" onclick="toggleDetalhe()" title="Ocultar linhas de detalhe (atalho: D)">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+        Ocultar Detalhes
+      </button>
+    </div>
+    <div class="comp-scroll" id="scroll-semanal2">
+      <table class="comp-table" id="ct-semanal2"><thead id="cth-semanal2"></thead><tbody id="ctb-semanal2"></tbody></table>
+    </div>
+  </div>
+
+</div><!-- /content -->
+
+</div><!-- /dashboard-view -->
+
+<script>
+/* ═══════════════════════════════════════════════════════
+   ╔═══════════════════════════════════╗
+   ║  🔧 CONFIGURAÇÃO — EDITE AQUI    ║
+   ╚═══════════════════════════════════╝
+═══════════════════════════════════════════════════════ */
+// Apps Script publicado como Web App: lê o arquivo certo no Drive
+// e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec';
+
+// Cada CSV já traz sua própria coluna "loja" preenchida corretamente,
+// então basta buscar todos e juntar as linhas num único array.
+const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha'];
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+
+/* ═══════════════════════════════════════════════════════
+   CONSTANTES
+═══════════════════════════════════════════════════════ */
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+const PALETTE = [
+  '#1B3D6E','#2460A7','#0B5563','#197A8A','#3D5416',
+  '#5A7A22','#7A4A05','#B87010','#6B2010','#A83218',
+  '#4A3070','#7060B0'
+];
+
+/* ═══════════════════════════════════════════════════════
+   STATE
+═══════════════════════════════════════════════════════ */
+let rawData = [];
+let charts  = {};
+
+/* ═══════════════════════════════════════════════════════
+   CSV UTILS
+═══════════════════════════════════════════════════════ */
+const normKey = s => String(s).trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/[\s_\-]+/g,'_').replace(/[^a-z0-9_]/g,'');
+
+const detectSep = l => (l.match(/;/g)||[]).length > (l.match(/,/g)||[]).length ? ';' : ',';
+
+function parseLine(line, sep) {
+  const f=[]; let inQ=false, cur='';
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===sep&&!inQ){f.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  f.push(cur.trim()); return f;
+}
+
+function toNum(s) {
+  if(s===null||s===undefined||String(s).trim()==='') return 0;
+  let v=String(s).trim().replace(/\s/g,'');
+  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(v)) v=v.replace(/\./g,'').replace(',','.');
+  else v=v.replace(/,/g,'.');
+  const n=parseFloat(v); return isNaN(n)?0:n;
+}
+
+function toDate(s) {
+  if(!s||!String(s).trim()) return null;
+  const str=String(s).trim();
+  const m1=str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if(m1) return new Date(+m1[3],+m1[2]-1,+m1[1]);
+  const m2=str.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if(m2) return new Date(+m2[1],+m2[2]-1,+m2[3]);
+  const d=new Date(str); return isNaN(d)?null:d;
+}
+
+// Equivalente a NÚMSEMANA(data;1) do Sheets/Excel: semanas começam no domingo,
+// a semana que contém 1º de janeiro é a semana 1.
+function numSemana(date) {
+  const year   = date.getFullYear();
+  const jan1   = new Date(year,0,1);
+  const dayOfY = Math.floor((date - jan1) / 86400000) + 1;
+  return Math.floor((dayOfY - 1 + jan1.getDay()) / 7) + 1;
+}
+
+// Equivalente a: =NÚMSEMANA(G2)-NÚMSEMANA(FIMMÊS(G2;-1)+1)+1
+// Retorna a semana do MÊS (1ª, 2ª, 3ª...) a partir da coluna Data.
+function semanaDoMes(date) {
+  if(!date || isNaN(date)) return '';
+  const primeiroDiaMes = new Date(date.getFullYear(), date.getMonth(), 1);
+  return numSemana(date) - numSemana(primeiroDiaMes) + 1;
+}
+
+// Nome do dia da semana a partir da Data (Domingo a Sábado), usado para
+// casar com a tabela "Faturamento Semana Detalhado".
+const DIAS_SEMANA_NOMES = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+function diaDaSemana(date) {
+  if(!date || isNaN(date)) return '';
+  return DIAS_SEMANA_NOMES[date.getDay()];
+}
+
+function parseCSV(text) {
+  const lines = text.split(/\r?\n/);
+  if(!lines.length) return [];
+  const sep = detectSep(lines[0]);
+  const headers = parseLine(lines[0], sep).map(normKey);
+
+  const required = ['ano','loja','mes','total'];
+  const missing  = required.filter(r=>!headers.includes(r));
+  if(missing.length) throw new Error(`Colunas não encontradas: ${missing.join(', ')}\nColunas recebidas: ${headers.join(', ')}`);
+
+  const rows=[];
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim(); if(!line) continue;
+    const fields=parseLine(line,sep);
+    if(fields.every(f=>!f)) continue;
+    const obj={}; headers.forEach((h,idx)=>{ obj[h]=fields[idx]??''; });
+    const fatVal    = toNum(obj.total);
+    const cuponsVal = toNum(obj.passage);
+    const dataVal   = toDate(obj.data);
+    // Semana = semana do mês calculada a partir da coluna Data
+    // (equivalente a =NÚMSEMANA(G2)-NÚMSEMANA(FIMMÊS(G2;-1)+1)+1).
+    // Se não houver Data válida, usa a Semana que já vier da planilha.
+    const semanaCalc = semanaDoMes(dataVal);
+    // Dia da semana (Domingo, Segunda, Terça...) calculado a partir da Data.
+    const diaCalc = diaDaSemana(dataVal);
+    const row={
+      ano:    String(obj.ano).trim(),
+      loja:   String(obj.loja).trim(),
+      mes:    String(obj.mes).trim(),
+      canal:  String(obj.canais||obj.canal||obj.canais_semana||'').trim(),
+      dia:    diaCalc !== '' ? diaCalc : String(obj.dia||'').trim(),
+      data:   dataVal,
+      semana: semanaCalc !== '' ? String(semanaCalc) : String(obj.semana||'').trim(),
+      semana2: String(obj.semana2||'').trim(),
+      fat:    fatVal,
+      cupons: cuponsVal,
+      // Ticket e Quebras ainda não existem na nova planilha:
+      // Ticket é calculado como Total ÷ Passage (mesma lógica já usada no dashboard).
+      // Quebras fica em 0 até a coluna ser criada na planilha.
+      ticket: obj.ticket!==undefined ? toNum(obj.ticket) : (cuponsVal? fatVal/cuponsVal : 0),
+      quebras:toNum(obj.quebras),
+    };
+    if(!row.ano||!row.loja) continue;
+    rows.push(row);
+  }
+  return rows;
+}
+
+/* ═══════════════════════════════════════════════════════
+   FORMATADORES
+═══════════════════════════════════════════════════════ */
+const fBRL  = v => !v&&v!==0 ? '—' : new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',maximumFractionDigits:0}).format(v);
+const fBRL2 = v => !v&&v!==0 ? '—' : new Intl.NumberFormat('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2}).format(v);
+const fN    = v => isNaN(v)  ? '—' : new Intl.NumberFormat('pt-BR').format(Math.round(v));
+const fPct  = v => isNaN(v)||!isFinite(v) ? '—' : v.toFixed(1)+'%';
+const fPct2 = v => isNaN(v)||!isFinite(v) ? '—' : v.toFixed(2)+'%';
+// Formatadores SEM símbolo R$ para tabelas comparativas
+const fNum  = v => !v&&v!==0 ? '—' : new Intl.NumberFormat('pt-BR',{minimumFractionDigits:0,maximumFractionDigits:0}).format(v);
+const fNum2 = v => !v&&v!==0 ? '—' : new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v);
+
+/* ═══════════════════════════════════════════════════════
+   FILTROS
+═══════════════════════════════════════════════════════ */
+
+// Estado dos canais selecionados (Set vazio = todos)
+let selectedCanais = new Set();
+
+function getF() {
+  return {
+    ano:    $('f-ano').value,
+    loja:   $('f-loja').value,
+    mes:    $('f-mes').value,
+    canais: selectedCanais   // Set; vazio = todos
+  };
+}
+function applyF(data) {
+  const f = getF();
+  return data.filter(r =>
+    (!f.ano   || r.ano   === f.ano)  &&
+    (!f.loja  || r.loja  === f.loja) &&
+    (!f.mes   || r.mes   === f.mes)  &&
+    (f.canais.size === 0 || f.canais.has(r.canal))
+  );
+}
+
+function fillSel(id, vals, placeholder, labelFn) {
+  const sel=$(id); const cur=sel.value;
+  sel.innerHTML=`<option value="">${placeholder}</option>`;
+  vals.forEach(v=>{
+    const o=document.createElement('option');
+    o.value=v; o.textContent=labelFn?labelFn(v):v;
+    sel.appendChild(o);
+  });
+  if(vals.includes(cur)) sel.value=cur;
+}
+
+function populateFilters(data) {
+  const anos   = [...new Set(data.map(r=>r.ano))].filter(Boolean).sort();
+  const lojas  = [...new Set(data.map(r=>r.loja))].filter(Boolean).sort();
+  const meses  = [...new Set(data.map(r=>r.mes))].filter(Boolean).sort((a,b)=>+a-+b);
+  const canais = [...new Set(data.map(r=>r.canal))].filter(Boolean).sort();
+  const curYear = String(new Date().getFullYear());
+  const anoSel  = $('f-ano').value || (anos.includes(curYear) ? curYear : (anos[anos.length-1]||''));
+  fillSel('f-ano',  anos,  'Todos', v=>v);
+  fillSel('f-loja', lojas, 'Todas', v=>v);
+  fillSel('f-mes',  meses, 'Todos', m=>MONTHS[+m-1]||m);
+  if(anoSel && anos.includes(anoSel)) $('f-ano').value = anoSel;
+  populateCanalDropdown(canais);
+}
+
+/* ── Canal Dropdown ─────────────────────────────────── */
+let _allCanais = [];
+
+// Canais pré-selecionados ao iniciar (case-insensitive)
+const DEFAULT_CANAIS = ['loja', 'delivery'];
+
+function populateCanalDropdown(canais) {
+  _allCanais = canais;
+
+  // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery
+  if (selectedCanais.size === 0) {
+    canais.forEach(canal => {
+      if (DEFAULT_CANAIS.includes(canal.toLowerCase())) {
+        selectedCanais.add(canal);
+      }
+    });
+    // Se todos os canais foram selecionados, mantém o comportamento "Todos"
+    if (selectedCanais.size === canais.length) selectedCanais.clear();
+  }
+
+  const list = $('canal-dd-list');
+  list.innerHTML = '';
+  canais.forEach(canal => {
+    const item = document.createElement('label');
+    item.className = 'canal-item' + (selectedCanais.has(canal) ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${canal}" ${selectedCanais.has(canal)?'checked':''} onchange="onCanalChange(this)">
+      <span class="canal-item-label" title="${canal}">${canal}</span>`;
+    list.appendChild(item);
+  });
+  updateCanalTrigger();
+}
+
+function onCanalChange(cb) {
+  const canal = cb.value;
+  if (cb.checked) {
+    selectedCanais.add(canal);
+  } else {
+    selectedCanais.delete(canal);
+  }
+  // Se todos marcados, limpa (= "Todos")
+  if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
+  // Atualiza estado visual dos itens
+  cb.closest('.canal-item').classList.toggle('checked', cb.checked && selectedCanais.size > 0);
+  updateCanalTrigger();
+  renderAll();
+}
+
+function selectAllCanais() {
+  selectedCanais.clear();
+  // Marcar todos os checkboxes visualmente
+  $('canal-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateCanalTrigger();
+  renderAll();
+}
+
+function clearAllCanais() {
+  selectedCanais.clear();
+  $('canal-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateCanalTrigger();
+  renderAll();
+}
+
+function updateCanalTrigger() {
+  const n      = selectedCanais.size;
+  const badge  = $('canal-badge');
+  const txt    = $('canal-trigger-txt');
+  const trigger= $('canal-trigger');
+
+  if (n === 0) {
+    txt.textContent = 'Todos';
+    badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else if (n === 1) {
+    const [v] = selectedCanais;
+    txt.textContent = v.length > 14 ? v.slice(0,13)+'…' : v;
+    badge.style.display = 'none';
+    trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} canais`;
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+    trigger.classList.add('has-sel');
+  }
+}
+
+function toggleCanalDropdown(e) {
+  e.stopPropagation();
+  const dd      = $('canal-dropdown');
+  const trigger = $('canal-trigger');
+  const isOpen  = dd.classList.toggle('open');
+  trigger.classList.toggle('open', isOpen);
+}
+
+// Fechar ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('#canal-wrap')) {
+    const dd = document.getElementById('canal-dropdown');
+    const tr = document.getElementById('canal-trigger');
+    if (dd) dd.classList.remove('open');
+    if (tr) tr.classList.remove('open');
+  }
+});
+
+/* ═══════════════════════════════════════════════════════
+   AGGREGATE HELPERS
+═══════════════════════════════════════════════════════ */
+function groupSum(data, key, field) {
+  const m={};
+  data.forEach(r=>{ const k=r[key]||'(vazio)'; m[k]=(m[k]||0)+(r[field]||0); });
+  return m;
+}
+function groupMulti(data, key, fields) {
+  const m={};
+  data.forEach(r=>{
+    const k=r[key]||'(vazio)';
+    if(!m[k]) m[k]={};
+    fields.forEach(f=>m[k][f]=(m[k][f]||0)+(r[f]||0));
+  });
+  return m;
+}
+
+/* ═══════════════════════════════════════════════════════
+   CHARTS
+═══════════════════════════════════════════════════════ */
+const TT = {
+  backgroundColor:'#16160F',
+  titleFont:{family:"'Syne',sans-serif",size:12,weight:'700'},
+  bodyFont:{family:"'Calibri','Trebuchet MS',sans-serif",size:12},
+  padding:10, cornerRadius:8,
+};
+const AXIS = {
+  x:{ grid:{color:'#F0EDE5',drawBorder:false}, ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0'}, border:{dash:[3,3],display:false} },
+  y:{ grid:{color:'#F0EDE5',drawBorder:false}, ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0'}, border:{dash:[3,3],display:false} },
+};
+
+function killChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
+
+function barChart(id, labels, data, color, opts={}) {
+  killChart(id);
+  const ctx=$(id).getContext('2d');
+  const grad=ctx.createLinearGradient(0,0,0,300);
+  grad.addColorStop(0,color+'EE'); grad.addColorStop(1,color+'99');
+
+  const categoryAxisCfg = {
+    grid:{color:'#F0EDE5',drawBorder:false},
+    ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0'},
+    border:{dash:[3,3],display:false}
+  };
+  const valueAxisCfg = {
+    grid:{color:'#F0EDE5',drawBorder:false},
+    ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0',
+      callback: v => opts.curr ? fBRL(v) : fN(v)
+    },
+    border:{dash:[3,3],display:false}
+  };
+
+  charts[id]=new Chart(ctx,{
+    type:'bar',
+    data:{ labels, datasets:[{data, backgroundColor:grad, borderColor:color, borderWidth:0, borderRadius:5, borderSkipped:false}] },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      indexAxis: opts.h?'y':'x',
+      plugins:{
+        legend:{display:false},
+        tooltip:{...TT, callbacks:{ label:c=>opts.curr?fBRL(c.raw):fN(c.raw) }},
+      },
+      scales: opts.h
+        ? { y: categoryAxisCfg, x: valueAxisCfg }
+        : { x: categoryAxisCfg, y: valueAxisCfg },
+    }
+  });
+}
+
+function lineChart(id, labels, datasets) {
+  killChart(id);
+  const ctx=$(id).getContext('2d');
+  charts[id]=new Chart(ctx,{
+    type:'line',
+    data:{ labels, datasets },
+    options:{
+      responsive:true, maintainAspectRatio:true,
+      plugins:{
+        legend:{
+          display: datasets.length>1,
+          labels:{ font:{family:"'Epilogue'",size:11}, color:'#787868', usePointStyle:true, pointStyleWidth:8, padding:16 }
+        },
+        tooltip:{...TT, callbacks:{ label:c=>fBRL(c.raw) }},
+      },
+      scales:{
+        x:{...AXIS.x, grid:{display:false}},
+        y:{...AXIS.y, ticks:{...AXIS.y.ticks, callback:v=>fBRL(v)}},
+      },
+    }
+  });
+}
+
+function donutChart(id, labels, data, colors) {
+  killChart(id);
+  const ctx=$(id).getContext('2d');
+  const bgColors = colors||PALETTE.slice(0,labels.length);
+  charts[id]=new Chart(ctx,{
+    type:'doughnut',
+    data:{ labels, datasets:[{ data, backgroundColor:bgColors, borderWidth:3, borderColor:'#fff', hoverOffset:8 }] },
+    options:{
+      responsive:true, maintainAspectRatio:true, cutout:'62%',
+      plugins:{
+        legend:{ display:false },
+        tooltip:{...TT, callbacks:{
+          label:c=>{ const tot=c.chart.data.datasets[0].data.reduce((a,b)=>a+b,0); return `${c.label}: ${fBRL(c.raw)} (${fPct(c.raw/tot*100)})`; }
+        }},
+      }
+    }
+  });
+  // Custom single-line legend
+  const legendEl = $('canal-legend');
+  if(legendEl) {
+    legendEl.innerHTML = labels.map((lbl,i)=>
+      `<span style="display:inline-flex;align-items:center;gap:4px;white-space:nowrap">
+        <span style="width:8px;height:8px;border-radius:2px;background:${bgColors[i]};display:inline-block;flex-shrink:0"></span>
+        ${lbl}
+      </span>`
+    ).join('');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER KPIs
+═══════════════════════════════════════════════════════ */
+function renderKPIs(data) {
+  const fat    = data.reduce((s,r)=>s+r.fat,0);
+  const cupons = data.reduce((s,r)=>s+r.cupons,0);
+  const ticket = cupons?fat/cupons:0;
+  const quebras= data.reduce((s,r)=>s+r.quebras,0);
+  $('kv-fat').textContent    = fBRL(fat);
+  $('kv-regs').textContent   = fN(data.length);
+  $('kv-cupons').textContent = fN(cupons);
+  $('kv-ticket').textContent = fBRL2(ticket);
+  $('kv-quebras').textContent= fBRL(quebras);
+
+  // badge
+  const f=getF(); let parts=[];
+  if(f.ano)  parts.push(f.ano);
+  if(f.loja) parts.push(f.loja);
+  if(f.mes)  parts.push(MONTHS[+f.mes-1]||f.mes);
+  $('sec-count').textContent= `${fN(data.length)} registros`;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER CHARTS
+═══════════════════════════════════════════════════════ */
+function renderCharts(data) {
+  const mesList  = [...new Set(data.map(r=>r.mes))].filter(Boolean).sort((a,b)=>+a-+b);
+  const mesLabels= mesList.map(m=>MONTHS[+m-1]||m);
+
+  // Fat por mês
+  const fatMes = groupSum(data,'mes','fat');
+  barChart('ch-fat-mes', mesLabels, mesList.map(m=>fatMes[m]||0), PALETTE[0], {curr:true});
+
+  // Ticket por mês
+  const gMes = groupMulti(data,'mes',['fat','cupons']);
+  lineChart('ch-ticket-mes', mesLabels, [{
+    data: mesList.map(m=>{ const g=gMes[m]||{}; return g.cupons?g.fat/g.cupons:0; }),
+    borderColor: PALETTE[4], backgroundColor: PALETTE[4]+'18',
+    tension:.4, fill:true, pointBackgroundColor:PALETTE[4], pointRadius:4, pointHoverRadius:7, borderWidth:2.5,
+  }]);
+
+  // Fat por loja
+  const fatLoja = groupSum(data,'loja','fat');
+  const ls = Object.entries(fatLoja).sort((a,b)=>b[1]-a[1]);
+  barChart('ch-fat-loja', ls.map(([k])=>k), ls.map(([,v])=>v), PALETTE[2], {h:true,curr:true});
+
+  // Canal donut
+  const fatCanal = groupSum(data,'canal','fat');
+  const ce = Object.entries(fatCanal).filter(([k])=>k&&k!=='(vazio)').sort((a,b)=>b[1]-a[1]).slice(0,8);
+  donutChart('ch-canal', ce.length?ce.map(([k])=>k):['Sem canal'], ce.length?ce.map(([,v])=>v):[1], ce.length?PALETTE.slice(0,ce.length):['#E8E6DE']);
+
+  // Cupons por mês
+  const cupMes = groupSum(data,'mes','cupons');
+  barChart('ch-cupons-mes', mesLabels, mesList.map(m=>cupMes[m]||0), PALETTE[2]);
+
+  // Quebras por mês
+  const qMes = groupSum(data,'mes','quebras');
+  lineChart('ch-quebras-mes', mesLabels, [{
+    data: mesList.map(m=>qMes[m]||0),
+    borderColor: PALETTE[8], backgroundColor: PALETTE[8]+'18',
+    tension:.4, fill:true, pointBackgroundColor:PALETTE[8], pointRadius:4, pointHoverRadius:7, borderWidth:2.5,
+  }]);
+  if(charts['ch-quebras-mes']){
+    charts['ch-quebras-mes'].options.plugins.tooltip.callbacks.label=c=>fBRL(c.raw);
+    charts['ch-quebras-mes'].update('none');
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER COMPARATIVE TABLES (4 quadros individuais)
+═══════════════════════════════════════════════════════ */
+function renderComparative(data) {
+  // Dados base: sem filtro de ano, mas com filtro de loja/mês
+  const f = getF();
+  const baseData = rawData.filter(r =>
+    (!f.loja || r.loja === f.loja) &&
+    (!f.mes  || r.mes  === f.mes)
+  );
+
+  const anos    = [...new Set(baseData.map(r => r.ano))].filter(Boolean).sort();
+  const mesList = [...new Set(rawData.map(r => r.mes))].filter(Boolean).sort((a,b) => +a - +b);
+  if (!anos.length || !mesList.length) return;
+
+  // ── Helper: constrói cabeçalho ──────────────────────
+  function buildHead(theadId, anos, firstColLabel, centerFirst) {
+    const colLabel = firstColLabel || 'Mês';
+    const firstAlign = centerFirst ? 'center' : 'left';
+    // Linha 1: grupos de anos + AH%
+    let h1 = `<tr><th class="th-col left" rowspan="2" style="min-width:90px;vertical-align:bottom;padding-bottom:10px;text-align:${firstAlign}">${colLabel}</th>`;
+    anos.forEach(ano => {
+      h1 += `<th class="th-group b-left" colspan="2" style="color:#16160F;font-weight:800">${ano}</th>`;
+    });
+    for (let i = 1; i < anos.length; i++) {
+      h1 += `<th class="th-group b-left" colspan="1" style="color:var(--blue-mid);font-size:8px">${anos[i-1]}→${anos[i]}</th>`;
+    }
+    h1 += '</tr>';
+
+    // Linha 2: sub-colunas
+    let h2 = '<tr>';
+    anos.forEach(() => {
+      h2 += `<th class="th-col b-left" style="text-align:center">Valor</th><th class="th-col av-col" style="text-align:center">AV%</th>`;
+    });
+    for (let i = 1; i < anos.length; i++) {
+      h2 += `<th class="th-col b-left" style="color:var(--blue-mid);text-align:center">AH%</th>`;
+    }
+    h2 += '</tr>';
+    $(theadId).innerHTML = h1 + h2;
+  }
+
+  // ── Helper: badge AH% ───────────────────────────────
+  function ahBadge(v) {
+    if (v === null || !isFinite(v)) return `<span class="ah-badge ah-neu">—</span>`;
+    if (v >= 0) return `<span class="ah-badge ah-pos">▲ ${fPct(v)}</span>`;
+    return `<span class="ah-badge ah-neg">▼ ${fPct(Math.abs(v))}</span>`;
+  }
+  function ahBadge2(v) {
+    if (v === null || !isFinite(v)) return `<span class="ah-badge ah-neu">—</span>`;
+    if (v >= 0) return `<span class="ah-badge ah-pos">▲ ${fPct2(v)}</span>`;
+    return `<span class="ah-badge ah-neg">▼ ${fPct2(Math.abs(v))}</span>`;
+  }
+
+  // ── Helper: agrega campo por (ano, mes) ─────────────
+  function agg(anoVal, mesVal, field) {
+    return baseData.filter(r => r.ano === anoVal && r.mes === mesVal)
+                   .reduce((s, r) => s + (r[field] || 0), 0);
+  }
+  function aggAll(anoVal, field) {
+    return baseData.filter(r => r.ano === anoVal).reduce((s, r) => s + (r[field] || 0), 0);
+  }
+
+  // ── Helper: constrói tbody genérico ─────────────────
+  // getVal(ano, mes) → valor da célula
+  // getTotal(ano)    → total do ano para AV%
+  // fmtVal(v)        → formatar o valor
+  // totalRowClass    → classe CSS da linha de total
+  function buildBody(tbodyId, anos, mesList, getVal, getTotal, fmtVal, totalRowClass) {
+    let html = '';
+    const totaisPorAno = anos.map(a => getTotal(a));
+
+    mesList.forEach(mes => {
+      const label = MONTHS[+mes - 1] || mes;
+      const valsPorAno = anos.map(a => getVal(a, mes));
+      const av = valsPorAno.map((v, i) => totaisPorAno[i] > 0 ? v / totaisPorAno[i] * 100 : 0);
+      const ah = anos.map((_, i) => {
+        if (!i) return null;
+        const p = valsPorAno[i-1], c = valsPorAno[i];
+        return p ? (c - p) / p * 100 : null;
+      });
+
+      html += `<tr class="mes-row"><td class="td-metric" style="border-right:2px solid var(--border-2)">${label}</td>`;
+      anos.forEach((_, i) => {
+        html += `<td style="text-align:center">${fmtVal(valsPorAno[i])}</td><td class="av-col" style="text-align:center">${fPct(av[i])}</td>`;
+      });
+      for (let i = 1; i < anos.length; i++) {
+        html += `<td class="b-left" style="text-align:center">${ahBadge(ah[i])}</td>`;
+      }
+      html += '</tr>';
+    });
+
+    // Linha total
+    const totalVals = anos.map(a => getTotal(a));
+    const totalAH   = anos.map((_, i) => {
+      if (!i) return null;
+      const p = totalVals[i-1], c = totalVals[i];
+      return p ? (c - p) / p * 100 : null;
+    });
+
+    html += `<tr class="${totalRowClass}"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2)">Total Anual</td>`;
+    anos.forEach((_, i) => {
+      html += `<td style="font-weight:800;text-align:center">${fmtVal(totalVals[i])}</td><td class="av-col" style="font-weight:700;text-align:center">100%</td>`;
+    });
+    for (let i = 1; i < anos.length; i++) {
+      html += `<td class="b-left" style="text-align:center">${ahBadge(totalAH[i])}</td>`;
+    }
+    html += '</tr>';
+
+    $(tbodyId).innerHTML = html;
+  }
+
+  // ══ 1. FATURAMENTO ══════════════════════════════════
+  buildHead('cth-fat', anos);
+  buildBody(
+    'ctb-fat', anos, mesList,
+    (a, m) => agg(a, m, 'fat'),
+    (a)    => aggAll(a, 'fat'),
+    fNum,
+    'total-row'
+  );
+
+  // ══ 2. CUPONS ═══════════════════════════════════════
+  buildHead('cth-cupons', anos);
+  buildBody(
+    'ctb-cupons', anos, mesList,
+    (a, m) => agg(a, m, 'cupons'),
+    (a)    => aggAll(a, 'cupons'),
+    fN,
+    'total-row-teal'
+  );
+
+  // ══ 3. TICKET MÉDIO ═════════════════════════════════
+  buildHead('cth-ticket', anos);
+  // Ticket: fat/cupons por mês; AV% = ticket_mes / soma_tickets_ano
+  {
+    const getVal = (a, m) => {
+      const fat = agg(a, m, 'fat'), cup = agg(a, m, 'cupons');
+      return cup ? fat / cup : 0;
+    };
+    const getTotal = (a) => {
+      const fat = aggAll(a, 'fat'), cup = aggAll(a, 'cupons');
+      return cup ? fat / cup : 0;
+    };
+    // AV% para ticket: ticket_mes / ticket_total (não faz soma — usar média ponderada)
+    // Reconstruir manualmente para AV% correto (ticket mes / ticket ano)
+    const totaisPorAno = anos.map(a => getTotal(a));
+
+    let html = '';
+    mesList.forEach(mes => {
+      const label = MONTHS[+mes - 1] || mes;
+      const valsPorAno = anos.map(a => getVal(a, mes));
+      // AV%: ticket_mes / ticket_total_ano (índice de nível relativo)
+      const av = valsPorAno.map((v, i) => totaisPorAno[i] > 0 ? v / totaisPorAno[i] * 100 : 0);
+      const ah = anos.map((_, i) => {
+        if (!i) return null;
+        const p = valsPorAno[i-1], c = valsPorAno[i];
+        return p ? (c - p) / p * 100 : null;
+      });
+      html += `<tr class="mes-row"><td class="td-metric" style="border-right:2px solid var(--border-2)">${label}</td>`;
+      anos.forEach((_, i) => {
+        html += `<td style="text-align:center">${fNum2(valsPorAno[i])}</td><td class="av-col" style="text-align:center">${fPct(av[i])}</td>`;
+      });
+      for (let i = 1; i < anos.length; i++) {
+        html += `<td class="b-left" style="text-align:center">${ahBadge(ah[i])}</td>`;
+      }
+      html += '</tr>';
+    });
+
+    // Linha de total = ticket médio anual
+    const totalAH = anos.map((_, i) => {
+      if (!i) return null;
+      const p = totaisPorAno[i-1], c = totaisPorAno[i];
+      return p ? (c - p) / p * 100 : null;
+    });
+    html += `<tr class="total-row-olive"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2)">Ticket Médio Anual</td>`;
+    anos.forEach((_, i) => {
+      html += `<td style="font-weight:800;text-align:center">${fNum2(totaisPorAno[i])}</td><td class="av-col" style="font-weight:700;text-align:center">100%</td>`;
+    });
+    for (let i = 1; i < anos.length; i++) {
+      html += `<td class="b-left" style="text-align:center">${ahBadge(totalAH[i])}</td>`;
+    }
+    html += '</tr>';
+    $('ctb-ticket').innerHTML = html;
+  }
+
+  // ══ 4. QUEBRAS ══════════════════════════════════════
+  buildHead('cth-quebras', anos);
+  buildBody(
+    'ctb-quebras', anos, mesList,
+    (a, m) => agg(a, m, 'quebras'),
+    (a)    => aggAll(a, 'quebras'),
+    fNum,
+    'total-row-rust'
+  );
+
+  // ══ ANÁLISE POR LOJA ════════════════════════════════
+  {
+    // Respeita filtros de mês e loja
+    const baseDataLoja = rawData.filter(r =>
+      (!f.mes  || r.mes  === f.mes)  &&
+      (!f.loja || r.loja === f.loja)
+    );
+
+    // Quando filtro de ano está vazio → consolida tudo (sem separar por ano)
+    const dataAno = f.ano
+      ? baseDataLoja.filter(r => r.ano === f.ano)
+      : baseDataLoja;
+
+    const anoLabel = f.ano ? f.ano : 'Consolidado';
+
+    // Meses com dados
+    const mesesLoja = [...new Set(dataAno.map(r => r.mes))].filter(Boolean).sort((a,b) => +a - +b);
+
+    // Lojas com ao menos 1 valor > 0 — ordenadas por faturamento decrescente
+    const todasLojas = [...new Set(rawData.map(r => r.loja))].filter(Boolean);
+    const lojas = todasLojas
+      .filter(l => dataAno.some(r => r.loja === l && (r.fat || 0) > 0))
+      .sort((a, b) => {
+        const totA = dataAno.filter(r => r.loja === a).reduce((s,r) => s+(r.fat||0), 0);
+        const totB = dataAno.filter(r => r.loja === b).reduce((s,r) => s+(r.fat||0), 0);
+        return totB - totA;
+      });
+
+    if (lojas.length && mesesLoja.length) {
+      const nLojas = lojas.length;
+
+      // ── Cabeçalho ─────────────────────────────────────
+      // Linha 1: "Mês" + grupo ano cobrindo lojas (SEM grupo "Total" — evita célula branca ao ocultar AV%)
+      let h1 = `<tr>
+        <th class="th-col left" rowspan="2" style="min-width:90px;vertical-align:bottom;padding-bottom:10px;text-align:left">Mês</th>
+        <th class="th-group b-left" colspan="${nLojas * 2}" style="color:#16160F;font-weight:800;border-bottom:2px solid var(--teal-lt)">${anoLabel}</th>
+      </tr>`;
+
+      // Linha 2: nome de cada loja + AV% + coluna "Total" (sem av-col para nunca sumir)
+      let h2 = '<tr>';
+      lojas.forEach(loja => {
+        h2 += `<th class="th-col b-left" style="text-align:center;font-size:9px;white-space:normal;line-height:1.3;max-width:100px">${loja}</th>
+                <th class="th-col av-col" style="text-align:center">AV%</th>`;
+      });
+      // coluna Total na linha 2 — sem av-col, sem grupo pai
+      h2 += `<th class="th-col b-left" style="text-align:center;background:var(--blue-xl);color:var(--blue);font-weight:800">Total</th>`;
+      h2 += '</tr>';
+      $('cth-loja').innerHTML = h1 + h2;
+
+      // ── Funções de agregação (consolidadas — sem ano) ──
+      const aggVal     = (mes, loja) => dataAno.filter(r => r.mes===mes && r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
+      const aggMesTot  = (mes)       => dataAno.filter(r => r.mes===mes).reduce((s,r)=>s+(r.fat||0),0);
+      const aggLojaTot = (loja)      => dataAno.filter(r => r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
+      const totalGeral = dataAno.reduce((s,r)=>s+(r.fat||0),0);
+
+      // ── Corpo ──────────────────────────────────────────
+      let html = '';
+      mesesLoja.forEach(mes => {
+        const label  = MONTHS[+mes - 1] || mes;
+        const totMes = aggMesTot(mes);
+        const totLinha = lojas.reduce((s,l) => s + aggVal(mes,l), 0);
+
+        html += `<tr class="mes-row"><td class="td-metric" style="border-right:2px solid var(--border-2)">${label}</td>`;
+        lojas.forEach(loja => {
+          const v  = aggVal(mes, loja);
+          const av = totMes > 0 ? v / totMes * 100 : 0;
+          html += `<td class="b-left" style="text-align:center">${fNum(v)}</td>
+                   <td class="av-col" style="text-align:center">${fPct(av)}</td>`;
+        });
+        // Célula total — sem av-col para nunca desaparecer
+        html += `<td class="b-left" style="text-align:center;font-weight:700;background:var(--blue-xl);color:var(--blue)">${fNum(totLinha)}</td>`;
+        html += '</tr>';
+      });
+
+      // ── Linha Total (soma real de cada coluna) ─────────
+      html += `<tr class="total-row"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2)">Total</td>`;
+      lojas.forEach(loja => {
+        const vTot = aggLojaTot(loja);
+        const av   = totalGeral > 0 ? vTot / totalGeral * 100 : 0;
+        html += `<td class="b-left" style="font-weight:800;text-align:center">${fNum(vTot)}</td>
+                 <td class="av-col" style="font-weight:700;text-align:center">${fPct(av)}</td>`;
+      });
+      html += `<td class="b-left" style="font-weight:800;text-align:center;background:var(--blue-xl);color:var(--blue)">${fNum(totalGeral)}</td>`;
+      html += '</tr>';
+
+      $('ctb-loja').innerHTML = html;
+    } else {
+      $('ctb-loja').innerHTML = '<tr><td colspan="20" class="nd"><div class="nd-icon">🏪</div>Sem dados de loja disponíveis para o período selecionado</td></tr>';
+    }
+  }
+
+  // ══ 5/6. FATURAMENTO SEMANA DETALHADO ═══════════════
+  {
+    const baseDataS = rawData.filter(r=>(!f.loja||r.loja===f.loja));
+    const aggAllS = (anoVal) => baseDataS.filter(r=>r.ano===anoVal).reduce((s,r)=>s+(r.fat||0),0);
+
+      // ══ 6. FATURAMENTO SEMANA DETALHADO ═════════════════
+      // Dias fixos da semana (ordem: Dom a Sáb)
+      const DIAS_SEMANA = ['Domingo','Segunda','Terça','Quarta','Quinta','Sexta','Sábado'];
+
+      // Coletar semanas únicas ordenadas
+      const semanasUnicas = [...new Set(baseDataS.map(r=>r.semana))].filter(Boolean).sort((a,b)=>{
+        const na=+String(a).replace(/\D/g,''), nb=+String(b).replace(/\D/g,'');
+        return na-nb || String(a).localeCompare(String(b));
+      });
+
+      // aggS2Det: soma fat para (ano, semana, diaLabel)
+      // Tenta combinar por: semana2 contendo o nome do dia, ou campo dia
+      const aggDia = (anoVal, semVal, diaLabel) => {
+        const diaShort = diaLabel.substring(0,3).toLowerCase();
+        return baseDataS.filter(r=>{
+          if(r.ano!==anoVal||r.semana!==semVal) return false;
+          const s2 = String(r.semana2||'').toLowerCase();
+          const d  = String(r.dia||'').toLowerCase();
+          // tenta match por semana2 ou dia
+          return s2.startsWith(diaShort) || s2.includes(diaLabel.toLowerCase()) ||
+                 d.startsWith(diaShort)  || d.includes(diaLabel.toLowerCase());
+        }).reduce((s,r)=>s+(r.fat||0),0);
+      };
+
+      // Build cabeçalho especial Semana | Semana Detalhada | anos...
+      {
+        let h1 = `<tr>
+          <th class="th-col left" rowspan="2" style="min-width:70px;vertical-align:bottom;padding-bottom:10px;text-align:center;font-weight:800">Semana</th>
+          <th class="th-col left" rowspan="2" style="min-width:130px;vertical-align:bottom;padding-bottom:10px;text-align:center;border-right:2px solid var(--border-2);font-weight:800">Semana Detalhada</th>`;
+        anos.forEach(ano=>{
+          h1+=`<th class="th-group b-left" colspan="2">${ano}</th>`;
+        });
+        for(let i=1;i<anos.length;i++){
+          h1+=`<th class="th-group b-left" colspan="1" style="color:var(--blue-mid);font-size:8px">${anos[i-1]}→${anos[i]}</th>`;
+        }
+        h1+='</tr>';
+        let h2='<tr>';
+        anos.forEach(()=>{ h2+=`<th class="th-col b-left" style="text-align:center">Valor</th><th class="th-col av-col" style="text-align:center">AV%</th>`; });
+        for(let i=1;i<anos.length;i++){ h2+=`<th class="th-col b-left" style="color:var(--blue-mid);text-align:center">AH%</th>`; }
+        h2+='</tr>';
+        $('cth-semanal2').innerHTML = h1+h2;
+      }
+
+      if(semanasUnicas.length) {
+        const totalsPorAno2 = anos.map(a=>aggAllS(a));
+        let html2='';
+
+        semanasUnicas.forEach(sem=>{
+          // Total da semana por ano (subtotal de linha de semana)
+          const semTotals = anos.map(a=>baseDataS.filter(r=>r.ano===a&&r.semana===sem).reduce((s,r)=>s+(r.fat||0),0));
+
+          DIAS_SEMANA.forEach((dia, dIdx)=>{
+            const valsPorAno = anos.map(a=>aggDia(a,sem,dia));
+            const av = valsPorAno.map((v,i)=>totalsPorAno2[i]>0?v/totalsPorAno2[i]*100:0);
+            const ah = anos.map((_,i)=>{
+              if(!i) return null;
+              const p=valsPorAno[i-1],c=valsPorAno[i];
+              return p?(c-p)/p*100:null;
+            });
+
+            if(dIdx===0){
+              // Primeira linha do grupo: célula Semana com rowspan=7
+              html2+=`<tr class="mes-row">
+                <td class="td-metric" style="text-align:center;vertical-align:middle;font-weight:700;background:var(--blue-xl);border-right:1px solid var(--border)" rowspan="${DIAS_SEMANA.length}">${sem}</td>
+                <td class="td-metric" style="text-align:center;border-right:2px solid var(--border-2)">${dia}</td>`;
+            } else {
+              html2+=`<tr class="mes-row">
+                <td class="td-metric" style="text-align:center;border-right:2px solid var(--border-2)">${dia}</td>`;
+            }
+
+            anos.forEach((_,i)=>{
+              html2+=`<td style="text-align:center">${fNum(valsPorAno[i])}</td><td class="av-col" style="text-align:center">${fPct2(av[i])}</td>`;
+            });
+            for(let i=1;i<anos.length;i++){
+              html2+=`<td class="b-left" style="text-align:center">${ahBadge2(ah[i])}</td>`;
+            }
+            html2+='</tr>';
+          });
+
+          // Subtotal da semana
+          const avSem = semTotals.map((v,i)=>totalsPorAno2[i]>0?v/totalsPorAno2[i]*100:0);
+          const ahSem = anos.map((_,i)=>{
+            if(!i) return null;
+            const p=semTotals[i-1],c=semTotals[i];
+            return p?(c-p)/p*100:null;
+          });
+          html2+=`<tr class="sem-total-row" style="background:var(--surf-2);border-top:1.5px solid var(--border-2);border-bottom:2px solid var(--border)">
+            <td class="td-metric sem2-col1" style="text-align:center;font-weight:700;border-right:1px solid var(--border);color:var(--blue)">${sem}</td>
+            <td class="td-metric sem2-col2" style="text-align:center;font-weight:700;border-right:2px solid var(--border-2);color:var(--blue)">Total Semana</td>`;
+          anos.forEach((_,i)=>{
+            html2+=`<td style="text-align:center;font-weight:700;color:var(--blue)">${fNum(semTotals[i])}</td><td class="av-col" style="text-align:center;font-weight:700">${fPct2(avSem[i])}</td>`;
+          });
+          for(let i=1;i<anos.length;i++){
+            html2+=`<td class="b-left" style="text-align:center">${ahBadge2(ahSem[i])}</td>`;
+          }
+          html2+='</tr>';
+        });
+
+        // Linha Total Geral
+        const totalAH2=anos.map((_,i)=>{
+          if(!i) return null;
+          const p=totalsPorAno2[i-1],c=totalsPorAno2[i];
+          return p?(c-p)/p*100:null;
+        });
+        html2+=`<tr class="total-row">
+          <td class="td-metric sem2-col1" style="font-weight:800;text-align:center;border-right:1px solid var(--border)">Total</td>
+          <td class="td-metric sem2-col2" style="font-weight:800;text-align:center;border-right:2px solid var(--border-2)">Anual</td>`;
+        anos.forEach((_,i)=>{
+          html2+=`<td style="font-weight:800;text-align:center">${fNum(totalsPorAno2[i])}</td><td class="av-col" style="font-weight:700;text-align:center">100,00%</td>`;
+        });
+        for(let i=1;i<anos.length;i++){
+          html2+=`<td class="b-left" style="text-align:center">${ahBadge2(totalAH2[i])}</td>`;
+        }
+        html2+='</tr>';
+        $('ctb-semanal2').innerHTML=html2;
+      } else {
+        $('ctb-semanal2').innerHTML='<tr><td colspan="20" class="nd"><div class="nd-icon">📅</div>Coluna "Semana" não encontrada ou sem dados</td></tr>';
+      }
+  }
+}
+
+/* ═══════════════════════════════════════════════════════
+   TOGGLE AV% COLUMNS
+═══════════════════════════════════════════════════════ */
+function toggleAV(scope) {
+  const btn = $('btn-av-' + scope);
+  const scroll = $('scroll-' + scope);
+  const hidden = scroll.classList.toggle('av-hidden');
+  btn.classList.toggle('active', hidden);
+  // Atualiza label e ícone
+  const eyeOpen  = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+  const eyeClose = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21"/></svg>`;
+  btn.innerHTML = hidden
+    ? eyeOpen  + ' Exibir AV%'
+    : eyeClose + ' Ocultar AV%';
+}
+
+/* ═══════════════════════════════════════════════════════
+   TOGGLE DETALHE ROWS — Semana Detalhado
+═══════════════════════════════════════════════════════ */
+function toggleDetalhe() {
+  const btn    = $('btn-det-semanal2');
+  const scroll = $('scroll-semanal2');
+  const hidden = scroll.classList.toggle('det-hidden');
+  btn.classList.toggle('active', hidden);
+  const iconDown = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>`;
+  const iconUp   = `<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="13" height="13"><path stroke-linecap="round" stroke-linejoin="round" d="M5 15l7-7 7 7"/></svg>`;
+  btn.innerHTML  = hidden
+    ? iconUp   + ' Exibir Detalhes'
+    : iconDown + ' Ocultar Detalhes';
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER ALL
+═══════════════════════════════════════════════════════ */
+function renderAll() {
+  const data = applyF(rawData);
+  renderKPIs(data);
+  renderCharts(data);
+  renderComparative(data);
+}
+
+/* ═══════════════════════════════════════════════════════
+   LOAD DATA
+═══════════════════════════════════════════════════════ */
+async function loadData() {
+  const btn = $('btn-refresh');
+  btn.classList.add('spin');
+  setLdTxt('Carregando CSV…');
+
+  const isFirst = $('content').classList.contains('hidden');
+  if(isFirst) showLoader(true);
+
+  try {
+    const cacheBust = '&_=' + Date.now();
+    const responses = await Promise.all(
+      CSV_URLS.map(url => fetch(url + cacheBust, { cache:'no-store' }))
+    );
+    responses.forEach((res, i) => {
+      if(!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText} (arquivo ${i+1} de ${CSV_URLS.length})`);
+    });
+    setLdTxt('Processando dados…');
+    const texts = await Promise.all(responses.map(res => res.text()));
+    rawData = texts.flatMap(text => parseCSV(text));
+    if(!rawData.length) throw new Error('Nenhuma linha válida encontrada.');
+
+    populateFilters(rawData);
+    hideErr();
+    $('content').classList.remove('hidden');
+    renderAll();
+    const ts = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    $('fb-ts').textContent = ts;
+    if(isFirst) setTimeout(()=>showLoader(false), 300);
+
+  } catch(e) {
+    console.error(e);
+    showErr(e.message, e.stack);
+    $('content').classList.remove('hidden');
+    if(isFirst) setTimeout(()=>showLoader(false), 300);
+  }
+  btn.classList.remove('spin');
+}
+
+/* ═══════════════════════════════════════════════════════
+   UTILS
+═══════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const showLoader = v => $('loader').classList.toggle('out', !v);
+const setLdTxt   = t => $('ld-txt').textContent = t;
+const showErr    = (msg, det) => { const w=$('error-wrap'); w.classList.add('show'); $('err-msg').textContent=msg; $('err-code').textContent=det?det.split('\n')[0]:''; };
+const hideErr    = () => $('error-wrap').classList.remove('show');
+
+// Filters (canal has own onCanalChange handler)
+['f-ano','f-loja','f-mes'].forEach(id => $(id).addEventListener('change', renderAll));
+
+// Sticky bar shadow
+window.addEventListener('scroll', () => {
+  $('filter-bar').classList.toggle('scrolled', window.scrollY > 4);
+});
+
+// Keyboard shortcut: D = toggle detalhe semanal
+window.addEventListener('keydown', e => {
+  if(e.target.tagName === 'INPUT' || e.target.tagName === 'SELECT' || e.target.tagName === 'TEXTAREA') return;
+  if(e.key === 'd' || e.key === 'D') toggleDetalhe();
+});
+
+// Boot
+// ── RECOLHER/EXPANDIR SIDEBAR ──
+let lastOpenMenu = null;
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+
+  // Ao passar o mouse por cima do menu recolhido, expande temporariamente
+  // restaurando o submenu de onde ele parou antes de recolher
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
+  });
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+// ── SIDEBAR MENU ──
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      // Se estiver recolhido, o clique no ícone expande o menu novamente
+      if(sidebar.classList.contains('collapsed')){
+        sidebar.classList.remove('peek');
+        expandSidebar();
+        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+        item.classList.add('open');
+        return;
+      }
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=> document.body.classList.toggle('side-open'));
+  }
+})();
+
+// ── ABERTURA SOB DEMANDA: Análise Comercial ──
+let dashboardStarted = false;
+function openAnaliseComercial(){
+  document.getElementById('home-screen').classList.add('hidden');
+  document.getElementById('dashboard-view').classList.remove('hidden');
+
+  // Marca como ativo apenas ao abrir de fato a página
+  document.querySelectorAll('.side-item').forEach(i=>i.classList.remove('active'));
+  document.querySelectorAll('.side-sub a').forEach(a=>a.classList.remove('active'));
+  document.getElementById('link-analise-comercial').classList.add('active');
+  const comercialItem = document.getElementById('link-analise-comercial').closest('.side-item');
+  comercialItem.classList.add('active');
+  // Garante que o submenu "Comercial" fique marcado como aberto,
+  // para que o hover no menu recolhido volte já posicionado nele.
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+  comercialItem.classList.add('open');
+  lastOpenMenu = 'comercial';
+
+  if(!dashboardStarted){
+    dashboardStarted = true;
+    loadData();
+  }
+  document.body.classList.remove('side-open'); // fecha menu mobile após navegar
+  if(window.innerWidth > 900) collapseSidebar(); // recolhe automaticamente (desktop)
+}
+document.getElementById('link-analise-comercial').addEventListener('click', e=>{
+  e.preventDefault();
+  openAnaliseComercial();
+});
+// Abre o dashboard automaticamente ao carregar a página
+// (antes só abria se o clique acontecesse dentro desta mesma página;
+// agora funciona também vindo de outro dashboard, como o Faturamento x Lucro).
+openAnaliseComercial();
+</script>
+</body>
+</html>

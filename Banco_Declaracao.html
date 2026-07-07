@@ -1,0 +1,1305 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Declaração de Faturamento | Grupo Pratic</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* =====================================================================
+   DESIGN TOKENS
+===================================================================== */
+:root{
+  --ink:#0E1B2E;
+  --ink-soft:#1B2D45;
+  --paper:#F6F4EE;
+  --card:#FFFFFF;
+  --line:#E4DFD2;
+  --gold:#B8893E;
+  --gold-soft:#D9B877;
+  --emerald:#1C6E54;
+  --brick:#A23B2E;
+  --slate:#5B6B7C;
+  --slate-light:#94A1AC;
+
+  --font-display:'Fraunces', Georgia, serif;
+  --font-body:'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  --font-mono:'IBM Plex Mono', 'Courier New', monospace;
+
+  --radius-lg:16px;
+  --radius-md:11px;
+  --radius-sm:7px;
+  --shadow-card:0 1px 2px rgba(14,27,46,.05), 0 10px 28px -16px rgba(14,27,46,.18);
+}
+
+*,*::before,*::after{ box-sizing:border-box; }
+html{ -webkit-text-size-adjust:100%; }
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--font-body);
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+img,svg{ display:block; max-width:100%; }
+button, select{ font:inherit; }
+
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{ animation-duration:.01ms !important; animation-iteration-count:1 !important; transition-duration:.01ms !important; scroll-behavior:auto !important; }
+}
+
+a{ color:inherit; }
+
+/* =====================================================================
+   LAYOUT SHELL
+===================================================================== */
+.wrap{ max-width:100%; margin:0 auto; padding:0 22px 64px; }
+
+/* ---------- Topbar ---------- */
+.topbar{
+  background:linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  border-bottom:3px solid var(--gold);
+  color:#fff;
+}
+.topbar-inner{
+  max-width:100%; margin:0 auto; padding:22px 22px;
+  display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+}
+.brand{ display:flex; align-items:center; gap:14px; }
+.brand-mark{
+  width:46px; height:46px; flex:none; border-radius:50%;
+  background:radial-gradient(circle at 32% 28%, #2A3F5C, var(--ink) 72%);
+  border:1.5px solid var(--gold-soft);
+  display:flex; align-items:center; justify-content:center;
+  font-family:var(--font-display); font-weight:700; font-size:17px; color:var(--gold-soft);
+  letter-spacing:.02em;
+}
+.brand-text h1{
+  margin:0; font-family:var(--font-display); font-weight:600; font-size:21px; letter-spacing:.01em;
+}
+.brand-text span{
+  display:block; margin-top:2px; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--gold-soft);
+}
+.sync-pill{
+  display:inline-flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,.07); border:1px solid rgba(255,255,255,.16);
+  padding:8px 14px; border-radius:999px; font-size:12px; color:#E7E2D8;
+}
+.sync-dot{
+  width:7px; height:7px; border-radius:50%; background:#5FD3A0; flex:none;
+  box-shadow:0 0 0 0 rgba(95,211,160,.6);
+  animation:pulse 2.2s ease-out infinite;
+}
+@keyframes pulse{
+  0%{ box-shadow:0 0 0 0 rgba(95,211,160,.55); }
+  70%{ box-shadow:0 0 0 7px rgba(95,211,160,0); }
+  100%{ box-shadow:0 0 0 0 rgba(95,211,160,0); }
+}
+
+/* ---------- Filter bar ---------- */
+.filterbar{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
+  box-shadow:var(--shadow-card);
+  margin-top:-26px; padding:18px 22px;
+  display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; position:relative; z-index:2;
+}
+.field{ display:flex; flex-direction:column; gap:5px; }
+.field label{
+  font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--slate);
+}
+.field select{
+  min-width:172px; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line);
+  background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0L5 6L10 0Z" fill="%235B6B7C"/></svg>') no-repeat right 12px center;
+  appearance:none; -webkit-appearance:none; color:var(--ink); font-size:13.5px; cursor:pointer;
+}
+.field select:focus-visible{ outline:2px solid var(--gold); outline-offset:1px; }
+.c-dd{ position:relative; }
+.c-dd-btn{
+  min-width:172px; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line);
+  background:#fff; color:var(--ink); font-size:13.5px; cursor:pointer; text-align:left;
+  display:flex; align-items:center; justify-content:space-between; gap:8px; white-space:nowrap;
+}
+.c-dd-btn::after{ content:"▾"; font-size:10px; color:var(--slate); }
+.c-dd-btn.open{ border-color:var(--gold); }
+.c-dd-btn.open::after{ content:"▴"; }
+.c-dd-menu{
+  display:none; position:absolute; top:100%; left:0; z-index:10; margin-top:4px;
+  min-width:100%; background:#fff; border:1px solid var(--line); border-radius:var(--radius-sm);
+  box-shadow:0 8px 24px rgba(0,0,0,.12); padding:6px; max-height:200px; overflow-y:auto;
+}
+.c-dd-menu.open{ display:block; }
+.c-dd-menu label{
+  display:flex; align-items:center; gap:8px; padding:8px 10px; cursor:pointer;
+  border-radius:4px; font-size:13px; color:var(--ink); white-space:nowrap;
+}
+.c-dd-menu label:hover{ background:#FAF8F2; }
+.c-dd-menu input[type="checkbox"]{ accent-color:#D9B877; }
+.filterbar-actions{ display:flex; gap:10px; margin-left:auto; flex-wrap:wrap; }
+
+.btn{
+  font-weight:600; font-size:13px; padding:10px 17px; border-radius:var(--radius-sm);
+  border:1px solid transparent; cursor:pointer; display:inline-flex; align-items:center; gap:8px;
+  transition:transform .15s ease, box-shadow .15s ease, opacity .15s ease, background .15s ease;
+  white-space:nowrap;
+}
+.btn-gold{ background:var(--gold); color:#1B1304; }
+.btn-gold:hover{ transform:translateY(-1px); box-shadow:0 8px 16px -8px rgba(184,137,62,.65); }
+.btn-line{ background:#fff; border-color:var(--line); color:var(--ink); }
+.btn-line:hover{ background:#FAF8F2; }
+.btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; box-shadow:none; }
+:focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
+
+.scope-row{
+  margin-top:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
+}
+.scope-label{ font-family:var(--font-display); font-size:18px; color:var(--ink); }
+.scope-label b{ color:var(--gold); font-weight:600; }
+.print-note{ font-size:12px; color:var(--slate); }
+
+/* ---------- Banners ---------- */
+.banner{
+  display:none; align-items:center; gap:12px; padding:14px 18px; border-radius:var(--radius-md);
+  margin-top:18px; font-size:13.5px;
+}
+.banner-error{ background:#FBEAE6; border:1px solid #E7B8AD; color:#7A2A1E; }
+.banner-error .ico{ flex:none; width:20px; height:20px; }
+.banner-error button{
+  margin-left:auto; background:var(--brick); color:#fff; border:none; padding:7px 13px; border-radius:7px;
+  font-size:12.5px; font-weight:600; cursor:pointer;
+}
+
+/* ---------- Loading overlay ---------- */
+.loading-overlay{
+  display:flex; align-items:center; justify-content:center; gap:12px; flex-direction:column;
+  padding:60px 20px; color:var(--slate); font-size:13.5px;
+}
+.spinner{
+  width:34px; height:34px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--gold);
+  animation:spin .85s linear infinite;
+}
+@keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* =====================================================================
+   KPI GRID
+===================================================================== */
+.kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:22px; }
+.kpi-card{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
+  padding:20px 20px 18px; box-shadow:var(--shadow-card); display:flex; flex-direction:column; gap:6px;
+  position:relative; overflow:hidden;
+}
+.kpi-card::before{
+  content:''; position:absolute; top:0; left:0; width:100%; height:3px;
+  background:linear-gradient(90deg, var(--gold), var(--gold-soft));
+}
+.kpi-eyebrow{ font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--slate); }
+.kpi-value{ font-family:var(--font-mono); font-size:23px; font-weight:600; color:var(--ink); letter-spacing:-.01em; }
+.kpi-value-sm{ font-size:19px; font-family:var(--font-display); font-weight:600; }
+.kpi-sub{ font-size:12px; color:var(--slate-light); }
+.kpi-sub.pos{ color:var(--emerald); font-weight:600; }
+.kpi-sub.neg{ color:var(--brick); font-weight:600; }
+
+/* =====================================================================
+   PANELS / CHARTS
+===================================================================== */
+.charts-row{ display:grid; grid-template-columns:1.85fr 1fr; gap:18px; margin-top:18px; }
+.panel{
+  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
+  padding:22px 24px 20px; box-shadow:var(--shadow-card);
+}
+.panel + .panel{ margin-top:18px; }
+.panel-header{ display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:14px; }
+.panel-title{ font-family:var(--font-display); font-size:16.5px; font-weight:600; color:var(--ink); }
+.panel-hint{ font-size:11.5px; color:var(--slate-light); }
+
+.chart-box svg{ width:100%; height:auto; display:block; }
+.bar{ fill:var(--ink-soft); transition:fill .15s ease; }
+.bar-hi{ fill:var(--gold); }
+.bar:hover{ fill:var(--gold-soft); cursor:pointer; }
+.grid-line{ stroke:var(--line); stroke-width:1; }
+.axis-line{ stroke:var(--slate-light); stroke-width:1; }
+.axis-label{ font-family:var(--font-mono); font-size:12px; fill:var(--slate); }
+.bar-value{ font-family:var(--font-mono); font-size:12.5px; font-weight:600; fill:var(--ink); }
+
+.empty-state{
+  padding:34px 10px; text-align:center; color:var(--slate-light); font-size:13px; font-style:italic;
+}
+
+/* ---------- Ranking ---------- */
+.rank-row{ display:flex; align-items:center; gap:10px; padding:9px 0; border-bottom:1px solid var(--line); }
+.rank-row:last-child{ border-bottom:none; }
+.rank-pos{
+  width:20px; height:20px; flex:none; border-radius:50%; background:var(--paper); border:1px solid var(--line);
+  font-size:10.5px; font-weight:700; color:var(--slate); display:flex; align-items:center; justify-content:center;
+}
+.rank-row.rank-hi .rank-pos{ background:var(--gold); border-color:var(--gold); color:#1B1304; }
+.rank-label{ font-size:12.5px; font-weight:600; width:84px; flex:none; color:var(--ink); }
+.rank-row.rank-hi .rank-label{ color:var(--gold); }
+.rank-bar-track{ flex:1; height:8px; border-radius:99px; background:var(--paper); overflow:hidden; }
+.rank-bar-fill{ height:100%; border-radius:99px; background:linear-gradient(90deg, var(--ink-soft), var(--ink)); }
+.rank-row.rank-hi .rank-bar-fill{ background:linear-gradient(90deg, var(--gold-soft), var(--gold)); }
+.rank-value{ font-family:var(--font-mono); font-size:11.5px; color:var(--slate); width:96px; text-align:right; flex:none; }
+
+
+
+/* =====================================================================
+   FOOTER
+===================================================================== */
+.footer{ margin-top:34px; padding-top:18px; border-top:1px solid var(--line); display:flex; justify-content:space-between; flex-wrap:wrap; gap:8px; font-size:11.5px; color:var(--slate-light); }
+
+/* =====================================================================
+   RESPONSIVE
+===================================================================== */
+@media (max-width:980px){
+  .kpi-grid{ grid-template-columns:repeat(2,1fr); }
+  .charts-row{ grid-template-columns:1fr; }
+}
+@media (max-width:620px){
+  .kpi-grid{ grid-template-columns:1fr; }
+  .filterbar{ flex-direction:column; align-items:stretch; }
+  .filterbar-actions{ margin-left:0; }
+  .field select{ width:100%; }
+  .topbar-inner{ padding:18px; }
+  .wrap{ padding:0 14px 50px; }
+}
+
+/* ╔═══════════════════════════════════════╗
+   ║  SIDEBAR MENU (igual ao dos demais    ║
+   ║  dashboards do painel Gestão Zappas)  ║
+   ╚═══════════════════════════════════════╝ */
+:root{
+  --side-w: 232px; --side-w-collapsed: 74px;
+  --side-gold: #C8961A;
+}
+.sidebar {
+  position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
+  background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
+  z-index: 300;
+  display:flex; flex-direction:column;
+  font-family: var(--font-body);
+  overflow: visible;
+  transition: transform .25s ease, width .25s ease;
+}
+.sidebar.collapsed { width: var(--side-w-collapsed); }
+.side-brand {
+  display:flex; align-items:center; gap:11px;
+  padding: 18px 18px 16px; flex-shrink:0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 8px;
+}
+.sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
+.side-brand svg { width:22px; height:22px; color: var(--side-gold); flex-shrink:0; }
+.side-brand-text { white-space:nowrap; overflow:hidden; }
+.side-brand-text .t { font-family: var(--font-display); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+.side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
+.sidebar.collapsed .side-brand-text { display:none; }
+
+.side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
+.side-item { display:flex; flex-direction:column; }
+.side-link {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  background:none; border:none; cursor:pointer;
+  color: rgba(255,255,255,.7);
+  font-family: var(--font-display); font-weight:600; font-size:13px; letter-spacing:.01em;
+  padding: 10px 11px; border-radius: 10px;
+  transition: background .15s ease, color .15s ease;
+}
+.side-link svg { width:18px; height:18px; flex-shrink:0; opacity:.85; }
+.side-link .chev { margin-left:auto; width:13px; height:13px; opacity:.5; transition: transform .18s ease; }
+.side-item.open > .side-link .chev { transform: rotate(180deg); }
+.side-link:hover { background: rgba(255,255,255,.07); color:#fff; }
+.side-item.active > .side-link { color:#fff; background: rgba(255,255,255,.09); }
+
+.side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
+
+.sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
+.sidebar.collapsed.peek { width: 232px; box-shadow: var(--shadow-card); }
+.sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
+.sidebar.collapsed.peek .side-brand-text { display:block; }
+.sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
+.sidebar.collapsed.peek .side-link span,
+.sidebar.collapsed.peek .side-link .chev { display:inline-flex; }
+.sidebar.collapsed.peek .side-item.open > .side-sub { display:flex; }
+
+.sidebar.collapsed .side-link span,
+.sidebar.collapsed .side-link .chev,
+.sidebar.collapsed .side-sub { display:none; }
+
+.sidebar.collapsed:not(.peek) .side-item { position:relative; }
+.sidebar.collapsed:not(.peek) .side-link::after {
+  content: attr(data-label);
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+  background: #12233C; color:#fff;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-display); font-weight:600; font-size:12.5px; white-space:nowrap;
+  box-shadow: var(--shadow-card);
+  opacity:0; pointer-events:none; visibility:hidden;
+  transition: opacity .15s ease;
+  z-index: 320;
+}
+.sidebar.collapsed:not(.peek) .side-link:hover::after {
+  opacity:1; visibility:visible;
+}
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-sub a {
+  display:flex; align-items:center; gap:9px;
+  padding: 8px 10px; border-radius:8px;
+  font-size:12.5px; font-weight:500;
+  color: rgba(255,255,255,.52); text-decoration:none;
+  transition: background .12s ease, color .12s ease;
+}
+.side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
+.side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
+.side-sub a.active { color: var(--side-gold); font-weight:600; background: rgba(200,150,26,.13); }
+
+.side-toggle {
+  display:none; position:fixed; top:14px; left:14px; z-index:301;
+  width:38px; height:38px; border-radius:10px;
+  background: var(--ink); border:1px solid rgba(255,255,255,.12);
+  align-items:center; justify-content:center; cursor:pointer;
+}
+.side-toggle svg { width:19px; height:19px; color:#fff; }
+.side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
+
+/* Desloca o conteúdo para a direita da sidebar */
+.topbar, .wrap { margin-left: var(--side-w); transition: margin-left .25s ease; }
+
+@media (max-width: 900px){
+  .sidebar { transform: translateX(-100%); box-shadow: var(--shadow-card); }
+  body.side-open .sidebar { transform: translateX(0); }
+  body.side-open .side-overlay { display:block; }
+  .side-toggle { display:flex; }
+  .topbar, .wrap { margin-left: 0 !important; }
+  .topbar-inner { padding-left: 62px; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR MENU -->
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+
+<aside class="sidebar" id="sidebar">
+  <div class="side-brand">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text">
+      <div class="t">Dashboards</div>
+      <div class="s">Painel de Gestão</div>
+    </div>
+  </div>
+
+  <nav class="side-nav">
+    <div class="side-item" data-menu="comercial">
+      <button class="side-link" type="button" data-label="Comercial">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Comercial</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Analise_Comercial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Análise Comercial
+        </a>
+        <a href="Faturamento_Lucro.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+          Faturamento x Lucro
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item active open" data-menu="financeiro">
+      <button class="side-link" type="button" data-label="Financeiro">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>Financeiro</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="DRE_Gerencial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          DRE Gerencial
+        </a>
+        <a href="contas_pagar.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
+          Contas a Pagar
+        </a>
+        <a href="contas_receber.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
+          Contas a Receber
+        </a>
+        <a href="fluxo_caixa.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          Fluxo de Caixa
+        </a>
+        <a href="Banco_Declaracao.html" class="active">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          Banco
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="metas">
+      <button class="side-link" type="button" data-label="Metas">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        <span>Metas</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Elaboracao_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Elaboração de Metas
+        </a>
+        <a href="Acompanhamento_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4L12 14.01l-3-3"/></svg>
+          Acompanhamento de Metas
+        </a>
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<!-- =====================================================================
+     TELA (visível no navegador / Google Sites — oculta na impressão)
+===================================================================== -->
+<div class="screen-only">
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <div class="brand-mark">$</div>
+        <div class="brand-text">
+          <h1>Declaração de Faturamento</h1>
+          <span>Grupo Pratic · Conveniência &amp; Café</span>
+        </div>
+      </div>
+      <div class="sync-pill"><span class="sync-dot"></span><span id="lastSync">Conectando à planilha…</span></div>
+    </div>
+  </header>
+
+  <div class="wrap">
+
+    <div class="filterbar">
+      <div class="field">
+        <label>Canal</label>
+        <div class="c-dd" id="channelDD">
+          <button type="button" class="c-dd-btn" id="channelBtn">Carregando…</button>
+          <div class="c-dd-menu" id="channelMenu"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label for="filterAno">Ano</label>
+        <select id="filterAno"><option>—</option></select>
+      </div>
+
+      <div class="filterbar-actions">
+        <button class="btn btn-line" id="btnRefresh" type="button">↻ Atualizar dados</button>
+        <button class="btn btn-gold" id="btnPrint" type="button" disabled>🖶 Gerar relatório (PDF)</button>
+      </div>
+    </div>
+
+    <div class="scope-row">
+      <div class="scope-label">Exibindo: <b id="scopeLabel">—</b></div>
+      <div class="print-note" id="printScopeNote"></div>
+    </div>
+
+    <div class="banner banner-error" id="errorBanner" role="alert">
+      <span class="ico">⚠️</span>
+      <span class="error-text"></span>
+      <button id="btnRetry" type="button">Tentar novamente</button>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="spinner"></div>
+      <span>Carregando lançamentos da planilha…</span>
+    </div>
+
+    <div id="dashboardContent" style="display:none;">
+
+      <section class="kpi-grid" id="kpiGrid"></section>
+
+      <section class="charts-row">
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Comparativo mensal</span>
+            <span class="panel-hint" id="monthlyHint">Evolução do faturamento ao longo do ano</span>
+          </div>
+          <div class="chart-box" id="monthlyChart"></div>
+        </div>
+        <div class="panel">
+          <div class="panel-header">
+            <span class="panel-title">Ranking de lojas</span>
+            <span class="panel-hint">No período</span>
+          </div>
+          <div id="rankingList"></div>
+        </div>
+      </section>
+
+
+
+    </div>
+
+    <footer class="footer">
+      <span>Fonte de dados: aba <strong>Faturamento</strong> · Google Sheets publicado na web</span>
+      <span>Painel privado — uso interno do Grupo Pratic</span>
+    </footer>
+
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+
+/* =====================================================================
+   🔗 CONFIGURAÇÃO DA FONTE DE DADOS — EDITE AQUI
+   Cole abaixo o link "Publicar na web" (formato CSV) do Google Sheets,
+   referente à aba "Faturamento".
+   Caminho na planilha: Arquivo > Compartilhar > Publicar na Web > CSV.
+===================================================================== */
+// Apps Script publicado como Web App: lê o arquivo certo no Drive
+// e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+// Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
+// então basta buscar todos e juntar as linhas num único conjunto.
+const STORE_KEYS = ["anisio", "bady", "belvedere", "damha"];
+const STORE_LABELS = ["Anísio", "Bady", "Belvedere", "Damha"];
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+/* ===================================================================== */
+
+/* ---------------------------------------------------------------------
+   CADASTRO DAS LOJAS (usado no cabeçalho do relatório institucional)
+--------------------------------------------------------------------- */
+const STORES = {
+  ANISIO: {
+    nome:"Anísio",
+    razaoSocial:"PRATIC LOJA DE CONVENIENCIA LTDA. (ANISIO)",
+    endereco:"AV ANISIO HADDAD, 6190",
+    bairro:"CONDOMINIO DEBORA CRISTINA / BOX ANCORA 01",
+    cidadeCepFone:"SAO JOSE DO RIO PRETO - SP / 15093-000 / (17) 3355-1200",
+    inscrEstadual:"647268487117",
+    cnpj:"64.819.246/0001-72"
+  },
+  BADY: {
+    nome:"Bady",
+    razaoSocial:"PRATIC LOJA DE CONVENIENCIA LTDA. (BADY)",
+    endereco:"RUA MARTINHO GONCALVES, 2466",
+    bairro:"VILA NOSSA SENHORA DA PAZ / ANEXO 2452",
+    cidadeCepFone:"SAO JOSE DO RIO PRETO - SP / 15.025-160 / (17) 3355-1200",
+    inscrEstadual:"647780276112",
+    cnpj:"64.819.246/0008-49"
+  },
+  DAMHA: {
+    nome:"Damha",
+    razaoSocial:"PRATIC LOJA DE CONVENIENCIA LTDA. (DAMHA)",
+    endereco:"AVENIDA SYLVIO DELLA ROVERE, 1130",
+    bairro:"JARDIM YOLANDA / LOJA 1 / 2 E 4-PATIO MALL",
+    cidadeCepFone:"SAO JOSE DO RIO PRETO - SP / 15.061-580 / (17) 3355-1200",
+    inscrEstadual:"647780285113",
+    cnpj:"64.819.246/0009-20"
+  },
+  BELVEDERE: {
+    nome:"Belvedere",
+    razaoSocial:"PRATIC LOJA DE CONVENIENCIA LTDA. (BELVEDERE)",
+    endereco:"AVENIDA BELVEDERE, 755",
+    bairro:"BELVEDERE TERRA NOVA / LOJA 4 5 6 E 7",
+    cidadeCepFone:"SAO JOSE DO RIO PRETO - SP / 15.056-082 / (17) 3355-1200",
+    inscrEstadual:"647618121118",
+    cnpj:"16.464.932/0001-25"
+  },
+  HAVAN: {
+    nome:"Havan",
+    razaoSocial:"CASARAO PADARIA ARTESANAL LTDA. (HAVAN)",
+    endereco:"AVENIDA JOSE MUNIA, 4545",
+    bairro:"JARDIM REDENTOR / BOX 01",
+    cidadeCepFone:"SAO JOSE DO RIO PRETO - SP / 15.085-350 / (17) 3355-1200",
+    inscrEstadual:"124283100117",
+    cnpj:"38.174.235/0002-53"
+  },
+  MUFFATO: {
+    nome:"Muffato",
+    razaoSocial:"CASARAO PADARIA ARTESANAL LTDA. (MUFFATO)",
+    endereco:"RUA NELSON SINIBALDI, 1303",
+    bairro:"PARQUE SAO MIGUEL / SALA 05",
+    cidadeCepFone:"SAO JOSE DO RIO PRETO - SP / 15.057-500 / (17) 3355-1200",
+    inscrEstadual:"124151310110",
+    cnpj:"38.174.235/0001-72"
+  }
+};
+const STORE_ORDER = ["ANISIO","BADY","DAMHA","BELVEDERE","HAVAN","MUFFATO"];
+
+const MESES_DISPLAY = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const MESES_ABBR    = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+const MESES_NORM    = ["JANEIRO","FEVEREIRO","MARCO","ABRIL","MAIO","JUNHO","JULHO","AGOSTO","SETEMBRO","OUTUBRO","NOVEMBRO","DEZEMBRO"];
+const MESES_ABR_N   = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OUT","NOV","DEZ"];
+
+/* ---------------------------------------------------------------------
+   ESTADO
+--------------------------------------------------------------------- */
+const state = { rows: [], filters: { canal:["LOJA","DELIVERY"], ano:null, mes:null } };
+
+/* ---------------------------------------------------------------------
+   HELPERS GERAIS
+--------------------------------------------------------------------- */
+function $(id){ return document.getElementById(id); }
+
+function escapeHtml(s){
+  return String(s == null ? "" : s).replace(/[&<>"']/g, function(c){
+    return ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" })[c];
+  });
+}
+
+function normKey(s){
+  return String(s == null ? "" : s)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase().replace(/[^A-Z0-9]/g, "");
+}
+
+function normalizeLojaKey(raw){
+  return String(raw == null ? "" : raw)
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase().replace(/[^A-Z]/g, "");
+}
+
+function storeLabel(key){
+  if (STORES[key]) return STORES[key].nome;
+  if (!key) return "—";
+  return key.charAt(0) + key.slice(1).toLowerCase();
+}
+
+function normalizeMonth(raw){
+  if (raw == null) return null;
+  const s = String(raw).trim();
+  if (s === "") return null;
+  const digits = s.replace(/[^0-9]/g, "");
+  if (digits !== "" && /^[0-9]{1,2}$/.test(digits)) {
+    const num = parseInt(digits, 10);
+    if (num >= 1 && num <= 12) return { index:num-1, name:MESES_DISPLAY[num-1] };
+  }
+  const n = s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().trim();
+  let idx = MESES_NORM.indexOf(n);
+  if (idx === -1) idx = MESES_ABR_N.indexOf(n.slice(0,3));
+  if (idx === -1) idx = MESES_NORM.findIndex(function(m){ return n.indexOf(m.slice(0,3)) === 0; });
+  if (idx === -1) return null;
+  return { index:idx, name:MESES_DISPLAY[idx] };
+}
+
+function parseMoney(v){
+  if (v === null || v === undefined) return 0;
+  let s = String(v).trim();
+  if (s === "") return 0;
+  s = s.replace(/R\$\s?/gi, "").replace(/\s/g, "");
+  const hasComma = s.indexOf(",") > -1, hasDot = s.indexOf(".") > -1;
+  if (hasComma && hasDot) s = s.replace(/\./g, "").replace(",", ".");
+  else if (hasComma) s = s.replace(",", ".");
+  s = s.replace(/[^0-9.\-]/g, "");
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+
+function fmtMoneyFull(v){
+  return (v || 0).toLocaleString("pt-BR", { style:"currency", currency:"BRL" });
+}
+function fmtCompact(v){
+  const sign = v < 0 ? "-" : "";
+  v = Math.abs(v);
+  if (v >= 1e6) return sign + "R$ " + (v/1e6).toFixed(1).replace(".", ",") + "M";
+  if (v >= 1e3) return sign + "R$ " + (v/1e3).toFixed(1).replace(".", ",") + "k";
+  return sign + "R$ " + v.toFixed(0);
+}
+function niceCeil(v){
+  if (v <= 0) return 1;
+  const exp = Math.floor(Math.log10(v));
+  const base = Math.pow(10, exp);
+  const f = v / base;
+  let nf;
+  if (f <= 1) nf = 1; else if (f <= 2) nf = 2; else if (f <= 5) nf = 5; else nf = 10;
+  return nf * base;
+}
+
+/* ---------------------------------------------------------------------
+   PARSER DE CSV (detecta ; ou , automaticamente; lida com aspas)
+--------------------------------------------------------------------- */
+function detectSep(text){
+  const firstLine = text.split(/\r?\n/)[0] || "";
+  const semiCount  = (firstLine.match(/;/g) || []).length;
+  const commaCount = (firstLine.match(/,/g) || []).length;
+  return semiCount > commaCount ? ";" : ",";
+}
+function parseCSV(text){
+  const sep = detectSep(text);
+  const rows = [];
+  let row = [], field = "", inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i+1] === '"') { field += '"'; i++; } else { inQuotes = false; }
+      } else { field += c; }
+    } else {
+      if (c === '"') inQuotes = true;
+      else if (c === sep) { row.push(field); field = ""; }
+      else if (c === '\r') { /* ignora */ }
+      else if (c === '\n') { row.push(field); rows.push(row); row = []; field = ""; }
+      else field += c;
+    }
+  }
+  if (field.length || row.length) { row.push(field); rows.push(row); }
+  while (rows.length && rows[rows.length-1].length === 1 && rows[rows.length-1][0].trim() === "") rows.pop();
+  if (!rows.length) return [];
+  const headers = rows.shift().map(function(h){ return h.trim(); });
+  return rows
+    .filter(function(r){ return r.some(function(c){ return c.trim() !== ""; }); })
+    .map(function(r){
+      const obj = {};
+      headers.forEach(function(h, idx){ obj[h] = r[idx] !== undefined ? r[idx].trim() : ""; });
+      return obj;
+    });
+}
+
+function pickNorm(norm, keys){
+  for (let i = 0; i < keys.length; i++) {
+    if (norm[keys[i]] !== undefined && norm[keys[i]] !== "") return norm[keys[i]];
+  }
+  return "";
+}
+function cleanRows(raw){
+  return raw.map(function(r){
+    const norm = {};
+    Object.keys(r).forEach(function(k){ norm[normKey(k)] = r[k]; });
+    const ano = parseInt(String(norm.ANO || "").replace(/[^0-9]/g, ""), 10);
+    const lojaRaw = (norm.LOJA || "").trim();
+    const mesInfo = normalizeMonth(norm.MES);
+    const canalRaw = pickNorm(norm, ["CANAL","CANAIS"]).trim();
+    const total = parseMoney(pickNorm(norm, ["TOTAL","TOTALVENDA","VENDA","FATURAMENTO"]));
+    return {
+      ano: ano,
+      lojaRaw: lojaRaw,
+      lojaKey: normalizeLojaKey(lojaRaw),
+      canal: canalRaw.toUpperCase(),
+      mesIndex: mesInfo ? mesInfo.index : null,
+      semana: (norm.SEMANA || "").trim(),
+      semana2: (norm.SEMANA2 || "").trim(),
+      total: total
+    };
+  }).filter(function(r){ return r.lojaRaw && r.ano && r.mesIndex !== null; });
+}
+
+/* ---------------------------------------------------------------------
+   GRÁFICO DE BARRAS EM SVG (responsivo, sem dependências externas)
+--------------------------------------------------------------------- */
+function svgBars(items, opts){
+  opts = opts || {};
+  const W = 1000, H = 320, padL = 64, padR = 16, padT = 26, padB = 50;
+  const innerW = W - padL - padR, innerH = H - padT - padB;
+  const n = items.length;
+  if (!n) return "";
+  const vals = items.map(function(i){ return i.value; });
+  const max = Math.max.apply(null, vals);
+  const niceMax = niceCeil(max);
+  const slot = innerW / n;
+  const gap = slot * 0.34;
+  const barW = slot - gap;
+
+  let gridLines = "";
+  const steps = 4;
+  for (let s = 0; s <= steps; s++) {
+    const v = niceMax * s / steps;
+    const y = padT + innerH - (v / niceMax) * innerH;
+    gridLines += '<line x1="' + padL + '" y1="' + y.toFixed(1) + '" x2="' + (W - padR) + '" y2="' + y.toFixed(1) + '" class="grid-line"/>';
+    gridLines += '<text x="' + (padL - 10) + '" y="' + (y + 4).toFixed(1) + '" class="axis-label" text-anchor="end">' + fmtCompact(v) + '</text>';
+  }
+
+  let bars = "", labels = "";
+  items.forEach(function(it, idx){
+    const x = padL + idx * slot + gap / 2;
+    const h = niceMax > 0 ? (it.value / niceMax) * innerH : 0;
+    const y = padT + innerH - h;
+    const isHi = opts.highlightIndex === idx;
+    bars += '<rect x="' + x.toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + barW.toFixed(1) +
+      '" height="' + Math.max(h,1).toFixed(1) + '" rx="4" class="bar ' + (isHi ? "bar-hi" : "") + '">' +
+      '<title>' + escapeHtml(it.label) + ": " + fmtMoneyFull(it.value) + '</title></rect>';
+    if (h > 28) {
+      bars += '<text x="' + (x + barW/2).toFixed(1) + '" y="' + (y - 8).toFixed(1) + '" text-anchor="middle" class="bar-value">' + fmtCompact(it.value) + '</text>';
+    }
+    labels += '<text x="' + (x + barW/2).toFixed(1) + '" y="' + (H - padB + 22) + '" text-anchor="middle" class="axis-label">' + escapeHtml(it.label) + '</text>';
+  });
+
+  return '<svg viewBox="0 0 ' + W + ' ' + H + '" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Gráfico de barras">' +
+    '<line x1="' + padL + '" y1="' + (padT + innerH) + '" x2="' + (W - padR) + '" y2="' + (padT + innerH) + '" class="axis-line"/>' +
+    gridLines + bars + labels + '</svg>';
+}
+
+function emptyChart(msg){
+  return '<div class="empty-state">' + escapeHtml(msg || "Sem dados para o período selecionado.") + '</div>';
+}
+
+/* ---------------------------------------------------------------------
+   RANKING DE LOJAS
+--------------------------------------------------------------------- */
+function renderRanking(items, selectedLoja){
+  if (!items.length) return emptyChart("Sem lançamentos de lojas para este período.");
+  const max = Math.max.apply(null, items.map(function(i){ return i.value; }).concat([1]));
+  return items.map(function(it, idx){
+    const pct = Math.max(2, Math.round((it.value / max) * 100));
+    const hi = selectedLoja === it.key;
+    return '<div class="rank-row ' + (hi ? "rank-hi" : "") + '">' +
+      '<span class="rank-pos">' + (idx+1) + '</span>' +
+      '<span class="rank-label">' + escapeHtml(it.label) + '</span>' +
+      '<span class="rank-bar-track"><span class="rank-bar-fill" style="width:' + pct + '%"></span></span>' +
+      '<span class="rank-value">' + fmtMoneyFull(it.value) + '</span>' +
+    '</div>';
+  }).join("");
+}
+
+/* ---------------------------------------------------------------------
+   KPIs
+--------------------------------------------------------------------- */
+function renderKPIs(k){
+  const varBlock = k.variacao === null
+    ? '<span class="kpi-sub">Sem mês anterior para comparar</span>'
+    : '<span class="kpi-sub ' + (k.variacao >= 0 ? "pos" : "neg") + '">' +
+        (k.variacao >= 0 ? "▲ " : "▼ ") + Math.abs(k.variacao).toFixed(1) + "% vs mês anterior</span>";
+
+  return (
+    '<div class="kpi-card"><span class="kpi-eyebrow">Faturamento do mês</span>' +
+    '<span class="kpi-value">' + fmtMoneyFull(k.mesTotal) + '</span>' + varBlock + '</div>' +
+
+    '<div class="kpi-card"><span class="kpi-eyebrow">Faturamento do ano</span>' +
+    '<span class="kpi-value">' + fmtMoneyFull(k.anoTotal) + '</span>' +
+    '<span class="kpi-sub">Acumulado em ' + k.mesesComDados + (k.mesesComDados === 1 ? " mês" : " meses") + '</span></div>' +
+
+    '<div class="kpi-card"><span class="kpi-eyebrow">Média semanal</span>' +
+    '<span class="kpi-value">' + fmtMoneyFull(k.mediaSemanal) + '</span>' +
+    '<span class="kpi-sub">' + k.numSemanas + (k.numSemanas === 1 ? " semana lançada" : " semanas lançadas") + '</span></div>' +
+
+    '<div class="kpi-card"><span class="kpi-eyebrow">Loja em destaque</span>' +
+    '<span class="kpi-value kpi-value-sm">' + escapeHtml(k.topLoja.label) + '</span>' +
+    '<span class="kpi-sub">' + fmtMoneyFull(k.topLoja.value) + ' no período</span></div>'
+  );
+}
+
+/* ---------------------------------------------------------------------
+   RENDERIZAÇÃO PRINCIPAL
+--------------------------------------------------------------------- */
+function matchFilter(row, val){
+  if (val === "ALL") return true;
+  if (Array.isArray(val)) return val.indexOf(row.canal) > -1;
+  return row.canal === val;
+}
+
+function render(){
+  const f = state.filters;
+  if (f.ano == null || f.mes == null) return;
+
+  const inScope = function(r, val){ return r.ano === f.ano && r.mesIndex === f.mes && matchFilter(r, val); };
+
+  const monthRows = state.rows.filter(function(r){ return inScope(r, f.canal); });
+  const mesTotal = monthRows.reduce(function(s,r){ return s + r.total; }, 0);
+
+  let prevMes = f.mes - 1, prevAno = f.ano;
+  if (prevMes < 0) { prevMes = 11; prevAno = f.ano - 1; }
+  const prevTotal = state.rows
+    .filter(function(r){ return r.ano === prevAno && r.mesIndex === prevMes && matchFilter(r, f.canal); })
+    .reduce(function(s,r){ return s + r.total; }, 0);
+  const variacao = prevTotal > 0 ? ((mesTotal - prevTotal) / prevTotal * 100) : null;
+
+  const yearRows = state.rows.filter(function(r){ return r.ano === f.ano && matchFilter(r, f.canal); });
+  const anoTotal = yearRows.reduce(function(s,r){ return s + r.total; }, 0);
+  const mesesComDados = new Set(yearRows.map(function(r){ return r.mesIndex; })).size;
+
+  const weekMap = new Map();
+  monthRows.forEach(function(r){
+    const k = String(r.semana || "-");
+    if (!weekMap.has(k)) weekMap.set(k, { semana:r.semana, semana2:r.semana2, total:0 });
+    weekMap.get(k).total += r.total;
+  });
+  const weekRows = Array.from(weekMap.values()).sort(function(a,b){ return (parseInt(a.semana)||0) - (parseInt(b.semana)||0); });
+  const numSemanas = weekRows.length;
+  const mediaSemanal = numSemanas ? mesTotal / numSemanas : 0;
+
+  const lojaMap = new Map();
+  state.rows.filter(function(r){ return r.ano === f.ano && r.mesIndex === f.mes && matchFilter(r, f.canal); }).forEach(function(r){
+    if (!lojaMap.has(r.lojaKey)) lojaMap.set(r.lojaKey, { key:r.lojaKey, label:storeLabel(r.lojaKey), value:0 });
+    lojaMap.get(r.lojaKey).value += r.total;
+  });
+  const ranking = Array.from(lojaMap.values()).sort(function(a,b){ return b.value - a.value; });
+  const topLoja = ranking.length ? ranking[0] : { label:"—", value:0 };
+
+  const monthAgg = new Array(12).fill(0);
+  yearRows.forEach(function(r){ if (r.mesIndex != null) monthAgg[r.mesIndex] += r.total; });
+  const monthItems = monthAgg.map(function(v, i){ return { label:MESES_ABBR[i], value:v }; });
+
+  $("kpiGrid").innerHTML = renderKPIs({ mesTotal:mesTotal, variacao:variacao, anoTotal:anoTotal, mesesComDados:mesesComDados, mediaSemanal:mediaSemanal, numSemanas:numSemanas, topLoja:topLoja });
+
+  $("monthlyChart").innerHTML = svgBars(monthItems, { highlightIndex:f.mes });
+
+  $("rankingList").innerHTML = renderRanking(ranking, null);
+
+  var selLabel;
+  if (f.canal === "ALL") selLabel = "Todos";
+  else if (Array.isArray(f.canal)) selLabel = f.canal.map(function(c){ return c.charAt(0) + c.slice(1).toLowerCase(); }).join(", ");
+  else selLabel = f.canal.charAt(0) + f.canal.slice(1).toLowerCase();
+  $("monthlyHint").textContent = "Ano de " + f.ano + (f.canal === "ALL" ? " · todos" : " · " + selLabel);
+
+  $("scopeLabel").textContent = selLabel + " · " + MESES_DISPLAY[f.mes] + " de " + f.ano;
+  $("printScopeNote").textContent = ranking.length > 1
+    ? ("O relatório será gerado em " + ranking.length + " página(s), uma por loja.")
+    : ("O relatório será gerado para " + selLabel + ".");
+
+  $("btnPrint").disabled = monthRows.length === 0;
+}
+
+/* ---------------------------------------------------------------------
+   FILTROS
+--------------------------------------------------------------------- */
+function updateBtnLabel(){
+  var btn = $("channelBtn"), f = state.filters;
+  if (f.canal === "ALL" || (Array.isArray(f.canal) && !f.canal.length)) btn.textContent = "Todos";
+  else if (Array.isArray(f.canal)) btn.textContent = f.canal.length + " selecionado" + (f.canal.length > 1 ? "s" : "");
+  else btn.textContent = f.canal.charAt(0) + f.canal.slice(1).toLowerCase();
+}
+
+function populateFilters(reset){
+  const menu = $("channelMenu");
+  const presentCanais = Array.from(new Set(state.rows.map(function(r){ return r.canal; }))).sort();
+
+  const prevCanal = state.filters.canal;
+  menu.innerHTML = presentCanais.map(function(c){
+    var checked = Array.isArray(prevCanal) && prevCanal.indexOf(c) > -1 ? ' checked' : '';
+    return '<label><input type="checkbox" value="' + c + '"' + checked + '> ' + escapeHtml(c.charAt(0) + c.slice(1).toLowerCase()) + '</label>';
+  }).join("");
+
+  if (Array.isArray(prevCanal)) {
+    var valid = prevCanal.filter(function(c){ return presentCanais.indexOf(c) > -1; });
+    state.filters.canal = valid.length ? valid : "ALL";
+  } else {
+    state.filters.canal = "ALL";
+  }
+  updateBtnLabel();
+  updateAnoOptions(reset);
+}
+
+function updateAnoOptions(reset){
+  const canal = state.filters.canal;
+  const anos = Array.from(new Set(
+    state.rows.filter(function(r){ return matchFilter(r, canal); }).map(function(r){ return r.ano; })
+  )).sort(function(a,b){ return b - a; });
+
+  const anoSel = $("filterAno");
+  const prevAno = state.filters.ano;
+  anoSel.innerHTML = anos.map(function(a){ return '<option value="' + a + '">' + a + '</option>'; }).join("");
+  const useAno = (!reset && anos.indexOf(prevAno) > -1) ? prevAno : anos[0];
+  anoSel.value = useAno;
+  state.filters.ano = useAno;
+
+  updateMesOptions(reset);
+}
+
+function updateMesOptions(reset){
+  const canal = state.filters.canal, ano = state.filters.ano;
+  const meses = Array.from(new Set(
+    state.rows.filter(function(r){ return r.ano === ano && matchFilter(r, canal); }).map(function(r){ return r.mesIndex; })
+  )).sort(function(a,b){ return a - b; });
+
+  const prevMes = state.filters.mes;
+  const useMes = (!reset && meses.indexOf(prevMes) > -1) ? prevMes : meses[meses.length - 1];
+  state.filters.mes = useMes;
+}
+
+/* ---------------------------------------------------------------------
+   CARREGAMENTO DE DADOS
+--------------------------------------------------------------------- */
+function setLoading(isLoading){
+  $("loadingOverlay").style.display = isLoading ? "flex" : "none";
+  $("dashboardContent").style.display = isLoading ? "none" : "block";
+  $("btnRefresh").disabled = isLoading;
+}
+function showError(message){
+  const box = $("errorBanner");
+  box.style.display = "flex";
+  box.querySelector(".error-text").textContent = message;
+}
+function hideError(){ $("errorBanner").style.display = "none"; }
+
+async function fetchData(){
+  setLoading(true);
+  hideError();
+
+  if (!CSV_URLS || !CSV_URLS.length) {
+    setLoading(false);
+    showError('Configure a constante CSV_FILE_IDS no código com os IDs dos arquivos do Google Drive.');
+    return;
+  }
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
+    const responses = await Promise.all(
+      CSV_URLS.map(function(url, i){
+        return fetch(url, { cache:"no-store", signal:controller.signal })
+          .catch(function(netErr){
+            throw new Error("Falha de rede no arquivo " + (i+1) + " de " + CSV_URLS.length + " (" + (STORE_LABELS[i] || "loja " + (i+1)) + "): " + netErr.message);
+          });
+      })
+    );
+    clearTimeout(timeoutId);
+    responses.forEach(function(res, i){
+      if (!res.ok) throw new Error("Falha HTTP " + res.status + " no arquivo " + (i+1) + " de " + CSV_URLS.length + " (" + (STORE_LABELS[i] || "loja " + (i+1)) + ")");
+    });
+    const texts = await Promise.all(responses.map(function(res){ return res.text(); }));
+    let raw = [];
+    texts.forEach(function(text){
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      raw = raw.concat(parseCSV(text));
+    });
+    console.log('[Banco_Declaracao] Linhas brutas lidas:', raw.length);
+    if (raw.length) console.log('[Banco_Declaracao] Colunas encontradas:', Object.keys(raw[0]));
+    const rows = cleanRows(raw);
+    console.log('[Banco_Declaracao] Linhas válidas após cleanRows:', rows.length);
+    if (!rows.length) throw new Error("Nenhum lançamento válido encontrado.");
+
+    state.rows = rows;
+    populateFilters(true);
+    render();
+    $("lastSync").textContent = "Atualizado às " + new Date().toLocaleTimeString("pt-BR");
+  } catch (err) {
+    var msg = err && err.message ? err.message : "";
+    if (err && err.name === "AbortError") msg = "Tempo limite excedido (20s).";
+    showError("Não foi possível carregar os dados. " + msg + " Verifique se os IDs em CSV_FILE_IDS estão corretos e se os arquivos estão compartilhados como \"Qualquer pessoa com o link\".");
+    $("lastSync").textContent = "Falha na sincronização";
+  } finally {
+    setLoading(false);
+  }
+}
+
+/* ---------------------------------------------------------------------
+   EVENTOS
+--------------------------------------------------------------------- */
+$("channelBtn").addEventListener("click", function(e){
+  e.stopPropagation();
+  $("channelMenu").classList.toggle("open");
+  this.classList.toggle("open");
+});
+$("channelMenu").addEventListener("change", function(e){
+  if (e.target.type === "checkbox") {
+    var checks = Array.from($("channelMenu").querySelectorAll("input[type='checkbox']:checked")).map(function(cb){ return cb.value; });
+    state.filters.canal = checks.length ? checks : "ALL";
+    updateBtnLabel();
+    updateAnoOptions(false);
+    render();
+  }
+});
+document.addEventListener("click", function(e){
+  var dd = $("channelDD");
+  if (dd && !dd.contains(e.target)) {
+    var menu = $("channelMenu"), btn = $("channelBtn");
+    if (menu) menu.classList.remove("open");
+    if (btn) btn.classList.remove("open");
+  }
+});
+$("filterAno").addEventListener("change", function(e){
+  state.filters.ano = parseInt(e.target.value, 10);
+  updateMesOptions(false);
+  render();
+});
+$("btnRefresh").addEventListener("click", fetchData);
+$("btnRetry").addEventListener("click", fetchData);
+$("btnPrint").addEventListener("click", function(){
+  const f = state.filters;
+  if (f.ano == null) return;
+
+  var scopeKeys = STORE_ORDER.filter(function(k){
+    return state.rows.some(function(r){ return r.lojaKey === k && r.ano === f.ano && matchFilter(r, f.canal); });
+  });
+  var extraKeys = Array.from(new Set(
+    state.rows.filter(function(r){ return STORE_ORDER.indexOf(r.lojaKey) === -1 && r.ano === f.ano && matchFilter(r, f.canal); }).map(function(r){ return r.lojaKey; })
+  )).sort();
+  scopeKeys = scopeKeys.concat(extraKeys);
+  if (!scopeKeys.length) { alert("Não há lançamentos para o período selecionado."); return; }
+
+  var html = '<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8">' +
+    '<title>Relatório de Faturamento - Grupo Pratic</title>' +
+    '<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">' +
+    '<style>' +
+    '@page{ size:A4 portrait; margin:0; }' +
+    '*{ margin:0; padding:0; box-sizing:border-box; }' +
+    'body{ font-family:"Inter",Arial,sans-serif; color:#15202B; background:#fff; padding:14mm 15mm; }' +
+    '.doc-page{ page-break-after:always; padding-top:36px; }' +
+    '.doc-page:last-of-type{ page-break-after:auto; }' +
+    '.doc-letterhead{ display:flex; align-items:center; gap:14px; border-bottom:2.5px solid #0E1B2E; padding-bottom:10px; margin-bottom:14px; }' +
+    '.doc-mark{ width:44px; height:44px; flex:none; border-radius:50%; background:#0E1B2E; color:#D9B877; display:flex; align-items:center; justify-content:center; font-family:"Fraunces",serif; font-weight:700; font-size:16px; }' +
+    '.doc-title-block h1{ font-family:"Fraunces",serif; font-size:15.5px; margin:0 0 3px; font-weight:600; }' +
+    '.doc-title-block span{ font-size:10.5px; text-transform:uppercase; letter-spacing:.08em; color:#5B6B7C; }' +
+    '.doc-fields{ margin-bottom:16px; }' +
+    '.doc-field{ display:flex; font-size:10.5px; padding:2px 0; }' +
+    '.doc-label{ width:165px; flex:none; font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:#5B6B7C; font-size:9.5px; }' +
+    '.doc-val{ flex:1; }' +
+    '.doc-declaration{ font-size:13px; line-height:1.6; color:#15202B; margin:60px 0 8px; text-align:justify; }' +
+    '.doc-firma{ font-family:"Fraunces",serif; font-size:14px; font-weight:700; color:#0E1B2E; margin:44px 0 8px; padding-top:6px; }' +
+    '.doc-period{ margin:34px 0 8px; text-align:center; }' +
+    '.doc-period h2{ font-family:"Fraunces",serif; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.06em; color:#B8893E; font-weight:600; }' +
+    '.doc-period p{ margin:0; font-size:13px; font-weight:600; }' +
+    'table.doc-table{ width:100%; border-collapse:collapse; font-size:11px; margin-top:18px; }' +
+    'table.doc-table th{ text-align:center; background:#F6F4EE; color:#15202B; padding:6px 8px; font-weight:700; text-transform:uppercase; font-size:9.5px; letter-spacing:.04em; border-bottom:1.5px solid #15202B; }' +
+    'table.doc-table th.num, table.doc-table td.num{ text-align:right; }' +
+    'table.doc-table td{ padding:5px 8px; border-bottom:1px solid #E4DFD2; font-family:"IBM Plex Mono",monospace; font-size:10.5px; text-align:center; font-weight:600; }' +
+    'table.doc-table td.num{ white-space:nowrap; }' +
+    'table.doc-table .rSym{ display:inline-block; width:16px; text-align:left; }' +
+    'table.doc-table .rVal{ display:inline-block; min-width:88px; text-align:right; }' +
+    'table.doc-table tfoot td{ font-weight:700; border-top:2px solid #0E1B2E; border-bottom:none; background:#F6F4EE; font-family:"Inter",sans-serif; }' +
+    '.doc-local{ text-align:center; font-size:12px; margin-top:48px; color:#15202B; }' +
+    '.doc-assinatura{ text-align:center; margin-top:72px; }' +
+    '.doc-assinatura p{ margin:2px 0; font-size:12px; color:#15202B; }' +
+    '.doc-assinatura .nome{ font-weight:700; font-size:13px; text-transform:uppercase; }' +
+    '</style></head><body>';
+
+  var dataInicio = "01/01/" + f.ano;
+  var ultimoMesReal = state.rows
+    .filter(function(r){ return r.ano === f.ano && matchFilter(r, f.canal); })
+    .reduce(function(max, r){ return Math.max(max, r.mesIndex); }, -1);
+  if (ultimoMesReal < 0) ultimoMesReal = 0;
+  var ultimoDia = new Date(f.ano, ultimoMesReal + 1, 0).getDate();
+  var mesUltimo = ("0" + (ultimoMesReal + 1)).slice(-2);
+  var dataFim = ultimoDia + "/" + mesUltimo + "/" + f.ano;
+  var ultimoMesCompleto = ultimoMesReal;
+  var hoje = new Date();
+  var dataEmissao = ("0" + hoje.getDate()).slice(-2) + "/" + ("0" + (hoje.getMonth() + 1)).slice(-2) + "/" + hoje.getFullYear();
+
+  scopeKeys.forEach(function(k){
+    var info = STORES[k] || { nome:storeLabel(k), razaoSocial:storeLabel(k), endereco:"—", bairro:"—", cidadeCepFone:"—", inscrEstadual:"—", cnpj:"—" };
+    var mesesAgr = [];
+    var totalGeral = 0;
+    for (var mi = 0; mi <= ultimoMesCompleto; mi++) {
+      var rowsMes = state.rows.filter(function(r){ return r.lojaKey === k && r.ano === f.ano && r.mesIndex === mi && matchFilter(r, f.canal); });
+      if (rowsMes.length) {
+        var totalMes = rowsMes.reduce(function(s,r){ return s + r.total; }, 0);
+        totalGeral += totalMes;
+        mesesAgr.push({ nome: MESES_DISPLAY[mi], total: totalMes });
+      }
+    }
+    var emitido = new Date().toLocaleString("pt-BR");
+    var trs = mesesAgr.length
+      ? mesesAgr.map(function(m){
+          var valStr = (m.total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+          return '<tr><td>' + m.nome + '</td><td class="num"><span class="rSym">R$</span><span class="rVal">' + valStr + "</span></td></tr>";
+        }).join("")
+      : '<tr><td colspan="2" style="text-align:center;color:#888;padding:10px;">Sem lançamentos no período</td></tr>';
+
+    html += '<section class="doc-page">' +
+      '<div style="text-align:center;margin-bottom:16px;">' +
+      '<h1 style="font-family:\'Fraunces\',serif;font-size:20px;margin:0;color:#0E1B2E;">DECLARAÇÃO DE FATURAMENTO</h1>' +
+      '</div>' +
+      '<p class="doc-declaration">Declaramos pela presente que o faturamento da empresa abaixo identificada, conforme análise gerencial, apresenta os valores a seguir demonstrados.</p>' +
+      '<div class="doc-firma">' + escapeHtml(info.razaoSocial) + '</div>' +
+      '<div class="doc-fields">' +
+      '<div class="doc-field"><span class="doc-label">Endereço</span><span class="doc-val">' + escapeHtml(info.endereco) + "</span></div>" +
+      '<div class="doc-field"><span class="doc-label">Bairro / Comp.</span><span class="doc-val">' + escapeHtml(info.bairro) + "</span></div>" +
+      '<div class="doc-field"><span class="doc-label">Cidade / CEP / Fone</span><span class="doc-val">' + escapeHtml(info.cidadeCepFone) + "</span></div>" +
+      '<div class="doc-field"><span class="doc-label">Inscr. Estadual</span><span class="doc-val">' + escapeHtml(info.inscrEstadual) + "</span></div>" +
+      '<div class="doc-field"><span class="doc-label">CNPJ / CPF</span><span class="doc-val">' + escapeHtml(info.cnpj) + "</span></div></div>" +
+      '<div class="doc-period"><h2>Período de Referência</h2><p>' + dataInicio + " a " + dataFim + "</p></div>" +
+      '<table class="doc-table"><thead><tr><th>Mês</th><th class="num">Faturamento</th></tr></thead><tbody>' +
+      trs + '</tbody><tfoot><tr><td>TOTAL DO PERÍODO</td><td class="num"><span class="rSym">R$</span><span class="rVal">' + (totalGeral || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</span></td></tr></tfoot></table>" +
+      '<div class="doc-local">São José do Rio Preto-SP, ' + dataEmissao + '.</div>' +
+      '<div class="doc-assinatura">' +
+      '<p class="nome">GELSON MASCARO ZAPATERRA DE SOUZA</p>' +
+      '<p>Qualificação.:  Sócio-Diretor</p>' +
+      '<p>CPF.: 025.937.728-75</p>' +
+      '</div></section>';
+  });
+
+  html += '</body></html>';
+
+  var printWin = window.open("", "_blank", "width=900,height=700,scrollbars=yes");
+  if (!printWin) { alert("Pop-up bloqueado. Permita pop-ups para gerar o PDF."); return; }
+  printWin.document.write(html);
+  printWin.document.close();
+  printWin.focus();
+  setTimeout(function(){ printWin.print(); }, 400);
+});
+
+/* ---------------------------------------------------------------------
+   INÍCIO
+--------------------------------------------------------------------- */
+fetchData();
+
+})();
+</script>
+
+<script>
+// ── SIDEBAR: recolher/expandir ──
+let lastOpenMenu = 'financeiro';
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
+  });
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+// ── SIDEBAR: abrir/fechar submenus e botão mobile ──
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        sidebar.classList.remove('peek');
+        expandSidebar();
+        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+        item.classList.add('open');
+        return;
+      }
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=> document.body.classList.toggle('side-open'));
+  }
+})();
+
+// Recolhe o menu automaticamente no desktop ao abrir este dashboard,
+// igual nos demais dashboards do painel.
+if(window.innerWidth > 900) collapseSidebar();
+</script>
+</body>
+</html>
