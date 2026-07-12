@@ -630,6 +630,11 @@ const STORES = {
     cnpj:"38.174.235/0001-72"
   }
 };
+// Apelidos de segurança: se a planilha de faturamento gravar o nome da
+// loja com grafia levemente diferente (ex.: sem o "e" final), o cadastro
+// completo (endereço, CNPJ etc.) ainda é encontrado.
+STORES.BELVEDER = STORES.BELVEDERE;
+
 const STORE_ORDER = ["ANISIO","BADY","DAMHA","BELVEDERE","HAVAN","MUFFATO"];
 
 const MESES_DISPLAY = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -1144,13 +1149,13 @@ $("btnPrint").addEventListener("click", function(){
     '.doc-period{ margin:34px 0 8px; text-align:center; }' +
     '.doc-period h2{ font-family:"Fraunces",serif; font-size:11px; margin:0 0 2px; text-transform:uppercase; letter-spacing:.06em; color:#B8893E; font-weight:600; }' +
     '.doc-period p{ margin:0; font-size:13px; font-weight:600; }' +
-    'table.doc-table{ width:100%; border-collapse:collapse; font-size:11px; margin-top:18px; }' +
-    'table.doc-table th{ text-align:center; background:#F6F4EE; color:#15202B; padding:6px 8px; font-weight:700; text-transform:uppercase; font-size:9.5px; letter-spacing:.04em; border-bottom:1.5px solid #15202B; }' +
+    'table.doc-table{ width:auto; min-width:280px; max-width:340px; margin:18px auto 0; border-collapse:collapse; font-size:11px; }' +
+    'table.doc-table th{ text-align:center; background:#F6F4EE; color:#15202B; padding:6px 10px; font-weight:700; text-transform:uppercase; font-size:9.5px; letter-spacing:.04em; border-bottom:1.5px solid #15202B; }' +
     'table.doc-table th.num, table.doc-table td.num{ text-align:right; }' +
-    'table.doc-table td{ padding:5px 8px; border-bottom:1px solid #E4DFD2; font-family:"IBM Plex Mono",monospace; font-size:10.5px; text-align:center; font-weight:600; }' +
+    'table.doc-table td{ padding:5px 10px; border-bottom:1px solid #E4DFD2; font-family:"IBM Plex Mono",monospace; font-size:10.5px; text-align:center; font-weight:600; }' +
     'table.doc-table td.num{ white-space:nowrap; }' +
-    'table.doc-table .rSym{ display:inline-block; width:16px; text-align:left; }' +
-    'table.doc-table .rVal{ display:inline-block; min-width:88px; text-align:right; }' +
+    'table.doc-table .rSym{ display:inline-block; width:14px; text-align:left; }' +
+    'table.doc-table .rVal{ display:inline-block; min-width:78px; text-align:right; }' +
     'table.doc-table tfoot td{ font-weight:700; border-top:2px solid #0E1B2E; border-bottom:none; background:#F6F4EE; font-family:"Inter",sans-serif; }' +
     '.doc-local{ text-align:center; font-size:12px; margin-top:48px; color:#15202B; }' +
     '.doc-assinatura{ text-align:center; margin-top:72px; }' +
