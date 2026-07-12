@@ -259,8 +259,15 @@
   }
   .filter-group {
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .filter-label-sm {
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .7px;
   }
   .filter-select {
     appearance: none;
@@ -753,6 +760,67 @@
     border-bottom: 2px solid #1A4FBA;
   }
   .metas-table tbody tr.row-consolidado:hover { background: #dce6ff; }
+  .metas-table tbody tr.row-total-bady {
+    background: #F0F7F4;
+    font-weight: 700;
+    border-top: 2px solid #00A67E;
+    border-bottom: 2px solid #00A67E;
+  }
+  .metas-table tbody tr.row-total-bady:hover { background: #E0F0EA; }
+
+  .suggestion-panel {
+    margin-top: 16px;
+    background: linear-gradient(135deg, #F0F7F4 0%, #EAF0FD 100%);
+    border: 1px solid #C8D6E5;
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    box-shadow: var(--shadow);
+  }
+  .suggestion-panel .sug-header {
+    display: flex; align-items: center; gap: 10px;
+    margin-bottom: 14px;
+  }
+  .suggestion-panel .sug-header .sug-icon {
+    width: 32px; height: 32px; border-radius: 8px;
+    background: var(--accent); color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; flex-shrink: 0;
+  }
+  .suggestion-panel .sug-header .sug-title {
+    font-family: var(--font-head); font-weight: 700; font-size: 15px;
+    color: var(--text-primary);
+  }
+  .suggestion-panel .sug-header .sug-subtitle {
+    font-size: 12px; color: var(--text-secondary); margin-top: 1px;
+  }
+  .suggestion-panel .sug-table {
+    width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 14px;
+  }
+  .suggestion-panel .sug-table th {
+    text-align: left; padding: 8px 10px;
+    background: rgba(255,255,255,0.7); border-bottom: 2px solid var(--border);
+    font-family: var(--font-head); font-weight: 600; font-size: 11.5px;
+    color: var(--text-secondary); letter-spacing: 0.03em; text-transform: uppercase;
+  }
+  .suggestion-panel .sug-table td {
+    padding: 9px 10px; border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+  }
+  .suggestion-panel .sug-table tr:last-child td { border-bottom: none; }
+  .suggestion-panel .sug-table .sug-loja { font-weight: 600; color: var(--text-primary); }
+  .suggestion-panel .sug-table .sug-valor { text-align: right; font-family: var(--font-num); font-weight: 600; color: var(--accent); font-size: 14px; }
+  .suggestion-panel .sug-table .sug-ref { text-align: right; font-family: var(--font-num); color: var(--text-secondary); font-size: 12.5px; }
+  .suggestion-panel .sug-table .sug-pct { text-align: right; font-weight: 600; font-size: 12px; }
+  .suggestion-panel .sug-table .sug-pct.pos { color: #00A67E; }
+  .suggestion-panel .sug-table .sug-pct.neg { color: #DC3545; }
+  .suggestion-panel .sug-reason {
+    background: rgba(255,255,255,0.6); border-radius: var(--radius-sm);
+    padding: 12px 14px; font-size: 12.5px; line-height: 1.6; color: var(--text-secondary);
+  }
+  .suggestion-panel .sug-reason strong { color: var(--text-primary); }
+  .suggestion-panel .sug-empty {
+    text-align: center; padding: 18px; color: var(--text-muted); font-size: 13px;
+  }
 
   .metas-table td {
     padding: 11px 12px;
@@ -772,7 +840,7 @@
     min-width: 140px;
     background: #FAFBFD;
   }
-  .metas-table td.td-r { text-align: right; }
+  .metas-table td.td-r { text-align: right; width: 130px; min-width: 130px; max-width: 130px; white-space: nowrap; }
   .metas-table td.td-c { text-align: center; }
 
   .num-pos { color: #00A67E; font-weight: 700; }
@@ -805,6 +873,12 @@
   .editable-input:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(26,79,186,0.12); }
   .editable-input.saved { border-color: var(--accent2); background: var(--accent2-soft); color: var(--accent2); }
   .editable-input::placeholder { color: #9BA3B5; font-weight: 400; }
+
+  .meta-real {
+    font-weight: 700;
+    color: var(--text-secondary);
+    background: #F8F9FC;
+  }
 
   /* ===== DIVIDER ===== */
   .section-gap { margin-bottom: 32px; }
@@ -927,20 +1001,23 @@
 <div class="filters-bar">
   <span class="filters-label">Filtros</span>
   <div class="filter-group">
+    <span class="filter-label-sm">Ano</span>
     <select class="filter-select" id="filterAno" onchange="applyFilters()">
       <option value="">Todos os Anos</option>
     </select>
   </div>
   <div class="filters-divider"></div>
   <div class="filter-group">
-    <select class="filter-select" id="filterLoja" onchange="applyFilters()">
-      <option value="">Todas as Lojas</option>
+    <span class="filter-label-sm">Mês</span>
+    <select class="filter-select" id="filterMes" onchange="applyFilters()">
+      <option value="">Todos os Meses</option>
     </select>
   </div>
   <div class="filters-divider"></div>
   <div class="filter-group">
-    <select class="filter-select" id="filterMes" onchange="applyFilters()">
-      <option value="">Todos os Meses</option>
+    <span class="filter-label-sm">Loja</span>
+    <select class="filter-select" id="filterLoja" onchange="applyFilters()">
+      <option value="">Todas as Lojas</option>
     </select>
   </div>
   <div class="filters-divider"></div>
@@ -1052,10 +1129,11 @@ function collapseSidebar(){
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
 // Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único conjunto.
-const STORE_KEYS = ["anisio", "bady", "belvedere", "damha"];
+const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
 const CSV_URLS_FATURAMENTO = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 const CSV_URL_CMV = "";
+const METAS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjGLayK9vF_NR1LpZcTHx23PelZV0343Fkmi0EnOtK7cYcPorZWLObO770AMndFjpvhg6X5gNB-vhh/pub?output=csv&gid=1484587570";
 /* ============================================================ */
 
 const MESES_NOME = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -1065,6 +1143,23 @@ let rawData = [];
 let filteredData = [];
 let charts = {};
 let savedMetas = {};
+let metasData = [];
+
+const CUSTOM_LOJA_ORDER = [
+  'BADY LOJA', 'BADY DELIVERY', 'TOTAL BADY',
+  'ANISIO', 'DAMHA', 'BELVEDERE', 'HAVAN', 'MUFFATO'
+];
+
+function customSortLojas(lojas) {
+  return lojas.sort((a, b) => {
+    const idxA = CUSTOM_LOJA_ORDER.indexOf(a);
+    const idxB = CUSTOM_LOJA_ORDER.indexOf(b);
+    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+    if (idxA === -1) return 1;
+    if (idxB === -1) return 1;
+    return idxA - idxB;
+  });
+}
 
 /* =========================================================
    UTILITY
@@ -1104,6 +1199,11 @@ function parseMes(val) {
 function fmtCurrency(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
   return 'R$ ' + v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function fmtGrid(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
 function fmtPct(v) {
@@ -1150,14 +1250,105 @@ function transformFaturamento(rows, headers) {
   const result = [];
   for (const row of rows) {
     const ano = parseInt(row[colAno]);
-    const loja = (row[colLoja] || '').trim().toUpperCase();
+    const loja = (row[colLoja] || '').trim().toUpperCase().replace(/^["']|["']$/g, '');
     const mes = parseMes(row[colMes]);
     const venda = parseNumber(row[colVenda]);
-    const canal = colCanal ? (row[colCanal] || '').trim() : '';
+    const canal = colCanal ? (row[colCanal] || '').trim().replace(/^["']|["']$/g, '') : '';
     if (!ano || !loja || !mes || venda === null) continue;
     result.push({ ano, loja, mes, venda, canal });
   }
   return result;
+}
+
+/* =========================================================
+   FETCH METAS DATA (Google Sheets published CSV)
+   ========================================================= */
+function parseCSVLine(line, sep) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (char === '"') { inQuotes = !inQuotes; }
+    else if (char === sep && !inQuotes) { result.push(current); current = ''; }
+    else { current += char; }
+  }
+  result.push(current);
+  return result;
+}
+
+function parseMesFromName(name) {
+  const n = String(name).trim().toLowerCase();
+  const idx = MESES_NOME.findIndex(m => m.toLowerCase() === n);
+  return idx >= 0 ? idx + 1 : null;
+}
+
+async function loadMetasData() {
+  try {
+    const r = await fetch(METAS_CSV_URL + '&_cb=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const text = await r.text();
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) { metasData = []; return; }
+    const sep = detectSeparator(lines[0]);
+    const headers = parseCSVLine(lines[0], sep).map(normalizeHeader);
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i], sep);
+      if (cols.every(c => !c.trim())) continue;
+      const row = {};
+      headers.forEach((h, idx) => { row[h] = (cols[idx] || '').trim(); });
+      const ano = parseInt(row['ano']);
+      const mes = parseMesFromName(row['mes']);
+      const loja = (row['lojas'] || '').trim().toUpperCase();
+      const canal = (row['canal'] || '').trim().toLowerCase();
+      const meta = parseNumber(row['meta']);
+      const pe = parseNumber(row['p_e']);
+      if (ano && mes && loja) {
+        metasData.push({ ano, mes, loja, canal, meta: meta || 0, pe: pe || 0 });
+      }
+    }
+  } catch(e) {
+    console.warn('Metas CSV fetch failed:', e.message);
+    metasData = [];
+  }
+}
+
+function getMetasValue(loja, mes, type) {
+  const canalFiltro = (selectedCanais && selectedCanais.size > 0) ? selectedCanais : null;
+  if (loja === 'BADY LOJA') {
+    return metasData
+      .filter(d =>
+        d.loja === 'BADY' && d.canal.toUpperCase() === 'LOJA' &&
+        d.mes === mes &&
+        (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
+      )
+      .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
+  }
+  if (loja === 'BADY DELIVERY') {
+    return metasData
+      .filter(d =>
+        d.loja === 'BADY' && d.canal.toUpperCase() === 'DELIVERY' &&
+        d.mes === mes &&
+        (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
+      )
+      .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
+  }
+  if (loja === 'TOTAL BADY') {
+    return metasData
+      .filter(d =>
+        d.loja === 'BADY' &&
+        d.mes === mes &&
+        (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
+      )
+      .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
+  }
+  return metasData
+    .filter(d =>
+      d.loja === loja.toUpperCase() &&
+      d.mes === mes &&
+      (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
+    )
+    .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
 }
 
 /* =========================================================
@@ -1189,6 +1380,8 @@ async function loadData() {
 
     if (rawData.length === 0) throw new Error('Nenhum dado válido encontrado no CSV.');
 
+    try { await loadMetasData(); } catch(e) { console.warn('Metas load error:', e); metasData = []; }
+
     buildFilters();
     applyFilters();
 
@@ -1207,6 +1400,8 @@ async function loadData() {
 /* =========================================================
    FILTERS
    ========================================================= */
+let filtroAnoInicializado = false;
+
 function buildFilters() {
   const anos = [...new Set(rawData.map(d => d.ano))].sort();
   const lojas = [...new Set(rawData.map(d => d.loja))].sort();
@@ -1217,6 +1412,26 @@ function buildFilters() {
   fillSelect('filterLoja', lojas, v => v, v => v);
   fillSelect('filterMes', meses, v => v, v => MESES_NOME[v-1]);
   buildCanalOptions(canais);
+
+  if (!filtroAnoInicializado) {
+    const now = new Date();
+    const anoAtualReal = now.getFullYear();
+    const mesAtualReal = now.getMonth() + 1;
+
+    const filterAnoEl = document.getElementById('filterAno');
+    if (anos.includes(anoAtualReal)) {
+      filterAnoEl.value = String(anoAtualReal);
+    } else if (anos.length) {
+      filterAnoEl.value = String(Math.max(...anos));
+    }
+
+    const filterMesEl = document.getElementById('filterMes');
+    if (meses.includes(mesAtualReal)) {
+      filterMesEl.value = String(mesAtualReal);
+    }
+
+    filtroAnoInicializado = true;
+  }
 }
 
 let selectedCanais = new Set();
@@ -1470,7 +1685,7 @@ function renderDashboard() {
           </tr>
           <tr id="thead-sub">
             <th class="th-sub">Realizado 2025</th>
-            <th class="th-sub meta">Meta 2026 ✎</th>
+            <th class="th-sub meta">Realizado 2026</th>
             <th class="th-sub evol">Evolução 25/26</th>
             <th class="th-sub">Realizado 2025</th>
             <th class="th-sub meta">Meta 2026 ✎</th>
@@ -1486,6 +1701,7 @@ function renderDashboard() {
       <div class="status-dot"></div>
       <span>Meta 2026 e Ponto de Equilíbrio são salvos no navegador por loja e mês. Diferença = Meta − Ponto de Equilíbrio.</span>
     </div>
+    <div id="metaSuggestion"></div>
   </div>
   `;
 
@@ -1708,11 +1924,49 @@ function renderMetasTable(f) {
   const lojaFiltro  = f.loja || null;
   const canalFiltro = (f.canais && f.canais.size > 0) ? f.canais : null;
 
-  const allLojas = lojaFiltro
+  const anosDisponiveis = [...new Set(rawData.map(d => d.ano))];
+  const anoAtual = f.ano ? parseInt(f.ano) : (anosDisponiveis.length ? Math.max(...anosDisponiveis) : new Date().getFullYear());
+
+  let allLojas = lojaFiltro
     ? [lojaFiltro]
-    : [...new Set(rawData.map(d => d.loja))].sort();
+    : [...new Set(rawData.map(d => d.loja))];
+
+  const hasBady = allLojas.includes('BADY');
+  if (hasBady) {
+    allLojas = allLojas.filter(l => l !== 'BADY');
+    allLojas.push('BADY LOJA', 'BADY DELIVERY', 'TOTAL BADY');
+  }
+
+  allLojas = customSortLojas(allLojas);
 
   const getVenda = (ano, loja, mes) => {
+    if (loja === 'BADY LOJA') {
+      return rawData
+        .filter(d =>
+          d.ano === ano && d.loja === 'BADY' && d.canal.toUpperCase() === 'LOJA' &&
+          (mes === null || d.mes === mes) &&
+          (canalFiltro === null || canalFiltro.has(d.canal))
+        )
+        .reduce((s, d) => s + d.venda, 0);
+    }
+    if (loja === 'BADY DELIVERY') {
+      return rawData
+        .filter(d =>
+          d.ano === ano && d.loja === 'BADY' && d.canal.toUpperCase() === 'DELIVERY' &&
+          (mes === null || d.mes === mes) &&
+          (canalFiltro === null || canalFiltro.has(d.canal))
+        )
+        .reduce((s, d) => s + d.venda, 0);
+    }
+    if (loja === 'TOTAL BADY') {
+      return rawData
+        .filter(d =>
+          d.ano === ano && d.loja === 'BADY' &&
+          (mes === null || d.mes === mes) &&
+          (canalFiltro === null || canalFiltro.has(d.canal))
+        )
+        .reduce((s, d) => s + d.venda, 0);
+    }
     return rawData
       .filter(d =>
         d.ano === ano && d.loja === loja &&
@@ -1731,6 +1985,7 @@ function renderMetasTable(f) {
 
   let totPrevR25=0, totPrevM26=0, totCurrR25=0, totCurrM26=0, totPE=0;
   let hasMeta=false, hasPE=false;
+  let totalBadyMeta = 0, totalBadyPE = 0, totalBadyPrevMeta = 0;
 
   const rows = allLojas.map(loja => {
     const mesKey    = mesSel || 0;
@@ -1739,29 +1994,50 @@ function renderMetasTable(f) {
     const prevR25 = getVenda(2025, loja, mesPrev);
     const currR25 = getVenda(2025, loja, mesSel);
 
-    const savedMetaPrev = loadSaved(metaKey(loja, prevKey));
-    const savedMetaCurr = loadSaved(metaKey(loja, mesKey));
-    const savedPE       = loadSaved(peKey(loja, mesKey));
+    const metaPrevReal  = getVenda(anoAtual, loja, mesPrev);
+    const csvMetaVal    = getMetasValue(loja, mesKey, 'meta');
+    const csvPEVal      = getMetasValue(loja, mesKey, 'pe');
+    const savedMetaCurr = loadSaved(metaKey(loja, mesKey)) || csvMetaVal;
+    const savedPE       = loadSaved(peKey(loja, mesKey)) || csvPEVal;
 
-    totPrevR25 += prevR25;
-    totCurrR25 += currR25;
-    if (savedMetaPrev) { totPrevM26 += savedMetaPrev; hasMeta = true; }
-    if (savedMetaCurr) { totCurrM26 += savedMetaCurr; hasMeta = true; }
-    if (savedPE)       { totPE      += savedPE;        hasPE  = true; }
+    if (loja === 'BADY LOJA' || loja === 'BADY DELIVERY') {
+      totalBadyMeta += savedMetaCurr || 0;
+      totalBadyPE += savedPE || 0;
+      totalBadyPrevMeta += metaPrevReal || 0;
+    }
 
-    return `<tr>
+    if (loja !== 'TOTAL BADY') {
+      totPrevR25 += prevR25;
+      totCurrR25 += currR25;
+      if (metaPrevReal) { totPrevM26 += metaPrevReal; hasMeta = true; }
+      if (savedMetaCurr) { totCurrM26 += savedMetaCurr; hasMeta = true; }
+      if (savedPE)       { totPE      += savedPE;        hasPE  = true; }
+    }
+
+    const isTotalBady = loja === 'TOTAL BADY';
+    const rowClass = isTotalBady ? 'row-total-bady' : '';
+
+    if (isTotalBady) {
+      return `<tr class="${rowClass}">
+        <td class="td-loja">${loja}</td>
+        <td class="td-r">${fmtGrid(prevR25)}</td>
+        <td class="td-r meta-real" id="meta_${loja}_${prevKey}">${totalBadyPrevMeta ? fmtGrid(totalBadyPrevMeta) : '—'}</td>
+        <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
+        <td class="td-r">${fmtGrid(currR25)}</td>
+        <td class="td-r">${totalBadyMeta ? fmtGrid(totalBadyMeta) : '—'}</td>
+        <td class="td-c evol-cell" id="evolcurr_${loja}_${mesKey}">—</td>
+        <td class="td-r">${totalBadyPE ? fmtGrid(totalBadyPE) : '—'}</td>
+        <td class="td-r dif-cell" id="dif_${loja}_${mesKey}">${(totalBadyMeta && totalBadyPE) ? fmtGrid(totalBadyMeta - totalBadyPE) : '—'}</td>
+      </tr>`;
+    }
+
+    return `<tr class="${rowClass}">
       <td class="td-loja">${loja}</td>
-      <td class="td-r">${fmtCurrency(prevR25)}</td>
-      <td class="td-r" style="min-width:130px">
-        <input type="text" class="editable-input" id="meta_${loja}_${prevKey}"
-          value="${savedMetaPrev ? formatInput(savedMetaPrev) : ''}"
-          placeholder="digitar meta"
-          onchange="onMetaChange('${loja}',${prevKey},'meta')"
-          onblur="onMetaChange('${loja}',${prevKey},'meta')">
-      </td>
+      <td class="td-r">${fmtGrid(prevR25)}</td>
+      <td class="td-r meta-real" id="meta_${loja}_${prevKey}" title="Valor real do ano atual (não editável)">${metaPrevReal ? fmtGrid(metaPrevReal) : '—'}</td>
       <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
-      <td class="td-r">${fmtCurrency(currR25)}</td>
-      <td class="td-r" style="min-width:130px">
+      <td class="td-r">${fmtGrid(currR25)}</td>
+      <td class="td-r">
         <input type="text" class="editable-input" id="meta_${loja}_${mesKey}"
           value="${savedMetaCurr ? formatInput(savedMetaCurr) : ''}"
           placeholder="digitar meta"
@@ -1769,7 +2045,7 @@ function renderMetasTable(f) {
           onblur="onMetaChange('${loja}',${mesKey},'meta')">
       </td>
       <td class="td-c evol-cell" id="evolcurr_${loja}_${mesKey}">—</td>
-      <td class="td-r" style="min-width:130px">
+      <td class="td-r">
         <input type="text" class="editable-input" id="pe_${loja}_${mesKey}"
           value="${savedPE ? formatInput(savedPE) : ''}"
           placeholder="digitar PE"
@@ -1789,14 +2065,14 @@ function renderMetasTable(f) {
 
   const consolidado = `<tr class="row-consolidado">
     <td class="td-loja" style="background:#E8EEF8">Consolidado</td>
-    <td class="td-r">${fmtCurrency(totPrevR25)}</td>
-    <td class="td-r">${hasMeta ? fmtCurrency(totPrevM26) : '—'}</td>
+    <td class="td-r">${fmtGrid(totPrevR25)}</td>
+    <td class="td-r">${hasMeta ? fmtGrid(totPrevM26) : '—'}</td>
     <td class="td-c evol-cell ${evolCls(totPrevEvol)}">${evolFmt(totPrevEvol)}</td>
-    <td class="td-r">${fmtCurrency(totCurrR25)}</td>
-    <td class="td-r">${hasMeta ? fmtCurrency(totCurrM26) : '—'}</td>
+    <td class="td-r">${fmtGrid(totCurrR25)}</td>
+    <td class="td-r">${hasMeta ? fmtGrid(totCurrM26) : '—'}</td>
     <td class="td-c evol-cell ${evolCls(totCurrEvol)}">${evolFmt(totCurrEvol)}</td>
-    <td class="td-r">${hasPE ? fmtCurrency(totPE) : '—'}</td>
-    <td class="td-r dif-cell ${totDif !== null ? (totDif >= 0 ? 'pos' : 'neg') : ''}">${totDif !== null ? fmtCurrency(totDif) : '—'}</td>
+    <td class="td-r">${hasPE ? fmtGrid(totPE) : '—'}</td>
+    <td class="td-r dif-cell ${totDif !== null ? (totDif >= 0 ? 'pos' : 'neg') : ''}">${totDif !== null ? fmtGrid(totDif) : '—'}</td>
   </tr>`;
 
   tbody.innerHTML = consolidado + rows;
@@ -1806,9 +2082,118 @@ function renderMetasTable(f) {
     const prevKey = mesPrev || 0;
     computeMetaRowV2(loja, mesKey, prevKey,
       getVenda(2025, loja, mesSel),
-      getVenda(2025, loja, mesPrev)
+      getVenda(2025, loja, mesPrev),
+      getVenda(anoAtual, loja, mesPrev)
     );
   });
+
+  renderMetaSuggestion(f, allLojas, getVenda, anoAtual);
+}
+
+function renderMetaSuggestion(f, allLojas, getVenda, anoAtual) {
+  const container = document.getElementById('metaSuggestion');
+  if (!container) return;
+
+  const mesSel = f.mes ? parseInt(f.mes) : null;
+  if (!mesSel) { container.innerHTML = ''; return; }
+
+  const mesNext = mesSel === 12 ? 1 : mesSel + 1;
+  const mesNextNome = MESES_NOME[mesNext - 1];
+  const mesSelNome = MESES_NOME[mesSel - 1];
+
+  const suggestions = [];
+
+  for (const loja of allLojas) {
+    if (loja === 'TOTAL BADY') continue;
+
+    const vendMesAtual25 = getVenda(2025, loja, mesSel);
+    const vendMesAtual26 = getVenda(anoAtual, loja, mesSel);
+    const vendMesProx25  = getVenda(2025, loja, mesNext);
+
+    if (!vendMesAtual25 || !vendMesAtual26 || !vendMesProx25) continue;
+
+    const crescimento = (vendMesAtual26 - vendMesAtual25) / vendMesAtual25;
+    const metaSugerida = vendMesProx25 * (1 + crescimento);
+
+    const metaAtual = getVenda(anoAtual, loja, mesSel);
+    const peAtual = getVenda(anoAtual, loja, mesSel);
+
+    suggestions.push({
+      loja,
+      vendMesAtual25,
+      vendMesAtual26,
+      vendMesProx25,
+      crescimento,
+      metaSugerida
+    });
+  }
+
+  if (suggestions.length === 0) {
+    container.innerHTML = '';
+    return;
+  }
+
+  const pctFmt = (v) => (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + '%';
+  const pctCls = (v) => v >= 0 ? 'pos' : 'neg';
+
+  let tableRows = suggestions.map(s => `
+    <tr>
+      <td class="sug-loja">${s.loja}</td>
+      <td class="sug-ref">${fmtGrid(s.vendMesAtual25)}</td>
+      <td class="sug-ref">${fmtGrid(s.vendMesAtual26)}</td>
+      <td class="sug-ref">${fmtGrid(s.vendMesProx25)}</td>
+      <td class="sug-pct ${pctCls(s.crescimento)}">${pctFmt(s.crescimento)}</td>
+      <td class="sug-valor">${fmtGrid(s.metaSugerida)}</td>
+    </tr>
+  `).join('');
+
+  const totalRef = suggestions.reduce((s, x) => s + x.vendMesProx25, 0);
+  const totalCresc = suggestions.reduce((s, x) => s + x.vendMesAtual25, 0);
+  const totalAtual = suggestions.reduce((s, x) => s + x.vendMesAtual26, 0);
+  const totalMeta = suggestions.reduce((s, x) => s + x.metaSugerida, 0);
+  const avgCresc = totalCresc > 0 ? (totalAtual - totalCresc) / totalCresc : 0;
+
+  const totalRow = `
+    <tr style="border-top:2px solid var(--border-strong); font-weight:700;">
+      <td class="sug-loja">TOTAL</td>
+      <td class="sug-ref">${fmtGrid(totalCresc)}</td>
+      <td class="sug-ref">${fmtGrid(totalAtual)}</td>
+      <td class="sug-ref">${fmtGrid(totalRef)}</td>
+      <td class="sug-pct ${pctCls(avgCresc)}">${pctFmt(avgCresc)}</td>
+      <td class="sug-valor">${fmtGrid(totalMeta)}</td>
+    </tr>`;
+
+  container.innerHTML = `
+    <div class="suggestion-panel">
+      <div class="sug-header">
+        <div class="sug-icon">💡</div>
+        <div>
+          <div class="sug-title">Sugestão de Meta — ${mesNextNome.toUpperCase()}</div>
+          <div class="sug-subtitle">Baseada no realizado ${mesSelNome}/2025 aplicando a evolução ${mesSelNome}/2025→${mesSelNome}/2026</div>
+        </div>
+      </div>
+      <table class="sug-table">
+        <thead>
+          <tr>
+            <th>Loja</th>
+            <th style="text-align:right">${mesSelNome} 2025</th>
+            <th style="text-align:right">${mesSelNome} 2026</th>
+            <th style="text-align:right">${mesNextNome} 2025</th>
+            <th style="text-align:right">Evolução</th>
+            <th style="text-align:right">Meta Sugerida</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${tableRows}
+          ${totalRow}
+        </tbody>
+      </table>
+      <div class="sug-reason">
+        <strong>📐 Metodologia:</strong> A meta sugerida para <strong>${mesNextNome}</strong> é calculada pegando o valor realizado de <strong>${mesNextNome} de 2025</strong> e aplicando a <strong>evolução percentual</strong> entre ${mesSelNome}/2025 e ${mesSelNome}/2026. 
+        Exemplo: se uma loja teve R$ 100k em ${mesSelNome}/2025 e R$ 110k em ${mesSelNome}/2026 (crescimento de +10%), e o realizado de ${mesNextNome}/2025 foi R$ 120k, então a meta sugerida seria R$ 120k × 1,10 = <strong>R$ 132k</strong>.
+        Esta é uma referência — ajuste conforme estratégia comercial de cada loja.
+      </div>
+    </div>`;
 }
 
 function formatInput(n) {
@@ -1842,24 +2227,43 @@ function onMetaChange(loja, mes, type) {
   const mesSel  = f.mes ? parseInt(f.mes) : null;
   const mesPrev = mesSel ? (mesSel === 1 ? 12 : mesSel - 1) : null;
   const canalFiltro = (f.canais && f.canais.size > 0) ? f.canais : null;
-  const getVenda = (ano, lj, m) => rawData
-    .filter(d => d.ano === ano && d.loja === lj && (m === null || d.mes === m) && (canalFiltro === null || canalFiltro.has(d.canal)))
-    .reduce((s, d) => s + d.venda, 0);
+  const getVenda = (ano, lj, m) => {
+    if (lj === 'BADY LOJA') {
+      return rawData
+        .filter(d => d.ano === ano && d.loja === 'BADY' && d.canal.toUpperCase() === 'LOJA' && (m === null || d.mes === m) && (canalFiltro === null || canalFiltro.has(d.canal)))
+        .reduce((s, d) => s + d.venda, 0);
+    }
+    if (lj === 'BADY DELIVERY') {
+      return rawData
+        .filter(d => d.ano === ano && d.loja === 'BADY' && d.canal.toUpperCase() === 'DELIVERY' && (m === null || d.mes === m) && (canalFiltro === null || canalFiltro.has(d.canal)))
+        .reduce((s, d) => s + d.venda, 0);
+    }
+    if (lj === 'TOTAL BADY') {
+      return rawData
+        .filter(d => d.ano === ano && d.loja === 'BADY' && (m === null || d.mes === m) && (canalFiltro === null || canalFiltro.has(d.canal)))
+        .reduce((s, d) => s + d.venda, 0);
+    }
+    return rawData
+      .filter(d => d.ano === ano && d.loja === lj && (m === null || d.mes === m) && (canalFiltro === null || canalFiltro.has(d.canal)))
+      .reduce((s, d) => s + d.venda, 0);
+  };
+
+  const anosDisp = [...new Set(rawData.map(d => d.ano))];
+  const anoAtualAgora = f.ano ? parseInt(f.ano) : (anosDisp.length ? Math.max(...anosDisp) : new Date().getFullYear());
 
   computeMetaRowV2(loja, mesSel || 0, mesPrev || 0,
     getVenda(2025, loja, mesSel),
-    getVenda(2025, loja, mesPrev)
+    getVenda(2025, loja, mesPrev),
+    getVenda(anoAtualAgora, loja, mesPrev)
   );
   renderMetasTable(f);
 }
 
-function computeMetaRowV2(loja, mesKey, prevKey, currR25, prevR25) {
+function computeMetaRowV2(loja, mesKey, prevKey, currR25, prevR25, metaPrevReal) {
   const evolPrevCell = document.getElementById(`evolprev_${loja}_${prevKey}`);
-  const metaPrevInput = document.getElementById(`meta_${loja}_${prevKey}`);
-  if (evolPrevCell && metaPrevInput) {
-    const metaPrev = parseInput(metaPrevInput.value);
-    if (prevR25 > 0 && metaPrev > 0) {
-      const pct = (metaPrev - prevR25) / prevR25 * 100;
+  if (evolPrevCell) {
+    if (prevR25 > 0 && metaPrevReal > 0) {
+      const pct = (metaPrevReal - prevR25) / prevR25 * 100;
       evolPrevCell.textContent = (pct >= 0 ? '+' : '') + pct.toFixed(2) + '%';
       evolPrevCell.className = 'td-c evol-cell ' + (pct >= 0 ? 'pos' : 'neg');
     } else {
@@ -1889,7 +2293,7 @@ function computeMetaRowV2(loja, mesKey, prevKey, currR25, prevR25) {
     const peVal    = parseInput(peInput.value);
     if (metaCurr > 0 && peVal > 0) {
       const dif = metaCurr - peVal;
-      difCell.textContent = fmtCurrency(dif);
+      difCell.textContent = fmtGrid(dif);
       difCell.className = 'td-r dif-cell ' + (dif >= 0 ? 'pos' : 'neg');
     } else {
       difCell.textContent = '—';

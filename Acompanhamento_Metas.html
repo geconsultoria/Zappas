@@ -439,24 +439,25 @@ body {
   background: var(--blue-lt); color: var(--blue);
   white-space: nowrap;
 }
-.tbl-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+.tbl-scroll { overflow-x: hidden; }
 
 /* ─── TABLE STYLES ─── */
 table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 11.5px;
+  font-size: 10px;
+  table-layout: fixed;
 }
 
 /* Group header row */
 .tr-grp th {
-  padding: 8px 7px;
+  padding: 5px 4px;
   text-align: center;
   font-family: 'Outfit', sans-serif;
-  font-size: 10px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .5px;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .4px;
   white-space: nowrap;
-  border-right: 2px solid rgba(255,255,255,.25);
+  border-right: 1px solid rgba(255,255,255,.25);
 }
 .tr-grp th:last-child { border-right: none; }
 .grp-aa    { background: #2B3F6B; color: #fff; }
@@ -467,9 +468,9 @@ table {
 
 /* Sub-header row */
 .tr-sub th {
-  padding: 6px 7px;
+  padding: 4px 3px;
   text-align: right;
-  font-size: 10px; font-weight: 600;
+  font-size: 9px; font-weight: 600;
   color: var(--ink2);
   background: var(--surface2);
   border-bottom: 2px solid var(--border-hi);
@@ -486,17 +487,19 @@ tbody tr.future { opacity: .4; }
 tbody tr.today  { background: #EFF5FF; }
 
 td {
-  padding: 5px 7px;
+  padding: 3px 3px;
   text-align: right;
   vertical-align: middle;
   border-right: 1px solid var(--border);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 11px;
+  font-size: 9.5px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 11px; color: var(--ink2); }
+td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 9.5px; color: var(--ink2); }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.pos { color: var(--green); font-weight: 600; }
 td.neg { color: var(--red); font-weight: 600; }
@@ -505,8 +508,8 @@ td.dash { color: var(--muted); }
 
 .pill {
   display: inline-block;
-  padding: 1px 6px; border-radius: 4px;
-  font-size: 10.5px; font-weight: 600;
+  padding: 0px 4px; border-radius: 3px;
+  font-size: 9px; font-weight: 600;
 }
 .pill-pos { background: var(--green-lt); color: #085C44; }
 .pill-neg { background: var(--red-lt);   color: #991B13; }
@@ -518,7 +521,7 @@ td.dash { color: var(--muted); }
 }
 .tr-media td {
   font-weight: 600; color: var(--blue);
-  font-size: 11px;
+  font-size: 9.5px;
 }
 .tr-total {
   background: var(--navy);
@@ -527,7 +530,7 @@ td.dash { color: var(--muted); }
 .tr-total td {
   color: #fff !important;
   font-weight: 600;
-  font-size: 11px;
+  font-size: 9.5px;
 }
 
 /* ─── LOADING / ERROR ─── */
@@ -690,24 +693,24 @@ td.dash { color: var(--muted); }
   <span style="font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.7px">Filtros</span>
   <div class="f-grp">
     <span class="f-lbl">Ano</span>
-    <select class="f-sel" id="fAno" onchange="applyFilters()"></select>
+    <select class="f-sel" id="fAno" onchange="resetMetaEdited(); applyFilters()"></select>
   </div>
   <div class="f-div"></div>
   <div class="f-grp">
     <span class="f-lbl">Mês</span>
-    <select class="f-sel" id="fMes" onchange="applyFilters()"></select>
+    <select class="f-sel" id="fMes" onchange="resetMetaEdited(); applyFilters()"></select>
   </div>
   <div class="f-div"></div>
   <div class="f-grp">
     <span class="f-lbl">Loja</span>
-    <select class="f-sel" id="fLoja" onchange="applyFilters()"></select>
+    <select class="f-sel" id="fLoja" onchange="resetMetaEdited(); applyFilters()"></select>
   </div>
   <div class="meta-wrap">
     <span class="meta-label">Meta mensal R$</span>
     <input class="meta-input" type="text" id="inputMeta"
       placeholder="Ex: 450.000"
-      title="Digite o valor da meta mensal"
-      oninput="applyFilters()">
+      title="Valor carregado automaticamente da Elaboração de Metas. Você pode editar manualmente."
+      oninput="document.getElementById('inputMeta').dataset.userEdited='1'; applyFilters()">
   </div>
 </div>
 
@@ -800,7 +803,7 @@ function collapseSidebar(){
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
 // Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único conjunto.
-const STORE_KEYS = ["anisio", "bady", "belvedere", "damha"];
+const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 /* ════════════════════════════════════════════════════ */
 
@@ -844,6 +847,10 @@ function R(v, dec=2) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
 }
 function R0(v) { return R(v, 0); }
+function V0(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
 function N0(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
   return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
@@ -886,6 +893,7 @@ function transform(rows, headers) {
     throw new Error('Colunas obrigatórias não encontradas. Detectadas: [' + headers.join(', ') + ']. Necessárias: ANO, LOJA, MÊS, Total_Venda');
 
   console.log('[CSV] Coluna data detectada:', cData || 'NENHUMA (usando cálculo)');
+  console.log('[CSV] Primeiras 3 linhas da coluna data:', rows.slice(0,3).map(r => cData ? r[cData] : 'SEM COLUNA'));
 
   const result = [];
   for (const row of rows) {
@@ -904,6 +912,31 @@ function transform(rows, headers) {
       } else if (raw.length === 8 && !isNaN(num)) {
         const dd = parseInt(raw.slice(6, 8));
         if (dd >= 1 && dd <= 31) dia = dd;
+      } else {
+        const parts = raw.split(/[\/\-.\s]/).filter(Boolean);
+        if (parts.length === 3) {
+          const p0 = parseInt(parts[0]), p1 = parseInt(parts[1]), p2 = parseInt(parts[2]);
+          const hasYear = p2 > 999 || p0 > 999;
+          if (hasYear) {
+            const yy = p0 > 999 ? p0 : p2;
+            const mm = p0 > 999 ? p1 : p0;
+            const dd = p0 > 999 ? p2 : p1;
+            if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+              dia = dd;
+            } else if (dd >= 1 && dd <= 12 && mm >= 1 && mm <= 31) {
+              dia = mm;
+            }
+          } else {
+            const a = p0, b = p1;
+            if (a >= 1 && a <= 31 && b >= 1 && b <= 31) {
+              dia = a;
+            }
+          }
+        } else if (parts.length === 2) {
+          const a = parseInt(parts[0]), b = parseInt(parts[1]);
+          if (a >= 1 && a <= 31) dia = a;
+          else if (b >= 1 && b <= 31) dia = b;
+        }
       }
     }
 
@@ -918,6 +951,8 @@ function transform(rows, headers) {
   console.log('[CSV]', result.length, 'registros | anos:', [...new Set(result.map(d=>d.ano))].sort(),
     '| lojas:', [...new Set(result.map(d=>d.loja))].sort(),
     '| meses:', [...new Set(result.map(d=>d.mes))].sort((a,b)=>a-b));
+  console.log('[CSV] Registros com dia:', result.filter(r=>r.dia!==null).length, '| sem dia:', result.filter(r=>r.dia===null).length);
+  console.log('[CSV] Dias encontrados:', [...new Set(result.filter(r=>r.dia!==null).map(r=>r.dia))].sort((a,b)=>a-b));
   return result;
 }
 
@@ -971,7 +1006,12 @@ function buildFilters() {
   const selAno = document.getElementById('fAno');
   if ([...selAno.options].find(o => o.value === anoAtual)) selAno.value = anoAtual;
   const selMes = document.getElementById('fMes');
-  if (meses.length) selMes.value = meses[meses.length - 1];
+  const mesAtualReal = new Date().getMonth() + 1;
+  if (meses.includes(mesAtualReal)) {
+    selMes.value = String(mesAtualReal);
+  } else if (meses.length) {
+    selMes.value = meses[meses.length - 1];
+  }
 }
 
 function setOpts(id, vals, vFn, lFn, emptyVal, emptyLabel) {
@@ -988,7 +1028,7 @@ function setOpts(id, vals, vFn, lFn, emptyVal, emptyLabel) {
 
 function getF() {
   const metaRaw = document.getElementById('inputMeta').value
-    .replace(/[^0-9.,]/g, '').replace('.','').replace(',','.');
+    .replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',','.');
   return {
     ano:  parseInt(document.getElementById('fAno').value)  || null,
     mes:  parseInt(document.getElementById('fMes').value)  || null,
@@ -1027,7 +1067,49 @@ function hasDailyData(ano, mes, loja) {
   );
 }
 
-function applyFilters() { renderDashboard(getF()); }
+function getMetaFromStorage(loja, mes) {
+  if (!loja || !mes) return 0;
+  try {
+    if (loja === 'BADY') {
+      const vL = parseFloat(localStorage.getItem('meta_BADY LOJA_' + mes)) || 0;
+      const vD = parseFloat(localStorage.getItem('meta_BADY DELIVERY_' + mes)) || 0;
+      return vL + vD;
+    }
+    return parseFloat(localStorage.getItem('meta_' + loja + '_' + mes)) || 0;
+  } catch(e) { return 0; }
+}
+
+function getAllMetasFromStorage(mes) {
+  if (!mes) return 0;
+  const lojasBase = ['ANISIO', 'BELVEDERE', 'DAMHA', 'HAVAN', 'MUFFATO'];
+  let total = lojasBase.reduce((sum, lj) => sum + getMetaFromStorage(lj, mes), 0);
+  total += getMetaFromStorage('BADY', mes);
+  return total;
+}
+
+function applyFilters() {
+  const mesSel = parseInt(document.getElementById('fMes').value) || null;
+  const lojaSel = document.getElementById('fLoja').value || null;
+  const inputMeta = document.getElementById('inputMeta');
+
+  if (!inputMeta.dataset.userEdited) {
+    const savedMeta = lojaSel
+      ? getMetaFromStorage(lojaSel, mesSel)
+      : getAllMetasFromStorage(mesSel);
+
+    if (savedMeta > 0) {
+      inputMeta.value = savedMeta.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    } else {
+      inputMeta.value = '';
+    }
+  }
+
+  renderDashboard(getF());
+}
+
+function resetMetaEdited() {
+  document.getElementById('inputMeta').dataset.userEdited = '';
+}
 
 /* ═══════════════ RENDER ═══════════════ */
 function renderDashboard(f) {
@@ -1156,9 +1238,9 @@ function renderDashboard(f) {
   for (let d = 1; d <= dias; d++) {
     const isFuture = isThisMon && d > today.getDate();
     const v    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'venda')   : vDia);
-    const vAn  = isFuture ? null : (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'venda') : vDiaAnt);
+    const vAn  = dailyPrev ? dayQuery(anoAnt, mes, loja, d, 'venda') : vDiaAnt;
     const c    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'cupons')  : cDia);
-    const cAn  = isFuture ? null : (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'cupons'): cDiaAnt);
+    const cAn  = dailyPrev ? dayQuery(anoAnt, mes, loja, d, 'cupons') : cDiaAnt;
     const tk   = c    > 0 && v    ? v / c    : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'ticket')  : tktDia);
     const tkAn = cAn  > 0 && vAn  ? vAn / cAn: (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'ticket'): tktDiaAnt);
     const q    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'quebras') : qDia);
@@ -1178,7 +1260,7 @@ function renderDashboard(f) {
     rows.push({ d, isFuture, isToday,
       dateAnt: dateStr(anoAnt, mes, d),
       dateCurr: dateStr(anoA, mes, d),
-      vAn, cAn, tkAn, acumAnt: isFuture ? null : acumAnt,
+      vAn, cAn, tkAn, acumAnt: acumAnt,
       metaDia: metaMes > 0 ? metaDia : null,
       acumMeta: metaMes > 0 ? acumMeta : null,
       v, acumReal: isFuture ? null : acumReal,
@@ -1198,24 +1280,24 @@ function renderDashboard(f) {
       </tr>
       <tr class="tr-sub">
         <th class="tl">Data AA</th>
-        <th>Venda Diária AA</th>
-        <th>Pessoas AA</th>
+        <th>Venda AA</th>
+        <th>Pess. AA</th>
         <th>TKM AA</th>
-        <th class="sep">Venda Acum. AA</th>
-        <th class="tl">Data Atual</th>
-        <th>Meta Diária</th>
+        <th class="sep">Acum. AA</th>
+        <th class="tl">Data</th>
+        <th>Meta/Dia</th>
         <th>Meta Acum.</th>
-        <th>Venda Real.</th>
-        <th class="sep">Venda Real. Acum.</th>
-        <th>Dif. Val. (V−M)</th>
-        <th>% Dif. Diária</th>
-        <th>% Dif. Acum.</th>
-        <th class="sep">% Cresc. s/ AA</th>
-        <th>Pessoas</th>
+        <th>Venda</th>
+        <th class="sep">Venda Acum.</th>
+        <th>Dif. (V−M)</th>
+        <th>% Diária</th>
+        <th>% Acum.</th>
+        <th class="sep">% s/ AA</th>
+        <th>Pess.</th>
         <th>TKM</th>
         <th class="sep">% s/ AA</th>
-        <th>Baixas Totais</th>
-        <th>% Baixas/Fat.</th>
+        <th>Baixas</th>
+        <th>% Bx/Fat</th>
       </tr>
     </thead>
     <tbody>
@@ -1237,51 +1319,51 @@ function renderDashboard(f) {
 
         return `<tr class="${rc}">
           ${td(r.dateAnt, 'tl')}
-          ${def(r.vAn, R0)}
+          ${def(r.vAn, V0)}
           ${def(r.cAn, N0)}
-          ${def(r.tkAn, v => R(v))}
-          ${defSep(r.acumAnt, R0)}
+          ${def(r.tkAn, v => V0(v))}
+          ${defSep(r.acumAnt, V0)}
           ${td(r.dateCurr, 'tl')}
-          ${r.metaDia !== null ? `<td>${R(r.metaDia)}</td>` : '<td class="dash">—</td>'}
-          ${r.acumMeta !== null ? `<td>${R0(r.acumMeta)}</td>` : '<td class="dash">—</td>'}
-          ${def(r.v, R0)}
-          ${defSep(r.acumReal, R0)}
-          ${r.difVal !== null ? `<td class="${difCls}">${R0(r.difVal)}</td>` : '<td class="dash">—</td>'}
+          ${r.metaDia !== null ? `<td>${V0(r.metaDia)}</td>` : '<td class="dash">—</td>'}
+          ${r.acumMeta !== null ? `<td>${V0(r.acumMeta)}</td>` : '<td class="dash">—</td>'}
+          ${def(r.v, V0)}
+          ${defSep(r.acumReal, V0)}
+          ${r.difVal !== null ? `<td class="${difCls}">${V0(r.difVal)}</td>` : '<td class="dash">—</td>'}
           ${pct(r.pctDif)}
           ${pill(r.pctAcum)}
           ${pillSep(r.pctVsAnt)}
           ${def(r.c, N0)}
-          ${def(r.tk, v => R(v))}
+          ${def(r.tk, v => V0(v))}
           ${pctSep(r.pctTktDay)}
-          ${def(r.q, R0)}
+          ${def(r.q, V0)}
           ${r.pctBaixas !== null ? `<td class="${r.pctBaixas > 5 ? 'neg' : 'pos'}">${Pct(r.pctBaixas, 2)}</td>` : '<td class="dash">—</td>'}
         </tr>`;
       }).join('')}
     </tbody>
     <tfoot>
       <tr class="tr-media">
-        <td class="tl sep" colspan="2" style="font-weight:700;color:var(--blue)">VENDA MÉDIA DIA AA: ${R(vDiaAnt)}</td>
+        <td class="tl sep" colspan="2" style="font-weight:700;color:var(--blue)">VENDA MÉDIA DIA AA: ${V0(vDiaAnt)}</td>
         <td style="color:var(--ink2);font-weight:600">${N0(cAnt/dias)}</td>
-        <td colspan="2" class="sep" style="color:var(--ink2);font-weight:600">MÉDIA TK AA: ${R(tktDiaAnt)}</td>
-        <td class="tl sep" colspan="2" style="color:var(--blue);font-weight:700">VENDA MÉDIA DIA: ${R(vDia)}</td>
-        <td style="color:var(--blue);font-weight:700">${metaMes > 0 ? R(metaDia) : '—'}</td>
-        <td colspan="2" class="sep" style="color:var(--blue);font-weight:700">${R0(vA)}</td>
+        <td colspan="2" class="sep" style="color:var(--ink2);font-weight:600">MÉDIA TK AA: ${V0(tktDiaAnt)}</td>
+        <td class="tl sep" colspan="2" style="color:var(--blue);font-weight:700">VENDA MÉDIA DIA: ${V0(vDia)}</td>
+        <td style="color:var(--blue);font-weight:700">${metaMes > 0 ? V0(metaDia) : '—'}</td>
+        <td colspan="2" class="sep" style="color:var(--blue);font-weight:700">${V0(vA)}</td>
         <td colspan="4" class="sep" style="color:var(--ink2)">
           ${pctMeta !== null ? `<span class="pill ${pctMeta >= 0 ? 'pill-pos':'pill-neg'}">Meta: ${Pct(pctMeta)}</span>` : '—'}
           &nbsp;
           ${pctVsAnt !== null ? `<span class="pill ${pctVsAnt >= 0 ? 'pill-pos':'pill-neg'}">AA: ${Pct(pctVsAnt)}</span>` : ''}
         </td>
         <td>${N0(cA/dias)}</td>
-        <td colspan="2" class="sep" style="color:var(--amber);font-weight:700">MÉDIA TK: ${R(tktA)}</td>
-        <td colspan="2" style="color:var(--ink2)">${R0(qA)}</td>
+        <td colspan="2" class="sep" style="color:var(--amber);font-weight:700">MÉDIA TK: ${V0(tktA)}</td>
+        <td colspan="2" style="color:var(--ink2)">${V0(qA)}</td>
       </tr>
       <tr class="tr-total">
-        <td class="tl sep" colspan="5">TOTAL AA: ${R0(vAnt)}</td>
-        <td class="tl sep" colspan="5">TOTAL REALIZADO: ${R0(vA)}</td>
-        <td colspan="4" class="sep">${metaMes > 0 ? 'META: ' + R0(metaMes) : '—'}</td>
+        <td class="tl sep" colspan="5">TOTAL AA: ${V0(vAnt)}</td>
+        <td class="tl sep" colspan="5">TOTAL REALIZADO: ${V0(vA)}</td>
+        <td colspan="4" class="sep">${metaMes > 0 ? 'META: ' + V0(metaMes) : '—'}</td>
         <td>${N0(cA)}</td>
-        <td colspan="2" class="sep">TK ACUM: ${R(tktA)}</td>
-        <td colspan="2">BAIXAS: ${R0(qA)}</td>
+        <td colspan="2" class="sep">TK ACUM: ${V0(tktA)}</td>
+        <td colspan="2">BAIXAS: ${V0(qA)}</td>
       </tr>
     </tfoot>
   </table>`;

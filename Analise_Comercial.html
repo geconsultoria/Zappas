@@ -1159,7 +1159,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 
 // Cada CSV já traz sua própria coluna "loja" preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único array.
-const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha'];
+const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 /* ═══════════════════════════════════════════════════════
@@ -1941,7 +1941,6 @@ function renderComparative(data) {
   // ══ 5/6. FATURAMENTO SEMANA DETALHADO ═══════════════
   {
     const baseDataS = rawData.filter(r=>(!f.loja||r.loja===f.loja));
-    const aggAllS = (anoVal) => baseDataS.filter(r=>r.ano===anoVal).reduce((s,r)=>s+(r.fat||0),0);
 
       // ══ 6. FATURAMENTO SEMANA DETALHADO ═════════════════
       // Dias fixos da semana (ordem: Dom a Sáb)
@@ -1953,19 +1952,45 @@ function renderComparative(data) {
         return na-nb || String(a).localeCompare(String(b));
       });
 
-      // aggS2Det: soma fat para (ano, semana, diaLabel)
-      // Tenta combinar por: semana2 contendo o nome do dia, ou campo dia
-      const aggDia = (anoVal, semVal, diaLabel) => {
-        const diaShort = diaLabel.substring(0,3).toLowerCase();
-        return baseDataS.filter(r=>{
-          if(r.ano!==anoVal||r.semana!==semVal) return false;
-          const s2 = String(r.semana2||'').toLowerCase();
-          const d  = String(r.dia||'').toLowerCase();
-          // tenta match por semana2 ou dia
-          return s2.startsWith(diaShort) || s2.includes(diaLabel.toLowerCase()) ||
-                 d.startsWith(diaShort)  || d.includes(diaLabel.toLowerCase());
-        }).reduce((s,r)=>s+(r.fat||0),0);
-      };
+      // ── Pré-agregação (1 única passada pelos dados) ──────────────
+      // Antes: cada célula (semana × dia × ano) refiltrava o array baseDataS
+      // inteiro (semanas × 7 dias × anos filtros completos).
+      // Agora: percorre baseDataS uma única vez e monta 3 índices (Map);
+      // as células passam a só consultar esses índices — O(n) em vez de
+      // O(semanas × dias × anos × n).
+      const idxAno    = new Map(); // key: ano                -> total fat
+      const idxSemana = new Map(); // key: ano|semana          -> total fat
+      const idxDia    = new Map(); // key: ano|semana|diaLabel -> total fat
+
+      const diaShorts = DIAS_SEMANA.map(d => d.substring(0,3).toLowerCase());
+      const diaLowers = DIAS_SEMANA.map(d => d.toLowerCase());
+
+      baseDataS.forEach(r => {
+        const fatVal = r.fat || 0;
+        const kAno = r.ano;
+        idxAno.set(kAno, (idxAno.get(kAno) || 0) + fatVal);
+
+        if (!r.semana) return;
+        const kSem = kAno + '|' + r.semana;
+        idxSemana.set(kSem, (idxSemana.get(kSem) || 0) + fatVal);
+
+        const s2 = String(r.semana2||'').toLowerCase();
+        const d  = String(r.dia||'').toLowerCase();
+        // Mesma lógica de match do original: soma no(s) dia(s) cujo
+        // padrão (semana2/dia) bate — preservado 1:1, só que calculado
+        // uma vez por linha em vez de uma vez por célula da tabela.
+        DIAS_SEMANA.forEach((diaLabel, idx) => {
+          const diaShort = diaShorts[idx], diaLower = diaLowers[idx];
+          if (s2.startsWith(diaShort) || s2.includes(diaLower) ||
+              d.startsWith(diaShort)  || d.includes(diaLower)) {
+            const kDia = kSem + '|' + diaLabel;
+            idxDia.set(kDia, (idxDia.get(kDia) || 0) + fatVal);
+          }
+        });
+      });
+
+      const aggAllS = (anoVal) => idxAno.get(anoVal) || 0;
+      const aggDia  = (anoVal, semVal, diaLabel) => idxDia.get(anoVal + '|' + semVal + '|' + diaLabel) || 0;
 
       // Build cabeçalho especial Semana | Semana Detalhada | anos...
       {
@@ -1992,7 +2017,7 @@ function renderComparative(data) {
 
         semanasUnicas.forEach(sem=>{
           // Total da semana por ano (subtotal de linha de semana)
-          const semTotals = anos.map(a=>baseDataS.filter(r=>r.ano===a&&r.semana===sem).reduce((s,r)=>s+(r.fat||0),0));
+          const semTotals = anos.map(a=>idxSemana.get(a + '|' + sem) || 0);
 
           DIAS_SEMANA.forEach((dia, dIdx)=>{
             const valsPorAno = anos.map(a=>aggDia(a,sem,dia));
