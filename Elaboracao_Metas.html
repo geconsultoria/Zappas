@@ -587,6 +587,8 @@
     box-shadow: 0 0 0 3px rgba(26,79,186,0.10);
   }
   .editable-input.saved { border-color: var(--accent2); background: var(--accent2-soft); }
+  .editable-input.saving { opacity: .7; }
+  .editable-input.sync-error { border-color: #C8281E; background: #FDECEA; color: #C8281E; }
 
   /* Growth pill */
   .growth-pill {
@@ -866,6 +868,8 @@
   }
   .editable-input:focus { outline: none; border-color: var(--accent); background: #fff; box-shadow: 0 0 0 3px rgba(26,79,186,0.12); }
   .editable-input.saved { border-color: var(--accent2); background: var(--accent2-soft); color: var(--accent2); }
+  .editable-input.saving { opacity: .7; }
+  .editable-input.sync-error { border-color: #C8281E; background: #FDECEA; color: #C8281E; }
   .editable-input::placeholder { color: #9BA3B5; font-weight: 400; }
 
   .meta-real {
@@ -1125,7 +1129,12 @@ const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
 const CSV_URLS_FATURAMENTO = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 const CSV_URL_CMV = "";
-const METAS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjGLayK9vF_NR1LpZcTHx23PelZV0343Fkmi0EnOtK7cYcPorZWLObO770AMndFjpvhg6X5gNB-vhh/pub?output=csv&gid=1484587570";
+// Apps Script novo (backend de Metas) — leitura direta da planilha (sem
+// delay de cache) e escrita quando o usuário edita meta/PE nesta página.
+// Cole aqui a URL /exec gerada ao implantar o AppsScript_Metas_CodeGS.
+const METAS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec";
+// Precisa ser IGUAL ao TOKEN configurado no Apps Script (Code.gs).
+const METAS_TOKEN = "bady-metas-2026-k7x9";
 /* ============================================================ */
 
 const MESES_NOME = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -1277,7 +1286,8 @@ function parseMesFromName(name) {
 
 async function loadMetasData() {
   try {
-    const r = await fetch(METAS_CSV_URL + '&_cb=' + Date.now(), { cache: 'no-store' });
+    const cb = (METAS_APPS_SCRIPT_URL.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+    const r = await fetch(METAS_APPS_SCRIPT_URL + cb, { cache: 'no-store' });
     if (!r.ok) throw new Error('HTTP ' + r.status);
     const text = await r.text();
     const lines = text.trim().split('\n').filter(l => l.trim());
@@ -1919,6 +1929,47 @@ function savePersist(key, val) {
   try { localStorage.setItem(key, val); } catch(e) {}
 }
 
+// Converte a chave de loja usada nas tabelas (ex: "BADY LOJA") na
+// combinação loja+canal usada na planilha (ex: loja "BADY", canal "LOJA").
+function splitLojaCanal(loja) {
+  if (loja === 'BADY LOJA')     return { loja: 'BADY', canal: 'LOJA' };
+  if (loja === 'BADY DELIVERY') return { loja: 'BADY', canal: 'DELIVERY' };
+  return { loja: loja, canal: '' };
+}
+
+// Grava a meta/PE editada na planilha via Apps Script.
+// Retorna { ok: true } se a planilha confirmou, ou { ok: false, error }
+// se algo falhou — quem chama usa isso pra dar feedback visual real,
+// em vez de assumir que "salvou" só porque não deu erro no console.
+function saveMetaToSheet(ano, mes, loja, tipo, valor) {
+  if (!METAS_APPS_SCRIPT_URL || METAS_APPS_SCRIPT_URL.startsWith('COLE_AQUI')) {
+    return Promise.resolve({ ok: false, error: 'URL do Apps Script não configurada' });
+  }
+  const { loja: lojaBase, canal } = splitLojaCanal(loja);
+  return fetch(METAS_APPS_SCRIPT_URL, {
+    method: 'POST',
+    // text/plain evita o preflight OPTIONS de CORS que o Apps Script não trata.
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({
+      token: METAS_TOKEN,
+      ano, mes, loja: lojaBase, canal,
+      campo: tipo, valor,
+    }),
+  })
+    .then(r => {
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(data => {
+      if (!data || data.ok !== true) throw new Error((data && data.error) || 'A planilha não confirmou o recebimento');
+      return { ok: true };
+    })
+    .catch(err => {
+      console.warn('Falha ao sincronizar meta com a planilha:', err.message);
+      return { ok: false, error: err.message };
+    });
+}
+
 function renderMetasTable(f) {
   const mesSel   = f.mes ? parseInt(f.mes) : null;
   const mesLabel = mesSel ? MESES_NOME[mesSel - 1] : 'Todos';
@@ -2224,12 +2275,37 @@ function onMetaChange(loja, mes, type) {
   const val = parseInput(input.value);
   savePersist(type === 'meta' ? metaKey(loja, mes) : peKey(loja, mes), val);
 
-  input.classList.add('saved');
-  setTimeout(() => input.classList.remove('saved'), 1200);
+  input.classList.remove('saved', 'sync-error');
+  input.title = '';
 
   const f = getFilters();
   const mesSel  = f.mes ? parseInt(f.mes) : null;
   const mesPrev = mesSel ? (mesSel === 1 ? 12 : mesSel - 1) : null;
+
+  // Sincroniza com a planilha (Google Sheets) para que o valor apareça
+  // em qualquer outra máquina/navegador que abrir os arquivos.
+  const anosDispAgora = [...new Set(rawData.map(d => d.ano))];
+  const anoParaSalvar = f.ano ? parseInt(f.ano) : (anosDispAgora.length ? Math.max(...anosDispAgora) : new Date().getFullYear());
+
+  if (mesSel) {
+    input.classList.add('saving');
+    saveMetaToSheet(anoParaSalvar, mesSel, loja, type, val).then(res => {
+      input.classList.remove('saving');
+      if (res.ok) {
+        input.classList.add('saved');
+        setTimeout(() => input.classList.remove('saved'), 1200);
+      } else {
+        input.classList.add('sync-error');
+        input.title = 'Não sincronizou com a planilha: ' + res.error + ' (o valor ficou salvo só neste navegador)';
+      }
+    });
+  } else {
+    // Sem mês específico selecionado ("Todos") não dá pra saber em qual
+    // linha da planilha gravar — fica só no localStorage deste navegador.
+    input.classList.add('saved');
+    input.title = 'Salvo só neste navegador — selecione um mês específico para sincronizar com a planilha.';
+    setTimeout(() => input.classList.remove('saved'), 1200);
+  }
   const canalFiltro = (f.canais && f.canais.size > 0) ? f.canais : null;
   const getVenda = (ano, lj, m) => {
     if (lj === 'BADY LOJA') {
