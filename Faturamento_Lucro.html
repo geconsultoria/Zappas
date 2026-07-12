@@ -4,31 +4,37 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Faturamento & Lucro</title>
-<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700;800&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
     --bg: #f4f6f9; --surface: #ffffff; --surface2: #f9fafb;
     --border: #e5e9f0; --text-primary: #0f1923; --text-secondary: #5a6474;
     --text-muted: #9aa3b0; --accent: #1a56db; --accent-light: #eff4ff;
-    --accent2: #0ea472; --accent2-light: #ecfdf5; --accent3: #f97316;
+    --accent2: #0ea472; --accent2-light: #ecfdf5;     --accent3: #f97316;
     --accent3-light: #fff7ed; --danger: #ef4444;
     --shadow-sm: 0 1px 3px rgba(0,0,0,0.06),0 1px 2px rgba(0,0,0,0.04);
     --shadow: 0 4px 12px rgba(0,0,0,0.07),0 2px 4px rgba(0,0,0,0.04);
-    --radius: 14px; --font: 'Sora',sans-serif; --mono: 'JetBrains Mono',monospace;
-    --gold: #C8961A; --ease: cubic-bezier(.4,0,.2,1);
-    --side-w: 232px; --side-w-collapsed: 74px;
+    --shadow-md: 0 4px 24px rgba(15,22,40,0.10);
+    --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
+    --radius: 14px; --font: 'Epilogue',system-ui,sans-serif; --mono: 'JetBrains Mono',monospace;
+    --font-head: 'Syne', system-ui, sans-serif;
+    --font-body: 'Epilogue', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+    --font-num: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+    --side-w: 232px;
+    --side-w-collapsed: 74px;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   body{font-family:var(--font);background:var(--bg);color:var(--text-primary);min-height:100vh;font-size:14px;line-height:1.5}
 
-  /* ── SIDEBAR MENU (mesmo do Análise Comercial) ── */
+  /* ===== SIDEBAR MENU ===== */
   .sidebar {
     position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
     background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
     z-index: 300;
     display:flex; flex-direction:column;
-    font-family: 'Epilogue', var(--font);
+    font-family: var(--font-body);
     overflow: visible;
     transition: transform .25s ease, width .25s ease;
   }
@@ -40,9 +46,9 @@
     margin-bottom: 8px;
   }
   .sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
-  .side-brand svg { width:22px; height:22px; color: var(--gold); flex-shrink:0; }
+  .side-brand svg { width:22px; height:22px; color: #C8961A; flex-shrink:0; }
   .side-brand-text { white-space:nowrap; overflow:hidden; }
-  .side-brand-text .t { font-family: 'Syne', var(--font); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+  .side-brand-text .t { font-family: var(--font-head); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
   .side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
   .sidebar.collapsed .side-brand-text { display:none; }
 
@@ -52,7 +58,7 @@
     display:flex; align-items:center; gap:11px; width:100%; text-align:left;
     background:none; border:none; cursor:pointer;
     color: rgba(255,255,255,.7);
-    font-family: 'Syne', var(--font); font-weight:600; font-size:13px; letter-spacing:.01em;
+    font-family: var(--font-head); font-weight:600; font-size:13px; letter-spacing:.01em;
     padding: 10px 11px; border-radius: 10px;
     transition: background .15s ease, color .15s ease;
   }
@@ -65,7 +71,7 @@
   .side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
 
   .sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
-  .sidebar.collapsed.peek { width: 232px; box-shadow: var(--shadow); }
+  .sidebar.collapsed.peek { width: 232px; box-shadow: var(--shadow-lg); }
   .sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
   .sidebar.collapsed.peek .side-brand-text { display:block; }
   .sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
@@ -83,8 +89,8 @@
     position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
     background: #12233C; color:#fff;
     padding: 7px 12px; border-radius: 8px;
-    font-family: 'Syne', var(--font); font-weight:600; font-size:12.5px; white-space:nowrap;
-    box-shadow: var(--shadow);
+    font-family: var(--font-head); font-weight:600; font-size:12.5px; white-space:nowrap;
+    box-shadow: var(--shadow-md);
     opacity:0; pointer-events:none; visibility:hidden;
     transition: opacity .15s ease;
     z-index: 320;
@@ -102,52 +108,67 @@
   }
   .side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
   .side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
-  .side-sub a.active { color: var(--gold); font-weight:600; background: rgba(200,150,26,.13); }
+  .side-sub a.active { color: #C8961A; font-weight:600; background: rgba(200,150,26,.13); }
 
   .side-toggle {
     display:none; position:fixed; top:14px; left:14px; z-index:301;
     width:38px; height:38px; border-radius:10px;
-    background: #0f1923; border:1px solid rgba(255,255,255,.12);
+    background: #0F1628; border:1px solid rgba(255,255,255,.12);
     align-items:center; justify-content:center; cursor:pointer;
   }
   .side-toggle svg { width:19px; height:19px; color:#fff; }
   .side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
 
-  /* Desloca o conteúdo para a direita da sidebar */
-  .header, .filters-wrap, .main { margin-left: var(--side-w); transition: margin-left .25s ease; }
-
-  @media (max-width: 900px){
-    .sidebar { transform: translateX(-100%); box-shadow: var(--shadow); }
-    body.side-open .sidebar { transform: translateX(0); }
-    body.side-open .side-overlay { display:block; }
-    .side-toggle { display:flex; }
-    .header, .filters-wrap, .main { margin-left: 0 !important; }
-    .header { padding-left: 62px; }
-  }
-
-  .header{background:linear-gradient(90deg, #16283F 0%, #2C4E78 100%);border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;color:#fff;box-shadow:var(--shadow-sm)}
+  .header{position:sticky;top:0;z-index:100;left:var(--side-w-collapsed);width:calc(100% - var(--side-w-collapsed));background:linear-gradient(90deg,#16283F 0%,#2C4E78 100%);border-bottom:1px solid var(--border);padding:0 32px;height:64px;display:flex;align-items:center;justify-content:space-between;box-shadow:var(--shadow-sm);transition:left .25s ease,width .25s ease;color:#fff}
   .header-brand{display:flex;align-items:center;gap:12px}
   .header-logo{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center}
   .header-logo svg{width:20px;height:20px;fill:white}
-  .header-title{font-family:'Calibri','Trebuchet MS',system-ui,sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.3px}
+  .header-title{font-family:'Calibri','Trebuchet MS',system-ui,sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.3px;color:#fff}
   .header-sub{font-family:var(--font-body);font-size:12px;color:rgba(255,255,255,.65)}
   .header-right{display:flex;align-items:center;gap:12px}
-  .last-updated{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.15);padding:5px 10px;border-radius:6px}
-  .btn-refresh{display:flex;align-items:center;gap:7px;background:var(--accent);color:white;border:none;cursor:pointer;padding:8px 16px;border-radius:8px;font-family:var(--font);font-size:13px;font-weight:600;transition:background .2s,transform .15s;box-shadow:0 2px 8px rgba(26,86,219,.3)}
-  .btn-refresh:hover{background:#1647c7;transform:translateY(-1px)}
-  .btn-refresh svg{width:14px;height:14px;fill:white;transition:transform .4s}
-  .btn-refresh.loading svg{animation:spin .6s linear infinite}
+  .last-updated{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);padding:5px 10px;border-radius:6px}
+  .btn-refresh{display:flex;align-items:center;gap:6px;background:var(--accent);color:white;border:none;cursor:pointer;padding:8px 14px;border-radius:10px;font-family:var(--font-body);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;transition:all .2s ease;box-shadow:0 2px 8px rgba(26,86,219,.3);white-space:nowrap}
+  .btn-refresh:hover{background:#1647c7;transform:translateY(-1px);box-shadow:0 4px 14px rgba(26,86,219,.3)}
+  .btn-refresh svg{width:13px;height:13px;fill:white;transition:transform .4s}
+  .btn-refresh.loading svg{animation:spin .7s linear infinite}
   @keyframes spin{to{transform:rotate(360deg)}}
 
-  .filters-wrap{position:sticky;top:0;z-index:100;background:rgba(244,246,249,.96);backdrop-filter:blur(10px);border-bottom:1px solid var(--border);padding:10px 32px;box-shadow:0 2px 8px rgba(0,0,0,.04)}
-  .filters-inner{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
-  .filter-group{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--border);border-radius:9px;padding:4px 10px 4px 12px;box-shadow:var(--shadow-sm)}
-  .filter-group label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
-  .filter-group select{border:none;outline:none;font-family:var(--font);font-size:13px;font-weight:500;color:var(--text-primary);background:transparent;cursor:pointer;min-width:100px}
-  .filter-divider{width:1px;height:26px;background:var(--border)}
-  .filter-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.7px}
+  /* Sub filter bar - sticky below header */
+  .sub-filter-bar {
+    position: sticky; top: 64px; z-index: 99;
+    margin-left: var(--side-w-collapsed);
+    transition: margin-left .25s ease;
+    background: rgba(237,236,230,.97);
+    backdrop-filter: blur(10px) saturate(1.4);
+    -webkit-backdrop-filter: blur(10px) saturate(1.4);
+    border-bottom: 1px solid var(--border);
+    box-shadow: 0 2px 10px rgba(0,0,0,.05);
+    padding: 10px 28px;
+    display: flex; align-items: center;
+  }
+  .fb-filters { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+  .fb-group   { display: flex; align-items: center; gap: 7px; }
+  .fb-label   { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+  .fb-select {
+    font-family: var(--font-body);
+    font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 28px 7px 11px;
+    appearance: none; cursor: pointer;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa3b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 9px center;
+    transition: all .18s ease;
+    min-width: 130px;
+  }
+  .fb-select:focus { outline: none; border-color: var(--accent); background-color: var(--surface); box-shadow: 0 0 0 3px var(--accent-light); }
+  .fb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
+  .fb-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-shrink: 0; }
+  .fb-ts { font-family: var(--mono); font-size: 10px; color: var(--text-muted); white-space: nowrap; }
+  .fb-ts span { color: var(--text-secondary); font-weight: 500; }
 
-  .main{padding:24px 32px 48px;max-width:1600px;margin:0 auto}
+  .main{padding:24px 32px 48px;max-width:1600px;margin-left:var(--side-w-collapsed);margin-right:auto;transition:margin-left .25s ease}
   .section-title{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:14px;display:flex;align-items:center;gap:8px}
   .section-title::after{content:'';flex:1;height:1px;background:var(--border)}
 
@@ -219,85 +240,95 @@
   .debug-toggle:hover{color:var(--text-secondary)}
 
   @media(max-width:1200px){.charts-grid,.charts-full{grid-template-columns:1fr}}
-  @media(max-width:900px){.kpi-grid{grid-template-columns:repeat(2,1fr)}}
-  @media(max-width:768px){.main{padding:14px}.header{padding:0 14px}.filters-wrap{padding:8px 14px}}
+  @media(max-width:900px){
+    .kpi-grid{grid-template-columns:repeat(2,1fr)}
+    .sidebar{transform:translateX(-100%);box-shadow:var(--shadow-lg)}
+    body.side-open .sidebar{transform:translateX(0)}
+    body.side-open .side-overlay{display:block}
+    .side-toggle{display:flex}
+    .header,.sub-filter-bar,.main{margin-left:0!important}
+    .header{left:0!important;width:100%!important;padding-left:62px}
+  }
+  @media(max-width:768px){.main{padding:14px}.header{padding:0 14px}.sub-filter-bar{padding:8px 14px}}
   @media(max-width:480px){.kpi-grid{grid-template-columns:1fr 1fr}}
 
-  /* ── Canal multi-select ── */
-  .canal-wrap{position:relative;display:inline-flex;align-items:center}
-  .canal-trigger{
-    display:flex;align-items:center;gap:7px;
-    background:var(--surface);border:1px solid var(--border);border-radius:9px;
-    padding:4px 28px 4px 12px;cursor:pointer;user-select:none;
-    font-family:var(--font);font-size:13px;font-weight:500;color:var(--text-primary);
-    min-width:110px;max-width:200px;white-space:nowrap;
-    background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa3b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-    background-repeat:no-repeat;background-position:right 9px center;
-    transition:border-color .15s,box-shadow .15s;
-    box-shadow:var(--shadow-sm);
+  /* ── Canal multi-select (Analise_Comercial style) ── */
+  .canal-wrap { position: relative; }
+  .canal-trigger {
+    font-family: var(--font-body);
+    font-size: 12.5px; font-weight: 500; color: var(--text-secondary);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 7px 28px 7px 11px;
+    cursor: pointer; white-space: nowrap;
+    min-width: 140px; max-width: 220px;
+    display: flex; align-items: center; gap: 6px;
+    transition: all .18s ease;
+    user-select: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%239aa3b0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+    background-repeat: no-repeat; background-position: right 9px center;
   }
-  .canal-trigger:hover{border-color:#a0aec0}
-  .canal-trigger.open{border-color:var(--accent);box-shadow:0 0 0 3px rgba(26,86,219,.15)}
-  .canal-trigger.has-sel{border-color:#f97316;color:#c2500a;background-color:#fff7ed}
-  .canal-trigger.has-sel.open{box-shadow:0 0 0 3px rgba(249,115,22,.15)}
-
-  .canal-badge{
-    display:inline-flex;align-items:center;justify-content:center;
-    background:#f97316;color:#fff;border-radius:20px;
-    font-size:9px;font-weight:800;min-width:16px;height:16px;padding:0 4px;line-height:1;
+  .canal-trigger:hover,
+  .canal-trigger.open { border-color: var(--accent); background-color: var(--surface); }
+  .canal-trigger.open { box-shadow: 0 0 0 3px var(--accent-light); }
+  .canal-trigger.has-sel { border-color: var(--accent3); color: #c2500a; background-color: var(--accent3-light); }
+  .canal-trigger.has-sel.open { box-shadow: 0 0 0 3px rgba(249,115,22,.15); }
+  .canal-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    background: var(--accent3); color: #fff;
+    border-radius: 20px; font-size: 9px; font-weight: 800;
+    min-width: 16px; height: 16px; padding: 0 4px; line-height: 1;
   }
-
-  .canal-dropdown{
-    display:none;position:absolute;top:calc(100% + 6px);left:0;z-index:500;
-    background:var(--surface);border:1px solid var(--border);border-radius:12px;
-    box-shadow:0 8px 32px rgba(0,0,0,.13);min-width:210px;max-width:270px;overflow:hidden;
+  .canal-dropdown {
+    display: none;
+    position: absolute; top: calc(100% + 6px); left: 0; z-index: 500;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    box-shadow: 0 8px 40px rgba(0,0,0,.12);
+    min-width: 200px; max-width: 280px;
+    overflow: hidden;
   }
-  .canal-dropdown.open{display:block}
-
-  .canal-dd-head{
-    padding:9px 13px 7px;border-bottom:1px solid var(--border);
-    display:flex;align-items:center;justify-content:space-between;
-    background:var(--surface2);
+  .canal-dropdown.open { display: block; }
+  .canal-dd-head {
+    padding: 9px 12px 7px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; justify-content: space-between;
+    background: var(--surface2);
   }
-  .canal-dd-title{font-size:10px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
-  .canal-dd-actions{display:flex;gap:10px}
-  .canal-dd-btn{
-    font-size:10px;font-weight:700;color:var(--accent);
-    background:none;border:none;cursor:pointer;padding:0;
-    text-decoration:underline;text-underline-offset:2px;
+  .canal-dd-title { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--text-muted); }
+  .canal-dd-actions { display: flex; gap: 8px; }
+  .canal-dd-btn {
+    font-size: 9.5px; font-weight: 700; color: var(--accent);
+    background: none; border: none; cursor: pointer; padding: 0;
+    letter-spacing: .03em; text-decoration: underline; text-underline-offset: 2px;
   }
-  .canal-dd-btn:hover{color:#1647c7}
-
-  .canal-dd-list{max-height:210px;overflow-y:auto;padding:5px 0}
-  .canal-dd-list::-webkit-scrollbar{width:4px}
-  .canal-dd-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
-
-  .canal-item{
-    display:flex;align-items:center;gap:9px;
-    padding:7px 14px;cursor:pointer;transition:background .12s;
+  .canal-dd-btn:hover { color: #1647c7; }
+  .canal-dd-list {
+    max-height: 220px; overflow-y: auto;
+    padding: 6px 0;
   }
-  .canal-item:hover{background:var(--surface2)}
-  .canal-item input[type=checkbox]{
-    width:14px;height:14px;flex-shrink:0;
-    accent-color:#f97316;cursor:pointer;
+  .canal-dd-list::-webkit-scrollbar { width: 4px; }
+  .canal-dd-list::-webkit-scrollbar-track { background: transparent; }
+  .canal-dd-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .canal-item {
+    display: flex; align-items: center; gap: 9px;
+    padding: 7px 13px; cursor: pointer;
+    transition: background .12s;
   }
-  .canal-item-label{
-    font-size:12.5px;font-weight:500;color:var(--text-primary);
-    flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  .canal-item:hover { background: var(--surface2); }
+  .canal-item input[type=checkbox] {
+    width: 14px; height: 14px; flex-shrink: 0;
+    accent-color: var(--accent3); cursor: pointer;
   }
-  .canal-item.checked .canal-item-label{color:#c2500a;font-weight:600}
-  .canal-filter-label{font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px;white-space:nowrap}
+  .canal-item-label { font-size: 12px; font-weight: 500; color: var(--text-secondary); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .canal-item.checked .canal-item-label { color: var(--accent3); font-weight: 600; }
 </style>
 </head>
 <body>
 
-<!-- SIDEBAR MENU -->
-<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
-<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
-  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
-</button>
-
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar collapsed" id="sidebar">
   <div class="side-brand">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
     <div class="side-brand-text">
@@ -307,8 +338,8 @@
   </div>
 
   <nav class="side-nav">
-    <div class="side-item active open" data-menu="comercial">
-      <button class="side-link" type="button" id="side-link-comercial" data-label="Comercial">
+    <div class="side-item open" data-menu="comercial">
+      <button class="side-link" type="button" data-label="Comercial">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
         <span>Comercial</span>
         <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
@@ -375,8 +406,12 @@
   </nav>
 </aside>
 
-<header class="header">
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+<div class="side-overlay" id="side-overlay"></div>
 
+<header class="header">
   <div class="header-brand">
     <div class="header-logo"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg></div>
     <div>
@@ -385,49 +420,52 @@
     </div>
   </div>
   <div class="header-right">
-    <div class="last-updated" id="lastUpdated">—</div>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
-      <svg viewBox="0 0 24 24"><path d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       Atualizar
     </button>
   </div>
 </header>
 
-<div class="filters-wrap">
-  <div class="filters-inner">
-    <span class="filter-label">Filtros</span>
-    <div class="filter-group">
-      <label>Ano</label>
-      <select id="filterAno" onchange="applyFilters()"><option value="">Todos</option></select>
+<div class="sub-filter-bar" id="sub-filter-bar">
+  <div class="fb-filters">
+    <div class="fb-group">
+      <span class="fb-label">Ano</span>
+      <select class="fb-select" id="f-ano"><option value="">Todos</option></select>
     </div>
-    <div class="filter-divider"></div>
-    <div class="filter-group">
-      <label>Loja</label>
-      <select id="filterLoja" onchange="applyFilters()"><option value="">Todas</option></select>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Loja</span>
+      <select class="fb-select" id="f-loja"><option value="">Todas</option></select>
     </div>
-    <div class="filter-divider"></div>
-    <div class="filter-group">
-      <label>Mês</label>
-      <select id="filterMes" onchange="applyFilters()"><option value="">Todos</option></select>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Mês</span>
+      <select class="fb-select" id="f-mes"><option value="">Todos</option></select>
     </div>
-    <div class="filter-divider"></div>
-    <span class="canal-filter-label">Canal</span>
-    <div class="canal-wrap" id="canalWrap">
-      <div class="canal-trigger" id="canalTrigger" onclick="toggleCanalDrop(event)">
-        <span id="canalTxt">Todos</span>
-        <span class="canal-badge" id="canalBadge" style="display:none"></span>
-      </div>
-      <div class="canal-dropdown" id="canalDrop">
-        <div class="canal-dd-head">
-          <span class="canal-dd-title">Canais</span>
-          <div class="canal-dd-actions">
-            <button class="canal-dd-btn" onclick="canalSelAll()">Todos</button>
-            <button class="canal-dd-btn" onclick="canalClear()">Limpar</button>
-          </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Canal</span>
+      <div class="canal-wrap" id="canal-wrap">
+        <div class="canal-trigger" id="canal-trigger" onclick="toggleCanalDropdown(event)">
+          <span id="canal-trigger-txt">Todos</span>
+          <span class="canal-badge" id="canal-badge" style="display:none"></span>
         </div>
-        <div class="canal-dd-list" id="canalList"></div>
+        <div class="canal-dropdown" id="canal-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Canais de Distribuição</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllCanais()">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllCanais()">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="canal-dd-list"></div>
+        </div>
       </div>
     </div>
+  </div>
+  <div class="fb-right">
+    <div class="fb-ts">Atualizado: <span id="fb-ts">—</span></div>
   </div>
 </div>
 
@@ -441,16 +479,12 @@
 
 <script>
 // ══════════════════════════════════════════════════
-//  ⚙️  CONFIGURAÇÃO — URLs dos CSVs publicados
+//  ⚙️  CONFIGURAÇÃO — URLs dos CSVs (mesma fonte da Análise Comercial)
 // ══════════════════════════════════════════════════
-// Apps Script publicado como Web App: lê o arquivo certo no Drive
-// e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
-// Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
-// então basta buscar todos e juntar as linhas num único conjunto.
-const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
-const CSV_URLS_FATURAMENTO = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
-const CSV_CMV = "https://script.google.com/macros/s/AKfycby-NZhu7IcSv3T5UCxeOG6MDlKoRt4UC9WXTg601894qQDdnHlBBt8IbDqqgWir1UCQ/exec?arquivo=cmv";
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec';
+const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
+const CSV_URLS_FAT = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+const CSV_CMV = ''; // TODO: adicionar URL do CMV quando disponível
 // ══════════════════════════════════════════════════
 
 const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -577,10 +611,8 @@ function findCol(headers, candidates) {
 
 // ─── Fetch with anti-cache
 async function fetchCSV(url) {
-  const r = await fetch(url + '&_nc=' + Date.now(), {
-    cache: 'no-store',
-    headers: { 'Cache-Control': 'no-cache' }
-  });
+  const cacheBust = '&_=' + Date.now();
+  const r = await fetch(url + cacheBust, { cache: 'no-store' });
   if (!r.ok) throw new Error(`HTTP ${r.status} ao buscar CSV`);
   return r.text();
 }
@@ -592,85 +624,116 @@ async function loadData() {
   btn.classList.add('loading');
   showLoading();
 
+  let cmvUnavailable = false;
   try {
     debugLog.push(`<span class="ok">✓ Iniciando fetch dos CSVs…</span>`);
-    const [fatTexts, cmvText] = await Promise.all([
-      Promise.all(CSV_URLS_FATURAMENTO.map(url => fetchCSV(url))),
-      fetchCSV(CSV_CMV)
-    ]);
-    debugLog.push(`<span class="ok">✓ CSVs recebidos — Fat: ${fatTexts.length} arquivo(s), CMV: ${cmvText.length} chars</span>`);
 
-    // Sample first line for debugging
-    fatTexts.forEach((t, i) => debugLog.push(`Primeira linha Fat[${i}]: <strong>${t.split('\n')[0].substring(0,120)}</strong>`));
-    debugLog.push(`Primeira linha CMV: <strong>${cmvText.split('\n')[0].substring(0,120)}</strong>`);
+    // Fetch all faturamento CSVs in parallel
+    const fatTexts = await Promise.all(
+      CSV_URLS_FAT.map(url => fetchCSV(url).catch(e => {
+        debugLog.push(`<span class="warn">⚠ Erro ao buscar CSV: ${e.message}</span>`);
+        return '';
+      }))
+    );
+    debugLog.push(`<span class="ok">✓ Faturamento: ${fatTexts.filter(t=>t).length}/${fatTexts.length} arquivos recebidos</span>`);
 
-    // ── Parse Faturamento (mescla os 4 arquivos, um por loja)
-    let fatHeaders = [];
-    let fatRows = [];
-    fatTexts.forEach(fatText => {
-      const parsed = parseCSV(fatText);
-      if (!fatHeaders.length) fatHeaders = parsed.headers;
-      fatRows = fatRows.concat(parsed.rows);
-    });
+    // Parse all faturamento CSVs and combine
+    rawFat = [];
+    for (let i = 0; i < fatTexts.length; i++) {
+      const fatText = fatTexts[i];
+      if (!fatText.trim()) continue;
 
-    const colFatAno    = findCol(fatHeaders, ['ano','year','ano_','ano2']);
-    const colFatLoja   = findCol(fatHeaders, ['loja','store','loja_','filial','unidade']);
-    const colFatMes    = findCol(fatHeaders, ['mes','m_s','month','mês','mes_','periodo']);
-    const colFatVenda  = findCol(fatHeaders, ['total_venda','totalvenda','venda','vendas','faturamento','receita','total','valor_venda','vlr_venda','fat']);
-    const colFatCanal  = findCol(fatHeaders, ['canais','canal','channel','canal_venda','canal_distribuicao','categoria']);
+      const { rows: fatRows, headers: fatHeaders } = parseCSV(fatText);
 
-    debugLog.push(`Mapeamento Fat — ano:<strong>${colFatAno}</strong> loja:<strong>${colFatLoja}</strong> mes:<strong>${colFatMes}</strong> venda:<strong>${colFatVenda}</strong> canal:<strong>${colFatCanal||'não encontrado'}</strong>`);
+      const colFatAno    = findCol(fatHeaders, ['ano','year','ano_','ano2']);
+      const colFatLoja   = findCol(fatHeaders, ['loja','store','loja_','filial','unidade']);
+      const colFatMes    = findCol(fatHeaders, ['mes','m_s','month','mês','mes_','periodo']);
+      const colFatVenda  = findCol(fatHeaders, ['total_venda','totalvenda','venda','vendas','faturamento','receita','total','valor_venda','vlr_venda','fat']);
+      const colFatCanal  = findCol(fatHeaders, ['canais','canal','channel','canal_venda','canal_distribuicao','categoria']);
 
-    if (!colFatVenda) {
-      throw new Error(`Coluna de venda não encontrada em Faturamento. Colunas disponíveis: ${fatHeaders.join(', ')}`);
+      debugLog.push(`Arquivo ${i+1}: ${fatRows.length} linhas — venda:<strong>${colFatVenda||'não encontrado'}</strong> canal:<strong>${colFatCanal||'não encontrado'}</strong>`);
+
+      if (!colFatVenda) {
+        debugLog.push(`<span class="warn">⚠ Coluna de venda não encontrada no arquivo ${i+1}. Colunas: ${fatHeaders.join(', ')}</span>`);
+        continue;
+      }
+
+      const parsed = fatRows.map(r => ({
+        ano:         colFatAno   ? parseAno(r[colFatAno])                         : '',
+        loja:        colFatLoja  ? String(r[colFatLoja]||'').trim().toUpperCase() : 'SEM LOJA',
+        mes:         colFatMes   ? parseMes(r[colFatMes])                         : 0,
+        canal:       colFatCanal ? String(r[colFatCanal]||'').trim().replace(/^["']|["']$/g, '') : '',
+        total_venda: parseNum(r[colFatVenda])
+      })).filter(r => r.total_venda !== 0 || (r.ano && r.loja));
+
+      rawFat.push(...parsed);
     }
 
-    rawFat = fatRows.map(r => ({
-      ano:         colFatAno   ? parseAno(r[colFatAno])                         : '',
-      loja:        colFatLoja  ? String(r[colFatLoja]||'').trim().toUpperCase() : 'SEM LOJA',
-      mes:         colFatMes   ? parseMes(r[colFatMes])                         : 0,
-      canal:       colFatCanal ? String(r[colFatCanal]||'').trim()              : '',
-      total_venda: parseNum(r[colFatVenda])
-    })).filter(r => r.total_venda !== 0 || (r.ano && r.loja));
+    debugLog.push(`<span class="ok">✓ Faturamento total: ${rawFat.length} linhas válidas</span>`);
+    if (rawFat.length > 0) debugLog.push(`Amostra Fat[0]: ${JSON.stringify(rawFat[0])}`);
 
-    debugLog.push(`<span class="ok">✓ Faturamento: ${rawFat.length} linhas válidas de ${fatRows.length} lidas</span>`);
-    if (rawFat.length > 0) {
-      debugLog.push(`Amostra Fat[0]: ${JSON.stringify(rawFat[0])}`);
+    // Fetch CMV (optional)
+    let cmvText = '';
+    if (CSV_CMV) {
+      try {
+        cmvText = await fetchCSV(CSV_CMV);
+        debugLog.push(`<span class="ok">✓ CMV recebido — ${cmvText.length} chars</span>`);
+      } catch (cmvErr) {
+        cmvUnavailable = true;
+        debugLog.push(`<span class="warn">⚠ CMV indisponível: ${cmvErr.message} — usando zeros</span>`);
+      }
+    } else {
+      cmvUnavailable = true;
+      debugLog.push(`<span class="warn">⚠ CMV não configurado — usando zeros</span>`);
     }
 
-    // ── Parse CMV
-    const { rows: cmvRows, headers: cmvHeaders } = (() => {
-      const r = parseCSV(cmvText);
-      // Relabel for CMV
-      debugLog.push(`Colunas CMV (norm): <strong>${r.headers.join(' | ')}</strong>`);
-      return r;
-    })();
+    // ── Parse CMV (only if data available)
+    if (!cmvUnavailable && cmvText.trim()) {
+      const { rows: cmvRows, headers: cmvHeaders } = (() => {
+        const r = parseCSV(cmvText);
+        debugLog.push(`Colunas CMV (norm): <strong>${r.headers.join(' | ')}</strong>`);
+        return r;
+      })();
 
-    const colCmvAno   = findCol(cmvHeaders, ['ano','year']);
-    const colCmvLoja  = findCol(cmvHeaders, ['loja','store','filial','unidade']);
-    const colCmvMes   = findCol(cmvHeaders, ['mes','m_s','month','mês','periodo']);
-    const colCmvCanal = findCol(cmvHeaders, ['canais','canal','channel','categoria']);
-    const colCmvValor = findCol(cmvHeaders, ['valor','value','cmv','custo','total','venda','receita']);
+      const colCmvAno   = findCol(cmvHeaders, ['ano','year']);
+      const colCmvLoja  = findCol(cmvHeaders, ['loja','store','filial','unidade']);
+      const colCmvMes   = findCol(cmvHeaders, ['mes','m_s','month','mês','periodo']);
+      const colCmvCanal = findCol(cmvHeaders, ['canais','canal','channel','categoria']);
+      const colCmvValor = findCol(cmvHeaders, ['valor','value','cmv','custo','total','venda','receita']);
 
-    debugLog.push(`Mapeamento CMV — ano:<strong>${colCmvAno}</strong> loja:<strong>${colCmvLoja}</strong> mes:<strong>${colCmvMes}</strong> valor:<strong>${colCmvValor}</strong>`);
+      debugLog.push(`Mapeamento CMV — ano:<strong>${colCmvAno}</strong> loja:<strong>${colCmvLoja}</strong> mes:<strong>${colCmvMes}</strong> valor:<strong>${colCmvValor}</strong>`);
 
-    rawCmv = cmvRows.map(r => ({
-      ano:   colCmvAno  ? parseAno(r[colCmvAno])  : '',
-      loja:  colCmvLoja ? String(r[colCmvLoja]||'').trim().toUpperCase() : 'SEM LOJA',
-      mes:   colCmvMes  ? parseMes(r[colCmvMes])  : 0,
-      canais: colCmvCanal ? String(r[colCmvCanal]||'').trim() : '',
-      valor: colCmvValor ? parseNum(r[colCmvValor]) : 0
-    })).filter(r => r.valor !== 0 || r.ano);
+      rawCmv = cmvRows.map(r => ({
+        ano:   colCmvAno  ? parseAno(r[colCmvAno])  : '',
+        loja:  colCmvLoja ? String(r[colCmvLoja]||'').trim().toUpperCase() : 'SEM LOJA',
+        mes:   colCmvMes  ? parseMes(r[colCmvMes])  : 0,
+        canais: colCmvCanal ? String(r[colCmvCanal]||'').trim() : '',
+        valor: colCmvValor ? parseNum(r[colCmvValor]) : 0
+      })).filter(r => r.valor !== 0 || r.ano);
 
-    debugLog.push(`<span class="ok">✓ CMV: ${rawCmv.length} linhas válidas de ${cmvRows.length} lidas</span>`);
-    if (rawCmv.length > 0) debugLog.push(`Amostra CMV[0]: ${JSON.stringify(rawCmv[0])}`);
+      debugLog.push(`<span class="ok">✓ CMV: ${rawCmv.length} linhas válidas de ${cmvRows.length} lidas</span>`);
+      if (rawCmv.length > 0) debugLog.push(`Amostra CMV[0]: ${JSON.stringify(rawCmv[0])}`);
+    } else {
+      rawCmv = [];
+      debugLog.push(`<span class="warn">⚠ CMV não carregado — dados de CMV serão zero</span>`);
+    }
 
     if (rawFat.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
 
     populateFilters();
     renderDashboard();
-    document.getElementById('lastUpdated').textContent =
-      'Atualizado: ' + new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    if (cmvUnavailable) {
+      const main = document.getElementById('mainContent');
+      const warn = document.createElement('div');
+      warn.className = 'status-center';
+      warn.style.cssText = 'padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;color:#9a3412;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px';
+      warn.innerHTML = `<span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Atualize a URL do CMV quando disponível.</span>`;
+      main.insertBefore(warn, main.firstChild);
+    }
+
+    document.getElementById('fb-ts').textContent =
+      new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
 
   } catch(e) {
     debugLog.push(`<span class="err">✗ ERRO: ${e.message}</span>`);
@@ -719,32 +782,35 @@ function populateFilters() {
   const anos  = [...new Set(rawFat.map(r=>r.ano))].filter(Boolean).sort();
   const lojas = [...new Set(rawFat.map(r=>r.loja))].filter(Boolean).sort();
   const meses = [...new Set(rawFat.map(r=>r.mes))].filter(m=>m>0).sort((a,b)=>a-b);
-  // Canais: lê da planilha Faturamento (campo canal)
   const canais = [...new Set(rawFat.map(r=>r.canal))].filter(Boolean).sort();
-  setSelect('filterAno', anos);
-  setSelect('filterLoja', lojas);
-  setSelect('filterMes', meses, m => `${MESES_NOME[m]||m}`);
+  fillSel('f-ano',  anos,  'Todos', v=>v);
+  fillSel('f-loja', lojas, 'Todas', v=>v);
+  fillSel('f-mes',  meses, 'Todos', m=>MESES_NOME[m]||m);
   _allCanais = canais;
-  buildCanalList();
-  // Selecionar ano atual ao abrir; fallback para o mais recente disponível
-  const selAno = document.getElementById('filterAno');
+  populateCanalDropdown(canais);
+  const selAno = document.getElementById('f-ano');
   if (!selAno.value) {
     const anoAtual = String(new Date().getFullYear());
     selAno.value = anos.includes(anoAtual) ? anoAtual : (anos[anos.length-1] || '');
   }
 }
-function setSelect(id, vals, lFn=v=>v) {
+function fillSel(id, vals, placeholder, labelFn) {
   const sel = document.getElementById(id);
   const cur = sel.value;
-  while (sel.options.length > 1) sel.remove(1);
-  vals.forEach(v => sel.add(new Option(lFn(v), v)));
-  if ([...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  sel.innerHTML = `<option value="">${placeholder}</option>`;
+  vals.forEach(v => {
+    const o = document.createElement('option');
+    o.value = v;
+    o.textContent = labelFn ? labelFn(v) : v;
+    sel.appendChild(o);
+  });
+  if (vals.includes(cur)) sel.value = cur;
 }
 function getFilters() {
   return {
-    ano:    document.getElementById('filterAno').value,
-    loja:   document.getElementById('filterLoja').value,
-    mes:    parseInt(document.getElementById('filterMes').value)||0,
+    ano:    document.getElementById('f-ano').value,
+    loja:   document.getElementById('f-loja').value,
+    mes:    parseInt(document.getElementById('f-mes').value)||0,
     canais: selectedCanais
   };
 }
@@ -773,48 +839,47 @@ function applyFilters() { renderDashboard(); }
 const DEFAULT_CANAIS = ['loja', 'delivery'];
 
 // ── Canal dropdown UI
-function buildCanalList() {
-  const list = document.getElementById('canalList');
-  if (!list) return;
+function populateCanalDropdown(canais) {
+  _allCanais = canais;
 
   // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery
   if (selectedCanais.size === 0) {
-    _allCanais.forEach(canal => {
+    canais.forEach(canal => {
       if (DEFAULT_CANAIS.includes(canal.toLowerCase())) {
         selectedCanais.add(canal);
       }
     });
-    // Se todos os canais foram selecionados, mantém comportamento "Todos"
-    if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
+    if (selectedCanais.size === canais.length) selectedCanais.clear();
   }
 
+  const list = document.getElementById('canal-dd-list');
+  if (!list) return;
   list.innerHTML = '';
-  _allCanais.forEach(canal => {
-    const lbl = document.createElement('label');
-    lbl.className = 'canal-item' + (selectedCanais.has(canal) ? ' checked' : '');
-    lbl.innerHTML = `
+  canais.forEach(canal => {
+    const item = document.createElement('label');
+    item.className = 'canal-item' + (selectedCanais.has(canal) ? ' checked' : '');
+    item.innerHTML = `
       <input type="checkbox" value="${canal.replace(/"/g,'&quot;')}"
         ${selectedCanais.has(canal)?'checked':''}
-        onchange="onCanalChk(this)">
+        onchange="onCanalChange(this)">
       <span class="canal-item-label" title="${canal}">${canal}</span>`;
-    list.appendChild(lbl);
+    list.appendChild(item);
   });
   updateCanalTrigger();
 }
 
-function onCanalChk(cb) {
+function onCanalChange(cb) {
   const v = cb.value;
   cb.checked ? selectedCanais.add(v) : selectedCanais.delete(v);
-  // se todos marcados → equivale a "todos" → limpa
   if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
   cb.closest('.canal-item').classList.toggle('checked', cb.checked && selectedCanais.size > 0);
   updateCanalTrigger();
   renderDashboard();
 }
 
-function canalSelAll() {
+function selectAllCanais() {
   selectedCanais.clear();
-  document.querySelectorAll('#canalList input[type=checkbox]').forEach(cb => {
+  document.querySelectorAll('#canal-dd-list input[type=checkbox]').forEach(cb => {
     cb.checked = false;
     cb.closest('.canal-item').classList.remove('checked');
   });
@@ -822,13 +887,13 @@ function canalSelAll() {
   renderDashboard();
 }
 
-function canalClear() { canalSelAll(); }
+function clearAllCanais() { selectAllCanais(); }
 
 function updateCanalTrigger() {
   const n       = selectedCanais.size;
-  const badge   = document.getElementById('canalBadge');
-  const txt     = document.getElementById('canalTxt');
-  const trigger = document.getElementById('canalTrigger');
+  const badge   = document.getElementById('canal-badge');
+  const txt     = document.getElementById('canal-trigger-txt');
+  const trigger = document.getElementById('canal-trigger');
   if (!trigger) return;
   if (n === 0) {
     txt.textContent = 'Todos';
@@ -836,7 +901,7 @@ function updateCanalTrigger() {
     trigger.classList.remove('has-sel');
   } else if (n === 1) {
     const [v] = selectedCanais;
-    txt.textContent = v.length > 13 ? v.slice(0,12)+'…' : v;
+    txt.textContent = v.length > 14 ? v.slice(0,13)+'…' : v;
     badge.style.display = 'none';
     trigger.classList.add('has-sel');
   } else {
@@ -847,18 +912,18 @@ function updateCanalTrigger() {
   }
 }
 
-function toggleCanalDrop(e) {
+function toggleCanalDropdown(e) {
   e.stopPropagation();
-  const dd = document.getElementById('canalDrop');
-  const tr = document.getElementById('canalTrigger');
+  const dd = document.getElementById('canal-dropdown');
+  const tr = document.getElementById('canal-trigger');
   const open = dd.classList.toggle('open');
   tr.classList.toggle('open', open);
 }
 
 document.addEventListener('click', e => {
-  if (!e.target.closest('#canalWrap')) {
-    const dd = document.getElementById('canalDrop');
-    const tr = document.getElementById('canalTrigger');
+  if (!e.target.closest('#canal-wrap')) {
+    const dd = document.getElementById('canal-dropdown');
+    const tr = document.getElementById('canal-trigger');
     if (dd) dd.classList.remove('open');
     if (tr) tr.classList.remove('open');
   }
@@ -965,7 +1030,7 @@ function renderDashboard() {
   // ── Tabela
   const tWrap = el('div');
   tWrap.innerHTML = `<div class="section-title">Tabela Comparativa Detalhada</div>`;
-  const anoFiltro = document.getElementById('filterAno').value;
+  const anoFiltro = document.getElementById('f-ano').value;
   if (!anoFiltro) {
     // Comparativo entre os últimos 2 anos
     const todosAnos = [...new Set(rawFat.map(r=>r.ano))].filter(Boolean).sort();
@@ -1046,13 +1111,13 @@ function mkChartPct2(id, labels, datasets) {
         legend:{display:false},
         tooltip:{
           backgroundColor:'#0f1923', padding:12, cornerRadius:10,
-          bodyFont:{family:"'Sora',sans-serif",size:12},
-          titleFont:{family:"'Sora',sans-serif",size:11,weight:'600'},
+          bodyFont:{family:"'Epilogue',sans-serif",size:12},
+          titleFont:{family:"'Epilogue',sans-serif",size:11,weight:'600'},
           callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${fmtPct(ctx.parsed.y)}` }
         }
       },
       scales:{
-        x:{ grid:{display:false}, ticks:{font:{family:"'Sora',sans-serif",size:11},color:'#9aa3b0'} },
+        x:{ grid:{display:false}, ticks:{font:{family:"'Epilogue',sans-serif",size:11},color:'#9aa3b0'} },
         y:{
           min: yMin, max: yMax,
           grid:{color:'rgba(0,0,0,0.05)',drawBorder:false},
@@ -1081,8 +1146,8 @@ function mkChart(id, type, labels, datasets, fmt) {
         legend:{display:false},
         tooltip:{
           backgroundColor:'#0f1923', padding:12, cornerRadius:10,
-          bodyFont:{family:"'Sora',sans-serif",size:12},
-          titleFont:{family:"'Sora',sans-serif",size:11,weight:'600'},
+          bodyFont:{family:"'Epilogue',sans-serif",size:12},
+          titleFont:{family:"'Epilogue',sans-serif",size:11,weight:'600'},
           callbacks:{
             label: ctx => {
               const v = ctx.parsed.y;
@@ -1094,7 +1159,7 @@ function mkChart(id, type, labels, datasets, fmt) {
         }
       },
       scales:{
-        x:{ grid:{display:false}, ticks:{font:{family:"'Sora',sans-serif",size:11},color:'#9aa3b0'} },
+        x:{ grid:{display:false}, ticks:{font:{family:"'Epilogue',sans-serif",size:11},color:'#9aa3b0'} },
         y:{
           grid:{color:'rgba(0,0,0,0.05)',drawBorder:false},
           border:{display:false},
@@ -1118,9 +1183,9 @@ function ahBadge(v) {
 }
 
 function buildTableComparativo(anos, lojas) {
-  const [anoA, anoB] = anos; // anoA = mais antigo, anoB = mais recente
-  const lojaSel = document.getElementById('filterLoja').value;
-  const mesSel  = parseInt(document.getElementById('filterMes').value)||0;
+  const [anoA, anoB] = anos;
+  const lojaSel = document.getElementById('f-loja').value;
+  const mesSel  = parseInt(document.getElementById('f-mes').value)||0;
 
   function filtrar(anoVal) {
     return rawFat.filter(r =>
@@ -1367,14 +1432,24 @@ function collapseSidebar(){
 
   const toggle = document.getElementById('side-toggle');
   if(toggle){
-    toggle.addEventListener('click', ()=> document.body.classList.toggle('side-open'));
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        expandSidebar();
+      } else {
+        collapseSidebar();
+      }
+    });
   }
 })();
 
+// ── Filter event listeners ──
+['f-ano','f-loja','f-mes'].forEach(id => {
+  const el = document.getElementById(id);
+  if (el) el.addEventListener('change', renderDashboard);
+});
+
 loadData();
-// Recolhe o menu automaticamente no desktop ao abrir este dashboard,
-// igual já acontece na Análise Comercial.
-if(window.innerWidth > 900) collapseSidebar();
 </script>
 </body>
 </html>
