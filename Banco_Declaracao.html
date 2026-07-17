@@ -152,6 +152,38 @@ a{ color:inherit; }
 .btn:disabled{ opacity:.45; cursor:not-allowed; transform:none; box-shadow:none; }
 :focus-visible{ outline:2px solid var(--gold); outline-offset:2px; }
 
+/* ---------- Modal: período do relatório ---------- */
+.period-modal-overlay{
+  display:none; position:fixed; inset:0; background:rgba(14,27,46,.55);
+  z-index:9999; align-items:center; justify-content:center; padding:16px;
+}
+.period-modal-overlay.open{ display:flex; }
+.period-modal{
+  background:var(--card); border-radius:var(--radius-lg); box-shadow:var(--shadow-card);
+  padding:24px 26px; width:min(440px,92vw);
+}
+.period-modal h3{
+  font-family:var(--font-display); font-size:16px; margin:0 0 4px; color:var(--ink);
+}
+.period-modal .period-modal-sub{ font-size:12px; color:var(--slate); margin:0 0 16px; }
+.period-modal-fields{ display:flex; gap:14px; margin-bottom:8px; }
+.period-modal-fields label{
+  flex:1; min-width:0; display:flex; flex-direction:column; gap:5px; font-size:11.5px;
+  font-weight:700; text-transform:uppercase; letter-spacing:.03em; color:var(--slate);
+}
+.period-modal-fields input[type=month]{
+  width:100%; min-width:0; box-sizing:border-box;
+  padding:8px 10px; border:1px solid var(--line); border-radius:var(--radius-sm);
+  font-size:13px; font-family:var(--font-body); color:var(--ink);
+}
+.period-modal-hint{ font-size:11.5px; color:var(--slate-light); line-height:1.45; margin:6px 0 18px; }
+.period-modal-error{
+  display:none; font-size:12px; color:var(--brick); background:#FBEAE6; border:1px solid #E7B8AD;
+  border-radius:var(--radius-sm); padding:8px 10px; margin:0 0 14px;
+}
+.period-modal-error.show{ display:block; }
+.period-modal-actions{ display:flex; justify-content:flex-end; gap:10px; }
+
 .scope-row{
   margin-top:18px; display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px;
 }
@@ -505,6 +537,23 @@ a{ color:inherit; }
     <div class="scope-row">
       <div class="scope-label">Exibindo: <b id="scopeLabel">—</b></div>
       <div class="print-note" id="printScopeNote"></div>
+    </div>
+
+    <div class="period-modal-overlay" id="periodModalOverlay">
+      <div class="period-modal">
+        <h3>Período do relatório</h3>
+        <p class="period-modal-sub">Escolha o intervalo que o PDF deve trazer.</p>
+        <div class="period-modal-fields">
+          <label>De<input type="month" id="periodStart"></label>
+          <label>Até<input type="month" id="periodEnd"></label>
+        </div>
+        <p class="period-modal-hint">Os dados são consolidados por mês (não por dia), então o relatório traz o total de cada mês dentro do intervalo escolhido.</p>
+        <p class="period-modal-error" id="periodModalError"></p>
+        <div class="period-modal-actions">
+          <button type="button" class="btn btn-line" id="periodCancel">Cancelar</button>
+          <button type="button" class="btn btn-gold" id="periodConfirm">Gerar PDF</button>
+        </div>
+      </div>
     </div>
 
     <div class="banner banner-error" id="errorBanner" role="alert">
@@ -1167,15 +1216,34 @@ $("filterAno").addEventListener("change", function(e){
 });
 $("btnRefresh").addEventListener("click", function(){ fetchData(true); });
 $("btnRetry").addEventListener("click", function(){ fetchData(true); });
-$("btnPrint").addEventListener("click", function(){
+function pad2(n){ return ("0" + n).slice(-2); }
+
+function inPeriodRange(r, startAno, startMes, endAno, endMes){
+  if (r.ano < startAno || r.ano > endAno) return false;
+  if (r.ano === startAno && r.mesIndex < startMes) return false;
+  if (r.ano === endAno && r.mesIndex > endMes) return false;
+  return true;
+}
+
+function monthsInPeriodRange(startAno, startMes, endAno, endMes){
+  var out = [];
+  var y = startAno, m = startMes;
+  while (y < endAno || (y === endAno && m <= endMes)) {
+    out.push({ ano: y, mi: m });
+    m++;
+    if (m > 11) { m = 0; y++; }
+  }
+  return out;
+}
+
+function generatePDF(startAno, startMes, endAno, endMes){
   const f = state.filters;
-  if (f.ano == null) return;
 
   var scopeKeys = STORE_ORDER.filter(function(k){
-    return state.rows.some(function(r){ return r.lojaKey === k && r.ano === f.ano && matchFilter(r, f.canal); });
+    return state.rows.some(function(r){ return r.lojaKey === k && inPeriodRange(r, startAno, startMes, endAno, endMes) && matchFilter(r, f.canal); });
   });
   var extraKeys = Array.from(new Set(
-    state.rows.filter(function(r){ return STORE_ORDER.indexOf(r.lojaKey) === -1 && r.ano === f.ano && matchFilter(r, f.canal); }).map(function(r){ return r.lojaKey; })
+    state.rows.filter(function(r){ return STORE_ORDER.indexOf(r.lojaKey) === -1 && inPeriodRange(r, startAno, startMes, endAno, endMes) && matchFilter(r, f.canal); }).map(function(r){ return r.lojaKey; })
   )).sort();
   scopeKeys = scopeKeys.concat(extraKeys);
   if (!scopeKeys.length) { alert("Não há lançamentos para o período selecionado."); return; }
@@ -1216,31 +1284,27 @@ $("btnPrint").addEventListener("click", function(){
     '.doc-assinatura .nome{ font-weight:700; font-size:13px; text-transform:uppercase; }' +
     '</style></head><body>';
 
-  var dataInicio = "01/01/" + f.ano;
-  var ultimoMesReal = state.rows
-    .filter(function(r){ return r.ano === f.ano && matchFilter(r, f.canal); })
-    .reduce(function(max, r){ return Math.max(max, r.mesIndex); }, -1);
-  if (ultimoMesReal < 0) ultimoMesReal = 0;
-  var ultimoDia = new Date(f.ano, ultimoMesReal + 1, 0).getDate();
-  var mesUltimo = ("0" + (ultimoMesReal + 1)).slice(-2);
-  var dataFim = ultimoDia + "/" + mesUltimo + "/" + f.ano;
-  var ultimoMesCompleto = ultimoMesReal;
+  var dataInicio = "01/" + pad2(startMes + 1) + "/" + startAno;
+  var ultimoDia = new Date(endAno, endMes + 1, 0).getDate();
+  var dataFim = ultimoDia + "/" + pad2(endMes + 1) + "/" + endAno;
+  var meses = monthsInPeriodRange(startAno, startMes, endAno, endMes);
+  var multiAno = startAno !== endAno;
   var hoje = new Date();
-  var dataEmissao = ("0" + hoje.getDate()).slice(-2) + "/" + ("0" + (hoje.getMonth() + 1)).slice(-2) + "/" + hoje.getFullYear();
+  var dataEmissao = pad2(hoje.getDate()) + "/" + pad2(hoje.getMonth() + 1) + "/" + hoje.getFullYear();
 
   scopeKeys.forEach(function(k){
     var info = STORES[k] || { nome:storeLabel(k), razaoSocial:storeLabel(k), endereco:"—", bairro:"—", cidadeCepFone:"—", inscrEstadual:"—", cnpj:"—" };
     var mesesAgr = [];
     var totalGeral = 0;
-    for (var mi = 0; mi <= ultimoMesCompleto; mi++) {
-      var rowsMes = state.rows.filter(function(r){ return r.lojaKey === k && r.ano === f.ano && r.mesIndex === mi && matchFilter(r, f.canal); });
+    meses.forEach(function(per){
+      var rowsMes = state.rows.filter(function(r){ return r.lojaKey === k && r.ano === per.ano && r.mesIndex === per.mi && matchFilter(r, f.canal); });
       if (rowsMes.length) {
         var totalMes = rowsMes.reduce(function(s,r){ return s + r.total; }, 0);
         totalGeral += totalMes;
-        mesesAgr.push({ nome: MESES_DISPLAY[mi], total: totalMes });
+        var label = MESES_DISPLAY[per.mi] + (multiAno ? "/" + per.ano : "");
+        mesesAgr.push({ nome: label, total: totalMes });
       }
-    }
-    var emitido = new Date().toLocaleString("pt-BR");
+    });
     var trs = mesesAgr.length
       ? mesesAgr.map(function(m){
           var valStr = (m.total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
@@ -1279,6 +1343,54 @@ $("btnPrint").addEventListener("click", function(){
   printWin.document.close();
   printWin.focus();
   setTimeout(function(){ printWin.print(); }, 400);
+}
+
+/* ---------------------------------------------------------------------
+   MODAL: seleção do período do relatório
+--------------------------------------------------------------------- */
+$("btnPrint").addEventListener("click", function(){
+  const f = state.filters;
+  if (f.ano == null) return;
+
+  var yearRowsForModal = state.rows.filter(function(r){ return r.ano === f.ano && matchFilter(r, f.canal); });
+  var lastMonthWithData = yearRowsForModal.reduce(function(max, r){ return Math.max(max, r.mesIndex); }, -1);
+  if (lastMonthWithData < 0) lastMonthWithData = 0;
+
+  $("periodStart").value = f.ano + "-01";
+  $("periodEnd").value = f.ano + "-" + pad2(lastMonthWithData + 1);
+  $("periodModalError").classList.remove("show");
+  $("periodModalOverlay").classList.add("open");
+});
+
+$("periodCancel").addEventListener("click", function(){
+  $("periodModalOverlay").classList.remove("open");
+});
+$("periodModalOverlay").addEventListener("click", function(e){
+  if (e.target === $("periodModalOverlay")) $("periodModalOverlay").classList.remove("open");
+});
+
+$("periodConfirm").addEventListener("click", function(){
+  var startVal = $("periodStart").value; // "YYYY-MM"
+  var endVal = $("periodEnd").value;
+  var errBox = $("periodModalError");
+
+  if (!startVal || !endVal) {
+    errBox.textContent = "Selecione as duas datas (De / Até).";
+    errBox.classList.add("show");
+    return;
+  }
+  var startAno = parseInt(startVal.slice(0,4), 10), startMes = parseInt(startVal.slice(5,7), 10) - 1;
+  var endAno = parseInt(endVal.slice(0,4), 10), endMes = parseInt(endVal.slice(5,7), 10) - 1;
+
+  if (startAno > endAno || (startAno === endAno && startMes > endMes)) {
+    errBox.textContent = "A data final precisa ser igual ou depois da data inicial.";
+    errBox.classList.add("show");
+    return;
+  }
+
+  errBox.classList.remove("show");
+  $("periodModalOverlay").classList.remove("open");
+  generatePDF(startAno, startMes, endAno, endMes);
 });
 
 /* ---------------------------------------------------------------------
