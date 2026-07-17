@@ -986,7 +986,7 @@
       Última atualização<br>
       <strong id="lastUpdateTime">—</strong>
     </div>
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
@@ -1145,6 +1145,41 @@ let filteredData = [];
 let charts = {};
 let savedMetas = {};
 let metasData = [];
+
+/* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════
+   Ao abrir a página, usa os dados já salvos no navegador
+   (carregamento instantâneo). Só busca dados novos do Drive
+   quando o usuário clicar no botão de atualizar. */
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='elaboracaoMetas_data_v1';
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>{ req.result.createObjectStore(DB_STORE); };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function saveCache(data,ts){
+  try{
+    const db=await openDB();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put({data,ts},DB_KEY);
+      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
+}
+async function loadCacheDB(){
+  try{
+    const db=await openDB();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const req=tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){ console.warn('Cache local indisponível:',e); return null; }
+}
 
 const CUSTOM_LOJA_ORDER = [
   'BADY LOJA', 'BADY DELIVERY', 'TOTAL BADY',
@@ -1363,8 +1398,21 @@ async function fetchCSV(url) {
   return r.text();
 }
 
-async function loadData() {
+async function loadData(forceRefresh) {
   const btn = document.getElementById('btnRefresh');
+
+  if (!forceRefresh) {
+    const cached = await loadCacheDB();
+    if (cached && cached.data && cached.data.length) {
+      rawData = cached.data;
+      try { await loadMetasData(); } catch(e) { console.warn('Metas load error:', e); metasData = []; }
+      buildFilters();
+      applyFilters();
+      document.getElementById('lastUpdateTime').textContent = cached.ts + ' (dados salvos)';
+      return;
+    }
+  }
+
   btn.classList.add('loading');
   btn.disabled = true;
   showLoading();
@@ -1388,8 +1436,9 @@ async function loadData() {
     applyFilters();
 
     const now = new Date();
-    document.getElementById('lastUpdateTime').textContent =
-      now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    document.getElementById('lastUpdateTime').textContent = ts;
+    saveCache(rawData, ts);
 
   } catch(err) {
     showError(err.message);
@@ -1591,7 +1640,7 @@ function showError(msg) {
     <div class="error-box">
       <h3>⚠️ Erro ao carregar dados</h3>
       <p>${msg}</p>
-      <button onclick="loadData()">Tentar novamente</button>
+      <button onclick="loadData(true)">Tentar novamente</button>
     </div>`;
   destroyCharts();
 }
@@ -2385,7 +2434,7 @@ function computeMetaRowV2(loja, mesKey, prevKey, currR25, prevR25, metaPrevReal)
 /* =========================================================
    INIT
    ========================================================= */
-window.addEventListener('DOMContentLoaded', loadData);
+window.addEventListener('DOMContentLoaded', () => loadData());
 </script>
 </body>
 </html>

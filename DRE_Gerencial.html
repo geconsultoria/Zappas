@@ -1151,7 +1151,7 @@ tr.is-open .expand-hint { display: none; }
   </div>
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 4v5h-5"/><path d="M1 16v-5h5"/>
         <path d="M3.5 8A7.5 7.5 0 0115 4.5L19 9M1 11l4 4.5A7.5 7.5 0 0016.5 12"/>
@@ -1678,12 +1678,63 @@ async function fetchCSV(url){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   CACHE LOCAL (IndexedDB)
+   Ao abrir a página, usa os dados já salvos no navegador
+   (carregamento instantâneo). Só busca dados novos quando o
+   usuário clicar no botão de atualizar (↻).
+══════════════════════════════════════════════════════════════ */
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v1';
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>{ req.result.createObjectStore(DB_STORE); };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function saveCache(data,ts){
+  try{
+    const db=await openDB();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put({data,ts},DB_KEY);
+      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
+}
+async function loadCacheDB(){
+  try{
+    const db=await openDB();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const req=tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){ console.warn('Cache local indisponível:',e); return null; }
+}
+
+/* ══════════════════════════════════════════════════════════════
    LOAD
 ══════════════════════════════════════════════════════════════ */
-async function loadData(){
+async function loadData(forceRefresh){
   const overlay=document.getElementById('overlay');
   const btn=document.getElementById('btnRefresh');
   const errBox=document.getElementById('errBox');
+
+  if(!forceRefresh){
+    const cached=await loadCacheDB();
+    if(cached && cached.data && cached.data.length){
+      raw=cached.data;
+      populateFilters();
+      applyFilters();
+      toggleFixHeader(true);
+      document.getElementById('mainArea').style.display='block';
+      document.getElementById('lastUpdate').textContent=cached.ts+' (dados salvos)';
+      return;
+    }
+  }
+
   overlay.classList.remove('hidden');
   btn.classList.add('spin');
   errBox.style.display='none';
@@ -1722,7 +1773,9 @@ async function loadData(){
     applyFilters();
     toggleFixHeader(true); /* ativar cabeçalho fixo por padrão */
     document.getElementById('mainArea').style.display='block';
-    document.getElementById('lastUpdate').textContent='Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    document.getElementById('lastUpdate').textContent=ts;
+    saveCache(raw, ts);
   }catch(err){
     document.getElementById('mainArea').style.display='block';
     errBox.style.display='flex';
@@ -2755,7 +2808,7 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded',loadData);
+window.addEventListener('DOMContentLoaded', () => loadData());
 </script>
 
 <script>

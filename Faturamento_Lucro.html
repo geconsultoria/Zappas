@@ -420,7 +420,7 @@
     </div>
   </div>
   <div class="header-right">
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       Atualizar
     </button>
@@ -497,6 +497,41 @@ const MESES_MAP = {
 };
 
 let rawFat = [], rawCmv = [], chartInstances = {}, debugLog = [];
+
+// ─── CACHE LOCAL (IndexedDB)
+// Ao abrir a página, usa os dados já salvos no navegador (carregamento
+// instantâneo). Só busca dados novos do Drive quando o usuário clicar
+// no botão de atualizar.
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v1';
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req=indexedDB.open(DB_NAME,1);
+    req.onupgradeneeded=()=>{ req.result.createObjectStore(DB_STORE); };
+    req.onsuccess=()=>resolve(req.result);
+    req.onerror=()=>reject(req.error);
+  });
+}
+async function saveCache(data,ts){
+  try{
+    const db=await openDB();
+    await new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put({data,ts},DB_KEY);
+      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
+}
+async function loadCacheDB(){
+  try{
+    const db=await openDB();
+    return await new Promise((resolve,reject)=>{
+      const tx=db.transaction(DB_STORE,'readonly');
+      const req=tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess=()=>resolve(req.result||null);
+      req.onerror=()=>reject(req.error);
+    });
+  }catch(e){ console.warn('Cache local indisponível:',e); return null; }
+}
 
 // ─── NORMALIZE header: remove accents, spaces, lowercase
 function norm(s) {
@@ -618,9 +653,30 @@ async function fetchCSV(url) {
 }
 
 // ─── LOAD
-async function loadData() {
+async function loadData(forceRefresh) {
   debugLog = [];
   const btn = document.getElementById('btnRefresh');
+
+  if (!forceRefresh) {
+    const cached = await loadCacheDB();
+    if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length) {
+      rawFat = cached.data.rawFat;
+      rawCmv = cached.data.rawCmv || [];
+      populateFilters();
+      renderDashboard();
+      if (cached.data.cmvUnavailable) {
+        const main = document.getElementById('mainContent');
+        const warn = document.createElement('div');
+        warn.className = 'status-center';
+        warn.style.cssText = 'padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;color:#9a3412;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px';
+        warn.innerHTML = `<span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Atualize a URL do CMV quando disponível.</span>`;
+        main.insertBefore(warn, main.firstChild);
+      }
+      document.getElementById('fb-ts').textContent = cached.ts + ' (dados salvos)';
+      return;
+    }
+  }
+
   btn.classList.add('loading');
   showLoading();
 
@@ -734,6 +790,9 @@ async function loadData() {
 
     document.getElementById('fb-ts').textContent =
       new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+
+    const ts = new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+    saveCache({ rawFat, rawCmv, cmvUnavailable }, ts);
 
   } catch(e) {
     debugLog.push(`<span class="err">✗ ERRO: ${e.message}</span>`);

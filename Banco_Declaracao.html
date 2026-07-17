@@ -647,6 +647,46 @@ const MESES_ABR_N   = ["JAN","FEV","MAR","ABR","MAI","JUN","JUL","AGO","SET","OU
 --------------------------------------------------------------------- */
 const state = { rows: [], filters: { canal:["LOJA","DELIVERY"], ano:null, mes:null } };
 
+/* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════
+   Ao abrir a página, usa os dados já salvos no navegador
+   (carregamento instantâneo). Só busca dados novos do Drive
+   quando o usuário clicar em "Atualizar dados". Usa IndexedDB
+   (não localStorage) porque os CSVs somados passam do limite
+   de 5-10MB do localStorage. */
+const DB_NAME  = 'zappasCacheDB';
+const DB_STORE = 'cache';
+const DB_KEY   = 'bancoDeclaracao_data_v1';
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+async function saveCache(data, ts) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put({ data, ts }, DB_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror    = () => reject(tx.error);
+    });
+  } catch(e) { console.warn('Não foi possível salvar cache local:', e); }
+}
+async function loadCacheDB() {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx  = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch(e) { console.warn('Cache local indisponível:', e); return null; }
+}
+
 /* ---------------------------------------------------------------------
    HELPERS GERAIS
 --------------------------------------------------------------------- */
@@ -1031,7 +1071,18 @@ function showError(message){
 }
 function hideError(){ $("errorBanner").style.display = "none"; }
 
-async function fetchData(){
+async function fetchData(forceRefresh){
+  if (!forceRefresh) {
+    const cached = await loadCacheDB();
+    if (cached && cached.data && cached.data.length) {
+      state.rows = cached.data;
+      populateFilters(true);
+      render();
+      $("lastSync").textContent = cached.ts + " (dados salvos)";
+      return;
+    }
+  }
+
   setLoading(true);
   hideError();
 
@@ -1071,7 +1122,9 @@ async function fetchData(){
     state.rows = rows;
     populateFilters(true);
     render();
-    $("lastSync").textContent = "Atualizado às " + new Date().toLocaleTimeString("pt-BR");
+    const ts = "Atualizado às " + new Date().toLocaleTimeString("pt-BR");
+    $("lastSync").textContent = ts;
+    saveCache(rows, ts);
   } catch (err) {
     var msg = err && err.message ? err.message : "";
     if (err && err.name === "AbortError") msg = "Tempo limite excedido (20s).";
@@ -1112,8 +1165,8 @@ $("filterAno").addEventListener("change", function(e){
   updateMesOptions(false);
   render();
 });
-$("btnRefresh").addEventListener("click", fetchData);
-$("btnRetry").addEventListener("click", fetchData);
+$("btnRefresh").addEventListener("click", function(){ fetchData(true); });
+$("btnRetry").addEventListener("click", function(){ fetchData(true); });
 $("btnPrint").addEventListener("click", function(){
   const f = state.filters;
   if (f.ano == null) return;

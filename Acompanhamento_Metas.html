@@ -751,7 +751,7 @@ td.dash { color: var(--muted); }
       <div class="upd-label">Última atualização</div>
       <div class="upd-val" id="lastUpd">—</div>
     </div>
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData()">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/>
         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -912,6 +912,46 @@ let rawData = [];
 let charts  = {};
 let metasData = []; // { ano, mes, loja, canal, meta, pe } — vindo da planilha de Metas
 
+/* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════
+   Ao abrir a página, usa os dados já salvos no navegador
+   (carregamento instantâneo). Só busca dados novos do Drive
+   quando o usuário clicar no botão de atualizar. Usa IndexedDB
+   (não localStorage) porque os CSVs somados passam do limite
+   de 5-10MB do localStorage. */
+const DB_NAME  = 'zappasCacheDB';
+const DB_STORE = 'cache';
+const DB_KEY   = 'acompanhamentoMetas_data_v1';
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+async function saveCache(data, ts) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put({ data, ts }, DB_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror    = () => reject(tx.error);
+    });
+  } catch(e) { console.warn('Não foi possível salvar cache local:', e); }
+}
+async function loadCache() {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx  = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch(e) { console.warn('Cache local indisponível:', e); return null; }
+}
+
 /* ═══════════════ UTILS ═══════════════ */
 function normHeader(h) {
   return String(h).trim().toLowerCase()
@@ -1058,8 +1098,24 @@ function transform(rows, headers) {
 }
 
 /* ═══════════════ FETCH ═══════════════ */
-async function loadData() {
+async function loadData(forceRefresh = false) {
   const btn = document.getElementById('btnRefresh');
+
+  if (!forceRefresh) {
+    const cached = await loadCache();
+    if (cached && cached.data && cached.data.length) {
+      rawData = cached.data;
+      const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+      buildFilters();
+      buildCanalOptions(canais);
+      applyFilters();
+      document.getElementById('lastUpd').textContent = cached.ts + ' (dados salvos)';
+      // Busca metas em segundo plano (leve, não precisa de cache)
+      loadMetasData().then(() => applyFilters()).catch(()=>{});
+      return;
+    }
+  }
+
   btn.classList.add('loading'); btn.disabled = true;
   showLoading();
   try {
@@ -1086,8 +1142,9 @@ async function loadData() {
     buildCanalOptions(canais);
     applyFilters();
     const now = new Date();
-    document.getElementById('lastUpd').textContent =
-      now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('lastUpd').textContent = ts;
+    saveCache(rawData, ts);
   } catch(e) {
     console.error(e);
     showError(e.message);
@@ -1713,7 +1770,7 @@ function showLoading() {
 }
 function showError(msg) {
   const d = document.createElement('div'); d.className = 'err-box';
-  d.innerHTML = `<h3>⚠️ Erro ao carregar dados</h3><p>${msg}</p><button onclick="loadData()">Tentar novamente</button>`;
+  d.innerHTML = `<h3>⚠️ Erro ao carregar dados</h3><p>${msg}</p><button onclick="loadData(true)">Tentar novamente</button>`;
   const m = document.getElementById('mainContent'); m.innerHTML = ''; m.appendChild(d);
   destroyCharts();
 }
@@ -1722,7 +1779,7 @@ function destroyCharts() {
   charts = {};
 }
 
-window.addEventListener('DOMContentLoaded', loadData);
+window.addEventListener('DOMContentLoaded', () => loadData());
 </script>
 </body>
 </html>
