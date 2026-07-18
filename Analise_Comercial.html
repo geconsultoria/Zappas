@@ -1384,6 +1384,12 @@ function populateFilters(data) {
   fillSel('f-loja', lojas, 'Todas', v=>v);
   fillSel('f-mes',  meses, 'Todos', m=>MONTHS[+m-1]||m);
   if(anoSel && anos.includes(anoSel)) $('f-ano').value = anoSel;
+  // Se nenhum mês estiver selecionado, define o mês atual como padrão
+  const mesSel = $('f-mes').value;
+  if(!mesSel) {
+    const mesAtual = String(new Date().getMonth() + 1);
+    if(meses.includes(mesAtual)) $('f-mes').value = mesAtual;
+  }
   populateCanalDropdown(canais);
 }
 

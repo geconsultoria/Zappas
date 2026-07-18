@@ -858,6 +858,12 @@ function populateFilters() {
     const anoAtual = String(new Date().getFullYear());
     selAno.value = anos.includes(anoAtual) ? anoAtual : (anos[anos.length-1] || '');
   }
+  // Se nenhum mês estiver selecionado, define o mês atual como padrão
+  const selMes = document.getElementById('f-mes');
+  if (!selMes.value) {
+    const mesAtual = new Date().getMonth() + 1;
+    if (meses.includes(mesAtual)) selMes.value = mesAtual;
+  }
 }
 function fillSel(id, vals, placeholder, labelFn) {
   const sel = document.getElementById(id);
