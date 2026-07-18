@@ -2877,7 +2877,21 @@ function collapseSidebar(){
 
   const toggle = document.getElementById('side-toggle');
   if(toggle){
-    toggle.addEventListener('click', ()=> document.body.classList.toggle('side-open'));
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(window.innerWidth <= 900){
+        document.body.classList.toggle('side-open');
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        }
+      } else {
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        } else {
+          collapseSidebar();
+        }
+      }
+    });
   }
 })();
 

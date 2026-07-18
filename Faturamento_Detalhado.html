@@ -1277,14 +1277,24 @@ async function loadData(forceRefresh = false) {
   try {
     const cacheBust = '&_=' + Date.now();
     const responses = await Promise.all(
-      CSV_URLS.map(url => fetch(url + cacheBust, { cache:'no-store' }))
+      CSV_URLS.map(url => fetch(url + cacheBust, { cache:'no-store' }).catch(() => null))
     );
-    responses.forEach((res, i) => {
-      if(!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText} (arquivo ${i+1} de ${CSV_URLS.length})`);
-    });
     setLdTxt('Processando dados…');
-    const texts = await Promise.all(responses.map(res => res.text()));
-    rawData = texts.flatMap(text => parseCSV(text));
+
+    rawData = [];
+    const lojasComFalha = [];
+    for (let i = 0; i < responses.length; i++) {
+      const res = responses[i];
+      const nomeLoja = (STORE_KEYS && STORE_KEYS[i]) ? STORE_KEYS[i] : ('arquivo ' + (i + 1));
+      try {
+        if (!res || !res.ok) throw new Error('HTTP ' + (res ? res.status : '—'));
+        const txt = await res.text();
+        rawData = rawData.concat(parseCSV(txt));
+      } catch (errLoja) {
+        console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
+        lojasComFalha.push(nomeLoja);
+      }
+    }
     if(!rawData.length) throw new Error('Nenhuma linha válida encontrada.');
 
     populateFilters(rawData);
@@ -1292,7 +1302,7 @@ async function loadData(forceRefresh = false) {
     $('content').classList.remove('hidden');
     renderSemanal2();
     const ts = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    $('fb-ts').textContent = ts;
+    $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
     saveCache(rawData, ts);
     if(isFirst) setTimeout(()=>showLoader(false), 300);
 
@@ -1369,7 +1379,21 @@ function collapseSidebar(){
 
   const toggle = document.getElementById('side-toggle');
   if(toggle){
-    toggle.addEventListener('click', ()=> document.body.classList.toggle('side-open'));
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(window.innerWidth <= 900){
+        document.body.classList.toggle('side-open');
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        }
+      } else {
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        } else {
+          collapseSidebar();
+        }
+      }
+    });
   }
 })();
 

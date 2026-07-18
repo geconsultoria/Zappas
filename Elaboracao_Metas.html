@@ -1111,10 +1111,17 @@ function collapseSidebar(){
   if(toggle){
     toggle.addEventListener('click', ()=>{
       const sidebar = document.getElementById('sidebar');
-      if(sidebar.classList.contains('collapsed')){
-        expandSidebar();
+      if(window.innerWidth <= 900){
+        document.body.classList.toggle('side-open');
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        }
       } else {
-        collapseSidebar();
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        } else {
+          collapseSidebar();
+        }
       }
     });
   }
