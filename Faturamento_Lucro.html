@@ -487,7 +487,9 @@
 // ══════════════════════════════════════════════════
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec';
 const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
-const CSV_URLS_FAT = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+// Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
+// dos 6 CSVs brutos venda-a-venda — bem mais rápido.
+const CSV_URLS_FAT = [`${APPS_SCRIPT_URL}?loja=resumo`];
 const CSV_CMV = ''; // TODO: adicionar URL do CMV quando disponível
 // ══════════════════════════════════════════════════
 

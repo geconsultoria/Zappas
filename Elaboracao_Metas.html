@@ -1130,7 +1130,9 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 // Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único conjunto.
 const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
-const CSV_URLS_FATURAMENTO = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+// Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
+// dos 6 CSVs brutos venda-a-venda — bem mais rápido.
+const CSV_URLS_FATURAMENTO = [`${APPS_SCRIPT_URL}?loja=resumo`];
 
 const CSV_URL_CMV = "";
 // Apps Script novo (backend de Metas) — leitura direta da planilha (sem

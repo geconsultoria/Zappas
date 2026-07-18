@@ -1142,7 +1142,10 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 // Cada CSV já traz sua própria coluna "loja" preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único array.
 const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
-const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+// Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
+// dos 6 CSVs brutos venda-a-venda — bem mais rápido. Gerado pelo botão
+// "Gerar Resumo Mensal" no menu principal (GestaoZappas.html).
+const CSV_URLS = [`${APPS_SCRIPT_URL}?loja=resumo`];
 
 /* ═══════════════════════════════════════════════════════
    CACHE LOCAL (IndexedDB)
@@ -1154,7 +1157,7 @@ const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_data_v1';
+const DB_KEY   = 'analiseComercial_resumo_v1';
 
 function openDB() {
   return new Promise((resolve, reject) => {
