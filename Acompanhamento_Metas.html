@@ -1125,20 +1125,29 @@ async function loadData(forceRefresh = false) {
   try {
     const cacheBust = '&_cb=' + Date.now();
     const [responses] = await Promise.all([
-      Promise.all(CSV_URLS.map(url => fetch(url + cacheBust, { cache: 'no-store' }))),
+      Promise.all(CSV_URLS.map(url => fetch(url + cacheBust, { cache: 'no-store' }).catch(() => null))),
       loadMetasData(),
     ]);
-    responses.forEach((res, i) => {
-      if (!res.ok) throw new Error('HTTP ' + res.status + ' (arquivo ' + (i+1) + ' de ' + CSV_URLS.length + ')');
-    });
-    const texts = await Promise.all(responses.map(res => res.text()));
+
     let headers = [];
     let allRows = [];
-    texts.forEach(txt => {
-      const parsed = parseCSV(txt);
-      if (!headers.length) headers = parsed.headers;
-      allRows = allRows.concat(parsed.rows);
-    });
+    const lojasComFalha = [];
+
+    for (let i = 0; i < responses.length; i++) {
+      const res = responses[i];
+      const nomeLoja = (STORE_KEYS && STORE_KEYS[i]) ? STORE_KEYS[i] : ('arquivo ' + (i + 1));
+      try {
+        if (!res || !res.ok) throw new Error('HTTP ' + (res ? res.status : '—'));
+        const txt = await res.text();
+        const parsed = parseCSV(txt);
+        if (!headers.length) headers = parsed.headers;
+        allRows = allRows.concat(parsed.rows);
+      } catch (errLoja) {
+        console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
+        lojasComFalha.push(nomeLoja);
+      }
+    }
+
     rawData = transform(allRows, headers);
     if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
     const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
@@ -1147,7 +1156,8 @@ async function loadData(forceRefresh = false) {
     applyFilters();
     const now = new Date();
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
-    document.getElementById('lastUpd').textContent = ts;
+    document.getElementById('lastUpd').textContent = ts +
+      (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
     saveCache(rawData, ts);
   } catch(e) {
     console.error(e);
