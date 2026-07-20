@@ -918,12 +918,12 @@ function openDB() {
   });
 }
 
-async function saveCache(data, ts) {
+async function saveCache(data, ts, rawTs) {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data, ts }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs }, DB_KEY);
       tx.oncomplete = resolve;
       tx.onerror    = () => reject(tx.error);
     });
@@ -945,6 +945,29 @@ async function loadCache() {
     console.warn('Cache local indisponível:', e);
     return null;
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SINCRONIA GLOBAL ENTRE PÁGINAS (Zappas)
+   Quando o usuário clica em "Atualizar" em QUALQUER uma das
+   páginas do painel, este aviso é gravado no localStorage
+   (compartilhado entre todas as páginas do mesmo site).
+   Assim: se outra página estiver aberta em outra aba, ela se
+   atualiza sozinha na hora; se não estiver aberta, ela detecta
+   o aviso e busca dados novos automaticamente na próxima vez
+   que for carregada — sem precisar clicar em Atualizar de novo.
+═══════════════════════════════════════════════════════ */
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+
+function avisarOutrasPaginasZappas() {
+  try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
+}
+
+function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheRawTs || 0);
+  } catch(e) { return false; }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1258,7 +1281,7 @@ async function loadData(forceRefresh = false) {
   // Usa o cache local se existir e não for um refresh forçado pelo botão
   if(!forceRefresh) {
     const cached = await loadCache();
-    if(cached && cached.data && cached.data.length) {
+    if(cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
       rawData = cached.data;
       populateFilters(rawData);
       hideErr();
@@ -1301,9 +1324,11 @@ async function loadData(forceRefresh = false) {
     hideErr();
     $('content').classList.remove('hidden');
     renderSemanal2();
-    const ts = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    const tsDate = new Date();
+    const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
-    saveCache(rawData, ts);
+    saveCache(rawData, ts, tsDate.getTime());
+    avisarOutrasPaginasZappas();
     if(isFirst) setTimeout(()=>showLoader(false), 300);
 
   } catch(e) {
@@ -1314,6 +1339,14 @@ async function loadData(forceRefresh = false) {
   }
   btn.classList.remove('spin');
 }
+
+// Se outra página do painel disparar uma atualização enquanto esta
+// estiver aberta em outra aba, esta também se atualiza sozinha.
+window.addEventListener('storage', (e) => {
+  if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
+    loadData(true);
+  }
+});
 
 ['f-loja'].forEach(id => $(id).addEventListener('change', renderSemanal2));
 

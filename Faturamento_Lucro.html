@@ -517,12 +517,12 @@ function openDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-async function saveCache(data,ts){
+async function saveCache(data,ts,rawTs){
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -537,6 +537,29 @@ async function loadCacheDB(){
       req.onerror=()=>reject(req.error);
     });
   }catch(e){ console.warn('Cache local indisponível:',e); return null; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SINCRONIA GLOBAL ENTRE PÁGINAS (Zappas)
+   Quando o usuário clica em "Atualizar" em QUALQUER uma das
+   páginas do painel, este aviso é gravado no localStorage
+   (compartilhado entre todas as páginas do mesmo site).
+   Assim: se outra página estiver aberta em outra aba, ela se
+   atualiza sozinha na hora; se não estiver aberta, ela detecta
+   o aviso e busca dados novos automaticamente na próxima vez
+   que for carregada — sem precisar clicar em Atualizar de novo.
+═══════════════════════════════════════════════════════ */
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+
+function avisarOutrasPaginasZappas() {
+  try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
+}
+
+function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheRawTs || 0);
+  } catch(e) { return false; }
 }
 
 // ─── NORMALIZE header: remove accents, spaces, lowercase
@@ -665,7 +688,7 @@ async function loadData(forceRefresh) {
 
   if (!forceRefresh) {
     const cached = await loadCacheDB();
-    if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length) {
+    if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
       rawFat = cached.data.rawFat;
       rawCmv = cached.data.rawCmv || [];
       populateFilters();
@@ -794,11 +817,12 @@ async function loadData(forceRefresh) {
       main.insertBefore(warn, main.firstChild);
     }
 
-    document.getElementById('fb-ts').textContent =
-      new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+    const tsDate = new Date();
+    const ts = tsDate.toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
+    document.getElementById('fb-ts').textContent = ts;
 
-    const ts = new Date().toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
-    saveCache({ rawFat, rawCmv, cmvUnavailable }, ts);
+    saveCache({ rawFat, rawCmv, cmvUnavailable }, ts, tsDate.getTime());
+    avisarOutrasPaginasZappas();
 
   } catch(e) {
     debugLog.push(`<span class="err">✗ ERRO: ${e.message}</span>`);
@@ -807,6 +831,14 @@ async function loadData(forceRefresh) {
     btn.classList.remove('loading');
   }
 }
+
+// Se outra página do painel disparar uma atualização enquanto esta
+// estiver aberta em outra aba, esta também se atualiza sozinha.
+window.addEventListener('storage', (e) => {
+  if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
+    loadData(true);
+  }
+});
 
 function showLoading() {
   document.getElementById('mainContent').innerHTML = `
