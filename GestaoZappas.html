@@ -291,6 +291,16 @@ body {
 </div>
 
 <script>
+// ── Evita "tela congelada" ao usar o botão Voltar do navegador ──
+// Quando se navega para outra página (ex: Análise Comercial) e depois
+// se volta, o navegador às vezes restaura uma versão antiga em cache
+// (bfcache) em vez de carregar a página de novo — o que fazia o botão
+// "Gerar Resumo Mensal" sumir do rodapé. Isso força um recarregamento
+// completo sempre que a página volta desse jeito.
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) window.location.reload();
+});
+
 // ── BOTÃO: Gerar Resumo Mensal (agregação sob demanda) ──
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec';
 

@@ -605,6 +605,11 @@ a{ color:inherit; }
 </div>
 
 <script>
+// ── Evita "tela congelada" ao usar o botão Voltar do navegador ──
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) window.location.reload();
+});
+
 (function(){
 "use strict";
 
