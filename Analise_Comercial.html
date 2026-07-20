@@ -1145,7 +1145,11 @@ const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
 // Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
 // dos 6 CSVs brutos venda-a-venda — bem mais rápido. Gerado pelo botão
 // "Gerar Resumo Mensal" no menu principal (GestaoZappas.html).
-const CSV_URLS = [`${APPS_SCRIPT_URL}?loja=resumo`];
+// Antes buscava um "resumo" pronto do servidor (?loja=resumo), que estava
+// divergindo do total somado nas outras páginas (Acompanhamento de Metas,
+// Faturamento Detalhado). Agora busca as 6 lojas e soma aqui, igual às
+// demais páginas — assim os totais sempre batem entre si.
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 /* ═══════════════════════════════════════════════════════
    CACHE LOCAL (IndexedDB)
