@@ -834,12 +834,21 @@ body {
   </div>
 </header>
 
-<!-- FILTER ROW below brand bar (apenas Loja — a tabela é sempre anual) -->
+<!-- FILTER ROW below brand bar -->
 <div class="sub-filter-bar" id="sub-filter-bar">
   <div class="fb-filters">
     <div class="fb-group">
       <span class="fb-label">Loja</span>
       <select class="fb-select" id="f-loja"><option value="">Todas</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Ano</span>
+      <select class="fb-select" id="f-ano-grade"></select>
+    </div>
+    <div class="fb-group">
+      <span class="fb-label">Mês</span>
+      <select class="fb-select" id="f-mes-grade"></select>
     </div>
   </div>
 </div>
@@ -854,6 +863,24 @@ body {
       <div class="err-title">Não foi possível carregar</div>
       <div class="err-msg" id="err-msg">Verifique o link do CSV.</div>
       <div class="err-code" id="err-code"></div>
+    </div>
+  </div>
+
+  <!-- Faturamento Diário por Loja -->
+  <div class="comp-card fi" id="cc-diaria">
+    <div class="comp-card-head cc-head-blue" style="justify-content:space-between">
+      <div class="comp-card-head-left">
+        <div class="cc-icon cc-icon-blue">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2" width="16" height="16"><path stroke-linecap="round" stroke-linejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        </div>
+        <div>
+          <div class="title">Faturamento Diário por Loja</div>
+          <div class="sub">Valor faturado em cada dia, separado por loja · use os filtros "Ano" e "Mês" acima</div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-scroll" id="scroll-diaria">
+      <table class="comp-table" id="ct-diaria"><thead id="cth-diaria"></thead><tbody id="ctb-diaria"></tbody></table>
     </div>
   </div>
 
@@ -980,6 +1007,16 @@ function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
 ═══════════════════════════════════════════════════════ */
 let rawData = [];
 
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+// Ordem e rótulos das colunas da grade diária por loja.
+// A comparação usa uma versão normalizada (sem acento/maiúscula) do nome
+// da loja que já vem em cada linha do CSV, então funciona independente
+// de a planilha escrever "Anisio", "ANISIO" ou "Anísio", por exemplo.
+const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belvedere', 'Havan', 'Muffato'];
+const normLojaKey = s => String(s||'').trim().toUpperCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+
 /* ═══════════════════════════════════════════════════════
    CSV UTILS
 ═══════════════════════════════════════════════════════ */
@@ -1105,6 +1142,110 @@ function populateFilters(data) {
   const cur = $('f-loja').value;
   $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l => `<option value="${l}">${l}</option>`).join('');
   if(lojas.includes(cur)) $('f-loja').value = cur;
+}
+
+// Popula os filtros Ano e Mês da grade diária com os valores que
+// realmente existem nos dados. Mantém a seleção atual se continuar
+// válida; senão, seleciona o ano/mês mais recente disponível.
+function populateFiltroMesGrade(data) {
+  const selAno = $('f-ano-grade');
+  const selMes = $('f-mes-grade');
+  const curAno = selAno.value;
+  const curMes = selMes.value;
+
+  const mesesComDados = new Set();
+  data.forEach(r => {
+    if(r.data && !isNaN(r.data)) mesesComDados.add(r.data.getMonth());
+  });
+  const meses = MONTHS.filter((_, i) => mesesComDados.has(i));
+
+  const anos = [...new Set(data.map(r => r.ano))].filter(Boolean).sort();
+
+  selAno.innerHTML = '<option value="">Todos</option>' + anos.map(a => `<option value="${a}">${a}</option>`).join('');
+  selMes.innerHTML = '<option value="">Todos</option>' + meses.map(m => `<option value="${m}">${m}</option>`).join('');
+
+  selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
+  selMes.value = meses.includes(curMes) ? curMes : (meses.length ? meses[meses.length-1] : '');
+}
+
+/* ═══════════════════════════════════════════════════════
+   RENDER — Faturamento Diário por Loja
+═══════════════════════════════════════════════════════ */
+function renderGradeDiaria() {
+  const anoSel = $('f-ano-grade').value;
+  const mesSel = $('f-mes-grade').value;
+
+  const mesIdx = mesSel ? MONTHS.findIndex(m => m.toLowerCase() === mesSel.toLowerCase()) : -1;
+  const baseData = rawData.filter(r => {
+    if(!r.data || isNaN(r.data)) return false;
+    if(anoSel && String(r.data.getFullYear()) !== anoSel) return false;
+    if(mesIdx >= 0 && r.data.getMonth() !== mesIdx) return false;
+    return true;
+  });
+
+  if(!baseData.length) {
+    $('cth-diaria').innerHTML = '';
+    $('ctb-diaria').innerHTML = '<tr><td colspan="8" class="nd"><div class="nd-icon">📅</div>Sem dados para o mês selecionado</div></td></tr>';
+    return;
+  }
+
+  // Agrupa por dia (chave = data em ms) e, dentro de cada dia, soma o
+  // faturamento por loja (pode haver mais de uma linha por loja/dia,
+  // por canal de venda, por exemplo).
+  const porDia = new Map(); // ts -> { data:Date, lojas: {label: total} }
+  baseData.forEach(r => {
+    const label = GRADE_LOJAS.find(l => normLojaKey(l) === normLojaKey(r.loja));
+    if(!label) return; // loja fora das 6 esperadas — ignora na grade
+    const ts = new Date(r.data.getFullYear(), r.data.getMonth(), r.data.getDate()).getTime();
+    if(!porDia.has(ts)) porDia.set(ts, { data: r.data, lojas: {} });
+    const entry = porDia.get(ts);
+    entry.lojas[label] = (entry.lojas[label] || 0) + (r.fat || 0);
+  });
+
+  const dias = [...porDia.values()].sort((a,b) => a.data - b.data);
+
+  if(!dias.length) {
+    $('cth-diaria').innerHTML = '';
+    $('ctb-diaria').innerHTML = '<tr><td colspan="8" class="nd"><div class="nd-icon">📅</div>Nenhuma das 6 lojas encontrada nos dados do período</div></td></tr>';
+    return;
+  }
+
+  // Cabeçalho
+  let h = `<tr>
+    <th class="th-col left" style="min-width:110px">Data</th>`;
+  GRADE_LOJAS.forEach(l => { h += `<th class="th-col" style="text-align:center">${l}</th>`; });
+  h += `<th class="th-col tot-col" style="text-align:center;border-left:2px solid var(--border-2)">Total</th></tr>`;
+  $('cth-diaria').innerHTML = h;
+
+  // Corpo + totais por loja
+  const totaisLoja = {}; GRADE_LOJAS.forEach(l => totaisLoja[l] = 0);
+  let totalGeral = 0;
+  const diaSemanaCurto = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+
+  let body = '';
+  dias.forEach(d => {
+    const dataFmt = d.data.toLocaleDateString('pt-BR');
+    const diaSem  = diaSemanaCurto[d.data.getDay()];
+    let totalDia = 0;
+    body += `<tr><td class="td-metric">${dataFmt} <span style="color:var(--ink-4);font-weight:500">(${diaSem})</span></td>`;
+    GRADE_LOJAS.forEach(l => {
+      const v = d.lojas[l] || 0;
+      totaisLoja[l] += v;
+      totalDia += v;
+      body += `<td style="text-align:center">${fNum(v)}</td>`;
+    });
+    totalGeral += totalDia;
+    body += `<td class="tot-col" style="text-align:center;font-weight:700;border-left:2px solid var(--border-2)">${fNum(totalDia)}</td></tr>`;
+  });
+
+  body += `<tr class="total-row">
+    <td class="td-metric" style="font-weight:800">Total</td>`;
+  GRADE_LOJAS.forEach(l => {
+    body += `<td style="text-align:center;font-weight:800">${fNum(totaisLoja[l])}</td>`;
+  });
+  body += `<td class="tot-col" style="text-align:center;font-weight:800;border-left:2px solid var(--border-2)">${fNum(totalGeral)}</td></tr>`;
+
+  $('ctb-diaria').innerHTML = body;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1289,8 +1430,10 @@ async function loadData(forceRefresh = false) {
     if(cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
       rawData = cached.data;
       populateFilters(rawData);
+      populateFiltroMesGrade(rawData);
       hideErr();
       $('content').classList.remove('hidden');
+      renderGradeDiaria();
       renderSemanal2();
       $('fb-ts').textContent = cached.ts + ' (dados salvos — clique 🔄 para atualizar)';
       if(isFirst) setTimeout(()=>showLoader(false), 300);
@@ -1326,8 +1469,10 @@ async function loadData(forceRefresh = false) {
     if(!rawData.length) throw new Error('Nenhuma linha válida encontrada.');
 
     populateFilters(rawData);
+    populateFiltroMesGrade(rawData);
     hideErr();
     $('content').classList.remove('hidden');
+    renderGradeDiaria();
     renderSemanal2();
     const tsDate = new Date();
     const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
@@ -1354,6 +1499,7 @@ window.addEventListener('storage', (e) => {
 });
 
 ['f-loja'].forEach(id => $(id).addEventListener('change', renderSemanal2));
+['f-ano-grade','f-mes-grade'].forEach(id => $(id).addEventListener('change', renderGradeDiaria));
 
 /* ═══════════════════════════════════════════════════════
    SIDEBAR (recolher/expandir, submenus)
