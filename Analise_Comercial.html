@@ -1384,11 +1384,6 @@ function populateFilters(data) {
   const todosMeses = ['1','2','3','4','5','6','7','8','9','10','11','12'];
   fillSel('f-mes',  todosMeses, 'Todos', m=>MONTHS[+m-1]||m);
   if(anoSel && anos.includes(anoSel)) $('f-ano').value = anoSel;
-  const mesSel = $('f-mes').value;
-  if(!mesSel) {
-    const mesAtual = String(new Date().getMonth() + 1);
-    $('f-mes').value = mesAtual;
-  }
   populateCanalDropdown(canais);
 }
 
