@@ -521,15 +521,15 @@ a{ color:inherit; }
 
     <div class="filterbar">
       <div class="field">
+        <label for="filterAno">Ano</label>
+        <select id="filterAno"><option>—</option></select>
+      </div>
+      <div class="field">
         <label>Canal</label>
         <div class="c-dd" id="channelDD">
           <button type="button" class="c-dd-btn" id="channelBtn">Carregando…</button>
           <div class="c-dd-menu" id="channelMenu"></div>
         </div>
-      </div>
-      <div class="field">
-        <label for="filterAno">Ano</label>
-        <select id="filterAno"><option>—</option></select>
       </div>
 
       <div class="filterbar-actions">
@@ -1176,24 +1176,29 @@ async function fetchData(forceRefresh){
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
-    const responses = await Promise.all(
-      CSV_URLS.map(function(url, i){
-        return fetch(url, { cache:"no-store", signal:controller.signal })
-          .catch(function(netErr){
-            throw new Error("Falha de rede no arquivo " + (i+1) + " de " + CSV_URLS.length + " (" + (STORE_LABELS[i] || "loja " + (i+1)) + "): " + netErr.message);
-          });
-      })
-    );
-    clearTimeout(timeoutId);
-    responses.forEach(function(res, i){
-      if (!res.ok) throw new Error("Falha HTTP " + res.status + " no arquivo " + (i+1) + " de " + CSV_URLS.length + " (" + (STORE_LABELS[i] || "loja " + (i+1)) + ")");
-    });
-    const texts = await Promise.all(responses.map(function(res){ return res.text(); }));
+
     let raw = [];
-    texts.forEach(function(text){
-      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-      raw = raw.concat(parseCSV(text));
-    });
+    const lojasComFalha = [];
+    // Busca uma loja de cada vez (sequencial), em vez de todas ao mesmo
+    // tempo — disparar as 6 juntas sobrecarregava o Apps Script e fazia
+    // uma loja "sumir" aleatoriamente a cada carregamento. Além disso,
+    // agora uma loja com problema não derruba a página inteira: as
+    // demais continuam sendo mostradas normalmente.
+    for (let i = 0; i < CSV_URLS.length; i++) {
+      const nomeLoja = STORE_LABELS[i] || ("loja " + (i+1));
+      try {
+        const res = await fetch(CSV_URLS[i], { cache:"no-store", signal:controller.signal });
+        if (!res.ok) throw new Error("HTTP " + res.status);
+        let text = await res.text();
+        if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+        raw = raw.concat(parseCSV(text));
+      } catch (errLoja) {
+        console.warn("Loja indisponível (" + nomeLoja + "):", errLoja.message);
+        lojasComFalha.push(nomeLoja);
+      }
+    }
+    clearTimeout(timeoutId);
+
     console.log('[Banco_Declaracao] Linhas brutas lidas:', raw.length);
     if (raw.length) console.log('[Banco_Declaracao] Colunas encontradas:', Object.keys(raw[0]));
     const rows = cleanRows(raw);
@@ -1204,7 +1209,8 @@ async function fetchData(forceRefresh){
     populateFilters(true);
     render();
     const tsDate = new Date();
-    const ts = "Atualizado às " + tsDate.toLocaleTimeString("pt-BR");
+    const ts = "Atualizado às " + tsDate.toLocaleTimeString("pt-BR") +
+      (lojasComFalha.length ? " ⚠️ Sem dados de: " + lojasComFalha.join(", ") : "");
     $("lastSync").textContent = ts;
     saveCache(rows, ts, tsDate.getTime());
     avisarOutrasPaginasZappas();

@@ -1159,20 +1159,20 @@ async function loadData(forceRefresh = false) {
   showLoading();
   try {
     const cacheBust = '&_cb=' + Date.now();
-    const [responses] = await Promise.all([
-      Promise.all(CSV_URLS.map(url => fetch(url + cacheBust, { cache: 'no-store' }).catch(() => null))),
-      loadMetasData(),
-    ]);
+    const metasPromise = loadMetasData(); // roda em paralelo, é leve e é outro script
 
     let headers = [];
     let allRows = [];
     const lojasComFalha = [];
 
-    for (let i = 0; i < responses.length; i++) {
-      const res = responses[i];
+    // Busca uma loja de cada vez (sequencial), em vez de todas ao mesmo
+    // tempo — disparar as 6 juntas sobrecarregava o Apps Script e fazia
+    // uma loja "sumir" aleatoriamente a cada carregamento.
+    for (let i = 0; i < CSV_URLS.length; i++) {
       const nomeLoja = (STORE_KEYS && STORE_KEYS[i]) ? STORE_KEYS[i] : ('arquivo ' + (i + 1));
       try {
-        if (!res || !res.ok) throw new Error('HTTP ' + (res ? res.status : '—'));
+        const res = await fetch(CSV_URLS[i] + cacheBust, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
         const txt = await res.text();
         const parsed = parseCSV(txt);
         if (!headers.length) headers = parsed.headers;
@@ -1183,6 +1183,7 @@ async function loadData(forceRefresh = false) {
       }
     }
 
+    await metasPromise;
     rawData = transform(allRows, headers);
     if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
     const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();

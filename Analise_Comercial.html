@@ -843,13 +843,13 @@ body {
     </div>
     <div class="fb-sep"></div>
     <div class="fb-group">
-      <span class="fb-label">Loja</span>
-      <select class="fb-select" id="f-loja"><option value="">Todas</option></select>
+      <span class="fb-label">Mês</span>
+      <select class="fb-select" id="f-mes"><option value="">Todos</option></select>
     </div>
     <div class="fb-sep"></div>
     <div class="fb-group">
-      <span class="fb-label">Mês</span>
-      <select class="fb-select" id="f-mes"><option value="">Todos</option></select>
+      <span class="fb-label">Loja</span>
+      <select class="fb-select" id="f-loja"><option value="">Todas</option></select>
     </div>
     <div class="fb-sep"></div>
     <div class="fb-group">
@@ -1130,6 +1130,11 @@ body {
 </div><!-- /dashboard-view -->
 
 <script>
+// ── Evita "tela congelada" ao usar o botão Voltar do navegador ──
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) window.location.reload();
+});
+
 /* ═══════════════════════════════════════════════════════
    ╔═══════════════════════════════════╗
    ║  🔧 CONFIGURAÇÃO — EDITE AQUI    ║
@@ -1145,7 +1150,11 @@ const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
 // Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
 // dos 6 CSVs brutos venda-a-venda — bem mais rápido. Gerado pelo botão
 // "Gerar Resumo Mensal" no menu principal (GestaoZappas.html).
-const CSV_URLS = [`${APPS_SCRIPT_URL}?loja=resumo`];
+// Antes buscava um "resumo" pronto do servidor (?loja=resumo), que estava
+// divergindo do total somado nas outras páginas (Acompanhamento de Metas,
+// Faturamento Detalhado). Agora busca as 6 lojas e soma aqui, igual às
+// demais páginas — assim os totais sempre batem entre si.
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 /* ═══════════════════════════════════════════════════════
    CACHE LOCAL (IndexedDB)
@@ -1168,12 +1177,12 @@ function openDB() {
   });
 }
 
-async function saveCache(data, ts) {
+async function saveCache(data, ts, rawTs) {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data, ts }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs }, DB_KEY);
       tx.oncomplete = resolve;
       tx.onerror    = () => reject(tx.error);
     });
@@ -1195,6 +1204,29 @@ async function loadCache() {
     console.warn('Cache local indisponível:', e);
     return null;
   }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SINCRONIA GLOBAL ENTRE PÁGINAS (Zappas)
+   Quando o usuário clica em "Atualizar" em QUALQUER uma das
+   páginas do painel, este aviso é gravado no localStorage
+   (compartilhado entre todas as páginas do mesmo site).
+   Assim: se outra página estiver aberta em outra aba, ela se
+   atualiza sozinha na hora; se não estiver aberta, ela detecta
+   o aviso e busca dados novos automaticamente na próxima vez
+   que for carregada — sem precisar clicar em Atualizar de novo.
+═══════════════════════════════════════════════════════ */
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+
+function avisarOutrasPaginasZappas() {
+  try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
+}
+
+function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheRawTs || 0);
+  } catch(e) { return false; }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1376,14 +1408,20 @@ function fillSel(id, vals, placeholder, labelFn) {
 function populateFilters(data) {
   const anos   = [...new Set(data.map(r=>r.ano))].filter(Boolean).sort();
   const lojas  = [...new Set(data.map(r=>r.loja))].filter(Boolean).sort();
+  const meses  = [...new Set(data.map(r=>r.mes))].filter(Boolean).sort((a,b)=>+a-+b);
   const canais = [...new Set(data.map(r=>r.canal))].filter(Boolean).sort();
   const curYear = String(new Date().getFullYear());
   const anoSel  = $('f-ano').value || (anos.includes(curYear) ? curYear : (anos[anos.length-1]||''));
   fillSel('f-ano',  anos,  'Todos', v=>v);
   fillSel('f-loja', lojas, 'Todas', v=>v);
-  const todosMeses = ['1','2','3','4','5','6','7','8','9','10','11','12'];
-  fillSel('f-mes',  todosMeses, 'Todos', m=>MONTHS[+m-1]||m);
+  fillSel('f-mes',  meses, 'Todos', m=>MONTHS[+m-1]||m);
   if(anoSel && anos.includes(anoSel)) $('f-ano').value = anoSel;
+  // Se nenhum mês estiver selecionado, define o mês atual como padrão
+  const mesSel = $('f-mes').value;
+  if(!mesSel) {
+    const mesAtual = String(new Date().getMonth() + 1);
+    if(meses.includes(mesAtual)) $('f-mes').value = mesAtual;
+  }
   populateCanalDropdown(canais);
 }
 
@@ -2012,7 +2050,7 @@ async function loadData(forceRefresh = false) {
   // Usa o cache local se existir e não for um refresh forçado pelo botão
   if(!forceRefresh) {
     const cached = await loadCache();
-    if(cached && cached.data && cached.data.length) {
+    if(cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
       rawData = cached.data;
       populateFilters(rawData);
       hideErr();
@@ -2030,24 +2068,38 @@ async function loadData(forceRefresh = false) {
 
   try {
     const cacheBust = '&_=' + Date.now();
-    const responses = await Promise.all(
-      CSV_URLS.map(url => fetch(url + cacheBust, { cache:'no-store' }))
-    );
-    responses.forEach((res, i) => {
-      if(!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText} (arquivo ${i+1} de ${CSV_URLS.length})`);
-    });
+    setLdTxt('Carregando CSV…');
+
+    rawData = [];
+    const lojasComFalha = [];
+    // Busca uma loja de cada vez (sequencial), em vez de todas ao mesmo
+    // tempo — disparar as 6 juntas sobrecarregava o Apps Script e fazia
+    // uma loja "sumir" aleatoriamente a cada carregamento.
+    for (let i = 0; i < CSV_URLS.length; i++) {
+      const nomeLoja = (STORE_KEYS && STORE_KEYS[i]) ? STORE_KEYS[i] : ('arquivo ' + (i + 1));
+      setLdTxt('Carregando ' + nomeLoja + '… (' + (i+1) + '/' + CSV_URLS.length + ')');
+      try {
+        const res = await fetch(CSV_URLS[i] + cacheBust, { cache:'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        const txt = await res.text();
+        rawData = rawData.concat(parseCSV(txt));
+      } catch (errLoja) {
+        console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
+        lojasComFalha.push(nomeLoja);
+      }
+    }
     setLdTxt('Processando dados…');
-    const texts = await Promise.all(responses.map(res => res.text()));
-    rawData = texts.flatMap(text => parseCSV(text));
     if(!rawData.length) throw new Error('Nenhuma linha válida encontrada.');
 
     populateFilters(rawData);
     hideErr();
     $('content').classList.remove('hidden');
     renderAll();
-    const ts = new Date().toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    $('fb-ts').textContent = ts;
-    saveCache(rawData, ts);
+    const tsDate = new Date();
+    const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
+    saveCache(rawData, ts, tsDate.getTime());
+    avisarOutrasPaginasZappas();
     if(isFirst) setTimeout(()=>showLoader(false), 300);
 
   } catch(e) {
@@ -2058,6 +2110,14 @@ async function loadData(forceRefresh = false) {
   }
   btn.classList.remove('spin');
 }
+
+// Se outra página do painel disparar uma atualização enquanto esta
+// estiver aberta em outra aba, esta também se atualiza sozinha.
+window.addEventListener('storage', (e) => {
+  if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
+    loadData(true);
+  }
+});
 
 /* ═══════════════════════════════════════════════════════
    UTILS
