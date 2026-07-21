@@ -508,8 +508,14 @@ body {
 .leg-dot  { width: 8px; height: 8px; border-radius: 2px; }
 
 .comp-scroll { overflow-x: auto; }
+#scroll-diaria { max-height: 520px; overflow-y: auto; }
+#scroll-diaria .comp-table thead { position: sticky; top: 0; z-index: 2; }
+#scroll-diaria .comp-table thead th {
+  background: var(--surface);
+  border-bottom: 2px solid var(--border);
+}
 .comp-table {
-  width: 100%; border-collapse: collapse;
+  width: 100%; border-collapse: separate; border-spacing: 0;
   font-size: 12.5px; min-width: 700px;
 }
 .comp-table thead tr { border-bottom: 2px solid var(--border); }
@@ -1164,8 +1170,20 @@ function populateFiltroMesGrade(data) {
   selAno.innerHTML = '<option value="">Todos</option>' + anos.map(a => `<option value="${a}">${a}</option>`).join('');
   selMes.innerHTML = '<option value="">Todos</option>' + meses.map(m => `<option value="${m}">${m}</option>`).join('');
 
-  selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
-  selMes.value = meses.includes(curMes) ? curMes : (meses.length ? meses[meses.length-1] : '');
+  const hoje = new Date();
+  const mesAtual = MONTHS[hoje.getMonth()];
+  const anoAtual = String(hoje.getFullYear());
+
+  if(!curAno) {
+    selAno.value = anos.includes(anoAtual) ? anoAtual : (anos.length ? anos[anos.length-1] : '');
+  } else {
+    selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
+  }
+  if(!curMes) {
+    selMes.value = meses.includes(mesAtual) ? mesAtual : (meses.length ? meses[meses.length-1] : '');
+  } else {
+    selMes.value = meses.includes(curMes) ? curMes : (meses.length ? meses[meses.length-1] : '');
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
