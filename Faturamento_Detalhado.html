@@ -508,14 +508,8 @@ body {
 .leg-dot  { width: 8px; height: 8px; border-radius: 2px; }
 
 .comp-scroll { overflow-x: auto; }
-#scroll-diaria { max-height: 520px; overflow-y: auto; }
-#scroll-diaria .comp-table thead { position: sticky; top: 0; z-index: 2; }
-#scroll-diaria .comp-table thead th {
-  background: var(--surface);
-  border-bottom: 2px solid var(--border);
-}
 .comp-table {
-  width: 100%; border-collapse: separate; border-spacing: 0;
+  width: 100%; border-collapse: collapse;
   font-size: 12.5px; min-width: 700px;
 }
 .comp-table thead tr { border-bottom: 2px solid var(--border); }
@@ -1022,6 +1016,8 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belvedere', 'Havan', 'Muffato'];
 const normLojaKey = s => String(s||'').trim().toUpperCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+const normMes = s => String(s||'').trim().toLowerCase()
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
 /* ═══════════════════════════════════════════════════════
    CSV UTILS
@@ -1159,31 +1155,15 @@ function populateFiltroMesGrade(data) {
   const curAno = selAno.value;
   const curMes = selMes.value;
 
-  const mesesComDados = new Set();
-  data.forEach(r => {
-    if(r.data && !isNaN(r.data)) mesesComDados.add(r.data.getMonth());
-  });
-  const meses = MONTHS.filter((_, i) => mesesComDados.has(i));
-
   const anos = [...new Set(data.map(r => r.ano))].filter(Boolean).sort();
+  const mesesComDados = new Set(data.map(r => normMes(r.mes)));
+  const meses = MONTHS.filter(m => mesesComDados.has(normMes(m)));
 
   selAno.innerHTML = '<option value="">Todos</option>' + anos.map(a => `<option value="${a}">${a}</option>`).join('');
-  selMes.innerHTML = '<option value="">Todos</option>' + meses.map(m => `<option value="${m}">${m}</option>`).join('');
+  selMes.innerHTML = '<option value="">Todos</option>' + MONTHS.map(m => `<option value="${m}">${m}</option>`).join('');
 
-  const hoje = new Date();
-  const mesAtual = MONTHS[hoje.getMonth()];
-  const anoAtual = String(hoje.getFullYear());
-
-  if(!curAno) {
-    selAno.value = anos.includes(anoAtual) ? anoAtual : (anos.length ? anos[anos.length-1] : '');
-  } else {
-    selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
-  }
-  if(!curMes) {
-    selMes.value = meses.includes(mesAtual) ? mesAtual : (meses.length ? meses[meses.length-1] : '');
-  } else {
-    selMes.value = meses.includes(curMes) ? curMes : (meses.length ? meses[meses.length-1] : '');
-  }
+  selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
+  selMes.value = meses.includes(curMes) ? curMes : (meses.length ? meses[meses.length-1] : '');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1193,11 +1173,10 @@ function renderGradeDiaria() {
   const anoSel = $('f-ano-grade').value;
   const mesSel = $('f-mes-grade').value;
 
-  const mesIdx = mesSel ? MONTHS.findIndex(m => m.toLowerCase() === mesSel.toLowerCase()) : -1;
   const baseData = rawData.filter(r => {
     if(!r.data || isNaN(r.data)) return false;
-    if(anoSel && String(r.data.getFullYear()) !== anoSel) return false;
-    if(mesIdx >= 0 && r.data.getMonth() !== mesIdx) return false;
+    if(anoSel && r.ano !== anoSel) return false;
+    if(mesSel && normMes(r.mes) !== normMes(mesSel)) return false;
     return true;
   });
 
