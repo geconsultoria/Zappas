@@ -1482,7 +1482,10 @@ async function loadData(forceRefresh) {
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     document.getElementById('lastUpdateTime').textContent = ts;
     saveCache(rawData, ts, now.getTime());
-    avisarOutrasPaginasZappas();
+    // Não avisa mais as outras páginas aqui — só a tela inicial
+    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // página avisando a outra em cadeia forçava recarregar tudo
+    // toda vez que qualquer página era aberta.
 
   } catch(err) {
     showError(err.message);

@@ -829,7 +829,10 @@ async function loadData(forceRefresh) {
     document.getElementById('fb-ts').textContent = ts;
 
     saveCache({ rawFat, rawCmv, cmvUnavailable }, ts, tsDate.getTime());
-    avisarOutrasPaginasZappas();
+    // Não avisa mais as outras páginas aqui — só a tela inicial
+    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // página avisando a outra em cadeia forçava recarregar tudo
+    // toda vez que qualquer página era aberta.
 
   } catch(e) {
     debugLog.push(`<span class="err">✗ ERRO: ${e.message}</span>`);
