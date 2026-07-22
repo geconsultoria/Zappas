@@ -1162,7 +1162,7 @@ async function fetchData(forceRefresh){
       populateFilters(true);
       render();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      $("lastSync").textContent = cached.ts + (stale ? " (atualizar disponível)" : "");
+      $("lastSync").textContent = "Última atualização: " + cached.ts + (stale ? " (Atualização Disponível)" : "");
       if (stale) fetchData(true);
       return;
     }
@@ -1213,9 +1213,9 @@ async function fetchData(forceRefresh){
     populateFilters(true);
     render();
     const tsDate = new Date();
-    const ts = "Atualizado às " + tsDate.toLocaleTimeString("pt-BR") +
+    const ts = tsDate.toLocaleDateString("pt-BR") + " " + tsDate.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"}) +
       (lojasComFalha.length ? " ⚠️ Sem dados de: " + lojasComFalha.join(", ") : "");
-    $("lastSync").textContent = ts;
+    $("lastSync").textContent = "Última atualização: " + ts;
     saveCache(rows, ts, tsDate.getTime());
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
