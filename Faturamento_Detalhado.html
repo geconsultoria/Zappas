@@ -829,7 +829,7 @@ a.side-brand:hover { opacity:.85; }
   </div>
   <div class="fb-right" style="margin-left:auto;">
     <div class="fb-ts">Atualizado: <span id="fb-ts">—</span></div>
-    <button class="btn-refresh" id="btn-refresh" onclick="loadData(true)">
+    <button class="btn-refresh" id="btn-refresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Gerar Resumo Mensal' na tela inicial">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       Atualizar
     </button>
@@ -930,7 +930,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 
 // Cada CSV já traz sua própria coluna "loja" preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único array.
-const STORE_KEYS = ['anisio', 'bady', 'belveder', 'damha', 'havan', 'muffato'];
+const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 /* ═══════════════════════════════════════════════════════
@@ -1016,7 +1016,7 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 // A comparação usa uma versão normalizada (sem acento/maiúscula) do nome
 // da loja que já vem em cada linha do CSV, então funciona independente
 // de a planilha escrever "Anisio", "ANISIO" ou "Anísio", por exemplo.
-const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belveder', 'Havan', 'Muffato'];
+const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belvedere', 'Havan', 'Muffato'];
 const normLojaKey = s => String(s||'').trim().toUpperCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
