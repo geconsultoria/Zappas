@@ -930,7 +930,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 
 // Cada CSV já traz sua própria coluna "loja" preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único array.
-const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
+const STORE_KEYS = ['anisio', 'bady', 'belveder', 'damha', 'havan', 'muffato'];
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 /* ═══════════════════════════════════════════════════════
@@ -1016,7 +1016,7 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 // A comparação usa uma versão normalizada (sem acento/maiúscula) do nome
 // da loja que já vem em cada linha do CSV, então funciona independente
 // de a planilha escrever "Anisio", "ANISIO" ou "Anísio", por exemplo.
-const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belvedere', 'Havan', 'Muffato'];
+const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belveder', 'Havan', 'Muffato'];
 const normLojaKey = s => String(s||'').trim().toUpperCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
