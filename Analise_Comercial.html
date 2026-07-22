@@ -829,7 +829,7 @@ a.side-brand:hover { opacity:.85; }
   </div>
   <div class="fb-right" style="margin-left:auto;">
     <div class="fb-ts">Atualizado: <span id="fb-ts">—</span></div>
-    <button class="btn-refresh" id="btn-refresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Gerar Resumo Mensal' na tela inicial">
+    <button class="btn-refresh" id="btn-refresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       Atualizar
     </button>
@@ -1151,7 +1151,7 @@ const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
 // Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
 // dos 6 CSVs brutos venda-a-venda — bem mais rápido. Gerado pelo botão
-// "Gerar Resumo Mensal" no menu principal (GestaoZappas.html).
+// "Atualização Geral" no menu principal (GestaoZappas.html).
 // Antes buscava um "resumo" pronto do servidor (?loja=resumo), que estava
 // divergindo do total somado nas outras páginas (Acompanhamento de Metas,
 // Faturamento Detalhado). Agora busca as 6 lojas e soma aqui, igual às
@@ -2046,14 +2046,16 @@ async function loadData(forceRefresh = false) {
   // Usa o cache local se existir e não for um refresh forçado pelo botão
   if(!forceRefresh) {
     const cached = await loadCache();
-    if(cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
+    if(cached && cached.data && cached.data.length) {
       rawData = cached.data;
       populateFilters(rawData);
       hideErr();
       $('content').classList.remove('hidden');
       renderAll();
-      $('fb-ts').textContent = cached.ts + ' (dados salvos — clique 🔄 para atualizar)';
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      $('fb-ts').textContent = cached.ts + (stale ? ' (atualizar disponível)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
+      if(stale) loadData(true); // dado novo disponível: atualiza em seguida
       return;
     }
   }
@@ -2096,7 +2098,7 @@ async function loadData(forceRefresh = false) {
     $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
     saveCache(rawData, ts, tsDate.getTime());
     // Não avisa mais as outras páginas aqui — só a tela inicial
-    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
     // toda vez que qualquer página era aberta.
     if(isFirst) setTimeout(()=>showLoader(false), 300);

@@ -271,9 +271,9 @@ body {
   </nav>
 
   <div class="side-footer">
-    <button class="side-link" id="btn-gerar-resumo" type="button" onclick="gerarResumoMensal()" title="Gerar Resumo Mensal">
+    <button class="side-link" id="btn-gerar-resumo" type="button" onclick="gerarResumoMensal()" title="Atualização Geral">
       <svg id="icon-gerar-resumo" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-      <span>Gerar Resumo Mensal</span>
+      <span>Atualização Geral</span>
     </button>
     <div class="side-status" id="status-gerar-resumo"></div>
   </div>
@@ -295,14 +295,23 @@ body {
 // Quando se navega para outra página (ex: Análise Comercial) e depois
 // se volta, o navegador às vezes restaura uma versão antiga em cache
 // (bfcache) em vez de carregar a página de novo — o que fazia o botão
-// "Gerar Resumo Mensal" sumir do rodapé. Isso força um recarregamento
+// "Atualização Geral" sumir do rodapé. Isso força um recarregamento
 // completo sempre que a página volta desse jeito.
 window.addEventListener('pageshow', function(e){
   if (e.persisted) window.location.reload();
 });
 
-// ── BOTÃO: Gerar Resumo Mensal (agregação sob demanda) ──
+// ── BOTÃO: Atualização Geral (agregação sob demanda) ──
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec';
+
+// Mesmo aviso global usado pelas 6 páginas de relatório: grava no
+// localStorage (compartilhado, mesmo domínio) para que cada uma detecte
+// que existe dado novo — na hora, se estiver aberta em outra aba, ou
+// automaticamente na próxima vez que for aberta.
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+function avisarOutrasPaginasZappas() {
+  try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
+}
 
 async function gerarResumoMensal() {
   const btn    = document.getElementById('btn-gerar-resumo');
@@ -320,6 +329,10 @@ async function gerarResumoMensal() {
     if (texto.startsWith('OK')) {
       status.style.color = '#1C6E54';
       status.textContent = '✓ ' + texto.replace(/^OK - /, '');
+      // Resumo gerado com sucesso: avisa as 6 páginas de relatório que
+      // há dado novo, pra elas se atualizarem sozinhas (sem precisar
+      // clicar em "Atualizar" em cada uma).
+      avisarOutrasPaginasZappas();
     } else {
       status.style.color = '#A23B2E';
       status.textContent = texto;

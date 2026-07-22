@@ -757,7 +757,7 @@ td.dash { color: var(--muted); }
       <div class="upd-label">Última atualização</div>
       <div class="upd-val" id="lastUpd">—</div>
     </div>
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Gerar Resumo Mensal' na tela inicial">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">
       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/>
         <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
@@ -947,12 +947,12 @@ function openDB() {
     req.onerror   = () => reject(req.error);
   });
 }
-async function saveCache(data, ts, rawTs) {
+async function saveCache(data, ts, rawTs, metas) {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data, ts, rawTs }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs, metas }, DB_KEY);
       tx.oncomplete = resolve;
       tx.onerror    = () => reject(tx.error);
     });
@@ -1144,15 +1144,26 @@ async function loadData(forceRefresh = false) {
 
   if (!forceRefresh) {
     const cached = await loadCache();
-    if (cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
+    if (cached && cached.data && cached.data.length) {
       rawData = cached.data;
       const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
       buildFilters();
       buildCanalOptions(canais);
-      applyFilters();
-      document.getElementById('lastUpd').textContent = cached.ts + ' (dados salvos)';
-      // Busca metas em segundo plano (leve, não precisa de cache)
-      loadMetasData().then(() => applyFilters()).catch(()=>{});
+
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      document.getElementById('lastUpd').textContent = cached.ts + (stale ? ' (atualizar disponível)' : '');
+
+      if (Array.isArray(cached.metas)) {
+        // Metas já vieram salvas junto com o cache — não precisa buscar de novo.
+        metasData = cached.metas;
+        applyFilters();
+      } else {
+        // Cache antigo, sem metas salvas: busca só essa parte agora.
+        applyFilters();
+        loadMetasData().then(() => applyFilters()).catch(()=>{});
+      }
+
+      if (stale) loadData(true); // dado novo disponível: atualiza em seguida
       return;
     }
   }
@@ -1196,9 +1207,9 @@ async function loadData(forceRefresh = false) {
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     document.getElementById('lastUpd').textContent = ts +
       (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
-    saveCache(rawData, ts, now.getTime());
+    saveCache(rawData, ts, now.getTime(), metasData);
     // Não avisa mais as outras páginas aqui — só a tela inicial
-    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
     // toda vez que qualquer página era aberta.
   } catch(e) {

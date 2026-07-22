@@ -992,7 +992,7 @@
       Última atualização<br>
       <strong id="lastUpdateTime">—</strong>
     </div>
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Gerar Resumo Mensal' na tela inicial">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">
       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
         <polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
       </svg>
@@ -1179,12 +1179,12 @@ function openDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-async function saveCache(data,ts,rawTs){
+async function saveCache(data,ts,rawTs,metas){
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,metas},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -1446,12 +1446,18 @@ async function loadData(forceRefresh) {
 
   if (!forceRefresh) {
     const cached = await loadCacheDB();
-    if (cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
+    if (cached && cached.data && cached.data.length) {
       rawData = cached.data;
-      try { await loadMetasData(); } catch(e) { console.warn('Metas load error:', e); metasData = []; }
+      if (Array.isArray(cached.metas)) {
+        metasData = cached.metas;
+      } else {
+        try { await loadMetasData(); } catch(e) { console.warn('Metas load error:', e); metasData = []; }
+      }
       buildFilters();
       applyFilters();
-      document.getElementById('lastUpdateTime').textContent = cached.ts + ' (dados salvos)';
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      document.getElementById('lastUpdateTime').textContent = cached.ts + (stale ? ' (atualizar disponível)' : '');
+      if (stale) loadData(true);
       return;
     }
   }
@@ -1481,9 +1487,9 @@ async function loadData(forceRefresh) {
     const now = new Date();
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
     document.getElementById('lastUpdateTime').textContent = ts;
-    saveCache(rawData, ts, now.getTime());
+    saveCache(rawData, ts, now.getTime(), metasData);
     // Não avisa mais as outras páginas aqui — só a tela inicial
-    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
     // toda vez que qualquer página era aberta.
 

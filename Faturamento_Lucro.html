@@ -426,7 +426,7 @@
     </div>
   </div>
   <div class="header-right">
-    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Gerar Resumo Mensal' na tela inicial">
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
       Atualizar
     </button>
@@ -695,7 +695,7 @@ async function loadData(forceRefresh) {
 
   if (!forceRefresh) {
     const cached = await loadCacheDB();
-    if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
+    if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length) {
       rawFat = cached.data.rawFat;
       rawCmv = cached.data.rawCmv || [];
       populateFilters();
@@ -708,7 +708,9 @@ async function loadData(forceRefresh) {
         warn.innerHTML = `<span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Atualize a URL do CMV quando disponível.</span>`;
         main.insertBefore(warn, main.firstChild);
       }
-      document.getElementById('fb-ts').textContent = cached.ts + ' (dados salvos)';
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      document.getElementById('fb-ts').textContent = cached.ts + (stale ? ' (atualizar disponível)' : '');
+      if (stale) loadData(true);
       return;
     }
   }
@@ -830,7 +832,7 @@ async function loadData(forceRefresh) {
 
     saveCache({ rawFat, rawCmv, cmvUnavailable }, ts, tsDate.getTime());
     // Não avisa mais as outras páginas aqui — só a tela inicial
-    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
     // toda vez que qualquer página era aberta.
 

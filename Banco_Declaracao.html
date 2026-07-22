@@ -535,7 +535,7 @@ a.side-brand:hover { opacity:.85; }
       </div>
 
       <div class="filterbar-actions">
-        <button class="btn btn-line" id="btnRefresh" type="button" style="display:none" title="Removido — use 'Gerar Resumo Mensal' na tela inicial">↻ Atualizar dados</button>
+        <button class="btn btn-line" id="btnRefresh" type="button" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">↻ Atualizar dados</button>
         <button class="btn btn-gold" id="btnPrint" type="button" disabled>🖶 Gerar relatório (PDF)</button>
       </div>
     </div>
@@ -1157,11 +1157,13 @@ function hideError(){ $("errorBanner").style.display = "none"; }
 async function fetchData(forceRefresh){
   if (!forceRefresh) {
     const cached = await loadCacheDB();
-    if (cached && cached.data && cached.data.length && !existeAtualizacaoMaisRecenteZappas(cached.rawTs)) {
+    if (cached && cached.data && cached.data.length) {
       state.rows = cached.data;
       populateFilters(true);
       render();
-      $("lastSync").textContent = cached.ts + " (dados salvos)";
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      $("lastSync").textContent = cached.ts + (stale ? " (atualizar disponível)" : "");
+      if (stale) fetchData(true);
       return;
     }
   }
@@ -1216,7 +1218,7 @@ async function fetchData(forceRefresh){
     $("lastSync").textContent = ts;
     saveCache(rows, ts, tsDate.getTime());
     // Não avisa mais as outras páginas aqui — só a tela inicial
-    // ("Gerar Resumo Mensal") deve disparar esse aviso, senão uma
+    // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
     // toda vez que qualquer página era aberta.
   } catch (err) {
