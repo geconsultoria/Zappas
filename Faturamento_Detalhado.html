@@ -1019,8 +1019,6 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belvedere', 'Havan', 'Muffato'];
 const normLojaKey = s => String(s||'').trim().toUpperCase()
   .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-const normMes = s => String(s||'').trim().toLowerCase()
-  .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 
 /* ═══════════════════════════════════════════════════════
    CSV UTILS
@@ -1159,14 +1157,17 @@ function populateFiltroMesGrade(data) {
   const curMes = selMes.value;
 
   const anos = [...new Set(data.map(r => r.ano))].filter(Boolean).sort();
-  const mesesComDados = new Set(data.map(r => normMes(r.mes)));
-  const meses = MONTHS.filter(m => mesesComDados.has(normMes(m)));
+  // "mes" vem como número (1-12) nos dados — mesmo padrão usado nas
+  // demais páginas (Análise Comercial, Faturamento x Lucro etc.).
+  const mesesComDados = new Set(data.map(r => String(parseInt(r.mes,10))));
+  const mesesNums = MONTHS.map((_,i) => String(i+1)).filter(n => mesesComDados.has(n));
 
   selAno.innerHTML = '<option value="">Todos</option>' + anos.map(a => `<option value="${a}">${a}</option>`).join('');
-  selMes.innerHTML = '<option value="">Todos</option>' + MONTHS.map(m => `<option value="${m}">${m}</option>`).join('');
+  selMes.innerHTML = '<option value="">Todos</option>' +
+    MONTHS.map((nome,i) => `<option value="${i+1}">${nome}</option>`).join('');
 
   selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
-  selMes.value = meses.includes(curMes) ? curMes : (meses.length ? meses[meses.length-1] : '');
+  selMes.value = mesesNums.includes(curMes) ? curMes : (mesesNums.length ? mesesNums[mesesNums.length-1] : '');
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1179,7 +1180,7 @@ function renderGradeDiaria() {
   const baseData = rawData.filter(r => {
     if(!r.data || isNaN(r.data)) return false;
     if(anoSel && r.ano !== anoSel) return false;
-    if(mesSel && normMes(r.mes) !== normMes(mesSel)) return false;
+    if(mesSel && String(parseInt(r.mes,10)) !== mesSel) return false;
     return true;
   });
 
