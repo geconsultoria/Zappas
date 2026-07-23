@@ -1018,9 +1018,18 @@ function updateCanalTrigger() {
   const trigger = document.getElementById('canal-trigger');
   if (!trigger) return;
   if (n === 0) {
-    txt.textContent = 'Todos';
-    badge.style.display = 'none';
-    trigger.classList.remove('has-sel');
+    const all = _allCanais || [];
+    const defaultCount = all.filter(c => DEFAULT_CANAIS.includes(c.toLowerCase())).length;
+    if (defaultCount > 0 && defaultCount === all.length) {
+      txt.textContent = defaultCount === 1 ? all[0] : `${defaultCount} canais`;
+      badge.textContent = defaultCount;
+      badge.style.display = 'inline-flex';
+      trigger.classList.add('has-sel');
+    } else {
+      txt.textContent = 'Todos';
+      badge.style.display = 'none';
+      trigger.classList.remove('has-sel');
+    }
   } else if (n === 1) {
     const [v] = selectedCanais;
     txt.textContent = v.length > 14 ? v.slice(0,13)+'…' : v;

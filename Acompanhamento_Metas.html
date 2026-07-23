@@ -1353,7 +1353,22 @@ function updateCanalLabel(canais) {
   const label = document.getElementById('canal-trigger-txt');
   const badge = document.getElementById('canal-badge');
   const trigger = document.getElementById('canal-trigger');
-  if (selectedCanais.size === 0 || selectedCanais.size === canais.length) {
+  if (selectedCanais.size === 0) {
+    // Pode ser "Todos" de verdade, ou o padrão Loja+Delivery que cobre
+    // 100% dos canais existentes (tratado como Todos internamente pro
+    // filtro funcionar certo, mas mostrado com a contagem pro usuário
+    // ver visualmente o que está sendo usado).
+    const defaultCanais = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
+    if (defaultCanais.length > 0 && defaultCanais.length === canais.length) {
+      label.textContent = defaultCanais.length === 1 ? defaultCanais[0] : 'Canais';
+      if (badge) { badge.textContent = defaultCanais.length; badge.style.display = ''; }
+      trigger.classList.add('has-sel');
+    } else {
+      label.textContent = 'Todos';
+      if (badge) badge.style.display = 'none';
+      trigger.classList.remove('has-sel');
+    }
+  } else if (selectedCanais.size === canais.length) {
     label.textContent = 'Todos';
     if (badge) badge.style.display = 'none';
     trigger.classList.remove('has-sel');

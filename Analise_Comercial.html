@@ -1504,9 +1504,22 @@ function updateCanalTrigger() {
   const trigger= $('canal-trigger');
 
   if (n === 0) {
-    txt.textContent = 'Todos';
-    badge.style.display = 'none';
-    trigger.classList.remove('has-sel');
+    // Pode ser "Todos" de verdade, ou o padrão Loja+Delivery que cobre
+    // 100% dos canais existentes (tratado como Todos internamente pro
+    // filtro funcionar certo, mas mostrado com a contagem pro usuário
+    // ver visualmente o que está sendo usado).
+    const all = _allCanais || [];
+    const defaultCount = all.filter(c => DEFAULT_CANAIS.includes(c.toLowerCase())).length;
+    if (defaultCount > 0 && defaultCount === all.length) {
+      txt.textContent = defaultCount === 1 ? all[0] : `${defaultCount} canais`;
+      badge.textContent = defaultCount;
+      badge.style.display = 'inline-flex';
+      trigger.classList.add('has-sel');
+    } else {
+      txt.textContent = 'Todos';
+      badge.style.display = 'none';
+      trigger.classList.remove('has-sel');
+    }
   } else if (n === 1) {
     const [v] = selectedCanais;
     txt.textContent = v.length > 14 ? v.slice(0,13)+'…' : v;

@@ -1087,8 +1087,10 @@ function render(){
 --------------------------------------------------------------------- */
 function updateBtnLabel(){
   var btn = $("channelBtn"), f = state.filters;
-  if (f.canal === "ALL" || (Array.isArray(f.canal) && !f.canal.length)) btn.textContent = "Todos";
+  if (Array.isArray(f.canal) && !f.canal.length) btn.textContent = "Todos";
   else if (Array.isArray(f.canal)) btn.textContent = f.canal.length + " selecionado" + (f.canal.length > 1 ? "s" : "");
+  else if (f.canal === "ALL" && state.filters.canalDefaultCount) btn.textContent = state.filters.canalDefaultCount + " selecionado" + (state.filters.canalDefaultCount > 1 ? "s" : "");
+  else if (f.canal === "ALL") btn.textContent = "Todos";
   else btn.textContent = f.canal.charAt(0) + f.canal.slice(1).toLowerCase();
 }
 
@@ -1107,9 +1109,18 @@ function populateFilters(reset){
     // Se a seleção cobre TODOS os canais existentes, trata como "ALL" de
     // verdade — evita excluir por engano algum registro com canal em
     // branco/diferente do esperado, divergindo do total das demais páginas.
-    state.filters.canal = (valid.length && valid.length < presentCanais.length) ? valid : "ALL";
+    // Guarda a contagem separadamente só pra exibição (ex: "2 selecionados"
+    // em vez de "Todos", pra deixar visível o que está sendo usado).
+    if (valid.length && valid.length < presentCanais.length) {
+      state.filters.canal = valid;
+      state.filters.canalDefaultCount = null;
+    } else {
+      state.filters.canal = "ALL";
+      state.filters.canalDefaultCount = valid.length || null;
+    }
   } else {
     state.filters.canal = "ALL";
+    state.filters.canalDefaultCount = null;
   }
   updateBtnLabel();
   updateAnoOptions(reset);
