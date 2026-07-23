@@ -1456,7 +1456,7 @@ async function loadData(forceRefresh) {
       buildFilters();
       applyFilters();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      document.getElementById('lastUpdateTime').textContent = cached.ts + (stale ? ' (Atualização Disponível)' : '');
+      document.getElementById('lastUpdateTime').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if (stale) loadData(true);
       return;
     }

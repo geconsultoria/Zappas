@@ -709,7 +709,7 @@ async function loadData(forceRefresh) {
         main.insertBefore(warn, main.firstChild);
       }
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      document.getElementById('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível)' : '');
+      document.getElementById('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if (stale) loadData(true);
       return;
     }

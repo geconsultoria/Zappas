@@ -1162,7 +1162,7 @@ async function fetchData(forceRefresh){
       populateFilters(true);
       render();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      $("lastSync").textContent = "Última atualização: " + cached.ts + (stale ? " (Atualização Disponível)" : "");
+      $("lastSync").textContent = "Última atualização: " + cached.ts + (stale ? " (Atualização Disponível — atualizando…)" : "");
       if (stale) fetchData(true);
       return;
     }

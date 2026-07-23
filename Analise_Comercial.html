@@ -1431,14 +1431,15 @@ function populateCanalDropdown(canais) {
   _allCanais = canais;
 
   // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery
+  // — e mantém essa seleção explícita (não simplifica para "Todos" mesmo
+  // que só existam esses 2 canais, pra evitar as caixinhas aparecerem
+  // desmarcadas de forma confusa).
   if (selectedCanais.size === 0) {
     canais.forEach(canal => {
       if (DEFAULT_CANAIS.includes(canal.toLowerCase())) {
         selectedCanais.add(canal);
       }
     });
-    // Se todos os canais foram selecionados, mantém o comportamento "Todos"
-    if (selectedCanais.size === canais.length) selectedCanais.clear();
   }
 
   const list = $('canal-dd-list');
@@ -2053,7 +2054,7 @@ async function loadData(forceRefresh = false) {
       $('content').classList.remove('hidden');
       renderAll();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível)' : '');
+      $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
       if(stale) loadData(true); // dado novo disponível: atualiza em seguida
       return;

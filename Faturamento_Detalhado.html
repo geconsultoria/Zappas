@@ -1437,7 +1437,7 @@ async function loadData(forceRefresh = false) {
       renderGradeDiaria();
       renderSemanal2();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível)' : '');
+      $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
       if(stale) loadData(true);
       return;

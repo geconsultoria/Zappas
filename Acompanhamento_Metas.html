@@ -1151,7 +1151,7 @@ async function loadData(forceRefresh = false) {
       buildCanalOptions(canais);
 
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
-      document.getElementById('lastUpd').textContent = cached.ts + (stale ? ' (Atualização Disponível)' : '');
+      document.getElementById('lastUpd').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
 
       if (Array.isArray(cached.metas)) {
         // Metas já vieram salvas junto com o cache — não precisa buscar de novo.
