@@ -1441,7 +1441,7 @@ async function fetchCSV(url) {
   return r.text();
 }
 
-async function loadData(forceRefresh) {
+async function loadData(forceRefresh, silent = false) {
   const btn = document.getElementById('btnRefresh');
 
   if (!forceRefresh) {
@@ -1457,7 +1457,7 @@ async function loadData(forceRefresh) {
       applyFilters();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       document.getElementById('lastUpdateTime').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
-      if (stale) loadData(true);
+      if (stale) loadData(true, true); // em segundo plano
       return;
     }
   }
@@ -1494,7 +1494,12 @@ async function loadData(forceRefresh) {
     // toda vez que qualquer página era aberta.
 
   } catch(err) {
-    showError(err.message);
+    if (silent) {
+      const el = document.getElementById('lastUpdateTime');
+      el.textContent = el.textContent.replace(' — atualizando…', ' — falha ao atualizar, tente novamente mais tarde');
+    } else {
+      showError(err.message);
+    }
   } finally {
     btn.classList.remove('loading');
     btn.disabled = false;
@@ -1505,7 +1510,7 @@ async function loadData(forceRefresh) {
 // estiver aberta em outra aba, esta também se atualiza sozinha.
 window.addEventListener('storage', (e) => {
   if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
-    loadData(true);
+    loadData(true, true);
   }
 });
 

@@ -1421,7 +1421,7 @@ const setLdTxt   = t => $('ld-txt').textContent = t;
 const showErr    = (msg, det) => { const w=$('error-wrap'); w.classList.add('show'); $('err-msg').textContent=msg; $('err-code').textContent=det?det.split('\n')[0]:''; };
 const hideErr    = () => $('error-wrap').classList.remove('show');
 
-async function loadData(forceRefresh = false) {
+async function loadData(forceRefresh = false, silent = false) {
   const btn = $('btn-refresh');
   const isFirst = $('content').classList.contains('hidden');
 
@@ -1439,7 +1439,7 @@ async function loadData(forceRefresh = false) {
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
-      if(stale) loadData(true);
+      if(stale) loadData(true, true); // em segundo plano
       return;
     }
   }
@@ -1491,8 +1491,12 @@ async function loadData(forceRefresh = false) {
 
   } catch(e) {
     console.error(e);
-    showErr(e.message, e.stack);
-    $('content').classList.remove('hidden');
+    if (silent) {
+      $('fb-ts').textContent = $('fb-ts').textContent.replace(' — atualizando…', ' — falha ao atualizar, tente novamente mais tarde');
+    } else {
+      showErr(e.message, e.stack);
+      $('content').classList.remove('hidden');
+    }
     if(isFirst) setTimeout(()=>showLoader(false), 300);
   }
   btn.classList.remove('spin');
@@ -1502,7 +1506,7 @@ async function loadData(forceRefresh = false) {
 // estiver aberta em outra aba, esta também se atualiza sozinha.
 window.addEventListener('storage', (e) => {
   if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
-    loadData(true);
+    loadData(true, true);
   }
 });
 

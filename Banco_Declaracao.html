@@ -1157,7 +1157,7 @@ function showError(message){
 }
 function hideError(){ $("errorBanner").style.display = "none"; }
 
-async function fetchData(forceRefresh){
+async function fetchData(forceRefresh, silent){
   if (!forceRefresh) {
     const cached = await loadCacheDB();
     if (cached && cached.data && cached.data.length) {
@@ -1166,7 +1166,7 @@ async function fetchData(forceRefresh){
       render();
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $("lastSync").textContent = "Última atualização: " + cached.ts + (stale ? " (Atualização Disponível — atualizando…)" : "");
-      if (stale) fetchData(true);
+      if (stale) fetchData(true, true); // em segundo plano
       return;
     }
   }
@@ -1227,8 +1227,13 @@ async function fetchData(forceRefresh){
   } catch (err) {
     var msg = err && err.message ? err.message : "";
     if (err && err.name === "AbortError") msg = "Tempo limite excedido (20s).";
-    showError("Não foi possível carregar os dados. " + msg + " Verifique se os IDs em CSV_FILE_IDS estão corretos e se os arquivos estão compartilhados como \"Qualquer pessoa com o link\".");
-    $("lastSync").textContent = "Falha na sincronização";
+    if (silent) {
+      var el = $("lastSync");
+      el.textContent = el.textContent.replace(" — atualizando…", " — falha ao atualizar, tente novamente mais tarde");
+    } else {
+      showError("Não foi possível carregar os dados. " + msg + " Verifique se os IDs em CSV_FILE_IDS estão corretos e se os arquivos estão compartilhados como \"Qualquer pessoa com o link\".");
+      $("lastSync").textContent = "Falha na sincronização";
+    }
   } finally {
     setLoading(false);
   }
@@ -1271,7 +1276,7 @@ $("btnRetry").addEventListener("click", function(){ fetchData(true); });
 // estiver aberta em outra aba, esta também se atualiza sozinha.
 window.addEventListener('storage', function(e){
   if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
-    fetchData(true);
+    fetchData(true, true);
   }
 });
 function pad2(n){ return ("0" + n).slice(-2); }

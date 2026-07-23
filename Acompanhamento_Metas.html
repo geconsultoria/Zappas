@@ -1139,7 +1139,7 @@ function transform(rows, headers) {
 }
 
 /* ═══════════════ FETCH ═══════════════ */
-async function loadData(forceRefresh = false) {
+async function loadData(forceRefresh = false, silent = false) {
   const btn = document.getElementById('btnRefresh');
 
   if (!forceRefresh) {
@@ -1163,7 +1163,7 @@ async function loadData(forceRefresh = false) {
         loadMetasData().then(() => applyFilters()).catch(()=>{});
       }
 
-      if (stale) loadData(true); // dado novo disponível: atualiza em seguida
+      if (stale) loadData(true, true); // dado novo disponível: atualiza em segundo plano
       return;
     }
   }
@@ -1214,7 +1214,12 @@ async function loadData(forceRefresh = false) {
     // toda vez que qualquer página era aberta.
   } catch(e) {
     console.error(e);
-    showError(e.message);
+    if (silent) {
+      const el = document.getElementById('lastUpd');
+      el.textContent = el.textContent.replace(' — atualizando…', ' — falha ao atualizar, tente novamente mais tarde');
+    } else {
+      showError(e.message);
+    }
   } finally {
     btn.classList.remove('loading'); btn.disabled = false;
   }
@@ -1224,7 +1229,7 @@ async function loadData(forceRefresh = false) {
 // estiver aberta em outra aba, esta também se atualiza sozinha.
 window.addEventListener('storage', (e) => {
   if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
-    loadData(true);
+    loadData(true, true);
   }
 });
 

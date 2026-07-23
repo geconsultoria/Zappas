@@ -2046,7 +2046,7 @@ function renderAll() {
 /* ═══════════════════════════════════════════════════════
    LOAD DATA
 ═══════════════════════════════════════════════════════ */
-async function loadData(forceRefresh = false) {
+async function loadData(forceRefresh = false, silent = false) {
   const btn = $('btn-refresh');
   const isFirst = $('content').classList.contains('hidden');
 
@@ -2062,7 +2062,7 @@ async function loadData(forceRefresh = false) {
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
-      if(stale) loadData(true); // dado novo disponível: atualiza em seguida
+      if(stale) loadData(true, true); // dado novo disponível: atualiza em seguida, em segundo plano
       return;
     }
   }
@@ -2112,8 +2112,15 @@ async function loadData(forceRefresh = false) {
 
   } catch(e) {
     console.error(e);
-    showErr(e.message, e.stack);
-    $('content').classList.remove('hidden');
+    if (silent) {
+      // Falha numa atualização em segundo plano: não trava a tela com
+      // erro (o usuário já está vendo os dados salvos) — só limpa o
+      // aviso "atualizando…" pra não ficar preso pra sempre.
+      $('fb-ts').textContent = $('fb-ts').textContent.replace(' — atualizando…', ' — falha ao atualizar, tente novamente mais tarde');
+    } else {
+      showErr(e.message, e.stack);
+      $('content').classList.remove('hidden');
+    }
     if(isFirst) setTimeout(()=>showLoader(false), 300);
   }
   btn.classList.remove('spin');
@@ -2123,7 +2130,7 @@ async function loadData(forceRefresh = false) {
 // estiver aberta em outra aba, esta também se atualiza sozinha.
 window.addEventListener('storage', (e) => {
   if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
-    loadData(true);
+    loadData(true, true);
   }
 });
 
