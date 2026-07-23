@@ -951,27 +951,33 @@ const DEFAULT_CANAIS = ['loja', 'delivery'];
 function populateCanalDropdown(canais) {
   _allCanais = canais;
 
-  // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery
-  // — e mantém essa seleção explícita (não simplifica para "Todos" mesmo
-  // que só existam esses 2 canais, pra evitar as caixinhas aparecerem
-  // desmarcadas de forma confusa).
+  // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery.
+  // Se isso cobrir TODOS os canais existentes, equivale a "Todos" — nesse
+  // caso é importante realmente tratar como Todos (Set vazio), e não como
+  // filtro explícito, porque um filtro explícito pode excluir por engano
+  // algum registro com canal em branco/diferente do esperado, divergindo
+  // do total das demais páginas (que não filtram por canal).
   if (selectedCanais.size === 0) {
     canais.forEach(canal => {
       if (DEFAULT_CANAIS.includes(canal.toLowerCase())) {
         selectedCanais.add(canal);
       }
     });
+    if (selectedCanais.size === canais.length) selectedCanais.clear();
   }
 
   const list = document.getElementById('canal-dd-list');
   if (!list) return;
   list.innerHTML = '';
   canais.forEach(canal => {
+    // Quando o filtro é "Todos" (Set vazio), mostra todas as caixinhas
+    // marcadas — visualmente mais claro do que aparentar nada selecionado.
+    const isChecked = selectedCanais.size === 0 ? true : selectedCanais.has(canal);
     const item = document.createElement('label');
-    item.className = 'canal-item' + (selectedCanais.has(canal) ? ' checked' : '');
+    item.className = 'canal-item' + (isChecked ? ' checked' : '');
     item.innerHTML = `
       <input type="checkbox" value="${canal.replace(/"/g,'&quot;')}"
-        ${selectedCanais.has(canal)?'checked':''}
+        ${isChecked?'checked':''}
         onchange="onCanalChange(this)">
       <span class="canal-item-label" title="${canal}">${canal}</span>`;
     list.appendChild(item);

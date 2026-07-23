@@ -1104,7 +1104,10 @@ function populateFilters(reset){
 
   if (Array.isArray(prevCanal)) {
     var valid = prevCanal.filter(function(c){ return presentCanais.indexOf(c) > -1; });
-    state.filters.canal = valid.length ? valid : "ALL";
+    // Se a seleção cobre TODOS os canais existentes, trata como "ALL" de
+    // verdade — evita excluir por engano algum registro com canal em
+    // branco/diferente do esperado, divergindo do total das demais páginas.
+    state.filters.canal = (valid.length && valid.length < presentCanais.length) ? valid : "ALL";
   } else {
     state.filters.canal = "ALL";
   }

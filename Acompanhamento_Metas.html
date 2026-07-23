@@ -1272,15 +1272,24 @@ const DEFAULT_CANAIS = ['loja', 'delivery'];
 
 function buildCanalOptions(canais) {
   // Pré-seleciona Loja e Delivery por padrão (se existirem entre os
-  // canais disponíveis); mesmo padrão usado nas demais páginas.
+  // canais disponíveis). Se isso cobrir TODOS os canais existentes,
+  // equivale a "Todos" — nesse caso mantém o Set vazio (= Todos de
+  // verdade), em vez de um filtro explícito que poderia excluir por
+  // engano algum registro com canal em branco/diferente do esperado,
+  // divergindo do total das demais páginas.
   const defaults = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
-  selectedCanais = new Set(defaults);
+  selectedCanais = (defaults.length === canais.length) ? new Set() : new Set(defaults);
   const container = document.getElementById('canal-dd-list');
-  container.innerHTML = canais.map(c => `
-    <label class="canal-item${selectedCanais.has(c) ? ' checked' : ''}" id="msopt_${CSS.escape(c)}">
-      <input type="checkbox" ${selectedCanais.has(c) ? 'checked' : ''} onchange="toggleCanal('${c.replace(/'/g,"\'")}')">
+  container.innerHTML = canais.map(c => {
+    // Quando o filtro é "Todos" (Set vazio), mostra todas as caixinhas
+    // marcadas — visualmente mais claro do que aparentar nada selecionado.
+    const isChecked = selectedCanais.size === 0 ? true : selectedCanais.has(c);
+    return `
+    <label class="canal-item${isChecked ? ' checked' : ''}" id="msopt_${CSS.escape(c)}">
+      <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCanal('${c.replace(/'/g,"\'")}')">
       <span class="canal-item-label">${c}</span>
-    </label>`).join('');
+    </label>`;
+  }).join('');
   updateCanalLabel(canais);
 }
 
