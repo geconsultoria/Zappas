@@ -1584,6 +1584,7 @@ async function loadMetasData() {
       if (ano && mes && loja) metasData.push({ ano, mes, loja, canal, meta: meta || 0, pe: pe || 0 });
     });
     console.log('[METAS] Registros carregados:', metasData.length, '| Lojas:', [...new Set(metasData.map(d=>d.loja))].sort(), '| Canais:', [...new Set(metasData.map(d=>d.canal))].sort());
+    console.log('[METAS] Amostra:', metasData.slice(0, 6));
   } catch(e) {
     console.warn('Falha ao buscar metas da planilha, usando localStorage como fallback:', e.message);
     metasData = [];
@@ -2025,21 +2026,53 @@ function dayQueryCanal(ano, mes, loja, dia, canalNome, field) {
     .reduce((s,d)=>s+(d[field]||0),0);
 }
 function getMetaCanal(loja, mes, ano, canalNome) {
-  if (!loja || !mes || !ano) return 0;
+  if (!loja || !mes || !ano) {
+    console.warn('[META] Parâmetros inválidos:', {loja, mes, ano, canalNome});
+    return 0;
+  }
   const alvo = String(canalNome || '').toUpperCase();
   const lojaUpper = loja.toUpperCase();
-  const matchLoja = d => d.loja===lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja);
-  const matchCanal = d => {
-    const dc = String(d.canal||'').toUpperCase();
-    return dc===alvo || dc.includes(alvo) || alvo.includes(dc);
-  };
-  let r = metasData.filter(d => d.ano===ano && d.mes===mes && matchLoja(d) && matchCanal(d))
-    .reduce((s,d)=>s+(d.meta||0),0);
-  if (r === 0) {
-    r = metasData.filter(d => d.ano===ano && matchLoja(d) && matchCanal(d))
-      .reduce((s,d)=>s+(d.meta||0),0);
+
+  if (!metasData.length) {
+    console.warn('[META] metasData vazio! Nenhum registro carregado.');
+    return 0;
   }
-  return r;
+
+  const allForLoja = metasData.filter(d => d.loja === lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja));
+
+  const base = metasData.filter(d => {
+    const dm = Number(d.mes), da = Number(d.ano);
+    if (da !== Number(ano) || dm !== Number(mes)) return false;
+    const lojaMatch = d.loja === lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja);
+    return lojaMatch;
+  });
+
+  const rEspecifico = base.filter(d => {
+    const dc = String(d.canal || '').toUpperCase();
+    if (!alvo) return !dc;
+    return dc === alvo;
+  }).reduce((s, d) => s + (d.meta || 0), 0);
+
+  if (rEspecifico > 0) {
+    console.log('[META-RESULT]', loja, '|', canalNome, '=', rEspecifico, '(canal específico)');
+    return rEspecifico;
+  }
+
+  const rFallback = base.filter(d => !String(d.canal || '').trim())
+    .reduce((s, d) => s + (d.meta || 0), 0);
+
+  if (rFallback > 0) {
+    const DELIVERY_PCT_STORES = ['ANISIO', 'DAMHA'];
+    const pct = (alvo === 'DELIVERY' && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.03
+              : (alvo === 'LOJA'      && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.97
+              : 1;
+    const v = Math.round(rFallback * pct);
+    console.log('[META-RESULT]', loja, '|', canalNome, '=', v, '(fallback canal vazio, pct=' + pct + ')');
+    return v;
+  }
+
+  console.log('[META-RESULT]', loja, '|', canalNome, '= 0 (nenhum registro encontrado)');
+  return 0;
 }
 // "Dia anterior" = sempre o dia de calendário de ontem (hoje - 1), não o
 // último dia com dado no arquivo nem o mês selecionado nos filtros da
