@@ -1988,20 +1988,24 @@ function getMetaCanal(loja, mes, ano, canalNome) {
     .filter(d => d.ano===ano && d.mes===mes && d.loja===loja.toUpperCase() && String(d.canal||'').toUpperCase()===alvo)
     .reduce((s,d)=>s+(d.meta||0),0);
 }
-// Acha o dia mais recente com dado de venda no mês/loja — usado como "dia anterior".
-function getUltimoDiaComDados(ano, mes, loja) {
-  const dias = rawData
-    .filter(d => d.ano===ano && d.mes===mes && (!loja||d.loja===loja) && d.dia!==null && d.dia>=1 && d.dia<=31)
-    .map(d => d.dia);
-  return dias.length ? Math.max(...dias) : null;
+// "Dia anterior" = sempre o dia de calendário de ontem (hoje - 1), não o
+// último dia com dado no arquivo nem o mês selecionado nos filtros da
+// tela — o resumo diário sempre reflete o dia real anterior a hoje.
+function getDiaAnterior() {
+  const hoje = new Date();
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  return { ano: ontem.getFullYear(), mes: ontem.getMonth() + 1, dia: ontem.getDate() };
 }
 
 function computeResumoLoja(loja) {
-  const ano = parseInt(document.getElementById('f-ano').value) || new Date().getFullYear();
-  const mes = parseInt(document.getElementById('f-mes').value) || (new Date().getMonth()+1);
+  const { ano: anoDia, mes: mesDia, dia: diaAnt } = getDiaAnterior();
+  // Os indicadores acumulados do mês (Meta Acum, Venda Acum, TKM, Baixas,
+  // Pessoas) usam o mês/ano do "dia anterior" — assim tudo no cartão fala
+  // do mesmo período, mesmo que o filtro da tela esteja em outro mês.
+  const ano = anoDia;
+  const mes = mesDia;
   const anoAnt = ano - 1;
   const dias = daysInMonth(ano, mes);
-  const diaAnt = getUltimoDiaComDados(ano, mes, loja);
 
   const metaMesLoja = getMetaCanal(loja, mes, ano, 'LOJA');
   const metaMesDel  = getMetaCanal(loja, mes, ano, 'DELIVERY');
