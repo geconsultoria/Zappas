@@ -1226,7 +1226,7 @@ function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
 
 const CUSTOM_LOJA_ORDER = [
   'BADY LOJA', 'BADY DELIVERY', 'TOTAL BADY',
-  'ANISIO', 'DAMHA', 'BELVEDERE', 'HAVAN', 'MUFFATO'
+  'ANISIO', 'DAMHA', 'BELVEDER', 'HAVAN', 'MUFFATO'
 ];
 
 function customSortLojas(lojas) {
@@ -1235,7 +1235,7 @@ function customSortLojas(lojas) {
     const idxB = CUSTOM_LOJA_ORDER.indexOf(b);
     if (idxA === -1 && idxB === -1) return a.localeCompare(b);
     if (idxA === -1) return 1;
-    if (idxB === -1) return 1;
+    if (idxB === -1) return -1;
     return idxA - idxB;
   });
 }
