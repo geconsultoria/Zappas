@@ -2039,10 +2039,6 @@ function getMetaCanal(loja, mes, ano, canalNome) {
     r = metasData.filter(d => d.ano===ano && matchLoja(d) && matchCanal(d))
       .reduce((s,d)=>s+(d.meta||0),0);
   }
-  if (r === 0) {
-    r = metasData.filter(d => d.ano===ano && matchLoja(d))
-      .reduce((s,d)=>s+(d.meta||0),0);
-  }
   return r;
 }
 // "Dia anterior" = sempre o dia de calendário de ontem (hoje - 1), não o
@@ -2108,19 +2104,27 @@ function computeResumoLoja(loja) {
   const qA = query(ano, mes, loja, 'quebras');
   const vAnt = query(anoAnt, mes, loja, 'venda');
   const cAnt = query(anoAnt, mes, loja, 'cupons');
+
+  const diasComDadosA = rawData.filter(d => d.ano===ano && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=31).map(d=>d.dia);
+  const diasComDadosAnt = rawData.filter(d => d.ano===anoAnt && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=31).map(d=>d.dia);
+  const numDiasA = [...new Set(diasComDadosA)].length || dias;
+  const numDiasAnt = [...new Set(diasComDadosAnt)].length || dias;
+  const cADia = numDiasA > 0 ? cA / numDiasA : 0;
+  const cAntDia = numDiasAnt > 0 ? cAnt / numDiasAnt : 0;
+
   const tktA  = cA   > 0 ? vA   / cA   : 0;
   const tktAn = cAnt > 0 ? vAnt / cAnt : 0;
   const pctTktAA = tktAn > 0 ? ((tktA - tktAn) / tktAn) * 100 : null;
   const pctBaixas = vA > 0 ? (qA / vA) * 100 : null;
-  const pctPess = cAnt > 0 ? ((cA - cAnt) / cAnt) * 100 : null;
+  const pctPess = cAntDia > 0 ? ((cADia - cAntDia) / cAntDia) * 100 : null;
 
   return {
     loja, ano, mes, anoAnt, diaAnt,
     metaDiaLoja, metaDiaDel, realLoja, realDel,
     pctMetaLoja, pctMetaDel, pctVsAntLoja, pctVsAntDel,
     tktA, pctTktAA, qA, pctBaixas,
-    cA, cAnt,
-    pctPess, diferPess: cA - cAnt,
+    cA: cADia, cAnt: cAntDia,
+    pctPess, diferPess: cADia - cAntDia,
   };
 }
 
@@ -2176,7 +2180,7 @@ function buildCardHTML(r) {
       <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
       <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
-      <tr><th>QTD PESSOAS ${r.anoAnt}</th><th>QTD PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
+      <tr><th>MÉDIA PESSOAS/DIA ${r.anoAnt}</th><th>MÉDIA PESSOAS/DIA ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
   </div>`;
@@ -2257,7 +2261,7 @@ function textoResumoLoja(r) {
   linhas.push(`*${r.loja} LOJA*`);
   linhas.push(`TKM Mês: ${R(r.tktA)} (${pctTxt(r.pctTktAA)} vs AA)`);
   linhas.push(`Baixas totais: ${R0(r.qA)} (${pctTxt(r.pctBaixas)})`);
-  linhas.push(`Pessoas ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);
+  linhas.push(`Média Pessoas/Dia ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);
   return linhas.join('\n');
 }
 
