@@ -267,10 +267,12 @@ a.side-brand:hover { opacity:.85; }
 }
 .rd-overlay.show { display: flex; }
 .rd-modal {
-  background: #fff; border-radius: 14px; width: 100%; max-width: 1180px;
-  max-height: 97vh; display: flex; flex-direction: column;
+  background: #fff; border-radius: 14px; width: 100%; max-width: 800px;
+  max-height: 90vh; display: flex; flex-direction: column;
   box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden;
+  transition: max-width .2s ease;
 }
+.rd-modal.todas-lojas { max-width: 1180px; }
 .rd-modal-head {
   display: flex; align-items: center; justify-content: space-between;
   padding: 10px 16px; background: var(--navy, #0F2A4A); color: #fff; flex-shrink: 0;
@@ -293,9 +295,28 @@ a.side-brand:hover { opacity:.85; }
 .rd-toggle-btn.active { background: var(--amber, #B45309); color: #fff; }
 .rd-modal-body {
   padding: 10px; background: #F4F1EA; overflow: auto; flex: 1 1 auto;
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 10px;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;
   align-content: start;
 }
+.rd-modal-body.carousel-mode {
+  display: block; overflow: hidden;
+}
+.rd-carousel { position: relative; overflow: hidden; }
+.rd-carousel-track { display: flex; gap: 10px; transition: transform .3s ease; }
+.rd-carousel-track .rd-card { flex: 0 0 calc(50% - 5px); min-width: 0; }
+.rd-carousel-nav {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 10px 0 4px; flex-shrink: 0;
+}
+.rd-carousel-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid #D8CFBE;
+  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s; flex-shrink: 0;
+}
+.rd-carousel-btn:hover { background: #F0EDE5; border-color: #B8AFA0; }
+.rd-carousel-btn:disabled { opacity: .35; cursor: default; }
+.rd-carousel-btn svg { width: 16px; height: 16px; color: #3D4E6B; }
+.rd-carousel-info { font-size: 11px; font-weight: 600; color: #8594AF; white-space: nowrap; }
 
 .rd-card { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); font-size: 0; }
 .rd-card-title { font-size: 13px; font-weight: 800; padding: 8px 10px 2px; color: #14213D; }
@@ -1265,8 +1286,23 @@ async function loadData(forceRefresh = false, silent = false) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const txt = await res.text();
         const parsed = parseCSV(txt);
-        if (!headers.length) headers = parsed.headers;
-        allRows = allRows.concat(parsed.rows);
+        if (!headers.length) {
+          headers = parsed.headers;
+          allRows = allRows.concat(parsed.rows);
+        } else {
+          var storeHeaderMap = {};
+          parsed.headers.forEach(function(h, idx) {
+            storeHeaderMap[h] = headers[idx] || h;
+          });
+          var remapped = parsed.rows.map(function(row) {
+            var nr = {};
+            Object.keys(row).forEach(function(k) {
+              nr[storeHeaderMap[k] || k] = row[k];
+            });
+            return nr;
+          });
+          allRows = allRows.concat(remapped);
+        }
       } catch (errLoja) {
         console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
         lojasComFalha.push(nomeLoja);
@@ -1513,9 +1549,15 @@ function hasDailyData(ano, mes, loja) {
 
 /* ═══════════════ METAS (Google Sheets via Apps Script) ═══════════════ */
 function parseMesNomeMetas(v) {
-  const n = String(v).trim().toLowerCase();
-  const i = MESES.findIndex(m => m.toLowerCase() === n);
-  return i >= 0 ? i + 1 : null;
+  if (v === null || v === undefined || v === '') return null;
+  const n = Math.round(parseFloat(String(v).replace(',', '.')));
+  if (!isNaN(n) && n >= 1 && n <= 12) return n;
+  const s = String(v).trim().toLowerCase();
+  const i = MESES.findIndex(m => m.toLowerCase() === s);
+  if (i >= 0) return i + 1;
+  const u = String(v).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const j = MESES.findIndex(m => m.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').startsWith(u.slice(0,3)));
+  return j >= 0 ? j + 1 : null;
 }
 
 async function loadMetasData() {
@@ -1533,14 +1575,15 @@ async function loadMetasData() {
     const parsed = parseCSV(text);
     metasData = [];
     parsed.rows.forEach(row => {
-      const ano   = parseInt(row['ano']);
-      const mes   = parseMesNomeMetas(row['mes']);
-      const loja  = (row['lojas'] || '').trim().toUpperCase();
-      const canal = (row['canal'] || '').trim().toUpperCase();
-      const meta  = parseNum(row['meta']);
-      const pe    = parseNum(row['p_e']);
+      const ano   = parseInt(row['ano'] || row['year']);
+      const mes   = parseMesNomeMetas(row['mes'] || row['meses'] || row['month']);
+      const loja  = (row['lojas'] || row['loja'] || row['filial'] || row['unidade'] || row['store'] || '').trim().toUpperCase();
+      const canal = (row['canal'] || row['canais'] || row['channel'] || '').trim().toUpperCase();
+      const meta  = parseNum(row['meta'] || row['meta_mensal'] || row['valor_meta'] || row['target']);
+      const pe    = parseNum(row['p_e'] || row['pe'] || row['pessoas_estimadas']);
       if (ano && mes && loja) metasData.push({ ano, mes, loja, canal, meta: meta || 0, pe: pe || 0 });
     });
+    console.log('[METAS] Registros carregados:', metasData.length, '| Lojas:', [...new Set(metasData.map(d=>d.loja))].sort(), '| Canais:', [...new Set(metasData.map(d=>d.canal))].sort());
   } catch(e) {
     console.warn('Falha ao buscar metas da planilha, usando localStorage como fallback:', e.message);
     metasData = [];
@@ -1984,9 +2027,23 @@ function dayQueryCanal(ano, mes, loja, dia, canalNome, field) {
 function getMetaCanal(loja, mes, ano, canalNome) {
   if (!loja || !mes || !ano) return 0;
   const alvo = String(canalNome || '').toUpperCase();
-  return metasData
-    .filter(d => d.ano===ano && d.mes===mes && d.loja===loja.toUpperCase() && String(d.canal||'').toUpperCase()===alvo)
+  const lojaUpper = loja.toUpperCase();
+  const matchLoja = d => d.loja===lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja);
+  const matchCanal = d => {
+    const dc = String(d.canal||'').toUpperCase();
+    return dc===alvo || dc.includes(alvo) || alvo.includes(dc);
+  };
+  let r = metasData.filter(d => d.ano===ano && d.mes===mes && matchLoja(d) && matchCanal(d))
     .reduce((s,d)=>s+(d.meta||0),0);
+  if (r === 0) {
+    r = metasData.filter(d => d.ano===ano && matchLoja(d) && matchCanal(d))
+      .reduce((s,d)=>s+(d.meta||0),0);
+  }
+  if (r === 0) {
+    r = metasData.filter(d => d.ano===ano && matchLoja(d))
+      .reduce((s,d)=>s+(d.meta||0),0);
+  }
+  return r;
 }
 // "Dia anterior" = sempre o dia de calendário de ontem (hoje - 1), não o
 // último dia com dado no arquivo nem o mês selecionado nos filtros da
@@ -1997,8 +2054,29 @@ function getDiaAnterior() {
   return { ano: ontem.getFullYear(), mes: ontem.getMonth() + 1, dia: ontem.getDate() };
 }
 
+function getDiaComDados(loja) {
+  const hoje = new Date();
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  const fallback = { ano: ontem.getFullYear(), mes: ontem.getMonth() + 1, dia: ontem.getDate() };
+  const tsHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
+  const storeDates = rawData
+    .filter(d => {
+      if (d.loja !== loja || d.dia === null || d.dia < 1 || d.dia > 31) return false;
+      const ts = new Date(d.ano, d.mes - 1, d.dia).getTime();
+      return ts < tsHoje;
+    })
+    .map(d => ({ ano: d.ano, mes: d.mes, dia: d.dia }));
+  if (!storeDates.length) return fallback;
+  storeDates.sort((a, b) => {
+    if (a.ano !== b.ano) return b.ano - a.ano;
+    if (a.mes !== b.mes) return b.mes - a.mes;
+    return b.dia - a.dia;
+  });
+  return storeDates[0];
+}
+
 function computeResumoLoja(loja) {
-  const { ano: anoDia, mes: mesDia, dia: diaAnt } = getDiaAnterior();
+  const { ano: anoDia, mes: mesDia, dia: diaAnt } = getDiaComDados(loja);
   // Os indicadores acumulados do mês (Meta Acum, Venda Acum, TKM, Baixas,
   // Pessoas) usam o mês/ano do "dia anterior" — assim tudo no cartão fala
   // do mesmo período, mesmo que o filtro da tela esteja em outro mês.
@@ -2048,6 +2126,12 @@ function computeResumoLoja(loja) {
 
 let rdModo = 'uma';
 function abrirResumoDiario() {
+  rdModo = 'uma';
+  rdCarouselPage = 0;
+  document.getElementById('rdTogUma').classList.add('active');
+  document.getElementById('rdTogTodas').classList.remove('active');
+  document.getElementById('rdLojaSelect').style.display = '';
+  document.querySelector('.rd-modal').classList.remove('todas-lojas');
   const lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
   const sel = document.getElementById('rdLojaSelect');
   sel.innerHTML = lojas.map(l => `<option value="${l}">${l}</option>`).join('');
@@ -2061,9 +2145,11 @@ function fecharResumoDiario() {
 }
 function setRdModo(modo) {
   rdModo = modo;
+  rdCarouselPage = 0;
   document.getElementById('rdTogUma').classList.toggle('active', modo==='uma');
   document.getElementById('rdTogTodas').classList.toggle('active', modo==='todas');
   document.getElementById('rdLojaSelect').style.display = modo==='uma' ? '' : 'none';
+  document.querySelector('.rd-modal').classList.toggle('todas-lojas', modo==='todas');
   renderResumoDiario();
 }
 
@@ -2096,6 +2182,9 @@ function buildCardHTML(r) {
   </div>`;
 }
 
+let rdCarouselPage = 0;
+const RD_PER_PAGE = 2;
+
 function renderResumoDiario() {
   const body = document.getElementById('rdBody');
   let lojas;
@@ -2106,7 +2195,47 @@ function renderResumoDiario() {
     lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
   }
   if (!lojas.length) { body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Sem loja selecionada.</div>'; return; }
-  body.innerHTML = lojas.map(l => buildCardHTML(computeResumoLoja(l))).join('');
+
+  if (rdModo === 'todas' && lojas.length > RD_PER_PAGE) {
+    body.classList.add('carousel-mode');
+    rdCarouselPage = Math.min(rdCarouselPage, Math.ceil(lojas.length / RD_PER_PAGE) - 1);
+    if (rdCarouselPage < 0) rdCarouselPage = 0;
+    const totalPages = Math.ceil(lojas.length / RD_PER_PAGE);
+    const cardsHtml = lojas.map(l => buildCardHTML(computeResumoLoja(l))).join('');
+    body.innerHTML = `
+      <div class="rd-carousel">
+        <div class="rd-carousel-track" id="rdTrack">${cardsHtml}</div>
+      </div>
+      <div class="rd-carousel-nav">
+        <button class="rd-carousel-btn" onclick="rdCarouselNav(-1)" ${rdCarouselPage===0?'disabled':''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span class="rd-carousel-info">${rdCarouselPage+1} / ${totalPages} · ${lojas.length} lojas</span>
+        <button class="rd-carousel-btn" onclick="rdCarouselNav(1)" ${rdCarouselPage>=totalPages-1?'disabled':''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>`;
+    rdCarouselApplyPos();
+  } else {
+    body.classList.remove('carousel-mode');
+    body.innerHTML = lojas.map(l => buildCardHTML(computeResumoLoja(l))).join('');
+  }
+}
+
+function rdCarouselNav(dir) {
+  const track = document.getElementById('rdTrack');
+  if (!track) return;
+  const totalCards = track.children.length;
+  const totalPages = Math.ceil(totalCards / RD_PER_PAGE);
+  rdCarouselPage = Math.max(0, Math.min(rdCarouselPage + dir, totalPages - 1));
+  renderResumoDiario();
+}
+
+function rdCarouselApplyPos() {
+  const track = document.getElementById('rdTrack');
+  if (!track) return;
+  const cardW = track.children[0] ? track.children[0].offsetWidth + 10 : 300;
+  track.style.transform = 'translateX(-' + (rdCarouselPage * RD_PER_PAGE * cardW) + 'px)';
 }
 
 function textoResumoLoja(r) {
