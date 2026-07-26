@@ -1630,13 +1630,23 @@ function getAllMetasFromStorage(mes) {
 
 function applyFilters() {
   const mesSel = parseInt(document.getElementById('f-mes').value) || null;
+  const anoSel = parseInt(document.getElementById('f-ano').value) || new Date().getFullYear();
   const lojaSel = document.getElementById('f-loja').value || null;
   const inputMeta = document.getElementById('inputMeta');
 
   if (!inputMeta.dataset.userEdited) {
-    const savedMeta = lojaSel
-      ? getMetaFromStorage(lojaSel, mesSel)
-      : getAllMetasFromStorage(mesSel);
+    let savedMeta;
+    // Se exatamente 1 canal estiver selecionado (Loja OU Delivery, não os
+    // dois), a meta mostrada deve ser a meta SÓ daquele canal — antes ela
+    // sempre mostrava o total combinado, mesmo com só Delivery selecionado.
+    if (lojaSel && selectedCanais.size === 1) {
+      const canalUnico = [...selectedCanais][0];
+      savedMeta = getMetaCanal(lojaSel, mesSel, anoSel, canalUnico);
+    } else if (lojaSel) {
+      savedMeta = getMetaFromStorage(lojaSel, mesSel);
+    } else {
+      savedMeta = getAllMetasFromStorage(mesSel);
+    }
 
     if (savedMeta > 0) {
       inputMeta.value = savedMeta.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
@@ -2057,6 +2067,20 @@ function getMetaCanal(loja, mes, ano, canalNome) {
     const lojaMatch = d.loja === lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja);
     return lojaMatch;
   });
+
+  // Regra especial: Anísio e Damha não têm meta de Delivery cadastrada
+  // separadamente na planilha — o valor informado pra elas (seja com o
+  // canal em branco ou rotulado "LOJA") é, na prática, o total da loja.
+  // O Delivery é 3% desse total; a Loja "de verdade" são os outros 97%.
+  const SEM_META_DELIVERY_PROPRIA = ['ANISIO', 'DAMHA'];
+  if (SEM_META_DELIVERY_PROPRIA.includes(lojaUpper) && (alvo === 'DELIVERY' || alvo === 'LOJA')) {
+    const totalCadastrado = base.reduce((s, d) => s + (d.meta || 0), 0);
+    if (totalCadastrado > 0) {
+      const v = Math.round(totalCadastrado * (alvo === 'DELIVERY' ? 0.03 : 0.97));
+      console.log('[META-RESULT]', loja, '|', canalNome, '=', v, '(regra especial 3%/97% sobre total cadastrado:', totalCadastrado, ')');
+      return v;
+    }
+  }
 
   const rEspecifico = base.filter(d => {
     const dc = String(d.canal || '').toUpperCase();
