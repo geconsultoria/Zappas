@@ -2018,6 +2018,17 @@ function queryCanal(ano, mes, loja, canalNome, field) {
       String(d.canal||'').toUpperCase() === alvo)
     .reduce((s,d)=>s+(d[field]||0),0);
 }
+// Soma só até um dia específico do mês (ex: até o "dia anterior") — usada
+// pra calcular a venda REALMENTE acumulada até a data de referência, sem
+// contar dias futuros que porventura já existam na base.
+function queryCanalAteDia(ano, mes, loja, ateDia, canalNome, field) {
+  const alvo = String(canalNome || '').toUpperCase();
+  return rawData
+    .filter(d => (!ano||d.ano===ano) && (!mes||d.mes===mes) && (!loja||d.loja===loja) &&
+      d.dia!==null && d.dia<=ateDia &&
+      String(d.canal||'').toUpperCase() === alvo)
+    .reduce((s,d)=>s+(d[field]||0),0);
+}
 function dayQueryCanal(ano, mes, loja, dia, canalNome, field) {
   const alvo = String(canalNome || '').toUpperCase();
   return rawData
@@ -2127,8 +2138,17 @@ function computeResumoLoja(loja) {
   const vLojaAnt = queryCanal(anoAnt, mes, loja, 'LOJA', 'venda');
   const vDelAnt  = queryCanal(anoAnt, mes, loja, 'DELIVERY', 'venda');
 
-  const pctMetaLoja = metaMesLoja > 0 ? ((vLoja - metaMesLoja) / metaMesLoja) * 100 : null;
-  const pctMetaDel  = metaMesDel  > 0 ? ((vDel  - metaMesDel)  / metaMesDel)  * 100 : null;
+  // META ACUM x VENDA MÊS = Venda Realizada Acumulada até o dia de
+  // referência ÷ Meta Acumulada até esse mesmo dia (meta do mês
+  // proporcional aos dias já passados) — não a meta do mês inteiro,
+  // pra não distorcer o resultado nos primeiros dias do mês.
+  const vLojaAcumDia = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const vDelAcumDia  = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const metaAcumLoja = (metaMesLoja > 0 && diaAnt) ? metaMesLoja * (diaAnt / dias) : 0;
+  const metaAcumDel  = (metaMesDel  > 0 && diaAnt) ? metaMesDel  * (diaAnt / dias) : 0;
+
+  const pctMetaLoja = metaAcumLoja > 0 ? ((vLojaAcumDia / metaAcumLoja) - 1) * 100 : null;
+  const pctMetaDel  = metaAcumDel  > 0 ? ((vDelAcumDia  / metaAcumDel)  - 1) * 100 : null;
   const pctVsAntLoja = vLojaAnt > 0 ? ((vLoja - vLojaAnt) / vLojaAnt) * 100 : null;
   const pctVsAntDel  = vDelAnt  > 0 ? ((vDel  - vDelAnt)  / vDelAnt)  * 100 : null;
 
@@ -2191,6 +2211,10 @@ function setRdModo(modo) {
 }
 
 function pctClass(v) { return v===null ? '' : (v>=0 ? 'rd-pos' : 'rd-neg'); }
+// Para métricas que agora são uma RAZÃO (Realizado ÷ Meta × 100, centrada
+// em 100%) em vez de uma diferença (centrada em 0%) — ex: Meta Acum x
+// Venda Mês. 100% = na meta; abaixo disso fica vermelho, acima fica verde.
+function pctClass100(v) { return v===null ? '' : (v>=100 ? 'rd-pos' : 'rd-neg'); }
 function pctTxt(v) { return v===null ? '—' : Pct(v); }
 
 function buildCardHTML(r) {
