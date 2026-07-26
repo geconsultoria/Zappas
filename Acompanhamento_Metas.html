@@ -1133,7 +1133,7 @@ function N0(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
   return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
 }
-function Pct(v, d=1) {
+function Pct(v, d=2) {
   if (v === null || v === undefined || isNaN(v)) return '—';
   return (v >= 0 ? '+' : '') + Number(v).toFixed(d) + '%';
 }
@@ -1820,6 +1820,11 @@ function renderDashboard(f) {
     });
   }
 
+  // Média de pessoas considerando só os dias que realmente têm dado
+  // (desconsiderando dias com 0, sejam futuros ou sem venda registrada).
+  const diasComDadosPess = rows.filter(r => r.c > 0).length;
+  const mediaPessComDados = diasComDadosPess > 0 ? cA / diasComDadosPess : 0;
+
   const tblH = `<table>
     <thead>
       <tr class="tr-grp">
@@ -1904,7 +1909,7 @@ function renderDashboard(f) {
           &nbsp;
           ${pctVsAnt !== null ? `<span class="pill ${pctVsAnt >= 0 ? 'pill-pos':'pill-neg'}">AA: ${Pct(pctVsAnt)}</span>` : ''}
         </td>
-        <td>${N0(cA/dias)}</td>
+        <td>${N0(mediaPessComDados)}</td>
         <td colspan="2" class="sep" style="color:var(--amber);font-weight:700">MÉDIA TK: ${V0(tktA)}</td>
         <td colspan="2" style="color:var(--ink2)">${V0(qA)}</td>
       </tr>
@@ -1912,8 +1917,8 @@ function renderDashboard(f) {
         <td class="tl sep" colspan="5">TOTAL AA: ${V0(vAnt)}</td>
         <td class="tl sep" colspan="5">TOTAL REALIZADO: ${V0(vA)}</td>
         <td colspan="4" class="sep">${metaMes > 0 ? 'META: ' + V0(metaMes) : '—'}</td>
-        <td>${N0(cA)}</td>
-        <td colspan="2" class="sep">TK ACUM: ${V0(tktA)}</td>
+        <td>${N0(mediaPessComDados)}</td>
+        <td colspan="2" class="sep">TK ACUM: ${pctTktAA !== null ? Pct(pctTktAA) : '—'}</td>
         <td colspan="2">BAIXAS: ${V0(qA)}</td>
       </tr>
     </tfoot>
@@ -2242,7 +2247,7 @@ function pctClass(v) { return v===null ? '' : (v>=0 ? 'rd-pos' : 'rd-neg'); }
 // em 100%) em vez de uma diferença (centrada em 0%) — ex: Meta Acum x
 // Venda Mês. 100% = na meta; abaixo disso fica vermelho, acima fica verde.
 function pctClass100(v) { return v===null ? '' : (v>=100 ? 'rd-pos' : 'rd-neg'); }
-function pctTxt(v) { return v===null ? '—' : Pct(v); }
+function pctTxt(v) { return v===null ? '—' : Pct(v, 2); }
 
 function buildCardHTML(r) {
   const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'Sem dados no mês';
