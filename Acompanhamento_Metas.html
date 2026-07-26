@@ -2157,11 +2157,6 @@ function computeResumoLoja(loja) {
   const realLoja = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
   const realDel  = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
 
-  const vLoja = queryCanal(ano, mes, loja, 'LOJA', 'venda');
-  const vDel  = queryCanal(ano, mes, loja, 'DELIVERY', 'venda');
-  const vLojaAnt = queryCanal(anoAnt, mes, loja, 'LOJA', 'venda');
-  const vDelAnt  = queryCanal(anoAnt, mes, loja, 'DELIVERY', 'venda');
-
   // META ACUM x VENDA MÊS = Venda Realizada Acumulada até o dia de
   // referência ÷ Meta Acumulada até esse mesmo dia (meta do mês
   // proporcional aos dias já passados) — não a meta do mês inteiro,
@@ -2173,8 +2168,16 @@ function computeResumoLoja(loja) {
 
   const pctMetaLoja = metaAcumLoja > 0 ? ((vLojaAcumDia / metaAcumLoja) - 1) * 100 : null;
   const pctMetaDel  = metaAcumDel  > 0 ? ((vDelAcumDia  / metaAcumDel)  - 1) * 100 : null;
-  const pctVsAntLoja = vLojaAnt > 0 ? ((vLoja - vLojaAnt) / vLojaAnt) * 100 : null;
-  const pctVsAntDel  = vDelAnt  > 0 ? ((vDel  - vDelAnt)  / vDelAnt)  * 100 : null;
+
+  // VENDA ACUM x ANO ANTERIOR = mesma conta do Meta Acum x Venda Mês, só
+  // que no lugar da "Meta Acum." usa a venda acumulada do ANO ANTERIOR
+  // até esse mesmo dia/mês (a coluna "Acum. AA" da grade Abertura Diária)
+  // — muda só o ano (2026 → 2025), mês e dia de referência são os mesmos.
+  const vLojaAcumDiaAA = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const vDelAcumDiaAA  = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+
+  const pctVsAntLoja = vLojaAcumDiaAA > 0 ? ((vLojaAcumDia / vLojaAcumDiaAA) - 1) * 100 : null;
+  const pctVsAntDel  = vDelAcumDiaAA  > 0 ? ((vDelAcumDia  / vDelAcumDiaAA)  - 1) * 100 : null;
 
   const vA = query(ano, mes, loja, 'venda');
   const cA = query(ano, mes, loja, 'cupons');
