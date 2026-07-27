@@ -1901,8 +1901,8 @@ function renderDashboard(f) {
         <td class="tl sep" colspan="2" style="font-weight:700;color:var(--blue)">VENDA MÉDIA DIA AA: ${V0(vDiaAnt)}</td>
         <td style="color:var(--ink2);font-weight:600">${N0(cAnt/dias)}</td>
         <td colspan="2" class="sep" style="color:var(--ink2);font-weight:600">MÉDIA TK AA: ${V0(tktDiaAnt)}</td>
-        <td class="tl sep" colspan="2" style="color:var(--blue);font-weight:700">VENDA MÉDIA DIA: ${V0(vDia)}</td>
-        <td style="color:var(--blue);font-weight:700">${metaMes > 0 ? V0(metaDia) : '—'}</td>
+        <td class="tl sep" colspan="2" style="color:var(--blue);font-weight:700">META MÉDIA DIA: ${metaMes > 0 ? V0(metaDia) : '—'}</td>
+        <td style="color:var(--blue);font-weight:700">VENDA MÉDIA: ${V0(vDia)}</td>
         <td colspan="2" class="sep" style="color:var(--blue);font-weight:700">${V0(vA)}</td>
         <td colspan="4" class="sep" style="color:var(--ink2)">
           ${pctMeta !== null ? `<span class="pill ${pctMeta >= 0 ? 'pill-pos':'pill-neg'}">Meta: ${Pct(pctMeta)}</span>` : '—'}

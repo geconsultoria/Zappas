@@ -346,6 +346,20 @@ async function gerarResumoMensal() {
   }
 }
 
+// ── Atualização automática ao reabrir o sistema ──
+// sessionStorage dura enquanto a aba/app ficar aberto, mesmo navegando
+// entre páginas — mas ZERA quando você fecha de vez o navegador/app e
+// abre de novo. Por isso: dispara "Atualização Geral" sozinho só na
+// PRIMEIRA vez que a GestaoZappas abre numa sessão nova, não toda vez
+// que você volta pra essa tela clicando no logo.
+const SESSION_AUTO_KEY = 'zappas_auto_update_session';
+if (!sessionStorage.getItem(SESSION_AUTO_KEY)) {
+  sessionStorage.setItem(SESSION_AUTO_KEY, '1');
+  window.addEventListener('DOMContentLoaded', () => {
+    gerarResumoMensal();
+  });
+}
+
 function expandSidebar(){
   const sidebar = document.getElementById('sidebar');
   if(!sidebar.classList.contains('collapsed')) return;
