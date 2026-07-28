@@ -1276,37 +1276,42 @@ async function loadData(forceRefresh = false, silent = false) {
     let allRows = [];
     const lojasComFalha = [];
 
-    // Busca uma loja de cada vez (sequencial), em vez de todas ao mesmo
-    // tempo — disparar as 6 juntas sobrecarregava o Apps Script e fazia
-    // uma loja "sumir" aleatoriamente a cada carregamento.
-    for (let i = 0; i < CSV_URLS.length; i++) {
-      const nomeLoja = (STORE_KEYS && STORE_KEYS[i]) ? STORE_KEYS[i] : ('arquivo ' + (i + 1));
-      try {
-        const res = await fetch(CSV_URLS[i] + cacheBust, { cache: 'no-store' });
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        const txt = await res.text();
-        const parsed = parseCSV(txt);
-        if (!headers.length) {
-          headers = parsed.headers;
-          allRows = allRows.concat(parsed.rows);
-        } else {
-          var storeHeaderMap = {};
-          parsed.headers.forEach(function(h, idx) {
-            storeHeaderMap[h] = headers[idx] || h;
-          });
-          var remapped = parsed.rows.map(function(row) {
-            var nr = {};
-            Object.keys(row).forEach(function(k) {
-              nr[storeHeaderMap[k] || k] = row[k];
+    // Busca 2 lojas por vez (em vez de 1 por vez, ou todas de uma vez) —
+    // um meio-termo bem mais rápido, mas que ainda evita sobrecarregar o
+    // Apps Script disparando as 6 simultaneamente.
+    const BATCH = 2;
+    for (let i = 0; i < CSV_URLS.length; i += BATCH) {
+      const grupo = CSV_URLS.slice(i, i + BATCH);
+      await Promise.all(grupo.map(async (url, j) => {
+        const idx = i + j;
+        const nomeLoja = (STORE_KEYS && STORE_KEYS[idx]) ? STORE_KEYS[idx] : ('arquivo ' + (idx + 1));
+        try {
+          const res = await fetch(url + cacheBust, { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const txt = await res.text();
+          const parsed = parseCSV(txt);
+          if (!headers.length) {
+            headers = parsed.headers;
+            allRows = allRows.concat(parsed.rows);
+          } else {
+            var storeHeaderMap = {};
+            parsed.headers.forEach(function(h, idx2) {
+              storeHeaderMap[h] = headers[idx2] || h;
             });
-            return nr;
-          });
-          allRows = allRows.concat(remapped);
+            var remapped = parsed.rows.map(function(row) {
+              var nr = {};
+              Object.keys(row).forEach(function(k) {
+                nr[storeHeaderMap[k] || k] = row[k];
+              });
+              return nr;
+            });
+            allRows = allRows.concat(remapped);
+          }
+        } catch (errLoja) {
+          console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
+          lojasComFalha.push(nomeLoja);
         }
-      } catch (errLoja) {
-        console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
-        lojasComFalha.push(nomeLoja);
-      }
+      }));
     }
 
     await metasPromise;
