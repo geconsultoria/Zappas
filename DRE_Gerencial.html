@@ -1339,9 +1339,18 @@ tr.is-open .expand-hint { display: none; }
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   ⚙️  CONFIGURAÇÃO — INSIRA A URL DO CSV AQUI
+   ⚙️  CONFIGURAÇÃO — FONTE DE DADOS
 ══════════════════════════════════════════════════════════════ */
-const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjGLayK9vF_NR1LpZcTHx23PelZV0343Fkmi0EnOtK7cYcPorZWLObO770AMndFjpvhg6X5gNB-vhh/pub?gid=1228809091&single=true&output=csv";
+// Despesas (Contas a Pagar) agora vêm do mesmo Apps Script usado pelas
+// outras páginas do painel — um arquivo por loja — em vez de uma
+// planilha publicada única. O de-para com o Plano de Contas Zappas
+// (codcentro → Cod_PL) é feito aqui na página, a cada carregamento.
+const APPS_SCRIPT_URL_DRE = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+const CTASPAGAR_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=ctaspagar&loja=${k}`);
+const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL_DRE}?tipo=planocontas`;
+
+// Receitas continuam vindas da planilha publicada, como já era.
 const CSV_URL_RECEBIMENTOS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjGLayK9vF_NR1LpZcTHx23PelZV0343Fkmi0EnOtK7cYcPorZWLObO770AMndFjpvhg6X5gNB-vhh/pub?gid=229447482&single=true&output=csv";
 /* ══════════════════════════════════════════════════════════════ */
 
@@ -1649,6 +1658,118 @@ function parseCSVRecebimentos(text){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   CONTAS A PAGAR (por loja) + DE-PARA COM O PLANO DE CONTAS
+   codcentro (Contas a Pagar) ←→ Cod_PL (Plano de Contas Zappas)
+══════════════════════════════════════════════════════════════ */
+
+// Igual detectSep, mas também reconhece TAB como separador (alguns
+// exports de sistema de gestão usam tab em vez de vírgula/ponto-vírgula).
+function detectSepExt(txt){
+  const l = txt.split('\n')[0];
+  const counts = { '\t': (l.match(/\t/g)||[]).length, ';': (l.match(/;/g)||[]).length, ',': (l.match(/,/g)||[]).length };
+  let best = ',', bestN = -1;
+  for(const s in counts){ if(counts[s] > bestN){ bestN = counts[s]; best = s; } }
+  return best;
+}
+
+// Baixa o Plano de Contas Zappas e monta um mapa:
+//   Cod_PL  ->  { conta_pl, cod_grupo, grupo, sub_grupo }
+// Guarda cada código em algumas variações (com/sem zeros à esquerda)
+// pra aumentar a chance de bater com o codcentro do Contas a Pagar.
+async function fetchPlanoContas(){
+  const text = await fetchCSV(PLANO_CONTAS_URL);
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const map = new Map();
+  if(!lines.length) return map;
+
+  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iCodPL   = findCol(rawHeaders,'cod_pl','codpl','cod pl');
+  const iContaPL = findCol(rawHeaders,'conta_pl','contapl','conta pl');
+  const iCodGrp  = findCol(rawHeaders,'cod_grupo','codgrupo','cod grupo');
+  const iGrupo   = findCol(rawHeaders,'grupo');
+  const iSubGrp  = findCol(rawHeaders,'sub_grupo','subgrupo','sub grupo');
+
+  if(iCodPL<0) throw new Error('Plano de Contas — coluna Cod_PL não encontrada.');
+
+  for(let i=1;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+    const cells = splitLine(line,sep);
+    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
+    const codPLraw = g(iCodPL);
+    if(!codPLraw) continue;
+
+    const entry = {
+      conta_pl:  g(iContaPL),
+      cod_grupo: g(iCodGrp),
+      grupo:     g(iGrupo),
+      sub_grupo: g(iSubGrp),
+    };
+    map.set(codPLraw, entry);
+    const codPLnum = String(parseInt(codPLraw.replace(/\D/g,''),10) || '');
+    if(codPLnum) map.set(codPLnum, entry);
+  }
+  return map;
+}
+
+// Lê um CSV bruto de Contas a Pagar de uma loja, filtra pelo regime de
+// caixa (só linhas com data de pagamento preenchida), usa vparcela como
+// valor, e classifica cada linha via o de-para (codcentro → Cod_PL).
+// Linhas cujo codcentro não é encontrado no Plano de Contas ficam de
+// fora do DRE (não dá pra classificar) e são reportadas em naoMapeados.
+function parseContasPagar(text, planoMap, lojaFallback){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = [];
+  const naoMapeados = new Set();
+  if(!lines.length) return { rows, naoMapeados };
+
+  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iLoja   = findCol(rawHeaders,'loja');
+  const iCodCtr = findCol(rawHeaders,'codcentro','cod_centro','codigo_centro');
+  const iValor  = findCol(rawHeaders,'vparcela','valor_parcela');
+  const iDtPgto = findCol(rawHeaders,'dtpagamento','data_pagamento');
+
+  const missing=[];
+  if(iCodCtr<0) missing.push('codcentro');
+  if(iValor<0)  missing.push('vparcela');
+  if(iDtPgto<0) missing.push('dtpagamento');
+  if(missing.length) throw new Error('Contas a Pagar — colunas não encontradas: '+missing.join(', '));
+
+  for(let i=1;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+    const cells = splitLine(line,sep);
+    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
+
+    const dtPgto = g(iDtPgto);
+    if(!dtPgto) continue; // regime de caixa: sem pagamento, não entra no DRE
+
+    const mes = parseMes(dtPgto);
+    const ano = parseAno(dtPgto);
+    if(!mes || !ano) continue;
+
+    const valor = parseNum(g(iValor));
+    if(!valor) continue;
+
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    const codCentroRaw = g(iCodCtr);
+    const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10) || '');
+    const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
+
+    if(!info || !info.grupo){
+      naoMapeados.add(codCentroRaw || '(vazio)');
+      continue;
+    }
+    if(!loja) continue;
+
+    rows.push({ mes, ano, loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl });
+  }
+  return { rows, naoMapeados };
+}
+
+/* ══════════════════════════════════════════════════════════════
    FETCH
 ══════════════════════════════════════════════════════════════ */
 function getVizUrl(url){
@@ -1658,24 +1779,34 @@ function getVizUrl(url){
   return `https://docs.google.com/spreadsheets/d/e/${mId[1]}/gviz/tq?tqx=out:csv&gid=${mGid?mGid[1]:'0'}&tq=select+*&_=${Date.now()}`;
 }
 
+async function fetchComTimeout(url, opts, ms){
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms || 15000);
+  try {
+    return await fetch(url, { ...opts, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 async function fetchCSV(url){
   const errs=[];
   /* 1. Viz API */
   try{
     const vizUrl=getVizUrl(url);
     if(vizUrl){
-      const r=await fetch(vizUrl,{cache:'no-store'});
+      const r=await fetchComTimeout(vizUrl,{cache:'no-store'});
       if(r.ok){const t=await r.text();if(t&&!t.trim().startsWith('<'))return t;}
     }
   }catch(e){errs.push('viz:'+e.message);}
   /* 2. Direto */
   try{
-    const r=await fetch(url+'&_='+Date.now(),{cache:'no-store'});
+    const r=await fetchComTimeout(url+'&_='+Date.now(),{cache:'no-store'});
     if(r.ok){const t=await r.text();if(t&&!t.trim().startsWith('<'))return t;}
   }catch(e){errs.push('direct:'+e.message);}
   /* 3. AllOrigins */
   try{
-    const r=await fetch('https://api.allorigins.win/get?url='+encodeURIComponent(url+'&_='+Date.now()),{cache:'no-store'});
+    const r=await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+'&_='+Date.now()),{cache:'no-store'});
     if(r.ok){const j=await r.json();if(j?.contents&&!j.contents.trim().startsWith('<'))return j.contents;}
   }catch(e){errs.push('allorigins:'+e.message);}
   throw new Error('Falha ao carregar CSV. Detalhes: '+errs.join(' | '));
@@ -1721,23 +1852,76 @@ async function loadCacheDB(){
 /* ══════════════════════════════════════════════════════════════
    LOAD
 ══════════════════════════════════════════════════════════════ */
+async function carregarTudo(){
+  // Recebimentos continua vindo em paralelo, como já era.
+  const textRecebimentosPromise = fetchCSV(CSV_URL_RECEBIMENTOS).catch(err => {
+    console.warn('Recebimentos não carregado:', err.message);
+    return null;
+  });
+
+  document.getElementById('loaderMsg').textContent='Carregando plano de contas…';
+  let planoMap = new Map();
+  try {
+    planoMap = await fetchPlanoContas();
+  } catch(e) {
+    console.warn('Plano de Contas não carregado:', e.message);
+  }
+
+  let rowsDespesas = [];
+  const naoMapeadosGeral = new Set();
+  // Busca 2 lojas de Contas a Pagar por vez — rápido, mas sem
+  // sobrecarregar o Apps Script disparando as 6 de uma vez.
+  const BATCH = 2;
+  for (let i = 0; i < CTASPAGAR_URLS.length; i += BATCH) {
+    const grupoUrls = CTASPAGAR_URLS.slice(i, i + BATCH);
+    document.getElementById('loaderMsg').textContent =
+      'Carregando despesas (' + Math.min(i+BATCH, CTASPAGAR_URLS.length) + '/' + CTASPAGAR_URLS.length + ')…';
+    await Promise.all(grupoUrls.map(async (url, j) => {
+      const idx = i + j;
+      const lojaKey = CTASPAGAR_STORE_KEYS[idx];
+      try {
+        const text = await fetchCSV(url);
+        const { rows, naoMapeados } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
+        rowsDespesas = rowsDespesas.concat(rows);
+        naoMapeados.forEach(c => naoMapeadosGeral.add(c));
+      } catch(e) {
+        console.warn('Contas a pagar indisponível (' + lojaKey + '):', e.message);
+      }
+    }));
+  }
+  if (naoMapeadosGeral.size) {
+    console.warn('[DRE] Códigos de centro de custo (codcentro) sem correspondência no Plano de Contas — linhas ignoradas:', [...naoMapeadosGeral].join(', '));
+  }
+
+  document.getElementById('loaderMsg').textContent='Processando dados…';
+
+  const textRecebimentos = await textRecebimentosPromise;
+  let rowsRecebimentos = [];
+  if(textRecebimentos){
+    rowsRecebimentos = parseCSVRecebimentos(textRecebimentos);
+  }
+
+  /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
+  const rowsDespSemReceita = rowsDespesas.filter(r => {
+    const slug = slugFromGrupo(r.grupo);
+    return slug !== 'receita_operacional';
+  });
+
+  raw = [...rowsRecebimentos, ...rowsDespSemReceita];
+  if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
+  populateFilters();
+  applyFilters();
+  toggleFixHeader(true); /* ativar cabeçalho fixo por padrão */
+  document.getElementById('mainArea').style.display='block';
+  const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+  document.getElementById('lastUpdate').textContent=ts;
+  saveCache(raw, ts);
+}
+
 async function loadData(forceRefresh){
   const overlay=document.getElementById('overlay');
   const btn=document.getElementById('btnRefresh');
   const errBox=document.getElementById('errBox');
-
-  if(!forceRefresh){
-    const cached=await loadCacheDB();
-    if(cached && cached.data && cached.data.length){
-      raw=cached.data;
-      populateFilters();
-      applyFilters();
-      toggleFixHeader(true);
-      document.getElementById('mainArea').style.display='block';
-      document.getElementById('lastUpdate').textContent=cached.ts+' (dados salvos)';
-      return;
-    }
-  }
 
   overlay.classList.remove('hidden');
   btn.classList.add('spin');
@@ -1745,41 +1929,26 @@ async function loadData(forceRefresh){
   document.getElementById('loaderMsg').textContent='Conectando…';
 
   try{
-    document.getElementById('loaderMsg').textContent='Carregando despesas…';
-    const [textDespesas, textRecebimentos] = await Promise.allSettled([
-      fetchCSV(CSV_URL),
-      fetchCSV(CSV_URL_RECEBIMENTOS)
+    if(!forceRefresh){
+      const cached=await loadCacheDB();
+      if(cached && cached.data && cached.data.length){
+        raw=cached.data;
+        populateFilters();
+        applyFilters();
+        toggleFixHeader(true);
+        document.getElementById('mainArea').style.display='block';
+        document.getElementById('lastUpdate').textContent=cached.ts+' (dados salvos)';
+        return;
+      }
+    }
+
+    // Rede-de-segurança: nenhuma etapa individual deveria travar por mais
+    // de 40s — se travar, cai aqui em vez de deixar "Carregando…" preso
+    // pra sempre na tela.
+    await Promise.race([
+      carregarTudo(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido ao carregar os dados (40s). Verifique sua conexão e tente novamente.')), 40000))
     ]);
-
-    document.getElementById('loaderMsg').textContent='Processando dados…';
-
-    let rowsDespesas = [];
-    if(textDespesas.status === 'fulfilled'){
-      rowsDespesas = parseCSV(textDespesas.value);
-    }
-
-    let rowsRecebimentos = [];
-    if(textRecebimentos.status === 'fulfilled'){
-      rowsRecebimentos = parseCSVRecebimentos(textRecebimentos.value);
-    } else {
-      console.warn('Recebimentos não carregado:', textRecebimentos.reason);
-    }
-
-    /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
-    const rowsDespSemReceita = rowsDespesas.filter(r => {
-      const slug = slugFromGrupo(r.grupo);
-      return slug !== 'receita_operacional';
-    });
-
-    raw = [...rowsRecebimentos, ...rowsDespSemReceita];
-    if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
-    populateFilters();
-    applyFilters();
-    toggleFixHeader(true); /* ativar cabeçalho fixo por padrão */
-    document.getElementById('mainArea').style.display='block';
-    const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
-    document.getElementById('lastUpdate').textContent=ts;
-    saveCache(raw, ts);
   }catch(err){
     document.getElementById('mainArea').style.display='block';
     errBox.style.display='flex';
