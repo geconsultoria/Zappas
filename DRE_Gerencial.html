@@ -1351,11 +1351,11 @@ const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tip
 const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL_DRE}?tipo=planocontas`;
 
 // ══════════════════════════════════════════════════════════════
-// NOVO: Recebidos (por loja) + De-Para
+// NOVO: Recebidos (por loja) + De-Para (por loja)
 // ══════════════════════════════════════════════════════════════
 const RECBIDOS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const RECBIDOS_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=recebidos&loja=${k}`);
-const DEPARA_URL = `${APPS_SCRIPT_URL_DRE}?tipo=depara`;
+const DEPARA_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=depara&loja=${k}`);
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -1956,16 +1956,20 @@ async function loadCacheDB(){
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
   // ══════════════════════════════════════════════════════
-  // 1. Busca o de-para (codpgto → descricao) em paralelo
+  // 1. Busca de-para por loja (em paralelo)
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando de-para de recebimentos…';
-  let deparaMap = new Map();
-  try {
-    const textDepara = await fetchCSV(DEPARA_URL);
-    deparaMap = parseDepara(textDepara);
-  } catch(e) {
-    console.warn('De-Para não carregado:', e.message);
-  }
+  document.getElementById('loaderMsg').textContent='Carregando de-para por loja…';
+  const deparaMaps = {};
+  await Promise.all(RECBIDOS_STORE_KEYS.map(async (lojaKey) => {
+    try {
+      const url = `${APPS_SCRIPT_URL_DRE}?tipo=depara&loja=${lojaKey}`;
+      const text = await fetchCSV(url);
+      deparaMaps[lojaKey] = parseDepara(text);
+    } catch(e) {
+      console.warn('De-Para não carregado (' + lojaKey + '):', e.message);
+      deparaMaps[lojaKey] = new Map();
+    }
+  }));
 
   // ══════════════════════════════════════════════════════
   // 2. Busca o plano de contas
@@ -2006,7 +2010,7 @@ async function carregarTudo(){
   }
 
   // ══════════════════════════════════════════════════════
-  // 4. Busca Recebidos (por loja) + aplica de-para + filtra
+  // 4. Busca Recebidos (por loja) + usa de-para da mesma loja + filtra
   // ══════════════════════════════════════════════════════
   document.getElementById('loaderMsg').textContent='Carregando recebimentos…';
   let rowsRecebimentos = [];
@@ -2020,7 +2024,8 @@ async function carregarTudo(){
       const lojaKey = RECBIDOS_STORE_KEYS[idx];
       try {
         const text = await fetchCSV(url);
-        const rows = parseRecebidosLoja(text, deparaMap, lojaKey.toUpperCase());
+        const lojaDepara = deparaMaps[lojaKey] || new Map();
+        const rows = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
         rowsRecebimentos = rowsRecebimentos.concat(rows);
       } catch(e) {
         console.warn('Recebidos indisponível (' + lojaKey + '):', e.message);
