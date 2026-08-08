@@ -1693,22 +1693,21 @@ function parseDepara(text){
  * Retorna array de rows no formato padronizado do DRE.
  */
 function parseRecebidosLoja(text, deparaMap, lojaFallback){
-  const sep = detectSep(text);
+  const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   if(!lines.length) return [];
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
-  // Colunas reais do CSV de recebidos: mes, loja, codpgto, nomepgto, conta
+  // Colunas reais: mes, loja, codpgto, nomepgto, conta
   const iMes    = findCol(rawHeaders,'mes','mês','month','competencia','data');
   const iAno    = findCol(rawHeaders,'ano','year','exercicio');
   const iLoja   = findCol(rawHeaders,'loja','store','filial','unidade');
-  const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento','codformapagamento');
-  const iValor  = findCol(rawHeaders,'vparcela','valor_parcela','valor','value','vlr','v_total','total','valor_recebido','vlr_recebido');
-  const iNomePgto=findCol(rawHeaders,'nomepgto','nome_pgto','nome_pagamento','nome_forma','descricao','descrição','forma_pagamento','canal');
-  const iConta  = findCol(rawHeaders,'conta','account','plano_de_contas','plano');
+  const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento');
+  const iConta  = findCol(rawHeaders,'conta','valor','valor_conta','v_conta');
 
-  if(iValor<0) throw new Error('Recebidos — coluna de valor não encontrada. Colunas disponíveis: '+rawHeaders.join(', '));
+  if(iCodPgto<0) throw new Error('Recebidos — coluna codpgto não encontrada. Colunas: '+rawHeaders.join(', '));
+  if(iConta<0) throw new Error('Recebidos — coluna conta (valor) não encontrada. Colunas: '+rawHeaders.join(', '));
 
   const rows=[];
   for(let i=1;i<lines.length;i++){
@@ -1717,27 +1716,22 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     const cells=splitLine(line,sep);
     const g=idx=>idx>=0?(cells[idx]||'').replace(/^"|"$/g,'').trim():'';
 
-    const valor = parseNum(g(iValor));
+    const valor = parseNum(g(iConta));
     if(!valor) continue;
 
-    // Determina a categoria: primeiro tenta de-para via codpgto, senão usa nomepgto direto
-    let categoria = '';
-    if(iCodPgto>=0){
-      const codPgto = g(iCodPgto);
-      categoria = deparaMap.get(String(codPgto).trim()) || '';
-      if(!categoria){
-        const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
-        categoria = deparaMap.get(codNum) || '';
-      }
-    }
-    // Fallback: usa nomepgto (já tem o nome da forma de pagamento)
-    if(!categoria && iNomePgto>=0){
-      categoria = g(iNomePgto);
-    }
-    if(!categoria) continue;
+    // Busca codpgto no de-para para pegar o RECEBIMENTO
+    const codPgto = g(iCodPgto);
+    if(!codPgto) continue;
 
-    // Filtra: só categorias permitidas
-    const catNorm = normCat(categoria);
+    let recebimento = deparaMap.get(String(codPgto).trim()) || '';
+    if(!recebimento){
+      const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
+      recebimento = deparaMap.get(codNum) || '';
+    }
+    if(!recebimento) continue;
+
+    // Filtra: só categorias permitidas (Boleto, Convenio Cliente, Cartão, PIX, Dinheiro)
+    const catNorm = normCat(recebimento);
     const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
     if(!permitida) continue;
 
@@ -1759,7 +1753,7 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       mes, ano, loja, valor,
       grupo: 'RECEITA OPERACIONAL',
       subgrupo: 'Recebimentos',
-      plano: categoria
+      plano: recebimento
     });
   }
   return rows;
