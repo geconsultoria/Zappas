@@ -1341,17 +1341,21 @@ tr.is-open .expand-hint { display: none; }
 /* ══════════════════════════════════════════════════════════════
    ⚙️  CONFIGURAÇÃO — FONTE DE DADOS
 ══════════════════════════════════════════════════════════════ */
-// Despesas (Contas a Pagar) agora vêm do mesmo Apps Script usado pelas
-// outras páginas do painel — um arquivo por loja — em vez de uma
-// planilha publicada única. O de-para com o Plano de Contas Zappas
-// (codcentro → Cod_PL) é feito aqui na página, a cada carregamento.
 const APPS_SCRIPT_URL_DRE = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+
+// Contas a Pagar (por loja)
 const CTASPAGAR_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=ctaspagar&loja=${k}`);
+
+// Plano de Contas Zappas (arquivo único)
 const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL_DRE}?tipo=planocontas`;
 
-// Receitas continuam vindas da planilha publicada, como já era.
-const CSV_URL_RECEBIMENTOS = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRjGLayK9vF_NR1LpZcTHx23PelZV0343Fkmi0EnOtK7cYcPorZWLObO770AMndFjpvhg6X5gNB-vhh/pub?gid=229447482&single=true&output=csv";
+// ══════════════════════════════════════════════════════════════
+// NOVO: Recebidos (por loja) + De-Para
+// ══════════════════════════════════════════════════════════════
+const RECBIDOS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const RECBIDOS_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=recebidos&loja=${k}`);
+const DEPARA_URL = `${APPS_SCRIPT_URL_DRE}?tipo=depara`;
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -1617,25 +1621,94 @@ function parseCSV(text){
   return rows;
 }
 
-/* Parser específico para aba Recebimentos: Mês, Loja, Conta, Valor */
-function parseCSVRecebimentos(text){
+/* ══════════════════════════════════════════════════════════════
+   RECEBIDOS + DE-PARA
+   Lê os CSVs de recebidos de cada loja, aplica o de-para
+   (codpgto → cod → descricao) e filtra apenas:
+     Boleto / Convenio Cliente, Cartão / PIX, Dinheiro
+══════════════════════════════════════════════════════════════ */
+
+// Categorias permitidas no DRE (normalizadas)
+const CAT_PERMITIDAS = [
+  'boleto',
+  'convenio cliente',
+  'convenio',
+  'cartao',
+  'cartão',
+  'pix',
+  'dinheiro'
+];
+
+// Mapeamento de categorias normalizadas → slug do DRE
+const CAT_DRE_MAP = {
+  'boleto':            'receita_operacional',
+  'convenio cliente':  'receita_operacional',
+  'convenio':          'receita_operacional',
+  'cartao':            'receita_operacional',
+  'cartão':            'receita_operacional',
+  'pix':               'receita_operacional',
+  'dinheiro':          'receita_operacional'
+};
+
+function normCat(s){
+  return String(s||'').toLowerCase().normalize('NFD')
+    .replace(/[\u0300-\u036f]/g,'').replace(/[\s_\-]+/g,' ').trim();
+}
+
+/**
+ * Lê o CSV de-para e monta um mapa: cod → descricao
+ */
+function parseDepara(text){
+  const sep = detectSep(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if(!lines.length) return new Map();
+
+  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iCod   = findCol(rawHeaders,'cod','codigo','code','codpgto');
+  const iDesc  = findCol(rawHeaders,'descricao','descrição','tipo','categoria','descricao_pagamento');
+
+  if(iCod<0) throw new Error('De-Para — coluna cod não encontrada.');
+  if(iDesc<0) throw new Error('De-Para — coluna descricao não encontrada.');
+
+  const map = new Map();
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim();
+    if(!line) continue;
+    const cells=splitLine(line,sep);
+    const g=idx=>idx>=0?(cells[idx]||'').replace(/^"|"$/g,'').trim():'';
+    const cod = g(iCod);
+    const desc = g(iDesc);
+    if(!cod) continue;
+    map.set(String(cod).trim(), desc);
+    // Também mapeia sem zeros à esquerda
+    const codNum = String(parseInt(cod.replace(/\D/g,''),10) || '');
+    if(codNum && codNum !== cod) map.set(codNum, desc);
+  }
+  return map;
+}
+
+/**
+ * Lê um CSV de recebidos de uma loja, aplica o de-para e filtra
+ * apenas as categorias permitidas (Boleto/Conv, Cartão/PIX, Dinheiro).
+ * Retorna array de rows no formato padronizado do DRE.
+ */
+function parseRecebidosLoja(text, deparaMap, lojaFallback){
   const sep = detectSep(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   if(!lines.length) return [];
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
-  const iMes   = findCol(rawHeaders,'mes','mês','month','competencia','data');
-  const iAno   = findCol(rawHeaders,'ano','year','exercicio');
-  const iLoja  = findCol(rawHeaders,'loja','store','filial','unidade');
-  const iConta = findCol(rawHeaders,'conta','account','plano_de_contas','plano','descricao','descricao');
-  const iValor = findCol(rawHeaders,'valor','value','vlr','v_total','total','vparcela','valor_parcela');
+  // Detecta colunas — tenta variações comuns
+  const iMes    = findCol(rawHeaders,'mes','mês','month','competencia','data');
+  const iAno    = findCol(rawHeaders,'ano','year','exercicio');
+  const iLoja   = findCol(rawHeaders,'loja','store','filial','unidade');
+  const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento','codformapagamento');
+  const iValor  = findCol(rawHeaders,'vparcela','valor_parcela','valor','value','vlr','v_total','total','valor_recebido','vlr_recebido');
+  const iDesc   = findCol(rawHeaders,'descricao','descrição','forma_pagamento','canal','tipo_recebimento');
 
-  const missing=[];
-  if(iMes<0)   missing.push('Mês');
-  if(iLoja<0)  missing.push('Loja');
-  if(iValor<0) missing.push('Valor');
-  if(missing.length) throw new Error('Recebimentos — colunas não encontradas: '+missing.join(', '));
+  // Pelo menos codpgto ou descricao + valor são obrigatórios
+  if(iValor<0) throw new Error('Recebidos — coluna de valor não encontrada.');
 
   const rows=[];
   for(let i=1;i<lines.length;i++){
@@ -1643,16 +1716,52 @@ function parseCSVRecebimentos(text){
     if(!line) continue;
     const cells=splitLine(line,sep);
     const g=idx=>idx>=0?(cells[idx]||'').replace(/^"|"$/g,'').trim():'';
-    const mesRaw=g(iMes);
-    const mes=parseMes(mesRaw);
-    let ano=iAno>=0?parseInt(g(iAno)):null;
-    if(!ano) ano=parseAno(mesRaw);
-    if(!ano) ano=new Date().getFullYear();
-    const loja=g(iLoja), valor=parseNum(g(iValor));
-    const conta=(iConta>=0?g(iConta):'')||'Receita Operacional';
+
+    const valor = parseNum(g(iValor));
+    if(!valor) continue;
+
+    // Determina a categoria via de-para ou coluna de descrição
+    let categoria = '';
+    if(iCodPgto>=0){
+      const codPgto = g(iCodPgto);
+      categoria = deparaMap.get(String(codPgto).trim()) || '';
+      // Tenta sem zeros à esquerda
+      if(!categoria){
+        const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
+        categoria = deparaMap.get(codNum) || '';
+      }
+    }
+    // Fallback: usa coluna de descrição direta
+    if(!categoria && iDesc>=0){
+      categoria = g(iDesc);
+    }
+    if(!categoria) continue;
+
+    // Filtra: só categorias permitidas
+    const catNorm = normCat(categoria);
+    const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
+    if(!permitida) continue;
+
+    // Extrai mês e ano
+    let mes = null, ano = null;
+    if(iMes>=0){
+      const mesRaw = g(iMes);
+      mes = parseMes(mesRaw);
+      ano = iAno>=0 ? parseInt(g(iAno)) : parseAno(mesRaw);
+    }
+    if(iAno>=0 && !ano) ano = parseInt(g(iAno));
+    if(!ano) ano = new Date().getFullYear();
+    if(!mes) mes = new Date().getMonth()+1;
+
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
-    /* Força grupo = "RECEITA OPERACIONAL" para que o slug map funcione */
-    rows.push({mes,ano,loja,valor,grupo:'RECEITA OPERACIONAL',subgrupo:'Recebimentos',plano:conta});
+
+    rows.push({
+      mes, ano, loja, valor,
+      grupo: 'RECEITA OPERACIONAL',
+      subgrupo: 'Recebimentos',
+      plano: categoria
+    });
   }
   return rows;
 }
@@ -1853,12 +1962,21 @@ async function loadCacheDB(){
    LOAD
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
-  // Recebimentos continua vindo em paralelo, como já era.
-  const textRecebimentosPromise = fetchCSV(CSV_URL_RECEBIMENTOS).catch(err => {
-    console.warn('Recebimentos não carregado:', err.message);
-    return null;
-  });
+  // ══════════════════════════════════════════════════════
+  // 1. Busca o de-para (codpgto → descricao) em paralelo
+  // ══════════════════════════════════════════════════════
+  document.getElementById('loaderMsg').textContent='Carregando de-para de recebimentos…';
+  let deparaMap = new Map();
+  try {
+    const textDepara = await fetchCSV(DEPARA_URL);
+    deparaMap = parseDepara(textDepara);
+  } catch(e) {
+    console.warn('De-Para não carregado:', e.message);
+  }
 
+  // ══════════════════════════════════════════════════════
+  // 2. Busca o plano de contas
+  // ══════════════════════════════════════════════════════
   document.getElementById('loaderMsg').textContent='Carregando plano de contas…';
   let planoMap = new Map();
   try {
@@ -1867,10 +1985,11 @@ async function carregarTudo(){
     console.warn('Plano de Contas não carregado:', e.message);
   }
 
+  // ══════════════════════════════════════════════════════
+  // 3. Busca Contas a Pagar (por loja)
+  // ══════════════════════════════════════════════════════
   let rowsDespesas = [];
   const naoMapeadosGeral = new Set();
-  // Busca 2 lojas de Contas a Pagar por vez — rápido, mas sem
-  // sobrecarregar o Apps Script disparando as 6 de uma vez.
   const BATCH = 2;
   for (let i = 0; i < CTASPAGAR_URLS.length; i += BATCH) {
     const grupoUrls = CTASPAGAR_URLS.slice(i, i + BATCH);
@@ -1893,13 +2012,30 @@ async function carregarTudo(){
     console.warn('[DRE] Códigos de centro de custo (codcentro) sem correspondência no Plano de Contas — linhas ignoradas:', [...naoMapeadosGeral].join(', '));
   }
 
-  document.getElementById('loaderMsg').textContent='Processando dados…';
-
-  const textRecebimentos = await textRecebimentosPromise;
+  // ══════════════════════════════════════════════════════
+  // 4. Busca Recebidos (por loja) + aplica de-para + filtra
+  // ══════════════════════════════════════════════════════
+  document.getElementById('loaderMsg').textContent='Carregando recebimentos…';
   let rowsRecebimentos = [];
-  if(textRecebimentos){
-    rowsRecebimentos = parseCSVRecebimentos(textRecebimentos);
+  const BATCH_REC = 2;
+  for (let i = 0; i < RECBIDOS_URLS.length; i += BATCH_REC) {
+    const grupoUrls = RECBIDOS_URLS.slice(i, i + BATCH_REC);
+    document.getElementById('loaderMsg').textContent =
+      'Carregando recebidos (' + Math.min(i+BATCH_REC, RECBIDOS_URLS.length) + '/' + RECBIDOS_URLS.length + ')…';
+    await Promise.all(grupoUrls.map(async (url, j) => {
+      const idx = i + j;
+      const lojaKey = RECBIDOS_STORE_KEYS[idx];
+      try {
+        const text = await fetchCSV(url);
+        const rows = parseRecebidosLoja(text, deparaMap, lojaKey.toUpperCase());
+        rowsRecebimentos = rowsRecebimentos.concat(rows);
+      } catch(e) {
+        console.warn('Recebidos indisponível (' + lojaKey + '):', e.message);
+      }
+    }));
   }
+
+  document.getElementById('loaderMsg').textContent='Processando dados…';
 
   /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
   const rowsDespSemReceita = rowsDespesas.filter(r => {
@@ -1911,7 +2047,7 @@ async function carregarTudo(){
   if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
   populateFilters();
   applyFilters();
-  toggleFixHeader(true); /* ativar cabeçalho fixo por padrão */
+  toggleFixHeader(true);
   document.getElementById('mainArea').style.display='block';
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
