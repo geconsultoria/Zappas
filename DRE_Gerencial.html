@@ -1659,16 +1659,16 @@ function normCat(s){
  * Lê o CSV de-para e monta um mapa: cod → descricao
  */
 function parseDepara(text){
-  const sep = detectSep(text);
+  const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   if(!lines.length) return new Map();
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iCod   = findCol(rawHeaders,'cod','codigo','code','codpgto');
-  const iDesc  = findCol(rawHeaders,'descricao','descrição','tipo','categoria','descricao_pagamento');
+  const iDesc  = findCol(rawHeaders,'recebimento','descricao','descrição','tipo','categoria','descricao_pagamento');
 
-  if(iCod<0) throw new Error('De-Para — coluna cod não encontrada.');
-  if(iDesc<0) throw new Error('De-Para — coluna descricao não encontrada.');
+  if(iCod<0) throw new Error('De-Para — coluna COD não encontrada.');
+  if(iDesc<0) throw new Error('De-Para — coluna RECEBIMENTO/DESCRICAO não encontrada. Colunas disponíveis: '+rawHeaders.join(', '));
 
   const map = new Map();
   for(let i=1;i<lines.length;i++){
@@ -1699,16 +1699,16 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
-  // Detecta colunas — tenta variações comuns
+  // Colunas reais do CSV de recebidos: mes, loja, codpgto, nomepgto, conta
   const iMes    = findCol(rawHeaders,'mes','mês','month','competencia','data');
   const iAno    = findCol(rawHeaders,'ano','year','exercicio');
   const iLoja   = findCol(rawHeaders,'loja','store','filial','unidade');
   const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento','codformapagamento');
   const iValor  = findCol(rawHeaders,'vparcela','valor_parcela','valor','value','vlr','v_total','total','valor_recebido','vlr_recebido');
-  const iDesc   = findCol(rawHeaders,'descricao','descrição','forma_pagamento','canal','tipo_recebimento');
+  const iNomePgto=findCol(rawHeaders,'nomepgto','nome_pgto','nome_pagamento','nome_forma','descricao','descrição','forma_pagamento','canal');
+  const iConta  = findCol(rawHeaders,'conta','account','plano_de_contas','plano');
 
-  // Pelo menos codpgto ou descricao + valor são obrigatórios
-  if(iValor<0) throw new Error('Recebidos — coluna de valor não encontrada.');
+  if(iValor<0) throw new Error('Recebidos — coluna de valor não encontrada. Colunas disponíveis: '+rawHeaders.join(', '));
 
   const rows=[];
   for(let i=1;i<lines.length;i++){
@@ -1720,20 +1720,19 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     const valor = parseNum(g(iValor));
     if(!valor) continue;
 
-    // Determina a categoria via de-para ou coluna de descrição
+    // Determina a categoria: primeiro tenta de-para via codpgto, senão usa nomepgto direto
     let categoria = '';
     if(iCodPgto>=0){
       const codPgto = g(iCodPgto);
       categoria = deparaMap.get(String(codPgto).trim()) || '';
-      // Tenta sem zeros à esquerda
       if(!categoria){
         const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
         categoria = deparaMap.get(codNum) || '';
       }
     }
-    // Fallback: usa coluna de descrição direta
-    if(!categoria && iDesc>=0){
-      categoria = g(iDesc);
+    // Fallback: usa nomepgto (já tem o nome da forma de pagamento)
+    if(!categoria && iNomePgto>=0){
+      categoria = g(iNomePgto);
     }
     if(!categoria) continue;
 
