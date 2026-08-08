@@ -1017,8 +1017,12 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 // da loja que já vem em cada linha do CSV, então funciona independente
 // de a planilha escrever "Anisio", "ANISIO" ou "Anísio", por exemplo.
 const GRADE_LOJAS = ['Anisio', 'Bady', 'Damha', 'Belvedere', 'Havan', 'Muffato'];
+// O dado real vem gravado como "BELVEDER" (sem o "e" final) — normaliza
+// removendo um "E" solto no fim, pra "Belvedere" (rótulo correto exibido
+// na tela) continuar batendo com "BELVEDER" (valor real dos dados).
 const normLojaKey = s => String(s||'').trim().toUpperCase()
-  .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+  .replace(/E$/,'');
 
 /* ═══════════════════════════════════════════════════════
    CSV UTILS
@@ -1143,7 +1147,7 @@ function getF() {
 function populateFilters(data) {
   const lojas = [...new Set(data.map(r => r.loja))].filter(Boolean).sort();
   const cur = $('f-loja').value;
-  $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l => `<option value="${l}">${l}</option>`).join('');
+  $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l => `<option value="${l}">${l==='BELVEDER'?'BELVEDERE':l}</option>`).join('');
   if(lojas.includes(cur)) $('f-loja').value = cur;
 }
 

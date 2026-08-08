@@ -1358,7 +1358,7 @@ function buildFilters() {
   const meses = [...new Set(rawData.map(d => d.mes))].sort((a,b) => a-b);
 
   setOpts('f-ano',  anos,  v => v, v => v, '', 'Todos');
-  setOpts('f-loja', lojas, v => v, v => v, '', 'Todas');
+  setOpts('f-loja', lojas, v => v, v => v==='BELVEDER'?'BELVEDERE':v, '', 'Todas');
   setOpts('f-mes',  meses, v => v, v => MESES[v-1], '', 'Todos');
 
   const onFilterChange = () => { resetMetaEdited(); applyFilters(); };
@@ -1627,7 +1627,10 @@ function getMetaFromStorage(loja, mes) {
 
 function getAllMetasFromStorage(mes) {
   if (!mes) return 0;
-  const lojasBase = ['ANISIO', 'BELVEDERE', 'DAMHA', 'HAVAN', 'MUFFATO'];
+  // Usa "BELVEDER" (sem o "e" final) pois é assim que o nome da loja
+  // vem gravado nos dados reais — usar "BELVEDERE" aqui faria a meta
+  // dessa loja silenciosamente não ser encontrada (some do total).
+  const lojasBase = ['ANISIO', 'BELVEDER', 'DAMHA', 'HAVAN', 'MUFFATO'];
   let total = lojasBase.reduce((sum, lj) => sum + getMetaFromStorage(lj, mes), 0);
   total += getMetaFromStorage('BADY', mes);
   return total;
@@ -2209,7 +2212,7 @@ function computeResumoLoja(loja) {
   const pctPess = cAntDia > 0 ? ((cADia - cAntDia) / cAntDia) * 100 : null;
 
   return {
-    loja, ano, mes, anoAnt, diaAnt,
+    loja, lojaLabel: (loja==='BELVEDER'?'BELVEDERE':loja), ano, mes, anoAnt, diaAnt,
     metaDiaLoja, metaDiaDel, realLoja, realDel,
     pctMetaLoja, pctMetaDel, pctVsAntLoja, pctVsAntDel,
     tktA, pctTktAA, qA, pctBaixas,
@@ -2258,18 +2261,18 @@ function buildCardHTML(r) {
   const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'Sem dados no mês';
   return `
   <div class="rd-card">
-    <div class="rd-card-title">${r.loja} CONSOLIDADO</div>
+    <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
     <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
     <table class="rd-tbl">
       <tr><th colspan="2">META DIÁRIA</th><th colspan="2" class="hi">REALIZADO</th></tr>
-      <tr><td class="rd-sub-hd">${r.loja} LOJA</td><td class="rd-sub-hd">${r.loja} DELIVERY</td><td class="rd-sub-hd">${r.loja} LOJA</td><td class="rd-sub-hd">${r.loja} DELIVERY</td></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
       <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
       <tr><th colspan="2">META ACUM x VENDA MÊS</th><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
-      <tr><td class="rd-sub-hd">${r.loja} LOJA</td><td class="rd-sub-hd">${r.loja} DELIVERY</td><td class="rd-sub-hd">${r.loja} LOJA</td><td class="rd-sub-hd">${r.loja} DELIVERY</td></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
       <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
     </table>
-    <div class="rd-sec-title">${r.loja} LOJA</div>
+    <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
     <table class="rd-tbl">
       <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
       <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
@@ -2339,20 +2342,20 @@ function rdCarouselApplyPos() {
 function textoResumoLoja(r) {
   const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'sem dados no mês';
   const linhas = [];
-  linhas.push(`*${r.loja} CONSOLIDADO*`);
+  linhas.push(`*${r.lojaLabel} CONSOLIDADO*`);
   linhas.push(`Dia anterior: ${dataAntTxt}`);
   linhas.push('');
   linhas.push(`*Meta Diária*`);
-  linhas.push(`${r.loja} Loja: ${R(r.metaDiaLoja)}  |  ${r.loja} Delivery: ${R(r.metaDiaDel)}`);
+  linhas.push(`${r.lojaLabel} Loja: ${R(r.metaDiaLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.metaDiaDel)}`);
   linhas.push(`*Realizado*`);
-  linhas.push(`${r.loja} Loja: ${R(r.realLoja)}  |  ${r.loja} Delivery: ${R(r.realDel)}`);
+  linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}`);
   linhas.push('');
   linhas.push(`*% Meta Acum x Venda Mês*`);
   linhas.push(`Loja: ${pctTxt(r.pctMetaLoja)}  |  Delivery: ${pctTxt(r.pctMetaDel)}`);
   linhas.push(`*% Venda Acum x Ano Anterior*`);
   linhas.push(`Loja: ${pctTxt(r.pctVsAntLoja)}  |  Delivery: ${pctTxt(r.pctVsAntDel)}`);
   linhas.push('');
-  linhas.push(`*${r.loja} LOJA*`);
+  linhas.push(`*${r.lojaLabel} LOJA*`);
   linhas.push(`TKM Mês: ${R(r.tktA)} (${pctTxt(r.pctTktAA)} vs AA)`);
   linhas.push(`Baixas totais: ${R0(r.qA)} (${pctTxt(r.pctBaixas)})`);
   linhas.push(`Média Pessoas/Dia ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);

@@ -695,7 +695,11 @@ const STORES = {
 // completo (endereço, CNPJ etc.) ainda é encontrado.
 STORES.BELVEDER = STORES.BELVEDERE;
 
-const STORE_ORDER = ["ANISIO","BADY","DAMHA","BELVEDERE","HAVAN","MUFFATO"];
+// Usa "BELVEDER" (sem o "e" final) pois é assim que a chave normalizada
+// da loja vem dos dados reais — o nome exibido continua correto
+// ("Belvedere") porque storeLabel() busca em STORES, que já tem o
+// apelido STORES.BELVEDER = STORES.BELVEDERE.
+const STORE_ORDER = ["ANISIO","BADY","DAMHA","BELVEDER","HAVAN","MUFFATO"];
 
 const MESES_DISPLAY = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
 const MESES_ABBR    = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];

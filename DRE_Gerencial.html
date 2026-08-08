@@ -2798,7 +2798,7 @@ function renderLojas(){
     <div class="loja-card">
       <div class="loja-card-name">
         <span class="loja-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
-        ${loja}
+        ${loja==='BELVEDER'?'BELVEDERE':loja}
       </div>
       <div class="loja-total">${fmtBRL(val)}</div>
       <div class="loja-pct">${pct(val,total)} do total</div>
@@ -3008,7 +3008,7 @@ function renderBreakEven() {
   data.sort((a,b)=>b.rec-a.rec);
   document.getElementById('breakevenBody').innerHTML = data.map(d => {
     const pct = d.rec?(d.be/d.rec*100):0;
-    return `<tr><td>${d.loja}</td><td>${fmtBRL(d.rec)}</td><td>${fmtBRL(d.cv)}</td>
+    return `<tr><td>${d.loja==='BELVEDER'?'BELVEDERE':d.loja}</td><td>${fmtBRL(d.rec)}</td><td>${fmtBRL(d.cv)}</td>
       <td>${d.mcPct.toFixed(1)}%</td><td>${fmtBRL(d.cf)}</td><td>${fmtBRL(d.be)}</td>
       <td class="${pct>100?'val-neg':pct>80?'':'val-pos'}">${pct.toFixed(1)}%</td></tr>`;
   }).join('');

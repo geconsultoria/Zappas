@@ -898,7 +898,7 @@ function populateFilters() {
   const meses = [...new Set(rawFat.map(r=>r.mes))].filter(m=>m>0).sort((a,b)=>a-b);
   const canais = [...new Set(rawFat.map(r=>r.canal))].filter(Boolean).sort();
   fillSel('f-ano',  anos,  'Todos', v=>v);
-  fillSel('f-loja', lojas, 'Todas', v=>v);
+  fillSel('f-loja', lojas, 'Todas', v=>v==='BELVEDER'?'BELVEDERE':v);
   fillSel('f-mes',  meses, 'Todos', m=>MESES_NOME[m]||m);
   _allCanais = canais;
   populateCanalDropdown(canais);
@@ -1422,7 +1422,7 @@ function buildTableComparativo(anos, lojas) {
       const lB2 = fB2-cB2, pB2 = fB2>0?(lB2/fB2)*100:0;
       const varF2 = fA2>0?(fB2-fA2)/fA2*100:null;
       lRows += `<tr>
-        <td class="row-loja">${loja}</td>
+        <td class="row-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
         <td class="num">${fmtNum(fA2)}</td><td class="num">${fmtNum(cA2)}</td><td class="num" style="font-weight:600">${fmtNum(lA2)}</td>
         <td class="pct ${pA2>=30?'pct-good':pA2>=15?'pct-warn':'pct-bad'}">${fmtPct(pA2)}</td>
         <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(fB2)}</td><td class="num">${fmtNum(cB2)}</td><td class="num" style="font-weight:600">${fmtNum(lB2)}</td>

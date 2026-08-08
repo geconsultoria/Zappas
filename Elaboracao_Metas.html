@@ -1526,7 +1526,7 @@ function buildFilters() {
   const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
 
   fillSelect('f-ano', anos, v => v, v => v);
-  fillSelect('f-loja', lojas, v => v, v => v);
+  fillSelect('f-loja', lojas, v => v, v => v==='BELVEDER'?'BELVEDERE':v);
   fillSelect('f-mes', meses, v => v, v => MESES_NOME[v-1]);
   buildCanalOptions(canais);
 
@@ -2217,7 +2217,7 @@ function renderMetasTable(f) {
 
     if (isTotalBady) {
       return `<tr class="${rowClass}">
-        <td class="td-loja">${loja}</td>
+        <td class="td-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
         <td class="td-r">${fmtGrid(prevR25)}</td>
         <td class="td-r meta-real" id="meta_${loja}_${prevKey}">${totalBadyPrevMeta ? fmtGrid(totalBadyPrevMeta) : '—'}</td>
         <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
@@ -2230,7 +2230,7 @@ function renderMetasTable(f) {
     }
 
     return `<tr class="${rowClass}">
-      <td class="td-loja">${loja}</td>
+      <td class="td-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
       <td class="td-r">${fmtGrid(prevR25)}</td>
       <td class="td-r meta-real" id="meta_${loja}_${prevKey}" title="Valor real do ano atual (não editável)">${metaPrevReal ? fmtGrid(metaPrevReal) : '—'}</td>
       <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
@@ -2336,7 +2336,7 @@ function renderMetaSuggestion(f, allLojas, getVenda, anoAtual) {
 
   let tableRows = suggestions.map(s => `
     <tr>
-      <td class="sug-loja">${s.loja}</td>
+      <td class="sug-loja">${s.loja==='BELVEDER'?'BELVEDERE':s.loja}</td>
       <td class="sug-ref">${fmtGrid(s.vendMesAtual25)}</td>
       <td class="sug-ref">${fmtGrid(s.vendMesAtual26)}</td>
       <td class="sug-ref">${fmtGrid(s.vendMesProx25)}</td>
