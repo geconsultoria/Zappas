@@ -1655,6 +1655,16 @@ function normCat(s){
     .replace(/[\u0300-\u036f]/g,'').replace(/[\s_\-]+/g,' ').trim();
 }
 
+// Várias grafias da mesma categoria aparecem na planilha (Convenio
+// Funcionario, Convenio Funcionarios, Convenios Funcionarios, Convenios
+// Funcionários...) — padroniza todas pra uma única descrição no DRE, em
+// vez de aparecerem como linhas separadas.
+function padronizarDescricaoRecebimento(s){
+  const n = normCat(s);
+  if(/^convenios? funcion/.test(n)) return 'Convenio Funcionarios';
+  return s;
+}
+
 /**
  * Lê o CSV de-para e monta um mapa: cod → descricao
  */
@@ -1753,7 +1763,7 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       mes, ano, loja, valor,
       grupo: 'RECEITA OPERACIONAL',
       subgrupo: 'Recebimentos',
-      plano: recebimento
+      plano: padronizarDescricaoRecebimento(recebimento)
     });
   }
   return rows;
