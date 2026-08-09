@@ -1661,7 +1661,7 @@ function normCat(s){
 // vez de aparecerem como linhas separadas.
 function padronizarDescricaoRecebimento(s){
   const n = normCat(s);
-  if(/^convenios? funcion/.test(n)) return 'Convenio Funcionarios';
+  if(/^convenios? funcion/.test(n)) return 'CONVENIO FUNCIONARIOS';
   return s;
 }
 
