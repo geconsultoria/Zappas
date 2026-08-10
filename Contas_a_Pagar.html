@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Contas a Pagar</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+/* ╔═══════════════════════════════════════╗
+   ║  DESIGN TOKENS                       ║
+   ╚═══════════════════════════════════════╝ */
+:root {
+  --bg:       #F7F6F2;
+  --bg-2:     #EDECE6;
+  --surface:  #FFFFFF;
+  --surf-2:   #FAFAF7;
+
+  --border:   #E8E6DE;
+  --border-2: #D8D5CC;
+
+  --ink:      #16160F;
+  --ink-2:    #3A3A2E;
+  --ink-3:    #787868;
+  --ink-4:    #AEADA0;
+
+  --blue:     #1B3D6E;
+  --blue-mid: #2460A7;
+  --blue-lt:  #D9E8F7;
+  --blue-xl:  #EEF4FC;
+
+  --teal:     #0B5563;
+  --teal-mid: #197A8A;
+  --teal-lt:  #D0EDF2;
+
+  --olive:    #3D5416;
+  --olive-mid:#5A7A22;
+  --olive-lt: #DCF0C2;
+
+  --rust:     #6B2010;
+  --rust-mid: #A83218;
+  --rust-lt:  #FAD9D0;
+
+  --amber:    #7A4A05;
+  --amber-mid:#B87010;
+  --amber-lt: #FDECD0;
+
+  --gold:     #C8961A;
+
+  --r:    10px;
+  --r-lg: 16px;
+  --r-xl: 22px;
+
+  --sh: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+  --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
+  --sh-lg: 0 8px 40px rgba(0,0,0,.12);
+
+  --font-head: 'Syne', system-ui, sans-serif;
+  --font-body: 'Epilogue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-num:  'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+
+  --bar-h: 64px;
+  --side-w: 232px;
+  --side-w-collapsed: 74px;
+  --ease: cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { font-size: 14px; scroll-behavior: smooth; }
+body {
+  font-family: var(--font-body);
+  background: var(--bg);
+  color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  line-height: 1.5;
+}
+
+/* ╔═══════════════════════════════════════╗
+   ║  LOADING                             ║
+   ╚═══════════════════════════════════════╝ */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+  transition: opacity .4s var(--ease), visibility .4s;
+}
+#loader.out { opacity: 0; visibility: hidden; pointer-events: none; }
+.ld-logo { display: flex; align-items: center; gap: 13px; }
+.ld-mark {
+  width: 42px; height: 42px; border-radius: 11px;
+  background: var(--gold);
+  display: flex; align-items: center; justify-content: center;
+}
+.ld-mark svg { width: 22px; height: 22px; color: var(--blue); }
+.ld-name { font-family: var(--font-head); font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -.01em; }
+.ld-sub  { font-size: 10px; color: rgba(255,255,255,.35); letter-spacing: .12em; text-transform: uppercase; margin-top: 1px; }
+.ld-track { width: 200px; height: 2px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+.ld-fill  { height: 100%; background: var(--gold); border-radius: 2px; animation: ldAnim 1.8s var(--ease) forwards; }
+@keyframes ldAnim { 0%{width:0} 55%{width:70%} 100%{width:100%} }
+.ld-txt { font-size: 11.5px; color: rgba(255,255,255,.4); letter-spacing: .05em; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  SIDEBAR MENU                        ║
+   ╚═══════════════════════════════════════╝ */
+.sidebar {
+  position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
+  background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
+  z-index: 300;
+  display:flex; flex-direction:column;
+  font-family: var(--font-body);
+  overflow: visible;
+  transition: transform .25s ease, width .25s ease;
+}
+.sidebar.collapsed { width: var(--side-w-collapsed); }
+.side-brand {
+  display:flex; align-items:center; gap:11px;
+  padding: 18px 18px 16px; flex-shrink:0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 8px;
+  text-decoration:none; cursor:pointer; transition:opacity .15s;
+}
+a.side-brand:hover { opacity:.85; }
+.sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
+.side-brand svg { width:22px; height:22px; color: var(--gold); flex-shrink:0; }
+.side-brand-text { white-space:nowrap; overflow:hidden; }
+.side-brand-text .t { font-family: var(--font-head); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+.side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
+.sidebar.collapsed .side-brand-text { display:none; }
+
+.side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
+.side-item { display:flex; flex-direction:column; }
+.side-link {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  background:none; border:none; cursor:pointer;
+  color: rgba(255,255,255,.7);
+  font-family: var(--font-head); font-weight:600; font-size:13px; letter-spacing:.01em;
+  padding: 10px 11px; border-radius: 10px;
+  transition: background .15s ease, color .15s ease;
+}
+.side-link svg { width:18px; height:18px; flex-shrink:0; opacity:.85; }
+.side-link .chev { margin-left:auto; width:13px; height:13px; opacity:.5; transition: transform .18s ease; }
+.side-item.open > .side-link .chev { transform: rotate(180deg); }
+.side-link:hover { background: rgba(255,255,255,.07); color:#fff; }
+.side-item.active > .side-link { color:#fff; background: rgba(255,255,255,.09); }
+
+.side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
+
+.sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
+.sidebar.collapsed.peek { width: 232px; box-shadow: var(--sh-lg); }
+.sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
+.sidebar.collapsed.peek .side-brand-text { display:block; }
+.sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
+.sidebar.collapsed.peek .side-link span,
+.sidebar.collapsed.peek .side-link .chev { display:inline-flex; }
+.sidebar.collapsed.peek .side-item.open > .side-sub { display:flex; }
+
+.sidebar.collapsed .side-link span,
+.sidebar.collapsed .side-link .chev,
+.sidebar.collapsed .side-sub { display:none; }
+
+.sidebar.collapsed:not(.peek) .side-item { position:relative; }
+.sidebar.collapsed:not(.peek) .side-link::after {
+  content: attr(data-label);
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+  background: #12233C; color:#fff;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-head); font-weight:600; font-size:12.5px; white-space:nowrap;
+  box-shadow: var(--sh-md);
+  opacity:0; pointer-events:none; visibility:hidden;
+  transition: opacity .15s ease;
+  z-index: 320;
+}
+.sidebar.collapsed:not(.peek) .side-link:hover::after { opacity:1; visibility:visible; }
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-sub a {
+  display:flex; align-items:center; gap:9px;
+  padding: 8px 10px; border-radius:8px;
+  font-size:12.5px; font-weight:500;
+  color: rgba(255,255,255,.52); text-decoration:none;
+  transition: background .12s ease, color .12s ease;
+}
+.side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
+.side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
+.side-sub a.active { color: var(--gold); font-weight:600; background: rgba(200,150,26,.13); }
+
+.side-toggle {
+  display:none; position:fixed; top:14px; left:14px; z-index:301;
+  width:38px; height:38px; border-radius:10px;
+  background: var(--ink); border:1px solid rgba(255,255,255,.12);
+  align-items:center; justify-content:center; cursor:pointer;
+}
+.side-toggle svg { width:19px; height:19px; color:#fff; }
+.side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
+
+@media (max-width: 900px){
+  .sidebar { transform: translateX(-100%); box-shadow: var(--sh-lg); }
+  body.side-open .sidebar { transform: translateX(0); }
+  body.side-open .side-overlay { display:block; }
+  .side-toggle { display:flex; }
+  .filter-bar, .sub-filter-bar, .content { margin-left: 0 !important; }
+  .filter-bar { padding-left: 62px; }
+}
+
+/* ╔═══════════════════════════════════════╗
+   ║  STICKY FILTER BAR                   ║
+   ╚═══════════════════════════════════════╝ */
+.filter-bar {
+  position: sticky; top: 0; z-index: 100;
+  margin-left: var(--side-w);
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  box-shadow: 0 2px 20px rgba(0,0,0,.15);
+  height: var(--bar-h);
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 0;
+  transition: box-shadow .25s, margin-left .25s ease;
+}
+
+.fb-brand { display: flex; align-items: center; gap: 10px; padding-right: 24px; border-right: 1px solid rgba(255,255,255,.15); margin-right: 24px; flex-shrink: 0; }
+.fb-mark { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
+.fb-mark svg { width: 16px; height: 16px; color: #fff; }
+.fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+.fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
+
+.fb-right { display: flex; align-items: center; gap: 12px; margin-left: auto; flex-shrink: 0; }
+.btn-refresh {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--r);
+  padding: 8px 14px; font-family: var(--font-body);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  cursor: pointer; white-space: nowrap;
+  transition: all .2s var(--ease);
+}
+.btn-refresh:hover { background: var(--blue-mid); transform: translateY(-1px); box-shadow: 0 4px 14px rgba(27,61,110,.3); }
+.btn-refresh svg { width: 13px; height: 13px; flex-shrink: 0; }
+.btn-refresh.spin svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.fb-ts { font-family: var(--font-mono); font-size: 10px; color: rgba(255,255,255,.5); white-space: nowrap; }
+.fb-ts span { color: rgba(255,255,255,.85); font-weight: 500; }
+
+.sub-filter-bar {
+  position: sticky; top: var(--bar-h); z-index: 99;
+  margin-left: var(--side-w);
+  transition: margin-left .25s ease;
+  background: rgba(237,236,230,.97);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  padding: 10px 28px;
+  display: flex; align-items: center;
+}
+.fb-filters { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+.fb-group   { display: flex; align-items: center; gap: 7px; }
+.fb-label   { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+.fb-select {
+  font-family: var(--font-body);
+  font-size: 12.5px; font-weight: 500; color: var(--ink-2);
+  background: var(--bg);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23AEADA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+  transition: all .18s var(--ease);
+  min-width: 120px;
+}
+.fb-select:focus { outline: none; border-color: var(--blue-mid); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
+.fb-search {
+  font-family: var(--font-body); font-size: 12.5px; color: var(--ink-2);
+  background: var(--bg); border: 1px solid var(--border-2); border-radius: var(--r);
+  padding: 7px 11px; min-width: 180px;
+}
+.fb-search:focus { outline: none; border-color: var(--blue-mid); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
+.fb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
+
+/* ╔═══════════════════════════════════════╗
+   ║  MAIN CONTENT                        ║
+   ╚═══════════════════════════════════════╝ */
+.content { padding: 20px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w); transition: margin-left .25s ease; }
+.content.hidden { display: none; }
+
+.sec { display: flex; align-items: center; gap: 12px; margin: 28px 0 14px; }
+.sec:first-child { margin-top: 0; }
+.sec-title { font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+.sec-line  { flex:1; height:1px; background: var(--border); }
+.sec-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); background: var(--bg-2); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+
+/* KPI CARDS */
+.kpi-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 13px; margin-bottom: 14px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; box-shadow: var(--sh); position: relative; overflow: hidden; transition: box-shadow .2s var(--ease), transform .2s var(--ease); display: flex; flex-direction: column; }
+.kpi:hover { box-shadow: var(--sh-md); transform: translateY(-2px); }
+.kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--r-lg) var(--r-lg) 0 0; }
+.ac-blue  { background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); }
+.ac-teal  { background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 100%); }
+.ac-olive { background: linear-gradient(90deg, var(--olive) 0%, var(--olive-mid) 100%); }
+.ac-rust  { background: linear-gradient(90deg, var(--rust) 0%, var(--rust-mid) 100%); }
+.ac-amber { background: linear-gradient(90deg, var(--amber) 0%, var(--amber-mid) 100%); }
+.kpi-lbl { font-family: var(--font-head); font-size: 12.5px; font-weight: 700; letter-spacing: -0.2px; color: var(--ink-4); margin-bottom: 10px; }
+.kpi-val { font-family: var(--font-num); font-size: 23px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; line-height: 1; }
+.kpi-foot { font-size: 10.5px; color: var(--ink-4); margin-top: 8px; }
+.kpi-foot b { color: var(--ink-3); font-weight: 600; }
+
+/* CARD / TABLE */
+.comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
+.comp-card-head { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.cc-head-blue { background: var(--blue-xl); }
+.cc-head-left { display: flex; align-items: center; gap: 12px; }
+.cc-icon { width: 34px; height: 34px; border-radius: var(--r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.cc-icon svg { width: 17px; height: 17px; }
+.cc-icon-blue { background: var(--blue-lt); color: var(--blue); }
+.cc-head-left .title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); }
+.cc-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+
+.comp-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto; }
+.comp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.comp-table thead th {
+  position: sticky; top: 0; z-index: 2;
+  background: var(--surf-2); border-bottom: 2px solid var(--border);
+  text-align: left; padding: 9px 12px;
+  font-size: 9.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-4);
+  white-space: nowrap;
+}
+.comp-table thead th.num { text-align: right; }
+.comp-table tbody tr { border-bottom: 1px solid #F0EDE5; transition: background .12s; }
+.comp-table tbody tr:hover td { background: var(--bg); }
+.comp-table td { padding: 9px 12px; color: var(--ink-2); white-space: nowrap; }
+.comp-table td.num { text-align: right; font-family: var(--font-num); font-weight: 600; }
+.comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
+.comp-table .nd { text-align: center; padding: 40px 20px; color: var(--ink-4); }
+
+/* Status badges */
+.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
+.badge-pago    { background: var(--olive-lt); color: var(--olive); }
+.badge-pendente{ background: var(--blue-lt);  color: var(--blue); }
+.badge-vencido { background: var(--rust-lt);  color: var(--rust-mid); }
+
+/* Category bars */
+.cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
+.cat-name { width: 220px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cat-bar-bg { flex: 1; height: 8px; background: var(--bg-2); border-radius: 6px; overflow: hidden; }
+.cat-bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); border-radius: 6px; }
+.cat-val { width: 110px; flex-shrink: 0; text-align: right; font-family: var(--font-num); font-size: 12.5px; font-weight: 700; color: var(--ink); }
+
+/* Loading / error banners inside content */
+.status-center { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px 20px; color: var(--ink-4); font-size: 13px; }
+.err-banner { background: var(--rust-lt); border: 1px solid #F0B8A8; color: var(--rust-mid); border-radius: var(--r); padding: 12px 16px; font-size: 12.5px; font-weight: 600; margin-bottom: 16px; display: none; align-items: center; gap: 10px; }
+.err-banner.show { display: flex; }
+</style>
+</head>
+<body>
+
+<div id="loader">
+  <div class="ld-logo">
+    <div class="ld-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
+    <div><div class="ld-name">Contas a Pagar</div><div class="ld-sub">Grupo Pratic</div></div>
+  </div>
+  <div class="ld-track"><div class="ld-fill"></div></div>
+  <div class="ld-txt" id="ld-txt">Conectando…</div>
+</div>
+
+<button class="side-toggle" id="side-toggle" onclick="document.body.classList.toggle('side-open')">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+
+<aside class="sidebar" id="sidebar">
+  <a class="side-brand" href="GestaoZappas.html" title="Voltar ao Painel de Gestão">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text"><div class="t">Dashboards</div><div class="s">Painel de Gestão</div></div>
+  </a>
+  <nav class="side-nav">
+    <div class="side-item" data-menu="comercial">
+      <button class="side-link" type="button" data-label="Comercial">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Comercial</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Analise_Comercial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Análise Comercial
+        </a>
+        <a href="Faturamento_Lucro.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+          Faturamento x Lucro
+        </a>
+        <a href="Faturamento_Detalhado.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Faturamento Detalhado
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item active open" data-menu="financeiro">
+      <button class="side-link" type="button" data-label="Financeiro">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>Financeiro</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="DRE_Gerencial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          DRE Gerencial
+        </a>
+        <a href="Contas_a_Pagar.html" class="active">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
+          Contas a Pagar
+        </a>
+        <a href="#" onclick="return false" style="opacity:0.4;pointer-events:none">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
+          Contas a Receber <span style="font-size:10px;margin-left:4px">(em breve)</span>
+        </a>
+        <a href="#" onclick="return false" style="opacity:0.4;pointer-events:none">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          Fluxo de Caixa <span style="font-size:10px;margin-left:4px">(em breve)</span>
+        </a>
+        <a href="Banco_Declaracao.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          Banco
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="metas">
+      <button class="side-link" type="button" data-label="Metas">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        <span>Metas</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Elaboracao_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Elaboração de Metas
+        </a>
+        <a href="Acompanhamento_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4L12 14.01l-3-3"/></svg>
+          Acompanhamento de Metas
+        </a>
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<!-- FILTER BAR -->
+<div class="filter-bar" id="filter-bar">
+  <div class="fb-brand">
+    <div class="fb-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
+    <div><div class="fb-title">Contas a Pagar</div><div class="fb-sub">Gestão financeira</div></div>
+  </div>
+  <div class="fb-right">
+    <div class="fb-ts">Última atualização<br><span id="fb-ts">—</span></div>
+    <button class="btn-refresh" id="btn-refresh" onclick="loadData(true)">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+      Atualizar
+    </button>
+  </div>
+</div>
+
+<!-- FILTER ROW -->
+<div class="sub-filter-bar" id="sub-filter-bar">
+  <div class="fb-filters">
+    <div class="fb-group"><span class="fb-label">Ano</span><select class="fb-select" id="f-ano"></select></div>
+    <div class="fb-sep"></div>
+    <div class="fb-group"><span class="fb-label">Mês</span><select class="fb-select" id="f-mes"><option value="">Todos</option></select></div>
+    <div class="fb-sep"></div>
+    <div class="fb-group"><span class="fb-label">Loja</span><select class="fb-select" id="f-loja"><option value="">Todas</option></select></div>
+    <div class="fb-sep"></div>
+    <div class="fb-group"><span class="fb-label">Status</span>
+      <select class="fb-select" id="f-status">
+        <option value="">Todos</option>
+        <option value="PENDENTE">Pendente</option>
+        <option value="VENCIDO">Vencido</option>
+        <option value="PAGO">Pago</option>
+      </select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group"><span class="fb-label">Buscar</span><input class="fb-search" id="f-busca" placeholder="Documento, categoria…"></div>
+  </div>
+</div>
+
+<!-- CONTENT -->
+<div class="content hidden" id="content">
+  <div class="err-banner" id="err-banner">⚠️ <span id="err-msg"></span></div>
+
+  <div class="sec"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
+  <div class="kpi-row">
+    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total do Período</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> títulos</div></div>
+    <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Pago</div><div class="kpi-val" id="kv-pago">—</div><div class="kpi-foot"><b id="kv-qtd-pago">0</b> títulos</div></div>
+    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Pendente</div><div class="kpi-val" id="kv-pendente">—</div><div class="kpi-foot"><b id="kv-qtd-pendente">0</b> títulos</div></div>
+    <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Vencido</div><div class="kpi-val" id="kv-vencido">—</div><div class="kpi-foot"><b id="kv-qtd-vencido">0</b> títulos</div></div>
+    <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Ticket Médio</div><div class="kpi-val" id="kv-ticket">—</div><div class="kpi-foot">por título</div></div>
+  </div>
+
+  <div class="sec"><span class="sec-title">Por Categoria</span><span class="sec-line"></span></div>
+  <div class="comp-card">
+    <div class="comp-card-head cc-head-blue">
+      <div class="cc-head-left">
+        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg></div>
+        <div><div class="title">Gasto por Categoria (Grupo)</div><div class="sub">Somatório do período filtrado, via Plano de Contas</div></div>
+      </div>
+    </div>
+    <div id="cat-list"></div>
+  </div>
+
+  <div class="sec"><span class="sec-title">Títulos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
+  <div class="comp-card">
+    <div class="comp-card-head cc-head-blue">
+      <div class="cc-head-left">
+        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
+        <div><div class="title">Lista de Títulos</div><div class="sub">Ordenado por data de vencimento</div></div>
+      </div>
+    </div>
+    <div class="comp-scroll"><table class="comp-table" id="ct-titulos"><thead id="cth-titulos"></thead><tbody id="ctb-titulos"></tbody></table></div>
+  </div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════════
+   CONFIGURAÇÃO
+══════════════════════════════════════════════════════════════ */
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+const CTASPAGAR_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
+const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
+
+/* ── Evita "tela congelada" ao usar o botão Voltar do navegador ── */
+window.addEventListener('pageshow', function(e){ if (e.persisted) window.location.reload(); });
+
+/* ══════════════════════════════════════════════════════════════
+   SINCRONIA GLOBAL ENTRE PÁGINAS (Zappas)
+══════════════════════════════════════════════════════════════ */
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheRawTs || 0);
+  } catch(e) { return false; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   UTILS
+══════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+
+function fBRL(v){ return (v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+function fN(v){ return (v||0).toLocaleString('pt-BR'); }
+
+function findCol(headers, ...names){
+  const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\s_\-]+/g,'');
+  const wanted = names.map(norm);
+  return headers.findIndex(h => wanted.includes(norm(h)));
+}
+function parseNum(v){
+  if(v===null||v===undefined) return 0;
+  let s = String(v).trim();
+  if(!s) return 0;
+  s = s.replace(/[^\d,.\-]/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',', '.');
+  else if(/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
+  const n = parseFloat(s);
+  return isNaN(n) ? 0 : n;
+}
+function parseDataBR(str){
+  const s = String(str||'').trim();
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  const dia = +m[1], mes = +m[2], ano = +m[3];
+  if(mes<1||mes>12||dia<1||dia>31) return null;
+  return { dia, mes, ano, ts: new Date(ano, mes-1, dia).getTime() };
+}
+function detectSepExt(txt){
+  const l = txt.split('\n')[0];
+  const counts = { '\t': (l.match(/\t/g)||[]).length, ';': (l.match(/;/g)||[]).length, ',': (l.match(/,/g)||[]).length };
+  let best = ',', bestN = -1;
+  for(const s in counts){ if(counts[s] > bestN){ bestN = counts[s]; best = s; } }
+  return best;
+}
+function splitLine(line, sep){
+  const out=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){ inQ=!inQ; }
+    else if(c===sep && !inQ){ out.push(cur); cur=''; }
+    else cur+=c;
+  }
+  out.push(cur);
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   FETCH (com timeout + fallbacks)
+══════════════════════════════════════════════════════════════ */
+async function fetchComTimeout(url, opts, ms){
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms || 15000);
+  try { return await fetch(url, { ...opts, signal: controller.signal }); }
+  finally { clearTimeout(t); }
+}
+async function fetchCSV(url){
+  const errs=[];
+  try{
+    const r = await fetchComTimeout(url + (url.includes('?')?'&':'?') + '_=' + Date.now(), { cache:'no-store' });
+    if(r.ok){ const t = await r.text(); if(t && !t.trim().startsWith('<')) return t; }
+  }catch(e){ errs.push('direct:'+e.message); }
+  try{
+    const r = await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+(url.includes('?')?'&':'?')+'_='+Date.now()), { cache:'no-store' });
+    if(r.ok){ const j = await r.json(); if(j?.contents && !j.contents.trim().startsWith('<')) return j.contents; }
+  }catch(e){ errs.push('allorigins:'+e.message); }
+  throw new Error('Falha ao carregar CSV: '+errs.join(' | '));
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PLANO DE CONTAS (de-para) + CONTAS A PAGAR
+══════════════════════════════════════════════════════════════ */
+async function fetchPlanoContas(){
+  const text = await fetchCSV(PLANO_CONTAS_URL);
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const map = new Map();
+  if(!lines.length) return map;
+  const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iCodPL = findCol(headers,'cod_pl','codpl');
+  const iConta = findCol(headers,'conta_pl','contapl');
+  const iCodGrp= findCol(headers,'cod_grupo','codgrupo');
+  const iGrupo = findCol(headers,'grupo');
+  const iSub   = findCol(headers,'sub_grupo','subgrupo');
+  if(iCodPL<0) throw new Error('Plano de Contas: coluna Cod_PL não encontrada.');
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim(); if(!line) continue;
+    const c = splitLine(line,sep);
+    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
+    const codRaw = g(iCodPL); if(!codRaw) continue;
+    const entry = { conta_pl:g(iConta), cod_grupo:g(iCodGrp), grupo:g(iGrupo), sub_grupo:g(iSub) };
+    map.set(codRaw, entry);
+    const codNum = String(parseInt(codRaw.replace(/\D/g,''),10)||'');
+    if(codNum) map.set(codNum, entry);
+  }
+  return map;
+}
+
+// Lê um CSV de Contas a Pagar de UMA loja e devolve TODAS as linhas
+// (pagas e pendentes) — diferente do DRE, que só usa as pagas.
+function parseContasPagarCompleto(text, planoMap, lojaFallback){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = []; const naoMapeados = new Set();
+  if(!lines.length) return { rows, naoMapeados };
+  const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iLoja   = findCol(headers,'loja');
+  const iCodCtr = findCol(headers,'codcentro');
+  const iValor  = findCol(headers,'vparcela');
+  const iVenc   = findCol(headers,'dtvencimento');
+  const iPgto   = findCol(headers,'dtpagamento');
+  const iPaga   = findCol(headers,'paga');
+  const iForma  = findCol(headers,'nforma');
+  const iDoc    = findCol(headers,'ndoc');
+  const iFav    = findCol(headers,'codfavorecido');
+
+  const missing=[];
+  if(iCodCtr<0) missing.push('codcentro');
+  if(iValor<0)  missing.push('vparcela');
+  if(iVenc<0)   missing.push('dtvencimento');
+  if(missing.length) throw new Error('Contas a Pagar — colunas não encontradas: '+missing.join(', '));
+
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim(); if(!line) continue;
+    const c = splitLine(line,sep);
+    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
+
+    const dtVencStr = g(iVenc);
+    const venc = parseDataBR(dtVencStr);
+    if(!venc) continue;
+
+    const valor = parseNum(g(iValor));
+    if(!valor) continue;
+
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    const codCentroRaw = g(iCodCtr);
+    const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10)||'');
+    const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
+    if(!info || !info.grupo){ naoMapeados.add(codCentroRaw || '(vazio)'); continue; }
+    if(!loja) continue;
+
+    const pagaFlag = (iPaga>=0 ? g(iPaga) : '').toUpperCase();
+    const dtPgtoStr = iPgto>=0 ? g(iPgto) : '';
+
+    rows.push({
+      loja, ano: venc.ano, mes: venc.mes, dia: venc.dia, vencTs: venc.ts,
+      dtVenc: dtVencStr, dtPagto: dtPgtoStr,
+      valor, paga: pagaFlag === 'S',
+      forma: iForma>=0 ? g(iForma) : '',
+      doc: iDoc>=0 ? g(iDoc) : '',
+      favorecido: iFav>=0 ? g(iFav) : '',
+      grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl,
+    });
+  }
+  return { rows, naoMapeados };
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CACHE (IndexedDB) — mesmo padrão das demais páginas
+══════════════════════════════════════════════════════════════ */
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='contasAPagar_data_v1';
+function openDB(){
+  return new Promise((resolve,reject)=>{
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { if(!req.result.objectStoreNames.contains(DB_STORE)) req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(req.error);
+  });
+}
+async function saveCache(data, ts, rawTs){
+  try{
+    const db = await openDB();
+    await new Promise((resolve,reject)=>{
+      const tx = db.transaction(DB_STORE,'readwrite');
+      tx.objectStore(DB_STORE).put({data,ts,rawTs}, DB_KEY);
+      tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
+    });
+  }catch(e){ console.warn('Não foi possível salvar cache local:', e); }
+}
+async function loadCacheDB(){
+  try{
+    const db = await openDB();
+    return await new Promise((resolve,reject)=>{
+      const tx = db.transaction(DB_STORE,'readonly');
+      const req = tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess = () => resolve(req.result||null);
+      req.onerror = () => reject(req.error);
+    });
+  }catch(e){ console.warn('Cache local indisponível:', e); return null; }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════ */
+let rawData = [];
+
+/* ══════════════════════════════════════════════════════════════
+   LOAD
+══════════════════════════════════════════════════════════════ */
+async function carregarTudo(){
+  document.getElementById('ld-txt') && (document.getElementById('ld-txt').textContent = 'Carregando plano de contas…');
+  let planoMap = new Map();
+  try { planoMap = await fetchPlanoContas(); }
+  catch(e){ console.warn('Plano de Contas não carregado:', e.message); }
+
+  let rows = [];
+  const naoMapeadosGeral = new Set();
+  const BATCH = 2;
+  for(let i=0;i<CTASPAGAR_URLS.length;i+=BATCH){
+    const grupo = CTASPAGAR_URLS.slice(i, i+BATCH);
+    const lbl = document.getElementById('ld-txt');
+    if(lbl) lbl.textContent = 'Carregando despesas ('+Math.min(i+BATCH,CTASPAGAR_URLS.length)+'/'+CTASPAGAR_URLS.length+')…';
+    await Promise.all(grupo.map(async (url,j) => {
+      const idx = i+j;
+      const lojaKey = CTASPAGAR_STORE_KEYS[idx];
+      try{
+        const text = await fetchCSV(url);
+        const { rows: r, naoMapeados } = parseContasPagarCompleto(text, planoMap, lojaKey.toUpperCase());
+        rows = rows.concat(r);
+        naoMapeados.forEach(c=>naoMapeadosGeral.add(c));
+      }catch(e){ console.warn('Contas a pagar indisponível ('+lojaKey+'):', e.message); }
+    }));
+  }
+  if(naoMapeadosGeral.size){
+    console.warn('[Contas a Pagar] Códigos de centro sem correspondência no Plano de Contas:', [...naoMapeadosGeral].join(', '));
+  }
+  if(!rows.length) throw new Error('Nenhuma linha válida encontrada.');
+  rawData = rows;
+}
+
+async function loadData(forceRefresh){
+  const btn = $('btn-refresh');
+  const errBox = $('err-banner');
+
+  if(!forceRefresh){
+    const cached = await loadCacheDB();
+    if(cached && cached.data && cached.data.length){
+      rawData = cached.data;
+      populateFilters();
+      applyFilters();
+      $('content').classList.remove('hidden');
+      $('loader').classList.add('out');
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
+      if(stale) loadData(true);
+      return;
+    }
+  }
+
+  btn.classList.add('spin');
+  errBox.classList.remove('show');
+
+  try{
+    await Promise.race([
+      carregarTudo(),
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tempo limite excedido (40s). Verifique sua conexão e tente novamente.')), 40000))
+    ]);
+    populateFilters();
+    applyFilters();
+    $('content').classList.remove('hidden');
+    const tsDate = new Date();
+    const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
+    $('fb-ts').textContent = ts;
+    saveCache(rawData, ts, tsDate.getTime());
+  }catch(e){
+    console.error(e);
+    $('content').classList.remove('hidden');
+    errBox.classList.add('show');
+    $('err-msg').textContent = e.message;
+  }finally{
+    btn.classList.remove('spin');
+    $('loader').classList.add('out');
+  }
+}
+
+window.addEventListener('storage', (e) => {
+  if(e.key === GLOBAL_REFRESH_KEY && e.newValue) loadData(true);
+});
+
+/* ══════════════════════════════════════════════════════════════
+   FILTERS
+══════════════════════════════════════════════════════════════ */
+function lojaLabel(l){ return l==='BELVEDER' ? 'BELVEDERE' : l; }
+
+function populateFilters(){
+  const anos = [...new Set(rawData.map(r=>r.ano))].filter(Boolean).sort();
+  const lojas = [...new Set(rawData.map(r=>r.loja))].filter(Boolean).sort();
+  const curAno = $('f-ano').value;
+  const curLoja = $('f-loja').value;
+
+  $('f-ano').innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option value="${a}">${a}</option>`).join('');
+  $('f-ano').value = anos.includes(+curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
+
+  $('f-mes').innerHTML = '<option value="">Todos</option>' + MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
+
+  $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l=>`<option value="${l}">${lojaLabel(l)}</option>`).join('');
+  if(lojas.includes(curLoja)) $('f-loja').value = curLoja;
+}
+
+function statusDe(row){
+  if(row.paga) return 'PAGO';
+  const hojeTs = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
+  return row.vencTs < hojeTs ? 'VENCIDO' : 'PENDENTE';
+}
+
+function getFiltered(){
+  const ano = $('f-ano').value ? +$('f-ano').value : null;
+  const mes = $('f-mes').value ? +$('f-mes').value : null;
+  const loja = $('f-loja').value || null;
+  const status = $('f-status').value || null;
+  const busca = $('f-busca').value.trim().toLowerCase();
+
+  return rawData.filter(r => {
+    if(ano && r.ano !== ano) return false;
+    if(mes && r.mes !== mes) return false;
+    if(loja && r.loja !== loja) return false;
+    if(status && statusDe(r) !== status) return false;
+    if(busca){
+      const alvo = (r.doc+' '+r.grupo+' '+r.subgrupo+' '+r.plano+' '+r.forma).toLowerCase();
+      if(!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+}
+
+['f-ano','f-mes','f-loja','f-status'].forEach(id => $(id).addEventListener('change', applyFilters));
+$('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer); window._buscaTimer = setTimeout(applyFilters, 200); });
+
+/* ══════════════════════════════════════════════════════════════
+   RENDER
+══════════════════════════════════════════════════════════════ */
+function applyFilters(){
+  const data = getFiltered();
+  renderKPIs(data);
+  renderCategorias(data);
+  renderTabela(data);
+}
+
+function renderKPIs(data){
+  const total = data.reduce((s,r)=>s+r.valor,0);
+  const pago = data.filter(r=>statusDe(r)==='PAGO');
+  const pendente = data.filter(r=>statusDe(r)==='PENDENTE');
+  const vencido = data.filter(r=>statusDe(r)==='VENCIDO');
+  const vPago = pago.reduce((s,r)=>s+r.valor,0);
+  const vPendente = pendente.reduce((s,r)=>s+r.valor,0);
+  const vVencido = vencido.reduce((s,r)=>s+r.valor,0);
+
+  $('kv-total').textContent = fBRL(total);
+  $('kv-qtd').textContent = fN(data.length);
+  $('kv-pago').textContent = fBRL(vPago);
+  $('kv-qtd-pago').textContent = fN(pago.length);
+  $('kv-pendente').textContent = fBRL(vPendente);
+  $('kv-qtd-pendente').textContent = fN(pendente.length);
+  $('kv-vencido').textContent = fBRL(vVencido);
+  $('kv-qtd-vencido').textContent = fN(vencido.length);
+  $('kv-ticket').textContent = fBRL(data.length ? total/data.length : 0);
+  $('sec-count').textContent = fN(data.length) + ' registros';
+}
+
+function renderCategorias(data){
+  const porGrupo = new Map();
+  data.forEach(r => {
+    const g = r.grupo || 'SEM CATEGORIA';
+    porGrupo.set(g, (porGrupo.get(g)||0) + r.valor);
+  });
+  const lista = [...porGrupo.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12);
+  const max = lista.length ? lista[0][1] : 0;
+  const el = $('cat-list');
+  if(!lista.length){
+    el.innerHTML = '<div class="nd" style="padding:30px;text-align:center;color:var(--ink-4)">Sem dados para o período selecionado</div>';
+    return;
+  }
+  el.innerHTML = lista.map(([nome,val]) => `
+    <div class="cat-row">
+      <div class="cat-name" title="${nome}">${nome}</div>
+      <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${max?(val/max*100):0}%"></div></div>
+      <div class="cat-val">${fBRL(val)}</div>
+    </div>`).join('');
+}
+
+function renderTabela(data){
+  $('cth-titulos').innerHTML = `<tr>
+    <th>Vencimento</th><th>Loja</th><th>Documento</th><th>Categoria</th><th>Forma</th><th class="num">Valor</th><th>Status</th>
+  </tr>`;
+  if(!data.length){
+    $('ctb-titulos').innerHTML = '<tr><td colspan="7" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>';
+    return;
+  }
+  const ordenado = [...data].sort((a,b)=>a.vencTs-b.vencTs).slice(0, 500);
+  const badge = st => st==='PAGO' ? '<span class="badge badge-pago">Pago</span>'
+    : st==='VENCIDO' ? '<span class="badge badge-vencido">Vencido</span>'
+    : '<span class="badge badge-pendente">Pendente</span>';
+
+  $('ctb-titulos').innerHTML = ordenado.map(r => `
+    <tr>
+      <td>${r.dtVenc}</td>
+      <td>${lojaLabel(r.loja)}</td>
+      <td>${r.doc || '—'}</td>
+      <td>${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</td>
+      <td>${r.forma || '—'}</td>
+      <td class="num">${fBRL(r.valor)}</td>
+      <td>${badge(statusDe(r))}</td>
+    </tr>`).join('') +
+    (data.length > 500 ? `<tr><td colspan="7" class="nd">Mostrando os 500 títulos mais próximos do vencimento, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+}
+
+/* ══════════════════════════════════════════════════════════════
+   SIDEBAR (hover/collapse) — mesmo padrão das demais páginas
+══════════════════════════════════════════════════════════════ */
+document.querySelectorAll('.side-item > .side-link').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const item = btn.closest('.side-item');
+    const wasOpen = item.classList.contains('open');
+    document.querySelectorAll('.side-item.open').forEach(i => i.classList.remove('open'));
+    if(!wasOpen) item.classList.add('open');
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════ */
+loadData(false);
+</script>
+</body>
+</html>
