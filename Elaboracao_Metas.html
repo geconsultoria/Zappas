@@ -1445,10 +1445,15 @@ async function loadData(forceRefresh, silent = false) {
     const cached = await loadCacheDB();
     if (cached && cached.data && cached.data.length) {
       rawData = cached.data;
-      if (Array.isArray(cached.metas)) {
-        metasData = cached.metas;
-      } else {
-        try { await loadMetasData(); } catch(e) { console.warn('Metas load error:', e); metasData = []; }
+      // As Metas (META/P_E) mudam com frequência e são o motivo desta
+      // página existir — não reaproveita o cache pra elas, sempre busca
+      // a versão mais recente da planilha. Só cai pro cache salvo se essa
+      // busca falhar (ex: sem internet), pra não deixar a tela em branco.
+      try {
+        await loadMetasData();
+      } catch(e) {
+        console.warn('Metas load error:', e);
+        metasData = Array.isArray(cached.metas) ? cached.metas : [];
       }
       buildFilters();
       applyFilters();
