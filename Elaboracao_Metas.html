@@ -2219,7 +2219,7 @@ function renderMetasTable(f) {
       return `<tr class="${rowClass}">
         <td class="td-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
         <td class="td-r">${fmtGrid(prevR25)}</td>
-        <td class="td-r meta-real" id="meta_${loja}_${prevKey}">${totalBadyPrevMeta ? fmtGrid(totalBadyPrevMeta) : '—'}</td>
+        <td class="td-r meta-real" id="metareal_${loja}_${prevKey}">${totalBadyPrevMeta ? fmtGrid(totalBadyPrevMeta) : '—'}</td>
         <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
         <td class="td-r">${fmtGrid(currR25)}</td>
         <td class="td-r">${totalBadyMeta ? fmtGrid(totalBadyMeta) : '—'}</td>
@@ -2232,7 +2232,7 @@ function renderMetasTable(f) {
     return `<tr class="${rowClass}">
       <td class="td-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
       <td class="td-r">${fmtGrid(prevR25)}</td>
-      <td class="td-r meta-real" id="meta_${loja}_${prevKey}" title="Valor real do ano atual (não editável)">${metaPrevReal ? fmtGrid(metaPrevReal) : '—'}</td>
+      <td class="td-r meta-real" id="metareal_${loja}_${prevKey}" title="Valor real do ano atual (não editável)">${metaPrevReal ? fmtGrid(metaPrevReal) : '—'}</td>
       <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
       <td class="td-r">${fmtGrid(currR25)}</td>
       <td class="td-r">
