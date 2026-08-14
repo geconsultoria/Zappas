@@ -1394,40 +1394,37 @@ async function loadMetasData() {
 }
 
 function getMetasValue(loja, mes, type) {
-  const canalFiltro = (selectedCanais && selectedCanais.size > 0) ? selectedCanais : null;
+  // selectedCanais guarda os canais como aparecem na planilha de Faturamento
+  // (ex: "Loja", "Delivery"), mas d.canal (vindo da planilha de Metas) é
+  // sempre salvo em minúsculo. Além disso, a maioria das lojas não tem canal
+  // preenchido na planilha de Metas (só a BADY tem LOJA/DELIVERY) — nesses
+  // casos o filtro de canal não deve excluir o valor, senão a meta/PE some
+  // pra quase todas as lojas assim que qualquer filtro de canal está ativo.
+  const canalFiltroLower = (selectedCanais && selectedCanais.size > 0)
+    ? new Set([...selectedCanais].map(c => String(c).trim().toLowerCase()))
+    : null;
+  const matchCanal = d => {
+    if (!canalFiltroLower || canalFiltroLower.size === 0) return true;
+    if (!d.canal) return true; // sem canal na planilha de Metas = meta da loja inteira, não filtra
+    return canalFiltroLower.has(d.canal);
+  };
   if (loja === 'BADY LOJA') {
     return metasData
-      .filter(d =>
-        d.loja === 'BADY' && d.canal.toUpperCase() === 'LOJA' &&
-        d.mes === mes &&
-        (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
-      )
+      .filter(d => d.loja === 'BADY' && d.canal.toUpperCase() === 'LOJA' && d.mes === mes && matchCanal(d))
       .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
   }
   if (loja === 'BADY DELIVERY') {
     return metasData
-      .filter(d =>
-        d.loja === 'BADY' && d.canal.toUpperCase() === 'DELIVERY' &&
-        d.mes === mes &&
-        (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
-      )
+      .filter(d => d.loja === 'BADY' && d.canal.toUpperCase() === 'DELIVERY' && d.mes === mes && matchCanal(d))
       .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
   }
   if (loja === 'TOTAL BADY') {
     return metasData
-      .filter(d =>
-        d.loja === 'BADY' &&
-        d.mes === mes &&
-        (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
-      )
+      .filter(d => d.loja === 'BADY' && d.mes === mes && matchCanal(d))
       .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
   }
   return metasData
-    .filter(d =>
-      d.loja === loja.toUpperCase() &&
-      d.mes === mes &&
-      (canalFiltro === null || canalFiltro.size === 0 || canalFiltro.has(d.canal))
-    )
+    .filter(d => d.loja === loja.toUpperCase() && d.mes === mes && matchCanal(d))
     .reduce((sum, d) => sum + (type === 'meta' ? d.meta : d.pe), 0);
 }
 
