@@ -6,6 +6,7 @@
 <title>Acompanhamento de Metas</title>
 <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 /* ═══════════════════════════════════════════
    DESIGN TOKENS
@@ -907,6 +908,7 @@ td.dash { color: var(--muted); }
       </div>
       <select class="fb-select" id="rdLojaSelect" onchange="renderResumoDiario()"></select>
       <button class="canal-dd-btn" onclick="copiarResumoDiarioTexto(this)">📄 Copiar como texto</button>
+      <button class="canal-dd-btn" id="btnEnviarImagem" onclick="enviarResumoDiarioImagem(this)">📷 Enviar imagem (WhatsApp)</button>
     </div>
     <div class="rd-modal-body" id="rdBody"></div>
   </div>
@@ -2436,6 +2438,70 @@ async function copiarResumoDiarioTexto(btnEl) {
     setTimeout(() => { btnEl.textContent = old; }, 1800);
   } catch(e) {
     alert('Não foi possível copiar automaticamente. Selecione e copie o texto manualmente:\n\n' + texto);
+  }
+}
+
+// Gera uma imagem PNG do(s) cartão(ões) do Resumo Diário visíveis no
+// momento e tenta enviar direto pro WhatsApp. No celular, abre o menu
+// nativo de compartilhamento (o WhatsApp aparece como opção, já com a
+// imagem anexada). No computador, o WhatsApp Web não aceita imagem
+// pré-anexada por link — então baixa o PNG e orienta a anexar na mão.
+async function enviarResumoDiarioImagem(btnEl) {
+  if (typeof html2canvas === 'undefined') {
+    alert('Não foi possível carregar o gerador de imagem. Verifique sua conexão e tente novamente.');
+    return;
+  }
+  const alvo = document.getElementById('rdBody');
+  if (!alvo || !alvo.children.length) { alert('Nenhum resumo pra exportar.'); return; }
+
+  const old = btnEl.textContent;
+  btnEl.textContent = '⏳ Gerando imagem…';
+  btnEl.disabled = true;
+
+  try {
+    const canvas = await html2canvas(alvo, {
+      backgroundColor: '#ffffff',
+      scale: 2,
+      useCORS: true,
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Falha ao gerar o PNG.');
+
+    const lojaTxt = rdModo === 'uma'
+      ? (document.getElementById('rdLojaSelect').selectedOptions[0]?.textContent || 'Loja')
+      : 'Todas as lojas';
+    const nomeArquivo = `resumo-diario-${lojaTxt.toLowerCase().replace(/\s+/g,'-')}.png`;
+    const file = new File([blob], nomeArquivo, { type: 'image/png' });
+
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({
+        files: [file],
+        title: 'Resumo Diário',
+        text: `Resumo Diário — ${lojaTxt}`,
+      });
+      btnEl.textContent = '✅ Enviado!';
+    } else {
+      // Desktop / navegador sem suporte a compartilhar arquivo: baixa o
+      // PNG e abre o WhatsApp Web pra o usuário anexar manualmente.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeArquivo;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      alert('Imagem baixada: ' + nomeArquivo + '\n\nEsse navegador não permite anexar a imagem direto — abra o WhatsApp Web/Desktop e anexe o arquivo baixado na conversa.');
+      window.open('https://web.whatsapp.com/', '_blank');
+      btnEl.textContent = '✅ Baixado!';
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') { // usuário cancelou o compartilhamento — não é erro
+      console.error('Erro ao gerar/enviar imagem:', e);
+      alert('Não foi possível gerar a imagem: ' + e.message);
+    }
+    btnEl.textContent = old;
+  } finally {
+    btnEl.disabled = false;
+    setTimeout(() => { btnEl.textContent = old; }, 2200);
   }
 }
 
