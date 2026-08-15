@@ -2458,9 +2458,20 @@ async function enviarResumoDiarioImagem(btnEl) {
   btnEl.textContent = '⏳ Gerando imagem…';
   btnEl.disabled = true;
 
+  // Monta uma cópia dos cards fora da tela, empilhados um embaixo do
+  // outro numa largura de celular (420px) — assim a imagem exportada sai
+  // sempre no formato vertical, ideal pro WhatsApp, mesmo que o dashboard
+  // esteja aberto num monitor largo onde os cards ficam lado a lado.
+  const cards = [...alvo.querySelectorAll('.rd-card')];
+  if (!cards.length) { alert('Nenhum resumo pra exportar.'); btnEl.textContent = old; btnEl.disabled = false; return; }
+  const clone = document.createElement('div');
+  clone.style.cssText = 'position:fixed; left:-9999px; top:0; width:420px; background:#F4F1EA; padding:16px; display:flex; flex-direction:column; gap:14px;';
+  cards.forEach(c => clone.appendChild(c.cloneNode(true)));
+  document.body.appendChild(clone);
+
   try {
-    const canvas = await html2canvas(alvo, {
-      backgroundColor: '#ffffff',
+    const canvas = await html2canvas(clone, {
+      backgroundColor: '#F4F1EA',
       scale: 2,
       useCORS: true,
     });
@@ -2474,16 +2485,25 @@ async function enviarResumoDiarioImagem(btnEl) {
     const nomeArquivo = `resumo-diario-${lojaTxt.toLowerCase().replace(/\s+/g,'-')}.png`;
     const file = new File([blob], nomeArquivo, { type: 'image/png' });
 
+    // Compartilhamento nativo (abre a tela de escolher contato/app) em
+    // todos os dispositivos. Como o navigator.share() só resolve quando o
+    // usuário fecha essa tela (e no Windows o alvo do WhatsApp Desktop às
+    // vezes demora/trava pra voltar o controle pro navegador), usamos uma
+    // corrida com um temporizador: se passar de 15s, o botão do dashboard
+    // é liberado de qualquer forma, sem travar a página — mesmo que a
+    // tela do WhatsApp continue aberta esperando o usuário lá.
     if (navigator.canShare && navigator.canShare({ files: [file] })) {
-      await navigator.share({
+      const compartilhar = navigator.share({
         files: [file],
         title: 'Resumo Diário',
         text: `Resumo Diário — ${lojaTxt}`,
-      });
-      btnEl.textContent = '✅ Enviado!';
+      }).then(() => 'ok').catch(err => { if (err.name !== 'AbortError') throw err; return 'cancelado'; });
+      const timeout = new Promise(resolve => setTimeout(() => resolve('timeout'), 15000));
+      const resultado = await Promise.race([compartilhar, timeout]);
+      btnEl.textContent = resultado === 'timeout' ? '📷 Enviar imagem (WhatsApp)' : '✅ Enviado!';
     } else {
-      // Desktop / navegador sem suporte a compartilhar arquivo: baixa o
-      // PNG e abre o WhatsApp Web pra o usuário anexar manualmente.
+      // Navegador sem suporte a compartilhar arquivo: baixa o PNG e abre
+      // o WhatsApp Web pra o usuário anexar manualmente.
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url; a.download = nomeArquivo;
@@ -2500,6 +2520,7 @@ async function enviarResumoDiarioImagem(btnEl) {
     }
     btnEl.textContent = old;
   } finally {
+    document.body.removeChild(clone);
     btnEl.disabled = false;
     setTimeout(() => { btnEl.textContent = old; }, 2200);
   }
