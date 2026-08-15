@@ -1507,6 +1507,37 @@ function canalMatch(d) {
   return selectedCanais.has(d.canal);
 }
 
+// Soma um campo até um determinado dia do mês (respeita filtro de loja/canal
+// já aplicado via canalMatch) — usado pra comparar "maçã com maçã" entre o
+// acumulado do ano atual e o acumulado do ano anterior até o mesmo dia.
+function queryAteDia(ano, mes, loja, ateDia, field) {
+  return rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      d.dia !== null && d.dia <= ateDia &&
+      canalMatch(d)
+    )
+    .reduce((s, d) => s + (d[field] || 0), 0);
+}
+
+// Último dia do mês (ano/loja/canal filtrados) que já tem venda lançada —
+// é o corte usado pra comparação "Acum. AA" ficar no mesmo período.
+function getUltimoDiaComVenda(ano, mes, loja) {
+  const dias = rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      d.dia !== null && d.dia >= 1 && d.dia <= 31 &&
+      (d.venda || 0) > 0 &&
+      canalMatch(d)
+    )
+    .map(d => d.dia);
+  return dias.length ? Math.max(...dias) : 0;
+}
+
 function getF() {
   const metaRaw = document.getElementById('inputMeta').value
     .replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',','.');
@@ -1694,8 +1725,16 @@ function renderDashboard(f) {
   const tktAn = cAnt > 0 ? vAnt / cAnt : 0;
   const qA    = query(anoA,   mes, loja, 'quebras');
 
+  // % Venda Acum. Atual × AA = (Venda Acum. Atual / Venda Acum. AA até o
+  // mesmo dia da última venda lançada) − 1. Usa o corte pelo último dia com
+  // venda no ano atual pra não comparar o mês corrente (ainda em andamento)
+  // com o mês inteiro já fechado do ano anterior.
+  const ultimoDiaVenda = getUltimoDiaComVenda(anoA, mes, loja);
+  const vAAcumDia    = ultimoDiaVenda > 0 ? queryAteDia(anoA,   mes, loja, ultimoDiaVenda, 'venda') : vA;
+  const vAntAcumDia  = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'venda') : vAnt;
+
   const pctMeta   = metaMes > 0 ? ((vA - metaMes) / metaMes) * 100    : null;
-  const pctVsAnt  = vAnt > 0    ? ((vA - vAnt)    / vAnt)    * 100    : null;
+  const pctVsAnt  = vAntAcumDia > 0 ? ((vAAcumDia / vAntAcumDia) - 1) * 100 : null;
   const pctPessAA = cAnt > 0    ? ((cA - cAnt)    / cAnt)    * 100    : null;
   const pctTktAA  = tktAn > 0   ? ((tktA - tktAn) / tktAn)  * 100    : null;
 
