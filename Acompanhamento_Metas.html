@@ -320,18 +320,43 @@ a.side-brand:hover { opacity:.85; }
 .rd-carousel-info { font-size: 11px; font-weight: 600; color: #8594AF; white-space: nowrap; }
 
 .rd-card { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); font-size: 0; }
-.rd-card-title { font-size: 13px; font-weight: 800; padding: 8px 10px 2px; color: #14213D; }
-.rd-card-sub { display: flex; align-items: center; gap: 6px; padding: 0 10px 8px; font-size: 10px; }
+.rd-card-title { font-size: 15px; font-weight: 800; padding: 9px 11px 3px; color: #14213D; }
+.rd-card-sub { display: flex; align-items: center; gap: 6px; padding: 0 11px 9px; font-size: 11.5px; }
 .rd-card-sub .lbl { background: #DCE7F5; color: #1B3D6E; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
 .rd-card-sub .val { color: #333; font-weight: 600; }
 .rd-tbl { width: 100%; border-collapse: collapse; }
-.rd-tbl th { background: #1B3D6E; color: #fff; font-size: 9px; font-weight: 700; padding: 4px 5px; text-align: center; line-height: 1.2; }
+.rd-tbl th { background: #1B3D6E; color: #fff; font-size: 10.5px; font-weight: 700; padding: 5px 6px; text-align: center; line-height: 1.25; }
 .rd-tbl th.hi { background: #103868; }
-.rd-tbl td.rd-sub-hd { background: #DCE7F5; color: #1B3D6E; font-size: 8.5px; font-weight: 800; padding: 3px 5px; text-align: center; }
-.rd-tbl td { padding: 4px 5px; text-align: center; font-size: 11px; font-weight: 700; color: #22314F; border-bottom: 1px solid #EEE; line-height: 1.3; }
+.rd-tbl td.rd-sub-hd { background: #DCE7F5; color: #1B3D6E; font-size: 10px; font-weight: 800; padding: 4px 6px; text-align: center; }
+.rd-tbl td { padding: 5px 6px; text-align: center; font-size: 13px; font-weight: 700; color: #22314F; border-bottom: 1px solid #EEE; line-height: 1.35; }
 .rd-tbl tr:last-child td { border-bottom: none; }
 .rd-tbl-spacer td { padding: 3px; background: transparent; border: none; }
-.rd-sec-title { font-weight: 800; font-size: 12px; padding: 8px 10px 4px; color: #14213D; }
+.rd-sec-title { font-weight: 800; font-size: 13.5px; padding: 9px 11px 5px; color: #14213D; }
+
+/* Popup de escolha de modelo, mostrado ao clicar em "Enviar imagem" */
+.rd-modelpick-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(10,15,25,.6);
+  z-index: 600; align-items: center; justify-content: center; padding: 16px;
+}
+.rd-modelpick-overlay.show { display: flex; }
+.rd-modelpick-box {
+  background: #fff; border-radius: 14px; padding: 18px; width: 100%; max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.rd-modelpick-title { font-weight: 800; font-size: 15px; color: #14213D; margin-bottom: 3px; }
+.rd-modelpick-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 14px; }
+.rd-modelpick-btn {
+  display: block; width: 100%; text-align: left; border: 1.5px solid #D8CFBE; border-radius: 10px;
+  background: #FAF8F4; padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.rd-modelpick-btn:hover { border-color: var(--amber, #B45309); background: #FFF4E6; }
+.rd-modelpick-btn .t { font-weight: 800; font-size: 13.5px; color: #14213D; }
+.rd-modelpick-btn .d { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.rd-modelpick-cancel {
+  display: block; width: 100%; text-align: center; border: none; background: none;
+  color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px; cursor: pointer;
+}
 .rd-pos { color: #0A7C5C; }
 .rd-neg { color: #C8281E; }
 .canal-dropdown {
@@ -911,6 +936,23 @@ td.dash { color: var(--muted); }
       <button class="canal-dd-btn" id="btnEnviarImagem" onclick="enviarResumoDiarioImagem(this)">📷 Enviar imagem (WhatsApp)</button>
     </div>
     <div class="rd-modal-body" id="rdBody"></div>
+  </div>
+</div>
+
+<!-- ════ Escolha de modelo ao enviar a imagem ════ -->
+<div class="rd-modelpick-overlay" id="rdModelPickOverlay" onclick="if(event.target===this) rdModelPickCancel()">
+  <div class="rd-modelpick-box">
+    <div class="rd-modelpick-title">Qual modelo enviar?</div>
+    <div class="rd-modelpick-sub">Escolha o layout do card pra essa imagem</div>
+    <button class="rd-modelpick-btn" onclick="rdModelPickChoose('v1')">
+      <div class="t">Modelo 1</div>
+      <div class="d">Meta Diária e Realizado lado a lado</div>
+    </button>
+    <button class="rd-modelpick-btn" onclick="rdModelPickChoose('v2')">
+      <div class="t">Modelo 2</div>
+      <div class="d">Realizado embaixo da Meta Diária</div>
+    </button>
+    <button class="rd-modelpick-cancel" onclick="rdModelPickCancel()">Cancelar</button>
   </div>
 </div>
 
@@ -2317,7 +2359,7 @@ function pctClass(v) { return v===null ? '' : (v>=0 ? 'rd-pos' : 'rd-neg'); }
 function pctClass100(v) { return v===null ? '' : (v>=100 ? 'rd-pos' : 'rd-neg'); }
 function pctTxt(v) { return v===null ? '—' : Pct(v, 2); }
 
-function buildCardHTML(r) {
+function buildCardHTMLv1(r) {
   const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'Sem dados no mês';
   return `
   <div class="rd-card">
@@ -2341,6 +2383,48 @@ function buildCardHTML(r) {
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
   </div>`;
+}
+
+// Modelo 2: mesma ordem e mesmas informações do Modelo 1, mas "Realizado"
+// fica empilhado embaixo de "Meta Diária", e "Venda Acum x Ano Anterior"
+// fica empilhado embaixo de "Meta Acum x Venda Mês" — em vez de lado a
+// lado. O resto do card (TKM, Baixas, Pessoas/Dia) fica igual ao Modelo 1.
+function buildCardHTMLv2(r) {
+  const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'Sem dados no mês';
+  return `
+  <div class="rd-card">
+    <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
+    <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
+    <table class="rd-tbl">
+      <tr><th colspan="2">META DIÁRIA</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="2" class="hi">REALIZADO</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="2">META ACUM x VENDA MÊS</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
+    </table>
+    <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
+    <table class="rd-tbl">
+      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
+      <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
+      <tr><th>MÉDIA PESSOAS/DIA ${r.anoAnt}</th><th>MÉDIA PESSOAS/DIA ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
+      <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
+    </table>
+  </div>`;
+}
+
+function buildCardHTML(r) {
+  return buildCardHTMLv1(r);
 }
 
 let rdCarouselPage = 0;
@@ -2446,27 +2530,54 @@ async function copiarResumoDiarioTexto(btnEl) {
 // nativo de compartilhamento (o WhatsApp aparece como opção, já com a
 // imagem anexada). No computador, o WhatsApp Web não aceita imagem
 // pré-anexada por link — então baixa o PNG e orienta a anexar na mão.
+let _rdModelPickResolve = null;
+function abrirEscolhaModeloEnvio() {
+  document.getElementById('rdModelPickOverlay').classList.add('show');
+  return new Promise(resolve => { _rdModelPickResolve = resolve; });
+}
+function rdModelPickChoose(modelo) {
+  document.getElementById('rdModelPickOverlay').classList.remove('show');
+  if (_rdModelPickResolve) { _rdModelPickResolve(modelo); _rdModelPickResolve = null; }
+}
+function rdModelPickCancel() {
+  document.getElementById('rdModelPickOverlay').classList.remove('show');
+  if (_rdModelPickResolve) { _rdModelPickResolve(null); _rdModelPickResolve = null; }
+}
+
 async function enviarResumoDiarioImagem(btnEl) {
   if (typeof html2canvas === 'undefined') {
     alert('Não foi possível carregar o gerador de imagem. Verifique sua conexão e tente novamente.');
     return;
   }
-  const alvo = document.getElementById('rdBody');
-  if (!alvo || !alvo.children.length) { alert('Nenhum resumo pra exportar.'); return; }
+
+  // A visualização na tela sempre usa o Modelo 1 — a escolha de qual
+  // modelo mandar fica só pra hora de gerar a imagem, sem mudar o que
+  // está sendo exibido no card ao vivo.
+  const modeloEscolhido = await abrirEscolhaModeloEnvio();
+  if (!modeloEscolhido) return; // cancelado
+
+  let lojas;
+  if (rdModo === 'uma') {
+    const v = document.getElementById('rdLojaSelect').value;
+    lojas = v ? [v] : [];
+  } else {
+    lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  }
+  if (!lojas.length) { alert('Nenhuma loja selecionada.'); return; }
 
   const old = btnEl.textContent;
   btnEl.textContent = '⏳ Gerando imagem…';
   btnEl.disabled = true;
 
-  // Monta uma cópia dos cards fora da tela, empilhados um embaixo do
-  // outro numa largura de celular (420px) — assim a imagem exportada sai
-  // sempre no formato vertical, ideal pro WhatsApp, mesmo que o dashboard
-  // esteja aberto num monitor largo onde os cards ficam lado a lado.
-  const cards = [...alvo.querySelectorAll('.rd-card')];
-  if (!cards.length) { alert('Nenhum resumo pra exportar.'); btnEl.textContent = old; btnEl.disabled = false; return; }
+  // Monta os cards do modelo escolhido fora da tela, empilhados um
+  // embaixo do outro numa largura de celular (420px) — assim a imagem
+  // exportada sai sempre no formato vertical, ideal pro WhatsApp, mesmo
+  // que o dashboard esteja aberto num monitor largo.
+  const buildFn = modeloEscolhido === 'v2' ? buildCardHTMLv2 : buildCardHTMLv1;
+  const cardsHtml = lojas.map(l => buildFn(computeResumoLoja(l))).join('');
   const clone = document.createElement('div');
   clone.style.cssText = 'position:fixed; left:-9999px; top:0; width:420px; background:#F4F1EA; padding:16px; display:flex; flex-direction:column; gap:14px;';
-  cards.forEach(c => clone.appendChild(c.cloneNode(true)));
+  clone.innerHTML = cardsHtml;
   document.body.appendChild(clone);
 
   try {
