@@ -1733,10 +1733,14 @@ function renderDashboard(f) {
   const vAAcumDia    = ultimoDiaVenda > 0 ? queryAteDia(anoA,   mes, loja, ultimoDiaVenda, 'venda') : vA;
   const vAntAcumDia  = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'venda') : vAnt;
 
-  const pctMeta   = metaMes > 0 ? ((vA - metaMes) / metaMes) * 100    : null;
+  // % Meta Acum. Atual × Venda = (total da Venda Acum. / total da Meta
+  // Acum.) − 1. "Meta Acum." é a meta proporcional aos dias já passados
+  // (metaMes × dias-decorridos/dias-do-mês) — a mesma conta da coluna
+  // "Meta Acum." da tabela — não a meta do mês inteiro de uma vez, senão
+  // distorce o resultado enquanto o mês ainda está em andamento.
+  const metaAcumDia = (metaMes > 0 && ultimoDiaVenda > 0) ? metaMes * (ultimoDiaVenda / dias) : metaMes;
+  const pctMeta   = metaAcumDia > 0 ? ((vAAcumDia / metaAcumDia) - 1) * 100 : null;
   const pctVsAnt  = vAntAcumDia > 0 ? ((vAAcumDia / vAntAcumDia) - 1) * 100 : null;
-  const pctPessAA = cAnt > 0    ? ((cA - cAnt)    / cAnt)    * 100    : null;
-  const pctTktAA  = tktAn > 0   ? ((tktA - tktAn) / tktAn)  * 100    : null;
 
   const vDia    = vA   / dias;
   const vDiaAnt = vAnt / dias;
@@ -1788,48 +1792,6 @@ function renderDashboard(f) {
     <div class="tbl-scroll" id="tblScroll"></div>
   </div>`;
 
-  const inds = [
-    { lbl: '% META ACUM. ATUAL × VENDA', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
-    { lbl: '% VENDA ACUM. ATUAL × AA',   val: pctVsAnt, clr: pctVsAnt === null ? 'blue' : pctVsAnt >= 0 ? 'green' : 'red', note: '', ico: '📈' },
-    { lbl: '% PESSOAS ANO ANTERIOR',     val: pctPessAA,clr: pctPessAA=== null ? 'blue' : pctPessAA>= 0 ? 'green' : 'red', note: '', ico: '👥' },
-    { lbl: '% TK ANO ANTERIOR',          val: pctTktAA, clr: pctTktAA === null ? 'blue' : pctTktAA >= 0 ? 'green' : 'red', note: '', ico: '🛒' },
-  ];
-  document.getElementById('indRow').innerHTML = inds.map(i =>
-    `<div class="ind-card ${i.clr}">
-      <div class="ind-accent"></div>
-      <div class="ind-header">
-        <div class="ind-icon ${i.clr}">${i.ico || '📊'}</div>
-        <div class="ind-label">${i.lbl}</div>
-      </div>
-      <div class="ind-body">
-        <div class="ind-val">${i.val !== null ? Pct(i.val) : (i.note || '—')}</div>
-        ${i.note ? '' : `<div class="ind-sub">vs ${i.lbl.includes('META') ? 'meta' : 'ano anterior'}</div>`}
-      </div>
-    </div>`).join('');
-
-  const kpis = [
-    { lbl:'Faturamento Realizado', val:R0(vA),   dlt:pctVsAnt, ico:'💰', accent:'#1547C0', clr:'blue', inv:false },
-    { lbl:'Meta Mensal',           val:metaMes>0?R0(metaMes):'—', dlt:pctMeta,  ico:'🎯', accent:'#0A7C5C', clr:'green', inv:false },
-    { lbl:'Ticket Médio (TKM)',    val:R(tktA),  dlt:pctTktAA, ico:'🛒', accent:'#B45309', clr:'amber', inv:false },
-    { lbl:'Quebras / Baixas',      val:R0(qA),   dlt:vA>0?((qA/vA)*100):null, ico:'⚠️', accent:'#C8281E', clr:'red', inv:true },
-  ];
-  document.getElementById('kpiRow').innerHTML = kpis.map(k => {
-    const d = k.dlt, isNull = d === null || isNaN(d);
-    const dc = isNull ? 'neu' : (k.inv ? (d <= 0 ? 'up' : 'down') : (d >= 0 ? 'up' : 'down'));
-    const dt = isNull ? 'Sem comparação' : Pct(d) + ' vs ' + (k.lbl.includes('Fatur') ? 'AA' : k.lbl.includes('Meta') ? 'meta' : 'AA');
-    return `<div class="kpi-card">
-      <div class="kpi-accent" style="background:${k.accent}"></div>
-      <div class="kpi-header">
-        <div class="ind-icon ${k.clr}">${k.ico}</div>
-        <div class="kpi-lbl">${k.lbl}</div>
-      </div>
-      <div class="kpi-body">
-        <div class="kpi-val">${k.val}</div>
-        <div class="kpi-foot"><b>${dc==='up'?'▲':dc==='down'?'▼':'·'} ${dt}</b></div>
-      </div>
-    </div>`;
-  }).join('');
-
   const rows = [];
   let acumAnt = 0, acumMeta = 0, acumReal = 0;
 
@@ -1871,6 +1833,63 @@ function renderDashboard(f) {
   // (desconsiderando dias com 0, sejam futuros ou sem venda registrada).
   const diasComDadosPess = rows.filter(r => r.c > 0).length;
   const mediaPessComDados = diasComDadosPess > 0 ? cA / diasComDadosPess : 0;
+
+  // % Pessoas Ano Anterior = (média da coluna Pess. / média da coluna
+  // Pess.AA) − 1. A média AA usa os mesmos dias que entraram na média
+  // atual (até o último dia com venda), pra comparar período igual.
+  const cAntAcumDiaPess = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'cupons') : cAnt;
+  const mediaPessAA = diasComDadosPess > 0 ? cAntAcumDiaPess / diasComDadosPess : 0;
+  const pctPessAA = mediaPessAA > 0 ? (mediaPessComDados / mediaPessAA - 1) * 100 : null;
+
+  // % TK Ano Anterior = (média da coluna TKM / média da coluna TKM AA) − 1.
+  // Média das duas colunas calculada sobre os mesmos dias (os que já têm
+  // TKM lançado no ano atual), pra não puxar a AA com dias "a mais".
+  const diasComTk = rows.filter(r => !r.isFuture && r.tk > 0);
+  const mediaTkAtual = diasComTk.length > 0 ? diasComTk.reduce((s,r)=>s+r.tk, 0) / diasComTk.length : 0;
+  const mediaTkAA = diasComTk.length > 0 ? diasComTk.reduce((s,r)=>s+(r.tkAn||0), 0) / diasComTk.length : 0;
+  const pctTktAA = mediaTkAA > 0 ? (mediaTkAtual / mediaTkAA - 1) * 100 : null;
+
+  const inds = [
+    { lbl: '% META ACUM. ATUAL × VENDA', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
+    { lbl: '% VENDA ACUM. ATUAL × AA',   val: pctVsAnt, clr: pctVsAnt === null ? 'blue' : pctVsAnt >= 0 ? 'green' : 'red', note: '', ico: '📈' },
+    { lbl: '% PESSOAS ANO ANTERIOR',     val: pctPessAA,clr: pctPessAA=== null ? 'blue' : pctPessAA>= 0 ? 'green' : 'red', note: '', ico: '👥' },
+    { lbl: '% TK ANO ANTERIOR',          val: pctTktAA, clr: pctTktAA === null ? 'blue' : pctTktAA >= 0 ? 'green' : 'red', note: '', ico: '🛒' },
+  ];
+  document.getElementById('indRow').innerHTML = inds.map(i =>
+    `<div class="ind-card ${i.clr}">
+      <div class="ind-accent"></div>
+      <div class="ind-header">
+        <div class="ind-icon ${i.clr}">${i.ico || '📊'}</div>
+        <div class="ind-label">${i.lbl}</div>
+      </div>
+      <div class="ind-body">
+        <div class="ind-val">${i.val !== null ? Pct(i.val) : (i.note || '—')}</div>
+        ${i.note ? '' : `<div class="ind-sub">vs ${i.lbl.includes('META') ? 'meta' : 'ano anterior'}</div>`}
+      </div>
+    </div>`).join('');
+
+  const kpis = [
+    { lbl:'Faturamento Realizado', val:R0(vA),   dlt:pctVsAnt, ico:'💰', accent:'#1547C0', clr:'blue', inv:false },
+    { lbl:'Meta Mensal',           val:metaMes>0?R0(metaMes):'—', dlt:pctMeta,  ico:'🎯', accent:'#0A7C5C', clr:'green', inv:false },
+    { lbl:'Ticket Médio (TKM)',    val:R(tktA),  dlt:pctTktAA, ico:'🛒', accent:'#B45309', clr:'amber', inv:false },
+    { lbl:'Quebras / Baixas',      val:R0(qA),   dlt:vA>0?((qA/vA)*100):null, ico:'⚠️', accent:'#C8281E', clr:'red', inv:true },
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => {
+    const d = k.dlt, isNull = d === null || isNaN(d);
+    const dc = isNull ? 'neu' : (k.inv ? (d <= 0 ? 'up' : 'down') : (d >= 0 ? 'up' : 'down'));
+    const dt = isNull ? 'Sem comparação' : Pct(d) + ' vs ' + (k.lbl.includes('Fatur') ? 'AA' : k.lbl.includes('Meta') ? 'meta' : 'AA');
+    return `<div class="kpi-card">
+      <div class="kpi-accent" style="background:${k.accent}"></div>
+      <div class="kpi-header">
+        <div class="ind-icon ${k.clr}">${k.ico}</div>
+        <div class="kpi-lbl">${k.lbl}</div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">${k.val}</div>
+        <div class="kpi-foot"><b>${dc==='up'?'▲':dc==='down'?'▼':'·'} ${dt}</b></div>
+      </div>
+    </div>`;
+  }).join('');
 
   const tblH = `<table>
     <thead>
