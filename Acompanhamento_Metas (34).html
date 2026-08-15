@@ -1,0 +1,2643 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Acompanhamento de Metas</title>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<style>
+/* ═══════════════════════════════════════════
+   DESIGN TOKENS
+═══════════════════════════════════════════ */
+:root {
+  --bg:          #EEF1F8;
+  --surface:     #FFFFFF;
+  --surface2:    #F5F7FC;
+  --border:      #DDE2EE;
+  --border-hi:   #BBC5DA;
+  --ink:         #0C1830;
+  --ink2:        #3D4E6B;
+  --muted:       #8594AF;
+  --blue:        #1547C0;
+  --blue-lt:     #E8EFFE;
+  --blue-mid:    #4472D9;
+  --green:       #0A7C5C;
+  --green-lt:    #E3F5EF;
+  --red:         #C8281E;
+  --red-lt:      #FDECEA;
+  --amber:       #B45309;
+  --amber-lt:    #FEF3DC;
+  --navy:        #0C1830;
+  --r:           12px;
+  --r-sm:        7px;
+  --radius:      14px;
+  --sh:          0 1px 6px rgba(12,24,48,.07);
+  --sh-md:       0 4px 18px rgba(12,24,48,.11);
+  --tr:          .18s cubic-bezier(.4,0,.2,1);
+  --hh:          62px;
+  --fh:          56px;
+  --side-w:      232px;
+  --side-w-collapsed: 74px;
+  --font-head:   'Outfit', sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  font-family: 'Outfit', sans-serif;
+  background: var(--bg);
+  color: var(--ink);
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+/* ─── SIDEBAR MENU ─── */
+.sidebar {
+  position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
+  background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
+  z-index: 300;
+  display:flex; flex-direction:column;
+  font-family: var(--font-body);
+  overflow: visible;
+  transition: transform .25s ease, width .25s ease;
+}
+.sidebar.collapsed { width: var(--side-w-collapsed); }
+.side-brand {
+  display:flex; align-items:center; gap:11px;
+  padding: 18px 18px 16px; flex-shrink:0;
+  border-bottom: 1px solid rgba(255,255,255,.08);
+  margin-bottom: 8px;
+  text-decoration:none; cursor:pointer; transition:opacity .15s;
+}
+a.side-brand:hover { opacity:.85; }
+.sidebar.collapsed .side-brand { padding: 18px 0 16px; justify-content:center; }
+.side-brand svg { width:22px; height:22px; color: #C8961A; flex-shrink:0; }
+.side-brand-text { white-space:nowrap; overflow:hidden; }
+.side-brand-text .t { font-family: var(--font-head); font-weight:700; color:#fff; font-size:14.5px; line-height:1.2; }
+.side-brand-text .s { font-size:10.5px; color: rgba(255,255,255,.45); letter-spacing:.03em; }
+.sidebar.collapsed .side-brand-text { display:none; }
+
+.side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
+.side-item { display:flex; flex-direction:column; }
+.side-link {
+  display:flex; align-items:center; gap:11px; width:100%; text-align:left;
+  background:none; border:none; cursor:pointer;
+  color: rgba(255,255,255,.7);
+  font-family: var(--font-head); font-weight:600; font-size:13px; letter-spacing:.01em;
+  padding: 10px 11px; border-radius: 10px;
+  transition: background .15s ease, color .15s ease;
+}
+.side-link svg { width:18px; height:18px; flex-shrink:0; opacity:.85; }
+.side-link .chev { margin-left:auto; width:13px; height:13px; opacity:.5; transition: transform .18s ease; }
+.side-item.open > .side-link .chev { transform: rotate(180deg); }
+.side-link:hover { background: rgba(255,255,255,.07); color:#fff; }
+.side-item.active > .side-link { color:#fff; background: rgba(255,255,255,.09); }
+
+.side-sub { display:flex; flex-direction:column; padding: 0 0 0 24px; gap:1px; max-height:0; overflow:hidden; opacity:0; transition: max-height .28s ease, opacity .2s ease, padding .28s ease; }
+
+.sidebar.collapsed .side-link { justify-content:center; padding:11px 0; }
+.sidebar.collapsed.peek { width: 232px; box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+.sidebar.collapsed.peek .side-brand { padding: 18px 18px 16px; justify-content:flex-start; }
+.sidebar.collapsed.peek .side-brand-text { display:block; }
+.sidebar.collapsed.peek .side-link { justify-content:flex-start; padding:10px 11px; }
+.sidebar.collapsed.peek .side-link span,
+.sidebar.collapsed.peek .side-link .chev { display:inline-flex; }
+.sidebar.collapsed.peek .side-item.open > .side-sub { display:flex; }
+
+.sidebar.collapsed .side-link span,
+.sidebar.collapsed .side-link .chev,
+.sidebar.collapsed .side-sub { display:none; }
+
+.sidebar.collapsed:not(.peek) .side-item { position:relative; }
+.sidebar.collapsed:not(.peek) .side-link::after {
+  content: attr(data-label);
+  position: absolute; left: calc(100% + 12px); top: 50%; transform: translateY(-50%);
+  background: #12233C; color:#fff;
+  padding: 7px 12px; border-radius: 8px;
+  font-family: var(--font-head); font-weight:600; font-size:12.5px; white-space:nowrap;
+  box-shadow: 0 4px 24px rgba(15,22,40,0.10);
+  opacity:0; pointer-events:none; visibility:hidden;
+  transition: opacity .15s ease;
+  z-index: 320;
+}
+.sidebar.collapsed:not(.peek) .side-link:hover::after {
+  opacity:1; visibility:visible;
+}
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-sub a {
+  display:flex; align-items:center; gap:9px;
+  padding: 8px 10px; border-radius:8px;
+  font-size:12.5px; font-weight:500;
+  color: rgba(255,255,255,.52); text-decoration:none;
+  transition: background .12s ease, color .12s ease;
+}
+.side-sub a svg { width:14px; height:14px; flex-shrink:0; opacity:.8; }
+.side-sub a:hover { background: rgba(255,255,255,.06); color:#fff; }
+.side-sub a.active { color: #C8961A; font-weight:600; background: rgba(200,150,26,.13); }
+
+.side-toggle {
+  position:fixed; top:14px; left:14px; z-index:301;
+  width:38px; height:38px; border-radius:10px;
+  background: #0C1830; border:1px solid rgba(255,255,255,.12);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+}
+.side-toggle svg { width:19px; height:19px; color:#fff; }
+.side-overlay { display:none; position:fixed; inset:0; background: rgba(0,0,0,.4); z-index:250; }
+
+@media (max-width: 960px){
+  .sidebar { transform: translateX(-100%); box-shadow: 0 8px 40px rgba(0,0,0,.12); }
+  body.side-open .sidebar { transform: translateX(0); }
+  body.side-open .side-overlay { display:block; }
+  .hdr { left: 0 !important; width: 100% !important; }
+  .sub-filter-bar { margin-left: 0 !important; width: 100% !important; }
+  .main { margin-left: 0 !important; }
+}
+
+/* ─── HEADER ─── */
+.hdr {
+  position: sticky; top: 0; z-index: 200;
+  left: var(--side-w-collapsed);
+  width: calc(100% - var(--side-w-collapsed));
+  height: var(--hh);
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  display: flex; align-items: center;
+  padding: 0 28px; gap: 18px;
+  box-shadow: 0 2px 16px rgba(12,24,48,.28);
+  transition: left .25s ease, width .25s ease;
+}
+.hdr-logo {
+  width: 36px; height: 36px;
+  background: var(--blue);
+  border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.hdr-logo svg { color: #fff; }
+.hdr-title {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 20px; font-weight: 800;
+  color: #fff; letter-spacing: -.3px;
+  flex: 1;
+}
+.hdr-sub { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.45); font-weight: 400; }
+.hdr-right { display: flex; align-items: center; gap: 16px; }
+.upd-label { font-size: 11px; color: rgba(255,255,255,.4); }
+.upd-val   { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.75); }
+.btn-refresh {
+  display: flex; align-items: center; gap: 6px;
+  padding: 8px 16px;
+  background: var(--blue); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: var(--tr);
+  white-space: nowrap;
+}
+.btn-refresh:hover { background: #1038a0; transform: translateY(-1px); box-shadow: 0 4px 14px rgba(20,71,192,.4); }
+.btn-refresh.loading svg { animation: spin .7s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ─── FILTERS (Analise Comercial pattern) ─── */
+.sub-filter-bar {
+  position: sticky; top: var(--hh); z-index: 190;
+  margin-left: var(--side-w-collapsed);
+  transition: margin-left .25s ease;
+  background: rgba(238,241,248,.97);
+  backdrop-filter: blur(10px) saturate(1.4);
+  -webkit-backdrop-filter: blur(10px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 2px 10px rgba(0,0,0,.05);
+  padding: 10px 28px;
+  display: flex; align-items: center;
+}
+.fb-filters { display: flex; align-items: center; gap: 10px; flex: 1; flex-wrap: wrap; }
+.fb-group   { display: flex; align-items: center; gap: 7px; }
+.fb-label   { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); white-space: nowrap; }
+.fb-select {
+  font-family: var(--font-head);
+  font-size: 12.5px; font-weight: 500; color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  appearance: none; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238594AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+  transition: all .18s var(--tr);
+  min-width: 130px;
+}
+.fb-select:focus { outline: none; border-color: var(--blue); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
+.fb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
+
+/* ── Canal multi-select ── */
+.canal-wrap { position: relative; }
+.canal-trigger {
+  font-family: var(--font-head);
+  font-size: 12.5px; font-weight: 500; color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  cursor: pointer; white-space: nowrap;
+  min-width: 140px; max-width: 220px;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .18s var(--tr);
+  user-select: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238594AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+.canal-trigger:hover,
+.canal-trigger.open { border-color: var(--blue); background-color: var(--surface); }
+.canal-trigger.open { box-shadow: 0 0 0 3px var(--blue-lt); }
+.canal-trigger.has-sel { border-color: var(--amber); color: var(--amber); background-color: var(--amber-lt); }
+.canal-trigger.has-sel.open { box-shadow: 0 0 0 3px var(--amber-lt); }
+.canal-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--amber); color: #fff;
+  border-radius: 20px; font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px; padding: 0 4px; line-height: 1;
+}
+
+/* ═══════════════ RESUMO DIÁRIO (WhatsApp) ═══════════════ */
+.rd-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(10,15,25,.55);
+  z-index: 500; align-items: center; justify-content: center;
+  padding: 10px; overflow-y: auto;
+}
+.rd-overlay.show { display: flex; }
+.rd-modal {
+  background: #fff; border-radius: 14px; width: 100%; max-width: 800px;
+  max-height: 90vh; display: flex; flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3); overflow: hidden;
+  transition: max-width .2s ease;
+}
+.rd-modal.todas-lojas { max-width: 1180px; }
+.rd-modal-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; background: var(--navy, #0F2A4A); color: #fff; flex-shrink: 0;
+}
+.rd-modal-title { font-weight: 800; font-size: 14px; }
+.rd-modal-sub { font-size: 10px; opacity: .75; margin-top: 1px; }
+.rd-close {
+  background: rgba(255,255,255,.12); border: none; color: #fff;
+  width: 26px; height: 26px; border-radius: 8px; cursor: pointer; font-size: 13px;
+}
+.rd-modal-toolbar {
+  display: flex; align-items: center; gap: 8px; padding: 8px 12px;
+  border-bottom: 1px solid #E7E2D8; flex-wrap: wrap; flex-shrink: 0;
+}
+.rd-toggle { display: flex; border: 1px solid #D8CFBE; border-radius: 8px; overflow: hidden; }
+.rd-toggle-btn {
+  border: none; background: #fff; padding: 6px 11px; font-size: 11.5px; font-weight: 700;
+  cursor: pointer; color: var(--muted);
+}
+.rd-toggle-btn.active { background: var(--amber, #B45309); color: #fff; }
+.rd-modal-body {
+  padding: 10px; background: #F4F1EA; overflow: auto; flex: 1 1 auto;
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 10px;
+  align-content: start;
+}
+.rd-modal-body.carousel-mode {
+  display: block; overflow: hidden;
+}
+.rd-carousel { position: relative; overflow: hidden; }
+.rd-carousel-track { display: flex; gap: 10px; transition: transform .3s ease; }
+.rd-carousel-track .rd-card { flex: 0 0 calc(50% - 5px); min-width: 0; }
+.rd-carousel-nav {
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  padding: 10px 0 4px; flex-shrink: 0;
+}
+.rd-carousel-btn {
+  width: 34px; height: 34px; border-radius: 50%; border: 1px solid #D8CFBE;
+  background: #fff; cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: background .15s, border-color .15s; flex-shrink: 0;
+}
+.rd-carousel-btn:hover { background: #F0EDE5; border-color: #B8AFA0; }
+.rd-carousel-btn:disabled { opacity: .35; cursor: default; }
+.rd-carousel-btn svg { width: 16px; height: 16px; color: #3D4E6B; }
+.rd-carousel-info { font-size: 11px; font-weight: 600; color: #8594AF; white-space: nowrap; }
+
+.rd-card { background: #fff; border-radius: 10px; overflow: hidden; box-shadow: 0 1px 4px rgba(0,0,0,.08); font-size: 0; }
+.rd-card-title { font-size: 15px; font-weight: 800; padding: 9px 11px 3px; color: #14213D; }
+.rd-card-sub { display: flex; align-items: center; gap: 6px; padding: 0 11px 9px; font-size: 11.5px; }
+.rd-card-sub .lbl { background: #DCE7F5; color: #1B3D6E; font-weight: 800; padding: 2px 6px; border-radius: 4px; }
+.rd-card-sub .val { color: #333; font-weight: 600; }
+.rd-tbl { width: 100%; border-collapse: collapse; }
+.rd-tbl th { background: #1B3D6E; color: #fff; font-size: 10.5px; font-weight: 700; padding: 5px 6px; text-align: center; line-height: 1.25; }
+.rd-tbl th.hi { background: #103868; }
+.rd-tbl td.rd-sub-hd { background: #DCE7F5; color: #1B3D6E; font-size: 10px; font-weight: 800; padding: 4px 6px; text-align: center; }
+.rd-tbl td { padding: 5px 6px; text-align: center; font-size: 13px; font-weight: 700; color: #22314F; border-bottom: 1px solid #EEE; line-height: 1.35; }
+.rd-tbl tr:last-child td { border-bottom: none; }
+.rd-tbl-spacer td { padding: 3px; background: transparent; border: none; }
+.rd-sec-title { font-weight: 800; font-size: 13.5px; padding: 9px 11px 5px; color: #14213D; }
+
+/* Popup de escolha de modelo, mostrado ao clicar em "Enviar imagem" */
+.rd-modelpick-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(10,15,25,.6);
+  z-index: 600; align-items: center; justify-content: center; padding: 16px;
+}
+.rd-modelpick-overlay.show { display: flex; }
+.rd-modelpick-box {
+  background: #fff; border-radius: 14px; padding: 18px; width: 100%; max-width: 360px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.rd-modelpick-title { font-weight: 800; font-size: 15px; color: #14213D; margin-bottom: 3px; }
+.rd-modelpick-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 14px; }
+.rd-modelpick-btn {
+  display: block; width: 100%; text-align: left; border: 1.5px solid #D8CFBE; border-radius: 10px;
+  background: #FAF8F4; padding: 12px 14px; margin-bottom: 10px; cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+.rd-modelpick-btn:hover { border-color: var(--amber, #B45309); background: #FFF4E6; }
+.rd-modelpick-btn .t { font-weight: 800; font-size: 13.5px; color: #14213D; }
+.rd-modelpick-btn .d { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.rd-modelpick-cancel {
+  display: block; width: 100%; text-align: center; border: none; background: none;
+  color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px; cursor: pointer;
+}
+.rd-pos { color: #0A7C5C; }
+.rd-neg { color: #C8281E; }
+.canal-dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--sh-md);
+  min-width: 200px; max-width: 280px;
+  overflow: hidden;
+}
+.canal-dropdown.open { display: block; }
+.canal-dd-head {
+  padding: 9px 12px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2);
+}
+.canal-dd-title { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.canal-dd-actions { display: flex; gap: 8px; }
+.canal-dd-btn {
+  font-size: 9.5px; font-weight: 700; color: var(--blue);
+  background: none; border: none; cursor: pointer; padding: 0;
+  letter-spacing: .03em; text-decoration: underline; text-underline-offset: 2px;
+}
+.canal-dd-btn:hover { color: var(--blue); }
+.canal-dd-list { max-height: 220px; overflow-y: auto; padding: 6px 0; }
+.canal-dd-list::-webkit-scrollbar { width: 4px; }
+.canal-dd-list::-webkit-scrollbar-track { background: transparent; }
+.canal-dd-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.canal-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 13px; cursor: pointer;
+  transition: background .12s;
+}
+.canal-item:hover { background: var(--bg); }
+.canal-item input[type=checkbox] {
+  width: 14px; height: 14px; flex-shrink: 0;
+  accent-color: var(--blue); cursor: pointer;
+}
+.canal-item-label { font-size: 12px; font-weight: 500; color: var(--ink); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canal-item.checked .canal-item-label { color: var(--blue); font-weight: 600; }
+
+/* Meta input */
+.meta-wrap {
+  display: flex; align-items: center; gap: 10px;
+  margin-left: auto;
+  background: var(--blue-lt);
+  border: 1.5px solid #b3c6f4;
+  border-radius: var(--r-sm);
+  padding: 5px 12px;
+}
+.meta-label { font-size: 11px; font-weight: 600; color: var(--blue); }
+.meta-input {
+  border: none; background: transparent;
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 13px; font-weight: 600; color: var(--blue);
+  width: 130px; outline: none;
+}
+.meta-input::placeholder { color: #9ab0e0; font-weight: 400; }
+
+/* ─── MAIN LAYOUT ─── */
+.main { padding: 22px 28px 56px; max-width: 1800px; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
+
+/* ─── SECTION HEADER ─── */
+.sh {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.sh-bar { width: 4px; height: 22px; border-radius: 2px; background: var(--blue); flex-shrink: 0; }
+.sh-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+.sh-sub { font-size: 11px; color: var(--muted); margin-left: auto; }
+.mb { margin-bottom: 24px; }
+
+/* ─── INDICATOR CARDS ─── */
+.ind-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.ind-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 14px 22px 18px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+.ind-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.ind-card::before {
+  content: ''; position: absolute; inset: 0;
+  background: none;
+  pointer-events: none;
+}
+.ind-card.blue .ind-accent,
+.ind-card.green .ind-accent,
+.ind-card.red .ind-accent,
+.ind-card.amber .ind-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.ind-card.blue .ind-accent  { background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); }
+.ind-card.green .ind-accent { background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 100%); }
+.ind-card.red .ind-accent   { background: linear-gradient(90deg, var(--rust) 0%, var(--rust-mid) 100%); }
+.ind-card.amber .ind-accent { background: linear-gradient(90deg, var(--olive) 0%, var(--olive-mid) 100%); }
+.ind-card.red {
+  background: linear-gradient(135deg, #FDECEA 0%, #F8D7DA 100%);
+  border-color: #F5C6CB;
+}
+.ind-card.red .ind-val { color: #DC3545; }
+.ind-card.red .ind-label { color: #DC3545; }
+.ind-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+.ind-icon {
+  width: 36px; height: 36px; border-radius: 9px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  font-size: 17px;
+}
+.ind-icon.blue  { background: var(--blue-xl);  color: var(--blue-mid); }
+.ind-icon.green { background: var(--teal-lt);  color: var(--teal); }
+.ind-icon.red   { background: var(--rust-lt);  color: var(--rust-mid); }
+.ind-icon.amber { background: var(--olive-lt); color: var(--olive); }
+.ind-label {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.ind-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.ind-val {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 26px; font-weight: 700;
+  color: var(--text-primary); letter-spacing: -.02em; line-height: 1;
+  text-align: center;
+  margin-bottom: 5px;
+}
+.ind-sub {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: auto;
+}
+
+/* ─── KPI ROW ─── */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.kpi-card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  padding: 22px 22px 18px;
+  box-shadow: var(--shadow);
+  position: relative;
+  overflow: hidden;
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+}
+.kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
+.kpi-accent {
+  position: absolute; top: 0; left: 0; right: 0; height: 3px;
+  border-radius: var(--radius) var(--radius) 0 0;
+}
+.kpi-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.kpi-lbl {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.1em;
+  color: var(--text-muted);
+}
+.kpi-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+}
+.kpi-val {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 26px; font-weight: 700;
+  letter-spacing: -.02em; line-height: 1;
+  color: var(--text-primary);
+  text-align: center;
+  margin-bottom: 5px;
+}
+.kpi-foot {
+  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  text-align: right;
+  margin-top: auto;
+}
+.kpi-foot b { color: var(--text-primary); font-weight: 600; }
+
+/* ─── CHARTS ─── */
+.charts-2 {
+  display: grid;
+  grid-template-columns: 3fr 2fr;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.chart-card {
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  padding: 18px 18px 14px;
+  box-shadow: var(--sh);
+}
+.chart-title { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.chart-sub   { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
+.chart-wrap  { position: relative; height: 230px; }
+
+/* ─── TABLE CARD ─── */
+.tbl-card {
+  background: var(--surface);
+  border-radius: var(--r);
+  border: 1px solid var(--border);
+  box-shadow: var(--sh);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.tbl-head {
+  padding: 14px 20px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.tbl-head-title { font-size: 14px; font-weight: 700; }
+.tbl-head-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tbl-badge {
+  font-size: 11px; font-weight: 600;
+  padding: 5px 12px; border-radius: 20px;
+  background: var(--blue-lt); color: var(--blue);
+  white-space: nowrap;
+}
+.tbl-scroll { overflow-x: hidden; }
+
+/* ─── TABLE STYLES ─── */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+  table-layout: fixed;
+}
+
+/* Group header row */
+.tr-grp th {
+  padding: 5px 4px;
+  text-align: center;
+  font-family: 'Outfit', sans-serif;
+  font-size: 9px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .4px;
+  white-space: nowrap;
+  border-right: 1px solid rgba(255,255,255,.25);
+}
+.tr-grp th:last-child { border-right: none; }
+.grp-aa    { background: #2B3F6B; color: #fff; }
+.grp-atual { background: var(--blue); color: #fff; }
+.grp-desv  { background: #07523B; color: #fff; }
+.grp-tkt   { background: #7A3800; color: #fff; }
+.grp-pe    { background: #1C2E6B; color: #fff; }
+
+/* Sub-header row */
+.tr-sub th {
+  padding: 4px 3px;
+  text-align: right;
+  font-size: 9px; font-weight: 600;
+  color: var(--ink2);
+  background: var(--surface2);
+  border-bottom: 2px solid var(--border-hi);
+  border-right: 1px solid var(--border);
+  white-space: nowrap;
+}
+.tr-sub th.tl { text-align: left; }
+.tr-sub th.sep { border-right: 2px solid var(--border-hi); }
+
+/* Body */
+tbody tr { border-bottom: 1px solid var(--border); transition: background var(--tr); }
+tbody tr:hover { background: #F0F4FF; }
+tbody tr.future { opacity: .4; }
+tbody tr.today  { background: #EFF5FF; }
+
+td {
+  padding: 3px 3px;
+  text-align: right;
+  vertical-align: middle;
+  border-right: 1px solid var(--border);
+  font-family: 'IBM Plex Mono', monospace;
+  font-size: 9.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink);
+}
+td:last-child { border-right: none; }
+td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 9.5px; color: var(--ink2); }
+td.sep { border-right: 2px solid var(--border-hi); }
+td.pos { color: var(--green); font-weight: 600; }
+td.neg { color: var(--red); font-weight: 600; }
+td.blu { color: var(--blue); font-weight: 600; }
+td.dash { color: var(--muted); }
+
+.pill {
+  display: inline-block;
+  padding: 0px 4px; border-radius: 3px;
+  font-size: 9px; font-weight: 600;
+}
+.pill-pos { background: var(--green-lt); color: #085C44; }
+.pill-neg { background: var(--red-lt);   color: #991B13; }
+
+/* Footer/summary rows */
+.tr-media {
+  background: #EFF5FF;
+  border-top: 2px solid var(--blue-mid);
+}
+.tr-media td {
+  font-weight: 600; color: var(--blue);
+  font-size: 9.5px;
+}
+.tr-total {
+  background: var(--navy);
+  border-top: 2px solid #3D5098;
+}
+.tr-total td {
+  color: #fff !important;
+  font-weight: 600;
+  font-size: 9.5px;
+}
+
+/* ─── LOADING / ERROR ─── */
+.loading-box {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px; padding: 80px 32px; text-align: center;
+}
+.spinner {
+  width: 38px; height: 38px;
+  border: 3px solid var(--border);
+  border-top-color: var(--blue);
+  border-radius: 50%;
+  animation: spin .75s linear infinite;
+}
+.loading-txt { font-size: 13px; color: var(--muted); font-weight: 500; }
+.err-box {
+  margin: 28px; padding: 22px;
+  background: var(--red-lt); border: 1px solid #f5c6c3;
+  border-radius: var(--r); text-align: center;
+}
+.err-box h3 { color: var(--red); font-size: 15px; margin-bottom: 6px; }
+.err-box p  { color: #7D1A14; font-size: 12px; }
+.err-box button {
+  margin-top: 12px; padding: 7px 18px;
+  background: var(--red); color: #fff;
+  border: none; border-radius: var(--r-sm);
+  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+}
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 960px) {
+  .hdr   { padding: 0 14px; left: 0 !important; width: 100% !important; }
+  .sub-filter-bar { padding: 0 14px; gap: 10px; margin-left: 0 !important; }
+  .main  { padding: 16px 14px 40px; margin-left: 0 !important; }
+  .ind-row, .kpi-row { grid-template-columns: repeat(2,1fr); }
+  .charts-2 { grid-template-columns: 1fr; }
+  .hdr-sub, .upd-label, .upd-val { display: none; }
+}
+@media (max-width: 520px) {
+  .ind-row, .kpi-row { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<!-- SIDEBAR MENU -->
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+
+<aside class="sidebar collapsed" id="sidebar">
+  <a class="side-brand" href="GestaoZappas.html" title="Voltar ao Painel de Gestão">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text">
+      <div class="t">Dashboards</div>
+      <div class="s">Painel de Gestão</div>
+    </div>
+  </a>
+
+  <nav class="side-nav">
+    <div class="side-item" data-menu="comercial">
+      <button class="side-link" type="button" data-label="Comercial">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
+        <span>Comercial</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Analise_Comercial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+          Análise Comercial
+        </a>
+        <a href="Faturamento_Lucro.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
+          Faturamento x Lucro
+        </a>
+        <a href="Faturamento_Detalhado.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+          Faturamento Detalhado
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item" data-menu="financeiro">
+      <button class="side-link" type="button" data-label="Financeiro">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        <span>Financeiro</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="DRE_Gerencial.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+          DRE Gerencial
+        </a>
+        <a href="Contas_a_Pagar.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
+          Contas a Pagar
+        </a>
+        <a href="#" onclick="return false" style="opacity:0.4;pointer-events:none">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
+          Contas a Receber <span style="font-size:10px;margin-left:4px">(em breve)</span>
+        </a>
+        <a href="#" onclick="return false" style="opacity:0.4;pointer-events:none">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
+          Fluxo de Caixa <span style="font-size:10px;margin-left:4px">(em breve)</span>
+        </a>
+        <a href="Banco_Declaracao.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
+          Banco
+        </a>
+      </div>
+    </div>
+
+    <div class="side-item open" data-menu="metas">
+      <button class="side-link" type="button" data-label="Metas">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
+        <span>Metas</span>
+        <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
+      </button>
+      <div class="side-sub">
+        <a href="Elaboracao_Metas.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+          Elaboração de Metas
+        </a>
+        <a href="Acompanhamento_Metas.html" class="active">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path stroke-linecap="round" stroke-linejoin="round" d="M22 4L12 14.01l-3-3"/></svg>
+          Acompanhamento de Metas
+        </a>
+      </div>
+    </div>
+  </nav>
+</aside>
+
+<!-- ════ HEADER ════ -->
+<header class="hdr">
+  <div class="hdr-logo">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/>
+      <polyline points="16 7 22 7 22 13"/>
+    </svg>
+  </div>
+  <div style="flex:1">
+    <div class="hdr-title">Acompanhamento de Metas</div>
+    <div class="hdr-sub">Performance Executiva · Visão Diária</div>
+  </div>
+  <div class="hdr-right">
+    <div style="text-align:right">
+      <div class="upd-label">Última atualização</div>
+      <div class="upd-val" id="lastUpd">—</div>
+    </div>
+    <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="23 4 23 10 17 10"/>
+        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+      </svg>
+      Atualizar dados
+    </button>
+  </div>
+</header>
+
+<!-- ════ FILTERS (Analise Comercial pattern) ════ -->
+<div class="sub-filter-bar" id="sub-filter-bar">
+  <div class="fb-filters">
+    <div class="fb-group">
+      <span class="fb-label">Ano</span>
+      <select class="fb-select" id="f-ano"><option value="">Todos</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Mês</span>
+      <select class="fb-select" id="f-mes"><option value="">Todos</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Loja</span>
+      <select class="fb-select" id="f-loja"><option value="">Todas</option></select>
+    </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Canal</span>
+      <div class="canal-wrap" id="canal-wrap">
+        <div class="canal-trigger" id="canal-trigger" onclick="toggleCanalDropdown(event)">
+          <span id="canal-trigger-txt">Todos</span>
+          <span class="canal-badge" id="canal-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="canal-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Canais de Distribuição</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllCanais()">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllCanais()">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="canal-dd-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="meta-wrap">
+    <span class="meta-label">Meta mensal R$</span>
+    <input class="meta-input" type="text" id="inputMeta"
+      placeholder="Ex: 450.000"
+      title="Valor carregado automaticamente da Elaboração de Metas. Você pode editar manualmente."
+      oninput="document.getElementById('inputMeta').dataset.userEdited='1'; applyFilters()">
+  </div>
+  <button class="canal-dd-btn" id="btnAbrirResumoDiario" onclick="abrirResumoDiario()" style="margin-left:8px;white-space:nowrap">📋 Resumo Diário (WhatsApp)</button>
+</div>
+
+<!-- ════ RESUMO DIÁRIO — cartão por loja pra WhatsApp ════ -->
+<div class="rd-overlay" id="rdOverlay" onclick="if(event.target===this) fecharResumoDiario()">
+  <div class="rd-modal">
+    <div class="rd-modal-head">
+      <div>
+        <div class="rd-modal-title">📋 Resumo Diário</div>
+        <div class="rd-modal-sub">Indicadores prontos para enviar no WhatsApp</div>
+      </div>
+      <button class="rd-close" onclick="fecharResumoDiario()">✕</button>
+    </div>
+    <div class="rd-modal-toolbar">
+      <div class="rd-toggle">
+        <button class="rd-toggle-btn active" id="rdTogUma" onclick="setRdModo('uma')">Uma loja</button>
+        <button class="rd-toggle-btn" id="rdTogTodas" onclick="setRdModo('todas')">Todas as lojas</button>
+      </div>
+      <select class="fb-select" id="rdLojaSelect" onchange="renderResumoDiario()"></select>
+      <button class="canal-dd-btn" onclick="copiarResumoDiarioTexto(this)">📄 Copiar como texto</button>
+      <button class="canal-dd-btn" id="btnEnviarImagem" onclick="enviarResumoDiarioImagem(this)">📷 Enviar imagem (WhatsApp)</button>
+    </div>
+    <div class="rd-modal-body" id="rdBody"></div>
+  </div>
+</div>
+
+<!-- ════ Escolha de modelo ao enviar a imagem ════ -->
+<div class="rd-modelpick-overlay" id="rdModelPickOverlay" onclick="if(event.target===this) rdModelPickCancel()">
+  <div class="rd-modelpick-box">
+    <div class="rd-modelpick-title">Qual modelo enviar?</div>
+    <div class="rd-modelpick-sub">Escolha o layout do card pra essa imagem</div>
+    <button class="rd-modelpick-btn" onclick="rdModelPickChoose('v1')">
+      <div class="t">Modelo 1</div>
+      <div class="d">Meta Diária e Realizado lado a lado</div>
+    </button>
+    <button class="rd-modelpick-btn" onclick="rdModelPickChoose('v2')">
+      <div class="t">Modelo 2</div>
+      <div class="d">Realizado embaixo da Meta Diária</div>
+    </button>
+    <button class="rd-modelpick-cancel" onclick="rdModelPickCancel()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ════ MAIN ════ -->
+<main class="main" id="mainContent">
+  <div class="loading-box">
+    <div class="spinner"></div>
+    <div class="loading-txt">Carregando dados da planilha…</div>
+  </div>
+</main>
+
+<script>
+// ── Evita "tela congelada" ao usar o botão Voltar do navegador ──
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) window.location.reload();
+});
+
+// ── SIDEBAR: recolher/expandir ──
+let lastOpenMenu = 'metas';
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
+  });
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+// ── SIDEBAR: abrir/fechar submenus e botão mobile ──
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        sidebar.classList.remove('peek');
+        expandSidebar();
+        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+        item.classList.add('open');
+        return;
+      }
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(window.innerWidth <= 900){
+        document.body.classList.toggle('side-open');
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        }
+      } else {
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        } else {
+          collapseSidebar();
+        }
+      }
+    });
+  }
+})();
+
+/* ════════════════════════════════════════════════════
+   CSV_URL ─ cole aqui o link publicado do Google Sheets
+════════════════════════════════════════════════════ */
+// Apps Script publicado como Web App: lê o arquivo certo no Drive
+// e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+// Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
+// então basta buscar todos e juntar as linhas num único conjunto.
+const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+
+// Mesmo backend de Metas usado no Elaboracao_Metas.html — aqui só lemos
+// (GET), não precisa do token. Cole a mesma URL /exec dos dois arquivos.
+const METAS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec";
+/* ════════════════════════════════════════════════════ */
+
+const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
+const DIAS_SEMANA = ["domingo","segunda-feira","terça-feira","quarta-feira","quinta-feira","sexta-feira","sábado"];
+
+let rawData = [];
+let charts  = {};
+let metasData = []; // { ano, mes, loja, canal, meta, pe } — vindo da planilha de Metas
+
+/* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════
+   Ao abrir a página, usa os dados já salvos no navegador
+   (carregamento instantâneo). Só busca dados novos do Drive
+   quando o usuário clicar no botão de atualizar. Usa IndexedDB
+   (não localStorage) porque os CSVs somados passam do limite
+   de 5-10MB do localStorage. */
+const DB_NAME  = 'zappasCacheDB';
+const DB_STORE = 'cache';
+const DB_KEY   = 'acompanhamentoMetas_data_v1';
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror   = () => reject(req.error);
+  });
+}
+async function saveCache(data, ts, rawTs, metas) {
+  try {
+    const db = await openDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(DB_STORE, 'readwrite');
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs, metas }, DB_KEY);
+      tx.oncomplete = resolve;
+      tx.onerror    = () => reject(tx.error);
+    });
+  } catch(e) { console.warn('Não foi possível salvar cache local:', e); }
+}
+async function loadCache() {
+  try {
+    const db = await openDB();
+    return await new Promise((resolve, reject) => {
+      const tx  = db.transaction(DB_STORE, 'readonly');
+      const req = tx.objectStore(DB_STORE).get(DB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror   = () => reject(req.error);
+    });
+  } catch(e) { console.warn('Cache local indisponível:', e); return null; }
+}
+
+/* ═══════════════════════════════════════════════════════
+   SINCRONIA GLOBAL ENTRE PÁGINAS (Zappas)
+   Quando o usuário clica em "Atualizar" em QUALQUER uma das
+   páginas do painel, este aviso é gravado no localStorage
+   (compartilhado entre todas as páginas do mesmo site).
+   Assim: se outra página estiver aberta em outra aba, ela se
+   atualiza sozinha na hora; se não estiver aberta, ela detecta
+   o aviso e busca dados novos automaticamente na próxima vez
+   que for carregada — sem precisar clicar em Atualizar de novo.
+═══════════════════════════════════════════════════════ */
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+
+function avisarOutrasPaginasZappas() {
+  try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
+}
+
+function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheRawTs || 0);
+  } catch(e) { return false; }
+}
+
+/* ═══════════════ UTILS ═══════════════ */
+function normHeader(h) {
+  return String(h).trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_\-]+/g, '_')
+    .replace(/[^a-z0-9_]/g, '');
+}
+function parseNum(v) {
+  if (v === null || v === undefined || v === '') return null;
+  let s = String(v).trim().replace(/\s/g, '').replace(/[R$"']/g, '');
+  if (!s || s === '-') return null;
+  if (/^-?\d{1,3}(\.\d{3})*(,\d*)?$/.test(s)) return parseFloat(s.replace(/\./g,'').replace(',','.'));
+  if (/^-?\d+(,\d+)?$/.test(s)) return parseFloat(s.replace(',','.'));
+  const n = parseFloat(s.replace(/,/g, ''));
+  return isNaN(n) ? null : n;
+}
+function parseMesN(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Math.round(parseFloat(String(v).replace(',', '.')));
+  if (!isNaN(n) && n >= 1 && n <= 12) return n;
+  const u = String(v).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const i = MESES.findIndex(m => m.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').startsWith(u.slice(0,3)));
+  return i >= 0 ? i + 1 : null;
+}
+function daysInMonth(y, m) { return new Date(y, m, 0).getDate(); }
+function dateStr(y, m, d) {
+  return String(d).padStart(2,'0') + '/' + String(m).padStart(2,'0') + '/' + y;
+}
+
+function R(v, dec=2) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function R0(v) { return R(v, 0); }
+function V0(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+function N0(v) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+function Pct(v, d=2) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return (v >= 0 ? '+' : '') + Number(v).toFixed(d) + '%';
+}
+
+/* ═══════════════ CSV PARSE ═══════════════ */
+function parseCSV(text) {
+  const lines = text.trim().split('\n').filter(l => l.trim());
+  if (lines.length < 2) throw new Error('CSV vazio ou sem dados.');
+  const sep = (lines[0].match(/;/g)||[]).length > (lines[0].match(/,/g)||[]).length ? ';' : ',';
+  const hdrs = lines[0].split(sep).map(normHeader);
+  console.log('[CSV] Headers normalizados:', hdrs);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const cols = lines[i].split(sep);
+    if (cols.every(c => !c.trim())) continue;
+    const r = {};
+    hdrs.forEach((h, j) => { r[h] = (cols[j] || '').trim(); });
+    rows.push(r);
+  }
+  return { headers: hdrs, rows };
+}
+
+function transform(rows, headers) {
+  const find = cands => cands.find(c => headers.includes(c));
+  const cAno    = find(['ano']);
+  const cLoja   = find(['loja', 'filial', 'unidade']);
+  const cMes    = find(['mes', 'm_s', 'ms', 'me_s']);
+  const cVenda  = find(['total_venda','totalvenda','venda','faturamento','total']);
+  const cCupons = find(['cupons','cupom','pessoas','clientes','passage','passageiros']);
+  const cTicket = find(['ticket','tkm','ticket_medio','ticketmedio']);
+  const cQuebra = find(['quebras','baixas','quebra']);
+  const cCanal  = find(['canais','canal','channel']);
+  const cData   = find(['data', 'dt', 'data_venda', 'dt_venda', 'dia']);
+
+  if (!cAno || !cLoja || !cMes || !cVenda)
+    throw new Error('Colunas obrigatórias não encontradas. Detectadas: [' + headers.join(', ') + ']. Necessárias: ANO, LOJA, MÊS, Total_Venda');
+
+  console.log('[CSV] Coluna data detectada:', cData || 'NENHUMA (usando cálculo)');
+  console.log('[CSV] Primeiras 3 linhas da coluna data:', rows.slice(0,3).map(r => cData ? r[cData] : 'SEM COLUNA'));
+
+  const result = [];
+  for (const row of rows) {
+    const ano   = parseInt(row[cAno]);
+    const loja  = String(row[cLoja] || '').trim().toUpperCase().replace(/^["']|["']$/g, '');
+    const mes   = parseMesN(row[cMes]);
+    const venda = parseNum(row[cVenda]);
+    if (!ano || isNaN(ano) || !loja || !mes || venda === null) continue;
+
+    let dia = null;
+    if (cData) {
+      const raw = String(row[cData] || '').trim().replace(/["']/g, '');
+      const num = parseInt(raw);
+      if (num >= 1 && num <= 31) {
+        dia = num;
+      } else if (raw.length === 8 && !isNaN(num)) {
+        const dd = parseInt(raw.slice(6, 8));
+        if (dd >= 1 && dd <= 31) dia = dd;
+      } else {
+        const parts = raw.split(/[\/\-.\s]/).filter(Boolean);
+        if (parts.length === 3) {
+          const p0 = parseInt(parts[0]), p1 = parseInt(parts[1]), p2 = parseInt(parts[2]);
+          const hasYear = p2 > 999 || p0 > 999;
+          if (hasYear) {
+            const yy = p0 > 999 ? p0 : p2;
+            const mm = p0 > 999 ? p1 : p0;
+            const dd = p0 > 999 ? p2 : p1;
+            if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+              dia = dd;
+            } else if (dd >= 1 && dd <= 12 && mm >= 1 && mm <= 31) {
+              dia = mm;
+            }
+          } else {
+            const a = p0, b = p1;
+            if (a >= 1 && a <= 31 && b >= 1 && b <= 31) {
+              dia = a;
+            }
+          }
+        } else if (parts.length === 2) {
+          const a = parseInt(parts[0]), b = parseInt(parts[1]);
+          if (a >= 1 && a <= 31) dia = a;
+          else if (b >= 1 && b <= 31) dia = b;
+        }
+      }
+    }
+
+    result.push({
+      ano, loja, mes, dia,
+      canal:   cCanal ? (row[cCanal] || '').trim().replace(/^["']|["']$/g, '') : '',
+      venda:   Number(venda),
+      cupons:  parseNum(row[cCupons])  || 0,
+      ticket:  parseNum(row[cTicket])  || 0,
+      quebras: parseNum(row[cQuebra])  || 0,
+    });
+  }
+  console.log('[CSV]', result.length, 'registros | anos:', [...new Set(result.map(d=>d.ano))].sort(),
+    '| lojas:', [...new Set(result.map(d=>d.loja))].sort(),
+    '| meses:', [...new Set(result.map(d=>d.mes))].sort((a,b)=>a-b));
+  console.log('[CSV] Registros com dia:', result.filter(r=>r.dia!==null).length, '| sem dia:', result.filter(r=>r.dia===null).length);
+  console.log('[CSV] Dias encontrados:', [...new Set(result.filter(r=>r.dia!==null).map(r=>r.dia))].sort((a,b)=>a-b));
+  return result;
+}
+
+/* ═══════════════ FETCH ═══════════════ */
+async function loadData(forceRefresh = false, silent = false) {
+  const btn = document.getElementById('btnRefresh');
+
+  if (!forceRefresh) {
+    const cached = await loadCache();
+    if (cached && cached.data && cached.data.length) {
+      rawData = cached.data;
+      const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+      buildFilters();
+      buildCanalOptions(canais);
+
+      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      document.getElementById('lastUpd').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
+
+      if (Array.isArray(cached.metas)) {
+        // Metas já vieram salvas junto com o cache — não precisa buscar de novo.
+        metasData = cached.metas;
+        applyFilters();
+      } else {
+        // Cache antigo, sem metas salvas: busca só essa parte agora.
+        applyFilters();
+        loadMetasData().then(() => applyFilters()).catch(()=>{});
+      }
+
+      if (stale) loadData(true, true); // dado novo disponível: atualiza em segundo plano
+      return;
+    }
+  }
+
+  btn.classList.add('loading'); btn.disabled = true;
+  showLoading();
+  try {
+    const cacheBust = '&_cb=' + Date.now();
+    const metasPromise = loadMetasData(); // roda em paralelo, é leve e é outro script
+
+    let headers = [];
+    let allRows = [];
+    const lojasComFalha = [];
+
+    // Busca 2 lojas por vez (em vez de 1 por vez, ou todas de uma vez) —
+    // um meio-termo bem mais rápido, mas que ainda evita sobrecarregar o
+    // Apps Script disparando as 6 simultaneamente.
+    const BATCH = 2;
+    for (let i = 0; i < CSV_URLS.length; i += BATCH) {
+      const grupo = CSV_URLS.slice(i, i + BATCH);
+      await Promise.all(grupo.map(async (url, j) => {
+        const idx = i + j;
+        const nomeLoja = (STORE_KEYS && STORE_KEYS[idx]) ? STORE_KEYS[idx] : ('arquivo ' + (idx + 1));
+        try {
+          const res = await fetch(url + cacheBust, { cache: 'no-store' });
+          if (!res.ok) throw new Error('HTTP ' + res.status);
+          const txt = await res.text();
+          const parsed = parseCSV(txt);
+          if (!headers.length) {
+            headers = parsed.headers;
+            allRows = allRows.concat(parsed.rows);
+          } else {
+            var storeHeaderMap = {};
+            parsed.headers.forEach(function(h, idx2) {
+              storeHeaderMap[h] = headers[idx2] || h;
+            });
+            var remapped = parsed.rows.map(function(row) {
+              var nr = {};
+              Object.keys(row).forEach(function(k) {
+                nr[storeHeaderMap[k] || k] = row[k];
+              });
+              return nr;
+            });
+            allRows = allRows.concat(remapped);
+          }
+        } catch (errLoja) {
+          console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
+          lojasComFalha.push(nomeLoja);
+        }
+      }));
+    }
+
+    await metasPromise;
+    rawData = transform(allRows, headers);
+    if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
+    const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+    buildFilters();
+    buildCanalOptions(canais);
+    applyFilters();
+    const now = new Date();
+    const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
+    document.getElementById('lastUpd').textContent = ts +
+      (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
+    saveCache(rawData, ts, now.getTime(), metasData);
+    // Não avisa mais as outras páginas aqui — só a tela inicial
+    // ("Atualização Geral") deve disparar esse aviso, senão uma
+    // página avisando a outra em cadeia forçava recarregar tudo
+    // toda vez que qualquer página era aberta.
+  } catch(e) {
+    console.error(e);
+    if (silent) {
+      const el = document.getElementById('lastUpd');
+      el.textContent = el.textContent.replace(' — atualizando…', ' — falha ao atualizar, tente novamente mais tarde');
+    } else {
+      showError(e.message);
+    }
+  } finally {
+    btn.classList.remove('loading'); btn.disabled = false;
+  }
+}
+
+// Se outra página do painel disparar uma atualização enquanto esta
+// estiver aberta em outra aba, esta também se atualiza sozinha.
+window.addEventListener('storage', (e) => {
+  if (e.key === GLOBAL_REFRESH_KEY && e.newValue) {
+    loadData(true, true);
+  }
+});
+
+/* ═══════════════ FILTERS ═══════════════ */
+function buildFilters() {
+  const anos  = [...new Set(rawData.map(d => d.ano))].sort((a,b) => b-a);
+  const lojas = [...new Set(rawData.map(d => d.loja))].sort();
+  const meses = [...new Set(rawData.map(d => d.mes))].sort((a,b) => a-b);
+
+  setOpts('f-ano',  anos,  v => v, v => v, '', 'Todos');
+  setOpts('f-loja', lojas, v => v, v => v==='BELVEDER'?'BELVEDERE':v, '', 'Todas');
+  setOpts('f-mes',  meses, v => v, v => MESES[v-1], '', 'Todos');
+
+  const onFilterChange = () => { resetMetaEdited(); applyFilters(); };
+  document.getElementById('f-ano').addEventListener('change', onFilterChange);
+  document.getElementById('f-loja').addEventListener('change', onFilterChange);
+  document.getElementById('f-mes').addEventListener('change', onFilterChange);
+
+  const anoAtual = String(new Date().getFullYear());
+  const selAno = document.getElementById('f-ano');
+  if ([...selAno.options].find(o => o.value === anoAtual)) selAno.value = anoAtual;
+  const selMes = document.getElementById('f-mes');
+  const mesAtualReal = new Date().getMonth() + 1;
+  if (meses.includes(mesAtualReal)) {
+    selMes.value = String(mesAtualReal);
+  } else if (meses.length) {
+    selMes.value = meses[meses.length - 1];
+  }
+}
+
+function setOpts(id, vals, vFn, lFn, emptyVal, emptyLabel) {
+  const s = document.getElementById(id);
+  const cur = s.value;
+  s.innerHTML = `<option value="${emptyVal}">${emptyLabel}</option>`;
+  vals.forEach(v => {
+    const o = document.createElement('option');
+    o.value = vFn(v); o.textContent = lFn(v);
+    if (String(vFn(v)) === cur) o.selected = true;
+    s.appendChild(o);
+  });
+}
+
+let selectedCanais = new Set();
+const DEFAULT_CANAIS = ['loja', 'delivery'];
+
+function buildCanalOptions(canais) {
+  // Pré-seleciona Loja e Delivery por padrão (se existirem entre os
+  // canais disponíveis). Se isso cobrir TODOS os canais existentes,
+  // equivale a "Todos" — nesse caso mantém o Set vazio (= Todos de
+  // verdade), em vez de um filtro explícito que poderia excluir por
+  // engano algum registro com canal em branco/diferente do esperado,
+  // divergindo do total das demais páginas.
+  const defaults = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
+  selectedCanais = (defaults.length === canais.length) ? new Set() : new Set(defaults);
+  const container = document.getElementById('canal-dd-list');
+  container.innerHTML = canais.map(c => {
+    // Quando o filtro é "Todos" (Set vazio), mostra todas as caixinhas
+    // marcadas — visualmente mais claro do que aparentar nada selecionado.
+    const isChecked = selectedCanais.size === 0 ? true : selectedCanais.has(c);
+    return `
+    <label class="canal-item${isChecked ? ' checked' : ''}" id="msopt_${CSS.escape(c)}">
+      <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCanal('${c.replace(/'/g,"\'")}')">
+      <span class="canal-item-label">${c}</span>
+    </label>`;
+  }).join('');
+  updateCanalLabel(canais);
+}
+
+function toggleCanalDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('canal-trigger').classList.toggle('open');
+  document.getElementById('canal-dropdown').classList.toggle('open');
+}
+
+function closeCanalDropdown() {
+  document.getElementById('canal-trigger').classList.remove('open');
+  document.getElementById('canal-dropdown').classList.remove('open');
+}
+
+function toggleCanal(canal) {
+  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  if (selectedCanais.has(canal)) {
+    selectedCanais.delete(canal);
+  } else {
+    selectedCanais.add(canal);
+  }
+  updateCanalCheckmarks(canais);
+  updateCanalLabel(canais);
+  applyFilters();
+}
+
+function selectAllCanais() {
+  selectedCanais = new Set();
+  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  updateCanalCheckmarks(canais);
+  updateCanalLabel(canais);
+  applyFilters();
+}
+
+function clearAllCanais() {
+  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  selectedCanais = new Set(canais);
+  updateCanalCheckmarks(canais);
+  updateCanalLabel(canais);
+  applyFilters();
+}
+
+function updateCanalCheckmarks(canais) {
+  const allSel = selectedCanais.size === 0;
+  canais.forEach(c => {
+    const opt = document.getElementById('msopt_' + CSS.escape(c));
+    if (opt) {
+      const cb = opt.querySelector('input[type=checkbox]');
+      if (cb) cb.checked = allSel || selectedCanais.has(c);
+      opt.classList.toggle('checked', allSel || selectedCanais.has(c));
+    }
+  });
+}
+
+function updateCanalLabel(canais) {
+  const label = document.getElementById('canal-trigger-txt');
+  const badge = document.getElementById('canal-badge');
+  const trigger = document.getElementById('canal-trigger');
+  if (selectedCanais.size === 0) {
+    // Pode ser "Todos" de verdade, ou o padrão Loja+Delivery que cobre
+    // 100% dos canais existentes (tratado como Todos internamente pro
+    // filtro funcionar certo, mas mostrado com a contagem pro usuário
+    // ver visualmente o que está sendo usado).
+    const defaultCanais = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
+    if (defaultCanais.length > 0 && defaultCanais.length === canais.length) {
+      label.textContent = defaultCanais.length === 1 ? defaultCanais[0] : 'Canais';
+      if (badge) { badge.textContent = defaultCanais.length; badge.style.display = ''; }
+      trigger.classList.add('has-sel');
+    } else {
+      label.textContent = 'Todos';
+      if (badge) badge.style.display = 'none';
+      trigger.classList.remove('has-sel');
+    }
+  } else if (selectedCanais.size === canais.length) {
+    label.textContent = 'Todos';
+    if (badge) badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else {
+    label.textContent = selectedCanais.size === 1 ? [...selectedCanais][0] : 'Canais';
+    if (badge) { badge.textContent = selectedCanais.size; badge.style.display = ''; }
+    trigger.classList.add('has-sel');
+  }
+}
+
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('canal-wrap');
+  if (wrap && !wrap.contains(e.target)) closeCanalDropdown();
+});
+
+function canalMatch(d) {
+  if (selectedCanais.size === 0) return true;
+  return selectedCanais.has(d.canal);
+}
+
+// Soma um campo até um determinado dia do mês (respeita filtro de loja/canal
+// já aplicado via canalMatch) — usado pra comparar "maçã com maçã" entre o
+// acumulado do ano atual e o acumulado do ano anterior até o mesmo dia.
+function queryAteDia(ano, mes, loja, ateDia, field) {
+  return rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      d.dia !== null && d.dia <= ateDia &&
+      canalMatch(d)
+    )
+    .reduce((s, d) => s + (d[field] || 0), 0);
+}
+
+// Último dia do mês (ano/loja/canal filtrados) que já tem venda lançada —
+// é o corte usado pra comparação "Acum. AA" ficar no mesmo período.
+function getUltimoDiaComVenda(ano, mes, loja) {
+  const dias = rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      d.dia !== null && d.dia >= 1 && d.dia <= 31 &&
+      (d.venda || 0) > 0 &&
+      canalMatch(d)
+    )
+    .map(d => d.dia);
+  return dias.length ? Math.max(...dias) : 0;
+}
+
+function getF() {
+  const metaRaw = document.getElementById('inputMeta').value
+    .replace(/[^0-9.,]/g, '').replace(/\./g, '').replace(',','.');
+  return {
+    ano:  parseInt(document.getElementById('f-ano').value)  || null,
+    mes:  parseInt(document.getElementById('f-mes').value)  || null,
+    loja: document.getElementById('f-loja').value           || null,
+    meta: parseFloat(metaRaw) || 0,
+    canais: selectedCanais,
+  };
+}
+
+function query(ano, mes, loja, field) {
+  return rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      canalMatch(d)
+    )
+    .reduce((s, d) => s + (d[field] || 0), 0);
+}
+
+function dayQuery(ano, mes, loja, day, field) {
+  return rawData
+    .filter(d =>
+      (!ano  || d.ano  === ano)  &&
+      (!mes  || d.mes  === mes)  &&
+      (!loja || d.loja === loja) &&
+      (d.dia === day) &&
+      canalMatch(d)
+    )
+    .reduce((s, d) => s + (d[field] || 0), 0);
+}
+
+function hasDailyData(ano, mes, loja) {
+  return rawData.some(d =>
+    (!ano  || d.ano  === ano)  &&
+    (!mes  || d.mes  === mes)  &&
+    (!loja || d.loja === loja) &&
+    canalMatch(d) &&
+    d.dia !== null && d.dia >= 1 && d.dia <= 31
+  );
+}
+
+/* ═══════════════ METAS (Google Sheets via Apps Script) ═══════════════ */
+function parseMesNomeMetas(v) {
+  if (v === null || v === undefined || v === '') return null;
+  const n = Math.round(parseFloat(String(v).replace(',', '.')));
+  if (!isNaN(n) && n >= 1 && n <= 12) return n;
+  const s = String(v).trim().toLowerCase();
+  const i = MESES.findIndex(m => m.toLowerCase() === s);
+  if (i >= 0) return i + 1;
+  const u = String(v).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+  const j = MESES.findIndex(m => m.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').startsWith(u.slice(0,3)));
+  return j >= 0 ? j + 1 : null;
+}
+
+async function loadMetasData() {
+  if (!METAS_APPS_SCRIPT_URL || METAS_APPS_SCRIPT_URL.startsWith('COLE_AQUI')) {
+    console.warn('METAS_APPS_SCRIPT_URL não configurado — metas virão só do localStorage deste navegador.');
+    metasData = [];
+    return;
+  }
+  try {
+    const r = await fetch(METAS_APPS_SCRIPT_URL + '?_cb=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const text = await r.text();
+    const lines = text.trim().split('\n').filter(l => l.trim());
+    if (lines.length < 2) { metasData = []; return; }
+    const parsed = parseCSV(text);
+    metasData = [];
+    parsed.rows.forEach(row => {
+      const ano   = parseInt(row['ano'] || row['year']);
+      const mes   = parseMesNomeMetas(row['mes'] || row['meses'] || row['month']);
+      const loja  = (row['lojas'] || row['loja'] || row['filial'] || row['unidade'] || row['store'] || '').trim().toUpperCase();
+      const canal = (row['canal'] || row['canais'] || row['channel'] || '').trim().toUpperCase();
+      const meta  = parseNum(row['meta'] || row['meta_mensal'] || row['valor_meta'] || row['target']);
+      const pe    = parseNum(row['p_e'] || row['pe'] || row['pessoas_estimadas']);
+      if (ano && mes && loja) metasData.push({ ano, mes, loja, canal, meta: meta || 0, pe: pe || 0 });
+    });
+    console.log('[METAS] Registros carregados:', metasData.length, '| Lojas:', [...new Set(metasData.map(d=>d.loja))].sort(), '| Canais:', [...new Set(metasData.map(d=>d.canal))].sort());
+    console.log('[METAS] Amostra:', metasData.slice(0, 6));
+  } catch(e) {
+    console.warn('Falha ao buscar metas da planilha, usando localStorage como fallback:', e.message);
+    metasData = [];
+  }
+}
+
+// Pega a meta de uma loja/mês/ano diretamente da planilha (fonte compartilhada).
+// Se a planilha ainda não estiver configurada, cai no localStorage (só nesta máquina).
+function getMetaSheet(loja, mes, ano) {
+  if (!loja || !mes || !ano) return 0;
+  if (loja === 'BADY') {
+    return metasData
+      .filter(d => d.ano === ano && d.mes === mes && d.loja === 'BADY')
+      .reduce((s, d) => s + (d.meta || 0), 0);
+  }
+  return metasData
+    .filter(d => d.ano === ano && d.mes === mes && d.loja === loja.toUpperCase())
+    .reduce((s, d) => s + (d.meta || 0), 0);
+}
+
+function getMetaFromStorage(loja, mes) {
+  if (!loja || !mes) return 0;
+  const ano = parseInt(document.getElementById('f-ano').value) || new Date().getFullYear();
+  if (metasData.length) return getMetaSheet(loja, mes, ano);
+  // Fallback: sem dados da planilha ainda, tenta o localStorage local.
+  try {
+    if (loja === 'BADY') {
+      const vL = parseFloat(localStorage.getItem('meta_BADY LOJA_' + mes)) || 0;
+      const vD = parseFloat(localStorage.getItem('meta_BADY DELIVERY_' + mes)) || 0;
+      return vL + vD;
+    }
+    return parseFloat(localStorage.getItem('meta_' + loja + '_' + mes)) || 0;
+  } catch(e) { return 0; }
+}
+
+function getAllMetasFromStorage(mes) {
+  if (!mes) return 0;
+  // Usa "BELVEDER" (sem o "e" final) pois é assim que o nome da loja
+  // vem gravado nos dados reais — usar "BELVEDERE" aqui faria a meta
+  // dessa loja silenciosamente não ser encontrada (some do total).
+  const lojasBase = ['ANISIO', 'BELVEDER', 'DAMHA', 'HAVAN', 'MUFFATO'];
+  let total = lojasBase.reduce((sum, lj) => sum + getMetaFromStorage(lj, mes), 0);
+  total += getMetaFromStorage('BADY', mes);
+  return total;
+}
+
+function applyFilters() {
+  const mesSel = parseInt(document.getElementById('f-mes').value) || null;
+  const anoSel = parseInt(document.getElementById('f-ano').value) || new Date().getFullYear();
+  const lojaSel = document.getElementById('f-loja').value || null;
+  const inputMeta = document.getElementById('inputMeta');
+
+  if (!inputMeta.dataset.userEdited) {
+    let savedMeta;
+    // Se exatamente 1 canal estiver selecionado (Loja OU Delivery, não os
+    // dois), a meta mostrada deve ser a meta SÓ daquele canal — antes ela
+    // sempre mostrava o total combinado, mesmo com só Delivery selecionado.
+    if (lojaSel && selectedCanais.size === 1) {
+      const canalUnico = [...selectedCanais][0];
+      savedMeta = getMetaCanal(lojaSel, mesSel, anoSel, canalUnico);
+    } else if (lojaSel) {
+      savedMeta = getMetaFromStorage(lojaSel, mesSel);
+    } else {
+      savedMeta = getAllMetasFromStorage(mesSel);
+    }
+
+    if (savedMeta > 0) {
+      inputMeta.value = savedMeta.toLocaleString('pt-BR', {minimumFractionDigits: 2, maximumFractionDigits: 2});
+    } else {
+      inputMeta.value = '';
+    }
+  }
+
+  renderDashboard(getF());
+}
+
+function resetMetaEdited() {
+  document.getElementById('inputMeta').dataset.userEdited = '';
+}
+
+/* ═══════════════ RENDER ═══════════════ */
+function renderDashboard(f) {
+  destroyCharts();
+  const main = document.getElementById('mainContent');
+
+  if (!f.ano || !f.mes) {
+    main.innerHTML = `<div class="loading-box"><div class="loading-txt" style="color:var(--muted)">Selecione Ano e Mês para visualizar os dados.</div></div>`;
+    return;
+  }
+
+  const anoA = f.ano, anoAnt = f.ano - 1, mes = f.mes, loja = f.loja;
+  const dias = daysInMonth(anoA, mes);
+  const metaMes = f.meta;
+  const metaDia = metaMes > 0 ? metaMes / dias : 0;
+  const mesLbl = MESES[mes - 1];
+
+  const vA    = query(anoA,   mes, loja, 'venda');
+  const vAnt  = query(anoAnt, mes, loja, 'venda');
+  const cA    = query(anoA,   mes, loja, 'cupons');
+  const cAnt  = query(anoAnt, mes, loja, 'cupons');
+  const tktA  = cA   > 0 ? vA   / cA   : 0;
+  const tktAn = cAnt > 0 ? vAnt / cAnt : 0;
+  const qA    = query(anoA,   mes, loja, 'quebras');
+
+  // % Venda Acum. Atual × AA = (Venda Acum. Atual / Venda Acum. AA até o
+  // mesmo dia da última venda lançada) − 1. Usa o corte pelo último dia com
+  // venda no ano atual pra não comparar o mês corrente (ainda em andamento)
+  // com o mês inteiro já fechado do ano anterior.
+  const ultimoDiaVenda = getUltimoDiaComVenda(anoA, mes, loja);
+  const vAAcumDia    = ultimoDiaVenda > 0 ? queryAteDia(anoA,   mes, loja, ultimoDiaVenda, 'venda') : vA;
+  const vAntAcumDia  = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'venda') : vAnt;
+
+  // % Meta Acum. Atual × Venda = (total da Venda Acum. / total da Meta
+  // Acum.) − 1. "Meta Acum." é a meta proporcional aos dias já passados
+  // (metaMes × dias-decorridos/dias-do-mês) — a mesma conta da coluna
+  // "Meta Acum." da tabela — não a meta do mês inteiro de uma vez, senão
+  // distorce o resultado enquanto o mês ainda está em andamento.
+  const metaAcumDia = (metaMes > 0 && ultimoDiaVenda > 0) ? metaMes * (ultimoDiaVenda / dias) : metaMes;
+  const pctMeta   = metaAcumDia > 0 ? ((vAAcumDia / metaAcumDia) - 1) * 100 : null;
+  const pctVsAnt  = vAntAcumDia > 0 ? ((vAAcumDia / vAntAcumDia) - 1) * 100 : null;
+
+  const vDia    = vA   / dias;
+  const vDiaAnt = vAnt / dias;
+  const cDia    = cA   / dias;
+  const cDiaAnt = cAnt / dias;
+  const qDia    = qA   / dias;
+  const tktDia  = cDia    > 0 ? vDia    / cDia    : (query(anoA,mes,loja,'ticket') || tktA);
+  const tktDiaAnt = cDiaAnt > 0 ? vDiaAnt / cDiaAnt : tktAn;
+
+  const dailyCurrent = hasDailyData(anoA, mes, loja);
+  const dailyPrev    = hasDailyData(anoAnt, mes, loja);
+
+  const today = new Date();
+  const isThisMon = (anoA === today.getFullYear() && mes === today.getMonth() + 1);
+
+  main.innerHTML = `
+  <div class="sh mb">
+    <div class="sh-bar"></div>
+    <div class="sh-title">Indicadores Acumulados — ${mesLbl} ${anoA}</div>
+    <div class="sh-sub">${loja || 'Todas as lojas'}</div>
+  </div>
+  <div class="ind-row" id="indRow"></div>
+  <div class="kpi-row" id="kpiRow"></div>
+  <div class="charts-2">
+    <div class="chart-card">
+      <div class="chart-title">Venda Diária × Meta Diária — ${mesLbl} ${anoA}</div>
+      <div class="chart-sub">Acumulado realizado vs acumulado meta vs acumulado AA</div>
+      <div class="chart-wrap"><canvas id="cAcum"></canvas></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">Faturamento Mensal — ${anoA} vs ${anoAnt}</div>
+      <div class="chart-sub">Comparativo anual por mês</div>
+      <div class="chart-wrap"><canvas id="cAnual"></canvas></div>
+    </div>
+  </div>
+  <div class="sh mb">
+    <div class="sh-bar" style="background:var(--green)"></div>
+    <div class="sh-title">Planilha de Acompanhamento de Metas — ${mesLbl} ${anoA}</div>
+    <div class="sh-sub">Meta mensal: ${metaMes > 0 ? R0(metaMes) : 'Informe a meta acima'} · Meta diária: ${metaMes > 0 ? R(metaDia) : '—'}</div>
+  </div>
+  <div class="tbl-card">
+    <div class="tbl-head">
+      <div>
+        <div class="tbl-head-title">Abertura Diária do Mês</div>
+        <div class="tbl-head-sub">${dailyCurrent ? 'Dados reais extraídos do arquivo diário' : 'Valores distribuídos uniformemente pelos ' + dias + ' dias do mês'}</div>
+      </div>
+      <span class="tbl-badge">${mesLbl} ${anoA} · ${dias} dias · Meta/dia: ${metaMes > 0 ? R(metaDia) : '—'}</span>
+    </div>
+    <div class="tbl-scroll" id="tblScroll"></div>
+  </div>`;
+
+  const rows = [];
+  let acumAnt = 0, acumMeta = 0, acumReal = 0;
+
+  for (let d = 1; d <= dias; d++) {
+    const isFuture = isThisMon && d > today.getDate();
+    const v    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'venda')   : vDia);
+    const vAn  = dailyPrev ? dayQuery(anoAnt, mes, loja, d, 'venda') : vDiaAnt;
+    const c    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'cupons')  : cDia);
+    const cAn  = dailyPrev ? dayQuery(anoAnt, mes, loja, d, 'cupons') : cDiaAnt;
+    const tk   = c    > 0 && v    ? v / c    : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'ticket')  : tktDia);
+    const tkAn = cAn  > 0 && vAn  ? vAn / cAn: (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'ticket'): tktDiaAnt);
+    const q    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'quebras') : qDia);
+
+    acumAnt  += (vAn  || 0);
+    acumMeta += metaDia;
+    acumReal += (v    || 0);
+
+    const difVal   = v !== null && metaDia > 0 ? v - metaDia : null;
+    const pctDif   = difVal !== null && metaDia > 0 ? (difVal / metaDia) * 100 : null;
+    const pctAcum  = acumMeta > 0 ? ((acumReal - acumMeta) / acumMeta) * 100 : null;
+    const pctVsAnt2= acumAnt  > 0 ? ((acumReal - acumAnt)  / acumAnt)  * 100 : null;
+    const pctTktDay= tkAn && tkAn > 0 ? ((tk - tkAn) / tkAn) * 100 : null;
+    const pctBaixas= v && v > 0 ? (q / v) * 100 : null;
+    const isToday  = isThisMon && d === today.getDate();
+
+    rows.push({ d, isFuture, isToday,
+      dateAnt: dateStr(anoAnt, mes, d),
+      dateCurr: dateStr(anoA, mes, d),
+      vAn, cAn, tkAn, acumAnt: acumAnt,
+      metaDia: metaMes > 0 ? metaDia : null,
+      acumMeta: metaMes > 0 ? acumMeta : null,
+      v, acumReal: isFuture ? null : acumReal,
+      difVal, pctDif, pctAcum, pctVsAnt: pctVsAnt2,
+      c, tk, pctTktDay, q, pctBaixas,
+    });
+  }
+
+  // Média de pessoas considerando só os dias que realmente têm dado
+  // (desconsiderando dias com 0, sejam futuros ou sem venda registrada).
+  const diasComDadosPess = rows.filter(r => r.c > 0).length;
+  const mediaPessComDados = diasComDadosPess > 0 ? cA / diasComDadosPess : 0;
+
+  // % Pessoas Ano Anterior = (média da coluna Pess. / média da coluna
+  // Pess.AA) − 1. A média AA usa os mesmos dias que entraram na média
+  // atual (até o último dia com venda), pra comparar período igual.
+  const cAntAcumDiaPess = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'cupons') : cAnt;
+  const mediaPessAA = diasComDadosPess > 0 ? cAntAcumDiaPess / diasComDadosPess : 0;
+  const pctPessAA = mediaPessAA > 0 ? (mediaPessComDados / mediaPessAA - 1) * 100 : null;
+
+  // % TK Ano Anterior = (média da coluna TKM / média da coluna TKM AA) − 1.
+  // Média das duas colunas calculada sobre os mesmos dias (os que já têm
+  // TKM lançado no ano atual), pra não puxar a AA com dias "a mais".
+  const diasComTk = rows.filter(r => !r.isFuture && r.tk > 0);
+  const mediaTkAtual = diasComTk.length > 0 ? diasComTk.reduce((s,r)=>s+r.tk, 0) / diasComTk.length : 0;
+  const mediaTkAA = diasComTk.length > 0 ? diasComTk.reduce((s,r)=>s+(r.tkAn||0), 0) / diasComTk.length : 0;
+  const pctTktAA = mediaTkAA > 0 ? (mediaTkAtual / mediaTkAA - 1) * 100 : null;
+
+  const inds = [
+    { lbl: '% META ACUM. ATUAL × VENDA', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
+    { lbl: '% VENDA ACUM. ATUAL × AA',   val: pctVsAnt, clr: pctVsAnt === null ? 'blue' : pctVsAnt >= 0 ? 'green' : 'red', note: '', ico: '📈' },
+    { lbl: '% PESSOAS ANO ANTERIOR',     val: pctPessAA,clr: pctPessAA=== null ? 'blue' : pctPessAA>= 0 ? 'green' : 'red', note: '', ico: '👥' },
+    { lbl: '% TK ANO ANTERIOR',          val: pctTktAA, clr: pctTktAA === null ? 'blue' : pctTktAA >= 0 ? 'green' : 'red', note: '', ico: '🛒' },
+  ];
+  document.getElementById('indRow').innerHTML = inds.map(i =>
+    `<div class="ind-card ${i.clr}">
+      <div class="ind-accent"></div>
+      <div class="ind-header">
+        <div class="ind-icon ${i.clr}">${i.ico || '📊'}</div>
+        <div class="ind-label">${i.lbl}</div>
+      </div>
+      <div class="ind-body">
+        <div class="ind-val">${i.val !== null ? Pct(i.val) : (i.note || '—')}</div>
+        ${i.note ? '' : `<div class="ind-sub">vs ${i.lbl.includes('META') ? 'meta' : 'ano anterior'}</div>`}
+      </div>
+    </div>`).join('');
+
+  const kpis = [
+    { lbl:'Faturamento Realizado', val:R0(vA),   dlt:pctVsAnt, ico:'💰', accent:'#1547C0', clr:'blue', inv:false },
+    { lbl:'Meta Mensal',           val:metaMes>0?R0(metaMes):'—', dlt:pctMeta,  ico:'🎯', accent:'#0A7C5C', clr:'green', inv:false },
+    { lbl:'Ticket Médio (TKM)',    val:R(tktA),  dlt:pctTktAA, ico:'🛒', accent:'#B45309', clr:'amber', inv:false },
+    { lbl:'Quebras / Baixas',      val:R0(qA),   dlt:vA>0?((qA/vA)*100):null, ico:'⚠️', accent:'#C8281E', clr:'red', inv:true },
+  ];
+  document.getElementById('kpiRow').innerHTML = kpis.map(k => {
+    const d = k.dlt, isNull = d === null || isNaN(d);
+    const dc = isNull ? 'neu' : (k.inv ? (d <= 0 ? 'up' : 'down') : (d >= 0 ? 'up' : 'down'));
+    const dt = isNull ? 'Sem comparação' : Pct(d) + ' vs ' + (k.lbl.includes('Fatur') ? 'AA' : k.lbl.includes('Meta') ? 'meta' : 'AA');
+    return `<div class="kpi-card">
+      <div class="kpi-accent" style="background:${k.accent}"></div>
+      <div class="kpi-header">
+        <div class="ind-icon ${k.clr}">${k.ico}</div>
+        <div class="kpi-lbl">${k.lbl}</div>
+      </div>
+      <div class="kpi-body">
+        <div class="kpi-val">${k.val}</div>
+        <div class="kpi-foot"><b>${dc==='up'?'▲':dc==='down'?'▼':'·'} ${dt}</b></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const tblH = `<table>
+    <thead>
+      <tr class="tr-grp">
+        <th class="grp-aa" colspan="5">ANO ANTERIOR (${anoAnt})</th>
+        <th class="grp-atual" colspan="5">ANO ATUAL (${anoA})</th>
+        <th class="grp-desv" colspan="4">DESVIOS META × REALIZADO</th>
+        <th class="grp-tkt" colspan="3">TÍQUETE MÉDIO</th>
+        <th class="grp-pe" colspan="2">BAIXAS</th>
+      </tr>
+      <tr class="tr-sub">
+        <th class="tl">Data AA</th>
+        <th>Venda AA</th>
+        <th>Pess. AA</th>
+        <th>TKM AA</th>
+        <th class="sep">Acum. AA</th>
+        <th class="tl">Data</th>
+        <th>Meta/Dia</th>
+        <th>Meta Acum.</th>
+        <th>Venda</th>
+        <th class="sep">Venda Acum.</th>
+        <th>Dif. (V−M)</th>
+        <th>% Diária</th>
+        <th>% Acum.</th>
+        <th class="sep">% s/ AA</th>
+        <th>Pess.</th>
+        <th>TKM</th>
+        <th class="sep">% s/ AA</th>
+        <th>Baixas</th>
+        <th>% Bx/Fat</th>
+      </tr>
+    </thead>
+    <tbody>
+      ${rows.map(r => {
+        const rc = r.isFuture ? 'future' : r.isToday ? 'today' : '';
+        const td = (v, cls='') => `<td class="${cls}">${v}</td>`;
+        const tdSep = (v, cls='') => `<td class="${cls} sep">${v}</td>`;
+        const pill = (v) => v === null || isNaN(v) ? '<td class="dash">—</td>' :
+          `<td><span class="pill ${v >= 0 ? 'pill-pos':'pill-neg'}">${Pct(v)}</span></td>`;
+        const pillSep = (v) => v === null || isNaN(v) ? '<td class="dash sep">—</td>' :
+          `<td class="sep"><span class="pill ${v >= 0 ? 'pill-pos':'pill-neg'}">${Pct(v)}</span></td>`;
+        const pct = (v) => v === null || isNaN(v) ? '<td class="dash">—</td>' :
+          `<td class="${v >= 0 ? 'pos' : 'neg'}">${Pct(v)}</td>`;
+        const pctSep = (v) => v === null || isNaN(v) ? '<td class="dash sep">—</td>' :
+          `<td class="${v >= 0 ? 'pos sep' : 'neg sep'}">${Pct(v)}</td>`;
+        const def = (v, fn) => v === null ? '<td class="dash">—</td>' : `<td>${fn(v)}</td>`;
+        const defSep = (v, fn) => v === null ? '<td class="dash sep">—</td>' : `<td class="sep">${fn(v)}</td>`;
+        const difCls = r.difVal === null ? 'dash' : r.difVal >= 0 ? 'pos' : 'neg';
+
+        return `<tr class="${rc}">
+          ${td(r.dateAnt, 'tl')}
+          ${def(r.vAn, V0)}
+          ${def(r.cAn, N0)}
+          ${def(r.tkAn, v => V0(v))}
+          ${defSep(r.acumAnt, V0)}
+          ${td(r.dateCurr, 'tl')}
+          ${r.metaDia !== null ? `<td>${V0(r.metaDia)}</td>` : '<td class="dash">—</td>'}
+          ${r.acumMeta !== null ? `<td>${V0(r.acumMeta)}</td>` : '<td class="dash">—</td>'}
+          ${def(r.v, V0)}
+          ${defSep(r.acumReal, V0)}
+          ${r.difVal !== null ? `<td class="${difCls}">${V0(r.difVal)}</td>` : '<td class="dash">—</td>'}
+          ${pct(r.pctDif)}
+          ${pill(r.pctAcum)}
+          ${pillSep(r.pctVsAnt)}
+          ${def(r.c, N0)}
+          ${def(r.tk, v => V0(v))}
+          ${pctSep(r.pctTktDay)}
+          ${def(r.q, V0)}
+          ${r.pctBaixas !== null ? `<td class="${r.pctBaixas > 5 ? 'neg' : 'pos'}">${Pct(r.pctBaixas, 2)}</td>` : '<td class="dash">—</td>'}
+        </tr>`;
+      }).join('')}
+    </tbody>
+    <tfoot>
+      <tr class="tr-media">
+        <td class="tl sep" colspan="2" style="font-weight:700;color:var(--blue)">VENDA MÉDIA DIA AA: ${V0(vDiaAnt)}</td>
+        <td style="color:var(--ink2);font-weight:600">${N0(cAnt/dias)}</td>
+        <td colspan="2" class="sep" style="color:var(--ink2);font-weight:600">MÉDIA TK AA: ${V0(tktDiaAnt)}</td>
+        <td class="tl sep" colspan="2" style="color:var(--blue);font-weight:700">META MÉDIA DIA: ${metaMes > 0 ? V0(metaDia) : '—'}</td>
+        <td style="color:var(--blue);font-weight:700">VENDA MÉDIA: ${V0(vDia)}</td>
+        <td colspan="2" class="sep" style="color:var(--blue);font-weight:700">${V0(vA)}</td>
+        <td colspan="4" class="sep" style="color:var(--ink2)">
+          ${pctMeta !== null ? `<span class="pill ${pctMeta >= 0 ? 'pill-pos':'pill-neg'}">Meta: ${Pct(pctMeta)}</span>` : '—'}
+          &nbsp;
+          ${pctVsAnt !== null ? `<span class="pill ${pctVsAnt >= 0 ? 'pill-pos':'pill-neg'}">AA: ${Pct(pctVsAnt)}</span>` : ''}
+        </td>
+        <td>${N0(cA)}</td>
+        <td colspan="2" class="sep" style="color:var(--amber);font-weight:700">MÉDIA TK: ${V0(tktA)}</td>
+        <td colspan="2" style="color:var(--ink2)">${V0(qA)}</td>
+      </tr>
+      <tr class="tr-total">
+        <td class="tl sep" colspan="5">TOTAL AA: ${V0(vAnt)}</td>
+        <td class="tl sep" colspan="5">TOTAL REALIZADO: ${V0(vA)}</td>
+        <td colspan="4" class="sep">${metaMes > 0 ? 'META: ' + V0(metaMes) : '—'}</td>
+        <td>${N0(mediaPessComDados)}</td>
+        <td colspan="2" class="sep">TK ACUM: ${pctTktAA !== null ? Pct(pctTktAA) : '—'}</td>
+        <td colspan="2">BAIXAS: ${V0(qA)}</td>
+      </tr>
+    </tfoot>
+  </table>`;
+
+  document.getElementById('tblScroll').innerHTML = tblH;
+
+  buildChartAcum(anoA, anoAnt, mes, loja, dias, metaDia, dailyCurrent, dailyPrev, isThisMon, today);
+  buildChartAnual(anoA, anoAnt, loja);
+}
+
+/* ═══════════════ CHARTS ═══════════════ */
+const PAL = ['#1547C0','#0A7C5C','#B45309','#C8281E','#7C3AED','#0891B2'];
+
+function buildChartAcum(anoA, anoAnt, mes, loja, dias, metaDia, dailyCurrent, dailyPrev, isThisMon, today) {
+  const labels = [], dReal = [], dMeta = [], dAnt = [];
+  let sa = 0, sm = 0, sb = 0;
+  const vDiaAvg    = query(anoA,   mes, loja, 'venda') / dias;
+  const vDiaAntAvg = query(anoAnt, mes, loja, 'venda') / dias;
+  for (let d = 1; d <= dias; d++) {
+    labels.push(d);
+    const isFut = isThisMon && d > today.getDate();
+    const vCur = dailyCurrent ? dayQuery(anoA, mes, loja, d, 'venda') : vDiaAvg;
+    const vPrev = dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'venda') : vDiaAntAvg;
+    sa += isFut ? 0 : vCur;
+    sm += metaDia;
+    sb += vPrev;
+    dReal.push(isFut ? null : Math.round(sa));
+    dMeta.push(metaDia > 0 ? Math.round(sm) : null);
+    dAnt.push(Math.round(sb));
+  }
+  const ctx = document.getElementById('cAcum').getContext('2d');
+  charts.acum = new Chart(ctx, {
+    type: 'line',
+    data: { labels, datasets: [
+      { label: 'Venda Acum.', data: dReal, borderColor: '#1547C0', backgroundColor: 'rgba(21,71,192,.08)', fill: true, tension: .4, borderWidth: 2.5, pointRadius: 2, pointHoverRadius: 5 },
+      { label: 'Meta Acum.',  data: dMeta, borderColor: '#0A7C5C', borderDash: [6,3], fill: false, tension: .4, borderWidth: 2, pointRadius: 0 },
+      { label: 'Venda AA Acum.', data: dAnt, borderColor: '#B45309', borderDash: [3,3], fill: false, tension: .4, borderWidth: 1.5, pointRadius: 0 },
+    ]},
+    options: baseChartOpts({ legendPos: 'top' }),
+  });
+}
+
+function buildChartAnual(anoA, anoAnt, loja) {
+  const labels = MESES.map((_,i) => ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'][i]);
+  const d1 = labels.map((_, i) => {
+    const v = rawData.filter(d => d.ano === anoA && d.mes === i+1 && (!loja || d.loja === loja) && canalMatch(d)).reduce((s,d)=>s+d.venda,0);
+    return v || null;
+  });
+  const d2 = labels.map((_, i) => {
+    const v = rawData.filter(d => d.ano === anoAnt && d.mes === i+1 && (!loja || d.loja === loja) && canalMatch(d)).reduce((s,d)=>s+d.venda,0);
+    return v || null;
+  });
+  const ctx = document.getElementById('cAnual').getContext('2d');
+  charts.anual = new Chart(ctx, {
+    type: 'bar',
+    data: { labels, datasets: [
+      { label: String(anoA),   data: d1, backgroundColor: '#1547C0', borderRadius: 5, borderSkipped: false },
+      { label: String(anoAnt), data: d2, backgroundColor: '#B8CCF4', borderRadius: 5, borderSkipped: false },
+    ]},
+    options: baseChartOpts({ legendPos: 'top' }),
+  });
+}
+
+function baseChartOpts({ legendPos = 'top' } = {}) {
+  return {
+    responsive: true, maintainAspectRatio: false,
+    interaction: { mode: 'index', intersect: false },
+    plugins: {
+      legend: { position: legendPos, labels: { font: { family: 'Outfit', size: 11 }, boxWidth: 12, padding: 12 } },
+      tooltip: {
+        backgroundColor: '#0C1830', titleColor: '#fff', bodyColor: '#9BB0CC',
+        padding: 10, cornerRadius: 8, borderColor: '#223368', borderWidth: 1,
+        callbacks: { label: c => ` ${c.dataset.label}: R$ ${(c.parsed.y||0).toLocaleString('pt-BR',{minimumFractionDigits:0})}` }
+      },
+    },
+    scales: {
+      x: { grid: { display: false }, ticks: { font: { family: 'Outfit', size: 10 }, color: '#8594AF', maxTicksLimit: 12 } },
+      y: {
+        grid: { color: '#E8ECF5' }, border: { display: false },
+        ticks: { font: { family: 'Outfit', size: 10 }, color: '#8594AF',
+          callback: v => 'R$ ' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }
+      }
+    }
+  };
+}
+
+/* ═══════════════ UI HELPERS ═══════════════ */
+function showLoading() {
+  document.getElementById('mainContent').innerHTML =
+    `<div class="loading-box"><div class="spinner"></div><div class="loading-txt">Carregando dados da planilha…</div></div>`;
+  destroyCharts();
+}
+function showError(msg) {
+  const d = document.createElement('div'); d.className = 'err-box';
+  d.innerHTML = `<h3>⚠️ Erro ao carregar dados</h3><p>${msg}</p><button onclick="loadData(true)">Tentar novamente</button>`;
+  const m = document.getElementById('mainContent'); m.innerHTML = ''; m.appendChild(d);
+  destroyCharts();
+}
+function destroyCharts() {
+  Object.values(charts).forEach(c => { try { c.destroy(); } catch(e){} });
+  charts = {};
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESUMO DIÁRIO — cartão por loja pronto pra WhatsApp
+═══════════════════════════════════════════════════════ */
+function queryCanal(ano, mes, loja, canalNome, field) {
+  const alvo = String(canalNome || '').toUpperCase();
+  return rawData
+    .filter(d => (!ano||d.ano===ano) && (!mes||d.mes===mes) && (!loja||d.loja===loja) &&
+      String(d.canal||'').toUpperCase() === alvo)
+    .reduce((s,d)=>s+(d[field]||0),0);
+}
+// Soma só até um dia específico do mês (ex: até o "dia anterior") — usada
+// pra calcular a venda REALMENTE acumulada até a data de referência, sem
+// contar dias futuros que porventura já existam na base.
+function queryCanalAteDia(ano, mes, loja, ateDia, canalNome, field) {
+  const alvo = String(canalNome || '').toUpperCase();
+  return rawData
+    .filter(d => (!ano||d.ano===ano) && (!mes||d.mes===mes) && (!loja||d.loja===loja) &&
+      d.dia!==null && d.dia<=ateDia &&
+      String(d.canal||'').toUpperCase() === alvo)
+    .reduce((s,d)=>s+(d[field]||0),0);
+}
+function dayQueryCanal(ano, mes, loja, dia, canalNome, field) {
+  const alvo = String(canalNome || '').toUpperCase();
+  return rawData
+    .filter(d => (!ano||d.ano===ano) && (!mes||d.mes===mes) && (!loja||d.loja===loja) &&
+      d.dia===dia && String(d.canal||'').toUpperCase() === alvo)
+    .reduce((s,d)=>s+(d[field]||0),0);
+}
+function getMetaCanal(loja, mes, ano, canalNome) {
+  if (!loja || !mes || !ano) {
+    console.warn('[META] Parâmetros inválidos:', {loja, mes, ano, canalNome});
+    return 0;
+  }
+  const alvo = String(canalNome || '').toUpperCase();
+  const lojaUpper = loja.toUpperCase();
+
+  if (!metasData.length) {
+    console.warn('[META] metasData vazio! Nenhum registro carregado.');
+    return 0;
+  }
+
+  const allForLoja = metasData.filter(d => d.loja === lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja));
+
+  const base = metasData.filter(d => {
+    const dm = Number(d.mes), da = Number(d.ano);
+    if (da !== Number(ano) || dm !== Number(mes)) return false;
+    const lojaMatch = d.loja === lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja);
+    return lojaMatch;
+  });
+
+  // Regra especial: Anísio e Damha não têm meta de Delivery cadastrada
+  // separadamente na planilha — o valor informado pra elas (seja com o
+  // canal em branco ou rotulado "LOJA") é, na prática, o total da loja.
+  // O Delivery é 3% desse total; a Loja "de verdade" são os outros 97%.
+  const SEM_META_DELIVERY_PROPRIA = ['ANISIO', 'DAMHA'];
+  if (SEM_META_DELIVERY_PROPRIA.includes(lojaUpper) && (alvo === 'DELIVERY' || alvo === 'LOJA')) {
+    const totalCadastrado = base.reduce((s, d) => s + (d.meta || 0), 0);
+    if (totalCadastrado > 0) {
+      const v = Math.round(totalCadastrado * (alvo === 'DELIVERY' ? 0.03 : 0.97));
+      console.log('[META-RESULT]', loja, '|', canalNome, '=', v, '(regra especial 3%/97% sobre total cadastrado:', totalCadastrado, ')');
+      return v;
+    }
+  }
+
+  const rEspecifico = base.filter(d => {
+    const dc = String(d.canal || '').toUpperCase();
+    if (!alvo) return !dc;
+    return dc === alvo;
+  }).reduce((s, d) => s + (d.meta || 0), 0);
+
+  if (rEspecifico > 0) {
+    console.log('[META-RESULT]', loja, '|', canalNome, '=', rEspecifico, '(canal específico)');
+    return rEspecifico;
+  }
+
+  const rFallback = base.filter(d => !String(d.canal || '').trim())
+    .reduce((s, d) => s + (d.meta || 0), 0);
+
+  if (rFallback > 0) {
+    const DELIVERY_PCT_STORES = ['ANISIO', 'DAMHA'];
+    const pct = (alvo === 'DELIVERY' && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.03
+              : (alvo === 'LOJA'      && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.97
+              : 1;
+    const v = Math.round(rFallback * pct);
+    console.log('[META-RESULT]', loja, '|', canalNome, '=', v, '(fallback canal vazio, pct=' + pct + ')');
+    return v;
+  }
+
+  console.log('[META-RESULT]', loja, '|', canalNome, '= 0 (nenhum registro encontrado)');
+  return 0;
+}
+// "Dia anterior" = sempre o dia de calendário de ontem (hoje - 1), não o
+// último dia com dado no arquivo nem o mês selecionado nos filtros da
+// tela — o resumo diário sempre reflete o dia real anterior a hoje.
+function getDiaAnterior() {
+  const hoje = new Date();
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  return { ano: ontem.getFullYear(), mes: ontem.getMonth() + 1, dia: ontem.getDate() };
+}
+
+function getDiaComDados(loja) {
+  const hoje = new Date();
+  const ontem = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate() - 1);
+  const fallback = { ano: ontem.getFullYear(), mes: ontem.getMonth() + 1, dia: ontem.getDate() };
+  const tsHoje = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate()).getTime();
+  const storeDates = rawData
+    .filter(d => {
+      if (d.loja !== loja || d.dia === null || d.dia < 1 || d.dia > 31) return false;
+      const ts = new Date(d.ano, d.mes - 1, d.dia).getTime();
+      return ts < tsHoje;
+    })
+    .map(d => ({ ano: d.ano, mes: d.mes, dia: d.dia }));
+  if (!storeDates.length) return fallback;
+  storeDates.sort((a, b) => {
+    if (a.ano !== b.ano) return b.ano - a.ano;
+    if (a.mes !== b.mes) return b.mes - a.mes;
+    return b.dia - a.dia;
+  });
+  return storeDates[0];
+}
+
+function computeResumoLoja(loja) {
+  const { ano: anoDia, mes: mesDia, dia: diaAnt } = getDiaComDados(loja);
+  // Os indicadores acumulados do mês (Meta Acum, Venda Acum, TKM, Baixas,
+  // Pessoas) usam o mês/ano do "dia anterior" — assim tudo no cartão fala
+  // do mesmo período, mesmo que o filtro da tela esteja em outro mês.
+  const ano = anoDia;
+  const mes = mesDia;
+  const anoAnt = ano - 1;
+  const dias = daysInMonth(ano, mes);
+
+  const metaMesLoja = getMetaCanal(loja, mes, ano, 'LOJA');
+  const metaMesDel  = getMetaCanal(loja, mes, ano, 'DELIVERY');
+  const metaDiaLoja = metaMesLoja > 0 ? metaMesLoja / dias : 0;
+  const metaDiaDel  = metaMesDel  > 0 ? metaMesDel  / dias : 0;
+
+  const realLoja = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const realDel  = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+
+  // META ACUM x VENDA MÊS = Venda Realizada Acumulada até o dia de
+  // referência ÷ Meta Acumulada até esse mesmo dia (meta do mês
+  // proporcional aos dias já passados) — não a meta do mês inteiro,
+  // pra não distorcer o resultado nos primeiros dias do mês.
+  const vLojaAcumDia = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const vDelAcumDia  = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const metaAcumLoja = (metaMesLoja > 0 && diaAnt) ? metaMesLoja * (diaAnt / dias) : 0;
+  const metaAcumDel  = (metaMesDel  > 0 && diaAnt) ? metaMesDel  * (diaAnt / dias) : 0;
+
+  const pctMetaLoja = metaAcumLoja > 0 ? ((vLojaAcumDia / metaAcumLoja) - 1) * 100 : null;
+  const pctMetaDel  = metaAcumDel  > 0 ? ((vDelAcumDia  / metaAcumDel)  - 1) * 100 : null;
+
+  // VENDA ACUM x ANO ANTERIOR = mesma conta do Meta Acum x Venda Mês, só
+  // que no lugar da "Meta Acum." usa a venda acumulada do ANO ANTERIOR
+  // até esse mesmo dia/mês (a coluna "Acum. AA" da grade Abertura Diária)
+  // — muda só o ano (2026 → 2025), mês e dia de referência são os mesmos.
+  const vLojaAcumDiaAA = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const vDelAcumDiaAA  = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+
+  const pctVsAntLoja = vLojaAcumDiaAA > 0 ? ((vLojaAcumDia / vLojaAcumDiaAA) - 1) * 100 : null;
+  const pctVsAntDel  = vDelAcumDiaAA  > 0 ? ((vDelAcumDia  / vDelAcumDiaAA)  - 1) * 100 : null;
+
+  const vA = query(ano, mes, loja, 'venda');
+  const cA = query(ano, mes, loja, 'cupons');
+  const qA = query(ano, mes, loja, 'quebras');
+  const vAnt = query(anoAnt, mes, loja, 'venda');
+  const cAnt = query(anoAnt, mes, loja, 'cupons');
+
+  const diasComDadosA = rawData.filter(d => d.ano===ano && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=31).map(d=>d.dia);
+  const diasComDadosAnt = rawData.filter(d => d.ano===anoAnt && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=31).map(d=>d.dia);
+  const numDiasA = [...new Set(diasComDadosA)].length || dias;
+  const numDiasAnt = [...new Set(diasComDadosAnt)].length || dias;
+  const cADia = numDiasA > 0 ? cA / numDiasA : 0;
+  const cAntDia = numDiasAnt > 0 ? cAnt / numDiasAnt : 0;
+
+  const tktA  = cA   > 0 ? vA   / cA   : 0;
+  const tktAn = cAnt > 0 ? vAnt / cAnt : 0;
+  const pctTktAA = tktAn > 0 ? ((tktA - tktAn) / tktAn) * 100 : null;
+  const pctBaixas = vA > 0 ? (qA / vA) * 100 : null;
+  const pctPess = cAntDia > 0 ? ((cADia - cAntDia) / cAntDia) * 100 : null;
+
+  return {
+    loja, lojaLabel: (loja==='BELVEDER'?'BELVEDERE':loja), ano, mes, anoAnt, diaAnt,
+    metaDiaLoja, metaDiaDel, realLoja, realDel,
+    pctMetaLoja, pctMetaDel, pctVsAntLoja, pctVsAntDel,
+    tktA, pctTktAA, qA, pctBaixas,
+    cA: cADia, cAnt: cAntDia,
+    pctPess, diferPess: cADia - cAntDia,
+  };
+}
+
+let rdModo = 'uma';
+function abrirResumoDiario() {
+  rdModo = 'uma';
+  rdCarouselPage = 0;
+  document.getElementById('rdTogUma').classList.add('active');
+  document.getElementById('rdTogTodas').classList.remove('active');
+  document.getElementById('rdLojaSelect').style.display = '';
+  document.querySelector('.rd-modal').classList.remove('todas-lojas');
+  const lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  const sel = document.getElementById('rdLojaSelect');
+  sel.innerHTML = lojas.map(l => `<option value="${l}">${l}</option>`).join('');
+  const fLoja = document.getElementById('f-loja').value;
+  if (fLoja && lojas.includes(fLoja)) sel.value = fLoja;
+  document.getElementById('rdOverlay').classList.add('show');
+  renderResumoDiario();
+}
+function fecharResumoDiario() {
+  document.getElementById('rdOverlay').classList.remove('show');
+}
+function setRdModo(modo) {
+  rdModo = modo;
+  rdCarouselPage = 0;
+  document.getElementById('rdTogUma').classList.toggle('active', modo==='uma');
+  document.getElementById('rdTogTodas').classList.toggle('active', modo==='todas');
+  document.getElementById('rdLojaSelect').style.display = modo==='uma' ? '' : 'none';
+  document.querySelector('.rd-modal').classList.toggle('todas-lojas', modo==='todas');
+  renderResumoDiario();
+}
+
+function pctClass(v) { return v===null ? '' : (v>=0 ? 'rd-pos' : 'rd-neg'); }
+// Para métricas que agora são uma RAZÃO (Realizado ÷ Meta × 100, centrada
+// em 100%) em vez de uma diferença (centrada em 0%) — ex: Meta Acum x
+// Venda Mês. 100% = na meta; abaixo disso fica vermelho, acima fica verde.
+function pctClass100(v) { return v===null ? '' : (v>=100 ? 'rd-pos' : 'rd-neg'); }
+function pctTxt(v) { return v===null ? '—' : Pct(v, 2); }
+
+function buildCardHTMLv1(r) {
+  const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'Sem dados no mês';
+  return `
+  <div class="rd-card">
+    <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
+    <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
+    <table class="rd-tbl">
+      <tr><th colspan="2">META DIÁRIA</th><th colspan="2" class="hi">REALIZADO</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
+      <tr><th colspan="2">META ACUM x VENDA MÊS</th><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
+    </table>
+    <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
+    <table class="rd-tbl">
+      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
+      <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
+      <tr><th>MÉDIA PESSOAS/DIA ${r.anoAnt}</th><th>MÉDIA PESSOAS/DIA ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
+      <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
+    </table>
+  </div>`;
+}
+
+// Modelo 2: mesma ordem e mesmas informações do Modelo 1, mas "Realizado"
+// fica empilhado embaixo de "Meta Diária", e "Venda Acum x Ano Anterior"
+// fica empilhado embaixo de "Meta Acum x Venda Mês" — em vez de lado a
+// lado. O resto do card (TKM, Baixas, Pessoas/Dia) fica igual ao Modelo 1.
+function buildCardHTMLv2(r) {
+  const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'Sem dados no mês';
+  return `
+  <div class="rd-card">
+    <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
+    <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
+    <table class="rd-tbl">
+      <tr><th colspan="2">META DIÁRIA</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="2" class="hi">REALIZADO</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="2">META ACUM x VENDA MÊS</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
+      <tr><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
+    </table>
+    <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
+    <table class="rd-tbl">
+      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
+      <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
+      <tr><th>MÉDIA PESSOAS/DIA ${r.anoAnt}</th><th>MÉDIA PESSOAS/DIA ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
+      <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
+    </table>
+  </div>`;
+}
+
+function buildCardHTML(r) {
+  return buildCardHTMLv1(r);
+}
+
+let rdCarouselPage = 0;
+const RD_PER_PAGE = 2;
+
+function renderResumoDiario() {
+  const body = document.getElementById('rdBody');
+  let lojas;
+  if (rdModo === 'uma') {
+    const v = document.getElementById('rdLojaSelect').value;
+    lojas = v ? [v] : [];
+  } else {
+    lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  }
+  if (!lojas.length) { body.innerHTML = '<div style="padding:20px;text-align:center;color:var(--muted)">Sem loja selecionada.</div>'; return; }
+
+  if (rdModo === 'todas' && lojas.length > RD_PER_PAGE) {
+    body.classList.add('carousel-mode');
+    rdCarouselPage = Math.min(rdCarouselPage, Math.ceil(lojas.length / RD_PER_PAGE) - 1);
+    if (rdCarouselPage < 0) rdCarouselPage = 0;
+    const totalPages = Math.ceil(lojas.length / RD_PER_PAGE);
+    const cardsHtml = lojas.map(l => buildCardHTML(computeResumoLoja(l))).join('');
+    body.innerHTML = `
+      <div class="rd-carousel">
+        <div class="rd-carousel-track" id="rdTrack">${cardsHtml}</div>
+      </div>
+      <div class="rd-carousel-nav">
+        <button class="rd-carousel-btn" onclick="rdCarouselNav(-1)" ${rdCarouselPage===0?'disabled':''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"/></svg>
+        </button>
+        <span class="rd-carousel-info">${rdCarouselPage+1} / ${totalPages} · ${lojas.length} lojas</span>
+        <button class="rd-carousel-btn" onclick="rdCarouselNav(1)" ${rdCarouselPage>=totalPages-1?'disabled':''}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+        </button>
+      </div>`;
+    rdCarouselApplyPos();
+  } else {
+    body.classList.remove('carousel-mode');
+    body.innerHTML = lojas.map(l => buildCardHTML(computeResumoLoja(l))).join('');
+  }
+}
+
+function rdCarouselNav(dir) {
+  const track = document.getElementById('rdTrack');
+  if (!track) return;
+  const totalCards = track.children.length;
+  const totalPages = Math.ceil(totalCards / RD_PER_PAGE);
+  rdCarouselPage = Math.max(0, Math.min(rdCarouselPage + dir, totalPages - 1));
+  renderResumoDiario();
+}
+
+function rdCarouselApplyPos() {
+  const track = document.getElementById('rdTrack');
+  if (!track) return;
+  const cardW = track.children[0] ? track.children[0].offsetWidth + 10 : 300;
+  track.style.transform = 'translateX(-' + (rdCarouselPage * RD_PER_PAGE * cardW) + 'px)';
+}
+
+function textoResumoLoja(r) {
+  const dataAntTxt = r.diaAnt ? dateStr(r.ano, r.mes, r.diaAnt) : 'sem dados no mês';
+  const linhas = [];
+  linhas.push(`*${r.lojaLabel} CONSOLIDADO*`);
+  linhas.push(`Dia anterior: ${dataAntTxt}`);
+  linhas.push('');
+  linhas.push(`*Meta Diária*`);
+  linhas.push(`${r.lojaLabel} Loja: ${R(r.metaDiaLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.metaDiaDel)}`);
+  linhas.push(`*Realizado*`);
+  linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}`);
+  linhas.push('');
+  linhas.push(`*% Meta Acum x Venda Mês*`);
+  linhas.push(`Loja: ${pctTxt(r.pctMetaLoja)}  |  Delivery: ${pctTxt(r.pctMetaDel)}`);
+  linhas.push(`*% Venda Acum x Ano Anterior*`);
+  linhas.push(`Loja: ${pctTxt(r.pctVsAntLoja)}  |  Delivery: ${pctTxt(r.pctVsAntDel)}`);
+  linhas.push('');
+  linhas.push(`*${r.lojaLabel} LOJA*`);
+  linhas.push(`TKM Mês: ${R(r.tktA)} (${pctTxt(r.pctTktAA)} vs AA)`);
+  linhas.push(`Baixas totais: ${R0(r.qA)} (${pctTxt(r.pctBaixas)})`);
+  linhas.push(`Média Pessoas/Dia ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);
+  return linhas.join('\n');
+}
+
+async function copiarResumoDiarioTexto(btnEl) {
+  let lojas;
+  if (rdModo === 'uma') {
+    const v = document.getElementById('rdLojaSelect').value;
+    lojas = v ? [v] : [];
+  } else {
+    lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  }
+  const texto = lojas.map(l => textoResumoLoja(computeResumoLoja(l))).join('\n\n—————————————\n\n');
+  try {
+    await navigator.clipboard.writeText(texto);
+    const old = btnEl.textContent;
+    btnEl.textContent = '✅ Copiado!';
+    setTimeout(() => { btnEl.textContent = old; }, 1800);
+  } catch(e) {
+    alert('Não foi possível copiar automaticamente. Selecione e copie o texto manualmente:\n\n' + texto);
+  }
+}
+
+// Gera uma imagem PNG do(s) cartão(ões) do Resumo Diário visíveis no
+// momento e tenta enviar direto pro WhatsApp. No celular, abre o menu
+// nativo de compartilhamento (o WhatsApp aparece como opção, já com a
+// imagem anexada). No computador, o WhatsApp Web não aceita imagem
+// pré-anexada por link — então baixa o PNG e orienta a anexar na mão.
+let _rdModelPickResolve = null;
+function abrirEscolhaModeloEnvio() {
+  document.getElementById('rdModelPickOverlay').classList.add('show');
+  return new Promise(resolve => { _rdModelPickResolve = resolve; });
+}
+function rdModelPickChoose(modelo) {
+  document.getElementById('rdModelPickOverlay').classList.remove('show');
+  if (_rdModelPickResolve) { _rdModelPickResolve(modelo); _rdModelPickResolve = null; }
+}
+function rdModelPickCancel() {
+  document.getElementById('rdModelPickOverlay').classList.remove('show');
+  if (_rdModelPickResolve) { _rdModelPickResolve(null); _rdModelPickResolve = null; }
+}
+
+async function enviarResumoDiarioImagem(btnEl) {
+  if (typeof html2canvas === 'undefined') {
+    alert('Não foi possível carregar o gerador de imagem. Verifique sua conexão e tente novamente.');
+    return;
+  }
+
+  // A visualização na tela sempre usa o Modelo 1 — a escolha de qual
+  // modelo mandar fica só pra hora de gerar a imagem, sem mudar o que
+  // está sendo exibido no card ao vivo.
+  const modeloEscolhido = await abrirEscolhaModeloEnvio();
+  if (!modeloEscolhido) return; // cancelado
+
+  let lojas;
+  if (rdModo === 'uma') {
+    const v = document.getElementById('rdLojaSelect').value;
+    lojas = v ? [v] : [];
+  } else {
+    lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  }
+  if (!lojas.length) { alert('Nenhuma loja selecionada.'); return; }
+
+  const old = btnEl.textContent;
+  btnEl.textContent = '⏳ Gerando imagem…';
+  btnEl.disabled = true;
+
+  // Monta os cards do modelo escolhido fora da tela, empilhados um
+  // embaixo do outro numa largura de celular (420px) — assim a imagem
+  // exportada sai sempre no formato vertical, ideal pro WhatsApp, mesmo
+  // que o dashboard esteja aberto num monitor largo.
+  const buildFn = modeloEscolhido === 'v2' ? buildCardHTMLv2 : buildCardHTMLv1;
+  const cardsHtml = lojas.map(l => buildFn(computeResumoLoja(l))).join('');
+  const clone = document.createElement('div');
+  clone.style.cssText = 'position:fixed; left:-9999px; top:0; width:420px; background:#F4F1EA; padding:16px; display:flex; flex-direction:column; gap:14px;';
+  clone.innerHTML = cardsHtml;
+  document.body.appendChild(clone);
+
+  try {
+    const canvas = await html2canvas(clone, {
+      backgroundColor: '#F4F1EA',
+      scale: 2,
+      useCORS: true,
+    });
+
+    const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+    if (!blob) throw new Error('Falha ao gerar o PNG.');
+
+    const lojaTxt = rdModo === 'uma'
+      ? (document.getElementById('rdLojaSelect').selectedOptions[0]?.textContent || 'Loja')
+      : 'Todas as lojas';
+    const nomeArquivo = `resumo-diario-${lojaTxt.toLowerCase().replace(/\s+/g,'-')}.png`;
+    const file = new File([blob], nomeArquivo, { type: 'image/png' });
+
+    // Compartilhamento nativo (abre a tela de escolher contato/app) em
+    // todos os dispositivos. Como o navigator.share() só resolve quando o
+    // usuário fecha essa tela (e no Windows o alvo do WhatsApp Desktop às
+    // vezes demora/trava pra voltar o controle pro navegador), usamos uma
+    // corrida com um temporizador: se passar de 15s, o botão do dashboard
+    // é liberado de qualquer forma, sem travar a página — mesmo que a
+    // tela do WhatsApp continue aberta esperando o usuário lá.
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      const compartilhar = navigator.share({
+        files: [file],
+        title: 'Resumo Diário',
+        text: `Resumo Diário — ${lojaTxt}`,
+      }).then(() => 'ok').catch(err => { if (err.name !== 'AbortError') throw err; return 'cancelado'; });
+      const timeout = new Promise(resolve => setTimeout(() => resolve('timeout'), 15000));
+      const resultado = await Promise.race([compartilhar, timeout]);
+      btnEl.textContent = resultado === 'timeout' ? '📷 Enviar imagem (WhatsApp)' : '✅ Enviado!';
+    } else {
+      // Navegador sem suporte a compartilhar arquivo: baixa o PNG e abre
+      // o WhatsApp Web pra o usuário anexar manualmente.
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeArquivo;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 3000);
+      alert('Imagem baixada: ' + nomeArquivo + '\n\nEsse navegador não permite anexar a imagem direto — abra o WhatsApp Web/Desktop e anexe o arquivo baixado na conversa.');
+      window.open('https://web.whatsapp.com/', '_blank');
+      btnEl.textContent = '✅ Baixado!';
+    }
+  } catch(e) {
+    if (e.name !== 'AbortError') { // usuário cancelou o compartilhamento — não é erro
+      console.error('Erro ao gerar/enviar imagem:', e);
+      alert('Não foi possível gerar a imagem: ' + e.message);
+    }
+    btnEl.textContent = old;
+  } finally {
+    document.body.removeChild(clone);
+    btnEl.disabled = false;
+    setTimeout(() => { btnEl.textContent = old; }, 2200);
+  }
+}
+
+window.addEventListener('DOMContentLoaded', () => loadData());
+</script>
+</body>
+</html>
