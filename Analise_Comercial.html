@@ -1444,11 +1444,14 @@ async function loadQuebrasMap() {
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
       if (!cNome || !cConta) {
-        console.warn('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
+        console.error('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
         return;
       }
+      const nomesVistos = new Set();
+      let matched = 0, skippedData = 0;
       rows.forEach(r => {
         const nome = normTxt(r[cNome]);
+        nomesVistos.add(nome);
         if (!NOMEPGTO_QUEBRAS.includes(nome)) return;
         const valor = toNum(r[cConta]);
         if (!valor) return;
@@ -1456,12 +1459,19 @@ async function loadQuebrasMap() {
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
         const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : parseAnoRec(mesRaw);
-        if (!mes || !ano) return;
+        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas data não reconhecida ("' + mesRaw + '").'); return; }
+        matched++;
         const anoKey = String(ano), mesKey = String(mes);
         map[loja] = map[loja] || {};
         map[loja][anoKey] = map[loja][anoKey] || {};
         map[loja][anoKey][mesKey] = (map[loja][anoKey][mesKey] || 0) + valor;
       });
+      if (matched === 0) {
+        const parecidos = [...nomesVistos].filter(n => n.includes('quebra') || n.includes('baixa'));
+        console.log('[Quebras] ' + lojaFallback + ': nenhuma linha bateu com "baixas e quebras" (' + rows.length + ' linhas lidas). Valores parecidos em nomepgto: ' + (parecidos.length ? JSON.stringify(parecidos) : '(nenhum)'));
+      } else {
+        console.log('[Quebras] ' + lojaFallback + ': ' + matched + ' linha(s) somada(s)' + (skippedData ? ', ' + skippedData + ' ignorada(s) por data inválida' : '') + '.');
+      }
     } catch(e) {
       console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
     }
@@ -2224,7 +2234,7 @@ async function loadData(forceRefresh = false, silent = false) {
       // só cai pro cache salvo se a busca falhar.
       quebrasMap = (cached.quebras && typeof cached.quebras === 'object') ? cached.quebras : {};
       renderAll();
-      loadQuebrasMap().then(m => { quebrasMap = m; renderAll(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
+      loadQuebrasMap().then(m => { quebrasMap = m; console.log('[Quebras] mapa carregado:', quebrasMap); renderAll(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
@@ -2268,6 +2278,7 @@ async function loadData(forceRefresh = false, silent = false) {
     setLdTxt('Processando dados…');
     if(!rawData.length) throw new Error('Nenhuma linha válida encontrada.');
     quebrasMap = await quebrasPromise;
+    console.log('[Quebras] mapa carregado:', quebrasMap);
 
     populateFilters(rawData);
     hideErr();
