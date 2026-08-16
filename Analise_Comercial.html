@@ -1409,7 +1409,7 @@ function parseMesRec(v){
   if(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[1]);
   const mNome = s.match(/^(\w{3,9})\s*\/?\s*\d{2,4}$/);
   if(mNome) return parseMesAbrRec(mNome[1]);
-  return null;
+  return parseMesAbrRec(s); // "Agosto" sozinho (ano em coluna separada)
 }
 function parseAnoRec(v){
   if(!v) return null;
