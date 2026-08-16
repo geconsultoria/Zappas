@@ -1428,6 +1428,7 @@ function parseAnoRec(v){
 let quebrasMap = {};
 
 async function loadQuebrasMap() {
+  console.log('[Quebras] v2 (com fallback de ano) rodando…');
   const map = {};
   const cacheBust = '&_cb=' + Date.now();
   await Promise.all(RECBIDOS_URLS.map(async (url, idx) => {
