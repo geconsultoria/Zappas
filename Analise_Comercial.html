@@ -1158,6 +1158,12 @@ const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
 // demais páginas — assim os totais sempre batem entre si.
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
+// Quebras/Baixas: vem da planilha de Recebidos (mesmo backend), somando a
+// coluna "conta" (valor) das linhas cujo "nomepgto" é "X BAIXAS E QUEBRAS"
+// ou "BAIXAS E QUEBRAS". Só tem granularidade de mês (não de dia/semana).
+const RECBIDOS_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=recebidos&loja=${k}`);
+const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
+
 /* ═══════════════════════════════════════════════════════
    CACHE LOCAL (IndexedDB)
    — Ao abrir a página, usa os dados já salvos no navegador
@@ -1179,12 +1185,12 @@ function openDB() {
   });
 }
 
-async function saveCache(data, ts, rawTs) {
+async function saveCache(data, ts, rawTs, quebras) {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data, ts, rawTs }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs, quebras }, DB_KEY);
       tx.oncomplete = resolve;
       tx.onerror    = () => reject(tx.error);
     });
@@ -1347,9 +1353,9 @@ function parseCSV(text) {
       semana2: String(obj.semana2||'').trim(),
       fat:    fatVal,
       cupons: cuponsVal,
-      // Ticket e Quebras ainda não existem na nova planilha:
-      // Ticket é calculado como Total ÷ Passage (mesma lógica já usada no dashboard).
-      // Quebras fica em 0 até a coluna ser criada na planilha.
+      // Ticket ainda não existe na nova planilha: calculado como Total ÷
+      // Passage (mesma lógica já usada no dashboard). Quebras não vem mais
+      // daqui — é buscada à parte na planilha de Recebidos (ver quebrasMap).
       ticket: obj.ticket!==undefined ? toNum(obj.ticket) : (cuponsVal? fatVal/cuponsVal : 0),
       quebras:toNum(obj.quebras),
     };
@@ -1357,6 +1363,146 @@ function parseCSV(text) {
     rows.push(row);
   }
   return rows;
+}
+
+/* ═══════════════════════════════════════════════════════
+   QUEBRAS (via planilha de Recebidos)
+   Não existe coluna "quebras" na planilha de vendas — vem da planilha
+   de Recebidos, somando a coluna "conta" (valor) das linhas cujo
+   "nomepgto" é "X BAIXAS E QUEBRAS" ou "BAIXAS E QUEBRAS". Só tem
+   granularidade de mês, então é somado uma única vez por combinação
+   loja+ano+mês (nunca por linha de transação, pra não contar em dobro).
+═══════════════════════════════════════════════════════ */
+function parseCSVGeneric(text) {
+  const lines = text.split(/\r?\n/);
+  if (!lines.length) return { headers: [], rows: [] };
+  const sep = detectSep(lines[0]);
+  const headers = parseLine(lines[0], sep).map(normKey);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim(); if (!line) continue;
+    const fields = parseLine(line, sep);
+    if (fields.every(f => !f)) continue;
+    const obj = {}; headers.forEach((h, idx) => { obj[h] = fields[idx] ?? ''; });
+    rows.push(obj);
+  }
+  return { headers, rows };
+}
+function normTxt(s) {
+  return String(s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+function parseMesAbrRec(s){
+  const abbr=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const idx=abbr.indexOf(String(s||'').toLowerCase().substring(0,3));
+  return idx!==-1?idx+1:null;
+}
+function parseMesRec(v){
+  if(!v) return null;
+  const s = String(v).trim();
+  if(/^\d{1,2}$/.test(s)){ const n=parseInt(s); return(n>=1&&n<=12)?n:null; }
+  if(/^\d{4}-\d{2}/.test(s)) return parseInt(s.split('-')[1]);
+  if(/^\d{4}-\w{3,9}$/i.test(s)) return parseMesAbrRec(s.split('-')[1]);
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) return parseInt(s.split('/')[1]);
+  if(/^\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[0]);
+  if(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[1]);
+  const mNome = s.match(/^(\w{3,9})\s*\/?\s*\d{2,4}$/);
+  if(mNome) return parseMesAbrRec(mNome[1]);
+  return null;
+}
+function parseAnoRec(v){
+  if(!v) return null;
+  const s=String(v).trim();
+  if(/^\d{4}$/.test(s)) return parseInt(s);
+  if(/^\d{4}-\d{2}/.test(s)) return parseInt(s.split('-')[0]);
+  if(/^\d{4}-\w{3,9}$/i.test(s)) return parseInt(s.split('-')[0]);
+  if(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[2]);
+  if(/^\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[1]);
+  const mSlash = s.match(/^\w{3,9}\s*\/?\s*(\d{2,4})$/);
+  if(mSlash){ const y=parseInt(mSlash[1]); return y<100?y+2000:y; }
+  return null;
+}
+
+// quebrasMap[loja][ano_string][mes_string] = valor acumulado
+let quebrasMap = {};
+
+async function loadQuebrasMap() {
+  const map = {};
+  const cacheBust = '&_cb=' + Date.now();
+  await Promise.all(RECBIDOS_URLS.map(async (url, idx) => {
+    const lojaFallback = STORE_KEYS[idx].toUpperCase();
+    try {
+      const res = await fetch(url + cacheBust, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      if (!txt || !txt.trim()) return;
+      const { headers, rows } = parseCSVGeneric(txt);
+      const cLoja  = headers.includes('loja') ? 'loja' : null;
+      const cAno   = headers.includes('ano') ? 'ano' : null;
+      const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
+      const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
+      const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
+      if (!cNome || !cConta) {
+        console.warn('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
+        return;
+      }
+      rows.forEach(r => {
+        const nome = normTxt(r[cNome]);
+        if (!NOMEPGTO_QUEBRAS.includes(nome)) return;
+        const valor = toNum(r[cConta]);
+        if (!valor) return;
+        const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
+        const mesRaw = cMes ? r[cMes] : '';
+        const mes = parseMesRec(mesRaw);
+        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : parseAnoRec(mesRaw);
+        if (!mes || !ano) return;
+        const anoKey = String(ano), mesKey = String(mes);
+        map[loja] = map[loja] || {};
+        map[loja][anoKey] = map[loja][anoKey] || {};
+        map[loja][anoKey][mesKey] = (map[loja][anoKey][mesKey] || 0) + valor;
+      });
+    } catch(e) {
+      console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
+    }
+  }));
+  return map;
+}
+
+// Soma quebras uma única vez por combinação loja+ano+mes presente em
+// `rows` (nunca por linha de transação, senão conta o mesmo valor
+// mensal repetidas vezes). Se houver filtro de canal específico ativo,
+// retorna 0 — o Recebidos não tem canal, não dá pra atribuir o valor
+// com segurança a um canal só.
+function quebrasTotalFor(rows) {
+  const f = getF();
+  if (f.canais && f.canais.size > 0) return 0;
+  const vistos = new Set();
+  let total = 0;
+  rows.forEach(r => {
+    const key = r.loja + '|' + r.ano + '|' + r.mes;
+    if (vistos.has(key)) return;
+    vistos.add(key);
+    total += (quebrasMap[r.loja]?.[r.ano]?.[r.mes]) || 0;
+  });
+  return total;
+}
+// Idem, mas já agrupado por mês (pra alimentar gráfico/tabela sem
+// duplicar contagem entre lojas/dias/canais do mesmo mês).
+function quebrasPorMesFor(rows) {
+  const f = getF();
+  const out = {};
+  if (f.canais && f.canais.size > 0) return out;
+  const vistos = new Set();
+  rows.forEach(r => {
+    const key = r.loja + '|' + r.ano + '|' + r.mes;
+    if (vistos.has(key)) return;
+    vistos.add(key);
+    const v = (quebrasMap[r.loja]?.[r.ano]?.[r.mes]) || 0;
+    if (!v) return;
+    out[r.mes] = (out[r.mes] || 0) + v;
+  });
+  return out;
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1680,7 +1826,7 @@ function renderKPIs(data) {
   const fat    = data.reduce((s,r)=>s+r.fat,0);
   const cupons = data.reduce((s,r)=>s+r.cupons,0);
   const ticket = cupons?fat/cupons:0;
-  const quebras= data.reduce((s,r)=>s+r.quebras,0);
+  const quebras= quebrasTotalFor(data);
   $('kv-fat').textContent    = fBRL(fat);
   $('kv-regs').textContent   = fN(data.length);
   $('kv-cupons').textContent = fN(cupons);
@@ -1729,7 +1875,7 @@ function renderCharts(data) {
   barChart('ch-cupons-mes', mesLabels, mesList.map(m=>cupMes[m]||0), PALETTE[2]);
 
   // Quebras por mês
-  const qMes = groupSum(data,'mes','quebras');
+  const qMes = quebrasPorMesFor(data);
   lineChart('ch-quebras-mes', mesLabels, [{
     data: mesList.map(m=>qMes[m]||0),
     borderColor: PALETTE[8], backgroundColor: PALETTE[8]+'18',
@@ -1796,11 +1942,14 @@ function renderComparative(data) {
 
   // ── Helper: agrega campo por (ano, mes) ─────────────
   function agg(anoVal, mesVal, field) {
-    return baseData.filter(r => r.ano === anoVal && r.mes === mesVal)
-                   .reduce((s, r) => s + (r[field] || 0), 0);
+    const rows = baseData.filter(r => r.ano === anoVal && r.mes === mesVal);
+    if (field === 'quebras') return quebrasTotalFor(rows);
+    return rows.reduce((s, r) => s + (r[field] || 0), 0);
   }
   function aggAll(anoVal, field) {
-    return baseData.filter(r => r.ano === anoVal).reduce((s, r) => s + (r[field] || 0), 0);
+    const rows = baseData.filter(r => r.ano === anoVal);
+    if (field === 'quebras') return quebrasTotalFor(rows);
+    return rows.reduce((s, r) => s + (r[field] || 0), 0);
   }
 
   // ── Helper: constrói tbody genérico ─────────────────
@@ -2071,7 +2220,11 @@ async function loadData(forceRefresh = false, silent = false) {
       populateFilters(rawData);
       hideErr();
       $('content').classList.remove('hidden');
+      // Quebras (Recebidos) muda com frequência — sempre busca fresco;
+      // só cai pro cache salvo se a busca falhar.
+      quebrasMap = (cached.quebras && typeof cached.quebras === 'object') ? cached.quebras : {};
       renderAll();
+      loadQuebrasMap().then(m => { quebrasMap = m; renderAll(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
@@ -2087,6 +2240,7 @@ async function loadData(forceRefresh = false, silent = false) {
   try {
     const cacheBust = '&_=' + Date.now();
     setLdTxt('Carregando CSV…');
+    const quebrasPromise = loadQuebrasMap().catch(e => { console.warn('Quebras (Recebidos) indisponível:', e.message); return {}; });
 
     rawData = [];
     const lojasComFalha = [];
@@ -2113,6 +2267,7 @@ async function loadData(forceRefresh = false, silent = false) {
     }
     setLdTxt('Processando dados…');
     if(!rawData.length) throw new Error('Nenhuma linha válida encontrada.');
+    quebrasMap = await quebrasPromise;
 
     populateFilters(rawData);
     hideErr();
@@ -2121,7 +2276,7 @@ async function loadData(forceRefresh = false, silent = false) {
     const tsDate = new Date();
     const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
-    saveCache(rawData, ts, tsDate.getTime());
+    saveCache(rawData, ts, tsDate.getTime(), quebrasMap);
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo

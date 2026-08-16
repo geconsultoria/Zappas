@@ -1060,6 +1060,13 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
+// Quebras/Baixas: vem da planilha de Recebidos (mesmo backend, mesmo
+// padrão usado no DRE_Gerencial.html), somando a coluna "conta" (valor)
+// das linhas cujo "nomepgto" é "X BAIXAS E QUEBRAS" ou "BAIXAS E QUEBRAS".
+// Só tem granularidade de mês (não de dia).
+const RECBIDOS_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=recebidos&loja=${k}`);
+const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
+
 // Mesmo backend de Metas usado no Elaboracao_Metas.html — aqui só lemos
 // (GET), não precisa do token. Cole a mesma URL /exec dos dois arquivos.
 const METAS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec";
@@ -1089,12 +1096,12 @@ function openDB() {
     req.onerror   = () => reject(req.error);
   });
 }
-async function saveCache(data, ts, rawTs, metas) {
+async function saveCache(data, ts, rawTs, metas, quebras) {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data, ts, rawTs, metas }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs, metas, quebras }, DB_KEY);
       tx.oncomplete = resolve;
       tx.onerror    = () => reject(tx.error);
     });
@@ -1200,6 +1207,102 @@ function parseCSV(text) {
   return { headers: hdrs, rows };
 }
 
+/* ═══════════════ QUEBRAS (via planilha de Recebidos) ═══════════════
+   Não vem mais da coluna "quebras" do resumo (que não existe/vem vazia).
+   Busca a planilha de Recebidos de cada loja e soma a coluna "conta"
+   (valor) das linhas cujo "nomepgto" seja "X BAIXAS E QUEBRAS" ou
+   "BAIXAS E QUEBRAS". Granularidade só de mês (não tem dia). */
+function normTxt(s) {
+  return String(s||'').trim().toLowerCase()
+    .normalize('NFD').replace(/[\u0300-\u036f]/g,'')
+    .replace(/\s+/g,' ').trim();
+}
+function parseMesAbrRec(s){
+  const abbr=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const idx=abbr.indexOf(String(s||'').toLowerCase().substring(0,3));
+  return idx!==-1?idx+1:null;
+}
+function parseMesRec(v){
+  if(!v) return null;
+  const s = String(v).trim();
+  if(/^\d{1,2}$/.test(s)){ const n=parseInt(s); return(n>=1&&n<=12)?n:null; }
+  if(/^\d{4}-\d{2}/.test(s)) return parseInt(s.split('-')[1]);
+  if(/^\d{4}-\w{3,9}$/i.test(s)) return parseMesAbrRec(s.split('-')[1]);
+  if(/^\d{1,2}\/\d{1,2}\/\d{4}/.test(s)) return parseInt(s.split('/')[1]);
+  if(/^\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[0]);
+  if(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[1]);
+  const mNome = s.match(/^(\w{3,9})\s*\/?\s*\d{2,4}$/);
+  if(mNome) return parseMesAbrRec(mNome[1]);
+  return parseMesN(s);
+}
+function parseAnoRec(v){
+  if(!v) return null;
+  const s=String(v).trim();
+  if(/^\d{4}$/.test(s)) return parseInt(s);
+  if(/^\d{4}-\d{2}/.test(s)) return parseInt(s.split('-')[0]);
+  if(/^\d{4}-\w{3,9}$/i.test(s)) return parseInt(s.split('-')[0]);
+  if(/^\d{1,2}[\/-]\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[2]);
+  if(/^\d{1,2}[\/-]\d{4}$/.test(s)) return parseInt(s.split(/[\/-]/)[1]);
+  const mSlash = s.match(/^\w{3,9}\s*\/?\s*(\d{2,4})$/);
+  if(mSlash){ const y=parseInt(mSlash[1]); return y<100?y+2000:y; }
+  return null;
+}
+
+// quebrasMap[loja][ano][mes] = valor acumulado
+let quebrasMap = {};
+
+async function loadQuebrasMap() {
+  const map = {};
+  const cacheBust = '&_cb=' + Date.now();
+  await Promise.all(RECBIDOS_URLS.map(async (url, idx) => {
+    const lojaFallback = STORE_KEYS[idx].toUpperCase();
+    try {
+      const res = await fetch(url + cacheBust, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      if (!txt || !txt.trim()) return;
+      const { headers, rows } = parseCSV(txt);
+      const cLoja  = headers.includes('loja') ? 'loja' : null;
+      const cAno   = headers.includes('ano') ? 'ano' : null;
+      const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
+      const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
+      const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
+      if (!cNome || !cConta) {
+        console.warn('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
+        return;
+      }
+      rows.forEach(r => {
+        const nome = normTxt(r[cNome]);
+        if (!NOMEPGTO_QUEBRAS.includes(nome)) return;
+        const valor = parseNum(r[cConta]);
+        if (!valor) return;
+        const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
+        const mesRaw = cMes ? r[cMes] : '';
+        const mes = parseMesRec(mesRaw);
+        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : parseAnoRec(mesRaw);
+        if (!mes || !ano) return;
+        map[loja] = map[loja] || {};
+        map[loja][ano] = map[loja][ano] || {};
+        map[loja][ano][mes] = (map[loja][ano][mes] || 0) + valor;
+      });
+    } catch(e) {
+      console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
+    }
+  }));
+  return map;
+}
+
+function getQuebrasTotal(ano, mes, loja) {
+  if (!ano || !mes) return 0;
+  // Recebidos não tem canal — se houver filtro de canal específico
+  // ativo, não dá pra atribuir o valor a um canal, então não soma.
+  if (selectedCanais && selectedCanais.size > 0) return 0;
+  let total = 0;
+  const lojas = loja ? [loja] : Object.keys(quebrasMap);
+  lojas.forEach(lj => { total += (quebrasMap[lj]?.[ano]?.[mes]) || 0; });
+  return total;
+}
+
 function transform(rows, headers) {
   const find = cands => cands.find(c => headers.includes(c));
   const cAno    = find(['ano']);
@@ -1295,6 +1398,11 @@ async function loadData(forceRefresh = false, silent = false) {
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       document.getElementById('lastUpd').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
 
+      // Quebras (Recebidos) muda com frequência — sempre busca fresco;
+      // só cai pro cache salvo se a busca falhar.
+      quebrasMap = (cached.quebras && typeof cached.quebras === 'object') ? cached.quebras : {};
+      loadQuebrasMap().then(m => { quebrasMap = m; applyFilters(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
+
       if (Array.isArray(cached.metas)) {
         // Metas já vieram salvas junto com o cache — não precisa buscar de novo.
         metasData = cached.metas;
@@ -1315,6 +1423,7 @@ async function loadData(forceRefresh = false, silent = false) {
   try {
     const cacheBust = '&_cb=' + Date.now();
     const metasPromise = loadMetasData(); // roda em paralelo, é leve e é outro script
+    const quebrasPromise = loadQuebrasMap().catch(e => { console.warn('Quebras (Recebidos) indisponível:', e.message); return {}; });
 
     let headers = [];
     let allRows = [];
@@ -1359,6 +1468,7 @@ async function loadData(forceRefresh = false, silent = false) {
     }
 
     await metasPromise;
+    quebrasMap = await quebrasPromise;
     rawData = transform(allRows, headers);
     if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
     const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
@@ -1369,7 +1479,7 @@ async function loadData(forceRefresh = false, silent = false) {
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     document.getElementById('lastUpd').textContent = ts +
       (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
-    saveCache(rawData, ts, now.getTime(), metasData);
+    saveCache(rawData, ts, now.getTime(), metasData, quebrasMap);
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
@@ -1595,6 +1705,7 @@ function getF() {
 }
 
 function query(ano, mes, loja, field) {
+  if (field === 'quebras') return getQuebrasTotal(ano, mes, loja);
   return rawData
     .filter(d =>
       (!ano  || d.ano  === ano)  &&
@@ -1606,6 +1717,7 @@ function query(ano, mes, loja, field) {
 }
 
 function dayQuery(ano, mes, loja, day, field) {
+  if (field === 'quebras') return 0; // Recebidos não tem granularidade diária
   return rawData
     .filter(d =>
       (!ano  || d.ano  === ano)  &&
@@ -1847,7 +1959,7 @@ function renderDashboard(f) {
     const cAn  = dailyPrev ? dayQuery(anoAnt, mes, loja, d, 'cupons') : cDiaAnt;
     const tk   = c    > 0 && v    ? v / c    : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'ticket')  : tktDia);
     const tkAn = cAn  > 0 && vAn  ? vAn / cAn: (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'ticket'): tktDiaAnt);
-    const q    = isFuture ? null : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'quebras') : qDia);
+    const q    = isFuture ? null : qDia; // Recebidos só tem total do mês — distribui uniformemente pelos dias
 
     acumAnt  += (vAn  || 0);
     acumMeta += metaDia;
