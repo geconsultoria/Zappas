@@ -1279,7 +1279,7 @@ async function loadQuebrasMap() {
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
-        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : parseAnoRec(mesRaw);
+        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : (parseAnoRec(mesRaw) || new Date().getFullYear());
         if (!mes || !ano) return;
         map[loja] = map[loja] || {};
         map[loja][ano] = map[loja][ano] || {};

@@ -1458,7 +1458,7 @@ async function loadQuebrasMap() {
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
-        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : parseAnoRec(mesRaw);
+        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : (parseAnoRec(mesRaw) || new Date().getFullYear());
         if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas data não reconhecida ("' + mesRaw + '").'); return; }
         matched++;
         const anoKey = String(ano), mesKey = String(mes);
