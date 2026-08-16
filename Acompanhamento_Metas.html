@@ -1294,9 +1294,8 @@ async function loadQuebrasMap() {
 
 function getQuebrasTotal(ano, mes, loja) {
   if (!ano || !mes) return 0;
-  // Recebidos não tem canal — se houver filtro de canal específico
-  // ativo, não dá pra atribuir o valor a um canal, então não soma.
-  if (selectedCanais && selectedCanais.size > 0) return 0;
+  // Quebras (Recebidos) não tem canal — mostra o total da loja sempre,
+  // independente do filtro de canal selecionado.
   let total = 0;
   const lojas = loja ? [loja] : Object.keys(quebrasMap);
   lojas.forEach(lj => { total += (quebrasMap[lj]?.[ano]?.[mes]) || 0; });

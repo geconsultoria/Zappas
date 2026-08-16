@@ -1485,8 +1485,9 @@ async function loadQuebrasMap() {
 // retorna 0 — o Recebidos não tem canal, não dá pra atribuir o valor
 // com segurança a um canal só.
 function quebrasTotalFor(rows) {
-  const f = getF();
-  if (f.canais && f.canais.size > 0) return 0;
+  // Quebras (Recebidos) não tem canal — mostra o total da loja sempre,
+  // independente do filtro de canal selecionado (a tela já vem com
+  // "Loja + Delivery" pré-selecionados por padrão).
   const vistos = new Set();
   let total = 0;
   rows.forEach(r => {
@@ -1500,9 +1501,7 @@ function quebrasTotalFor(rows) {
 // Idem, mas já agrupado por mês (pra alimentar gráfico/tabela sem
 // duplicar contagem entre lojas/dias/canais do mesmo mês).
 function quebrasPorMesFor(rows) {
-  const f = getF();
   const out = {};
-  if (f.canais && f.canais.size > 0) return out;
   const vistos = new Set();
   rows.forEach(r => {
     const key = r.loja + '|' + r.ano + '|' + r.mes;
