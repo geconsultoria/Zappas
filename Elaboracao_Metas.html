@@ -1363,6 +1363,7 @@ function parseMesFromName(name) {
 }
 
 async function loadMetasData() {
+  metasData = []; // sempre recomeça do zero — evita duplicar em chamadas repetidas (ex: refresh em segundo plano)
   try {
     const cb = (METAS_APPS_SCRIPT_URL.includes('?') ? '&' : '?') + '_cb=' + Date.now();
     const r = await fetch(METAS_APPS_SCRIPT_URL + cb, { cache: 'no-store' });
