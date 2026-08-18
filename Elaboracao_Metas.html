@@ -835,11 +835,14 @@
     padding-left: 10px;
     white-space: nowrap;
     border-right: 2px solid var(--border-strong);
-    min-width: 100px;
+    min-width: 130px;
     background: #FAFBFD;
   }
-  .metas-table td.td-r { text-align: right; width: 92px; min-width: 92px; max-width: 92px; white-space: nowrap; }
-  .metas-table td.td-c { text-align: center; }
+  .metas-table td.td-r { text-align: right; white-space: nowrap; }
+  .metas-table td.td-r.narrow { width: 85px; min-width: 85px; max-width: 85px; }
+  .metas-table td.td-r.wide { width: 105px; min-width: 105px; max-width: 105px; }
+  .metas-table td.td-r.editable { width: 110px; min-width: 110px; max-width: 110px; }
+  .metas-table td.td-c { text-align: center; width: 80px; min-width: 80px; max-width: 80px; }
 
   .num-pos { color: #00A67E; font-weight: 700; }
   .num-neg { color: #DC3545; font-weight: 700; }
@@ -855,7 +858,7 @@
 
   .editable-input {
     width: 100%;
-    min-width: 78px;
+    min-width: 90px;
     padding: 4px 5px;
     border: 1.5px solid #C7D7F9;
     border-radius: 5px;
@@ -2221,24 +2224,24 @@ function renderMetasTable(f) {
     if (isTotalBady) {
       return `<tr class="${rowClass}">
         <td class="td-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
-        <td class="td-r">${fmtGrid(prevR25)}</td>
-        <td class="td-r meta-real" id="metareal_${loja}_${prevKey}">${totalBadyPrevMeta ? fmtGrid(totalBadyPrevMeta) : '—'}</td>
+        <td class="td-r narrow">${fmtGrid(prevR25)}</td>
+        <td class="td-r narrow meta-real" id="metareal_${loja}_${prevKey}">${totalBadyPrevMeta ? fmtGrid(totalBadyPrevMeta) : '—'}</td>
         <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
-        <td class="td-r">${fmtGrid(currR25)}</td>
-        <td class="td-r">${totalBadyMeta ? fmtGrid(totalBadyMeta) : '—'}</td>
+        <td class="td-r narrow">${fmtGrid(currR25)}</td>
+        <td class="td-r wide">${totalBadyMeta ? fmtGrid(totalBadyMeta) : '—'}</td>
         <td class="td-c evol-cell" id="evolcurr_${loja}_${mesKey}">—</td>
-        <td class="td-r">${totalBadyPE ? fmtGrid(totalBadyPE) : '—'}</td>
-        <td class="td-r dif-cell" id="dif_${loja}_${mesKey}">${(totalBadyMeta && totalBadyPE) ? fmtGrid(totalBadyMeta - totalBadyPE) : '—'}</td>
+        <td class="td-r wide">${totalBadyPE ? fmtGrid(totalBadyPE) : '—'}</td>
+        <td class="td-r wide dif-cell" id="dif_${loja}_${mesKey}">${(totalBadyMeta && totalBadyPE) ? fmtGrid(totalBadyMeta - totalBadyPE) : '—'}</td>
       </tr>`;
     }
 
     return `<tr class="${rowClass}">
       <td class="td-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
-      <td class="td-r">${fmtGrid(prevR25)}</td>
-      <td class="td-r meta-real" id="metareal_${loja}_${prevKey}" title="Valor real do ano atual (não editável)">${metaPrevReal ? fmtGrid(metaPrevReal) : '—'}</td>
+      <td class="td-r narrow">${fmtGrid(prevR25)}</td>
+      <td class="td-r narrow meta-real" id="metareal_${loja}_${prevKey}" title="Valor real do ano atual (não editável)">${metaPrevReal ? fmtGrid(metaPrevReal) : '—'}</td>
       <td class="td-c evol-cell" id="evolprev_${loja}_${prevKey}">—</td>
-      <td class="td-r">${fmtGrid(currR25)}</td>
-      <td class="td-r">
+      <td class="td-r narrow">${fmtGrid(currR25)}</td>
+      <td class="td-r editable">
         <input type="text" class="editable-input" id="meta_${loja}_${mesKey}"
           value="${savedMetaCurr ? formatInput(savedMetaCurr) : ''}"
           placeholder="digitar meta"
@@ -2246,14 +2249,14 @@ function renderMetasTable(f) {
           onblur="onMetaChange('${loja}',${mesKey},'meta')">
       </td>
       <td class="td-c evol-cell" id="evolcurr_${loja}_${mesKey}">—</td>
-      <td class="td-r">
+      <td class="td-r editable">
         <input type="text" class="editable-input" id="pe_${loja}_${mesKey}"
           value="${savedPE ? formatInput(savedPE) : ''}"
           placeholder="digitar PE"
           onchange="onMetaChange('${loja}',${mesKey},'pe')"
           onblur="onMetaChange('${loja}',${mesKey},'pe')">
       </td>
-      <td class="td-r dif-cell" id="dif_${loja}_${mesKey}">—</td>
+      <td class="td-r wide dif-cell" id="dif_${loja}_${mesKey}">—</td>
     </tr>`;
   }).join('');
 
@@ -2266,14 +2269,14 @@ function renderMetasTable(f) {
 
   const consolidado = `<tr class="row-consolidado">
     <td class="td-loja" style="background:#E8EEF8">Consolidado</td>
-    <td class="td-r">${fmtGrid(totPrevR25)}</td>
-    <td class="td-r">${hasMeta ? fmtGrid(totPrevM26) : '—'}</td>
+    <td class="td-r narrow">${fmtGrid(totPrevR25)}</td>
+    <td class="td-r narrow">${hasMeta ? fmtGrid(totPrevM26) : '—'}</td>
     <td class="td-c evol-cell ${evolCls(totPrevEvol)}">${evolFmt(totPrevEvol)}</td>
-    <td class="td-r">${fmtGrid(totCurrR25)}</td>
-    <td class="td-r">${hasMeta ? fmtGrid(totCurrM26) : '—'}</td>
+    <td class="td-r narrow">${fmtGrid(totCurrR25)}</td>
+    <td class="td-r wide">${hasMeta ? fmtGrid(totCurrM26) : '—'}</td>
     <td class="td-c evol-cell ${evolCls(totCurrEvol)}">${evolFmt(totCurrEvol)}</td>
-    <td class="td-r">${hasPE ? fmtGrid(totPE) : '—'}</td>
-    <td class="td-r dif-cell ${totDif !== null ? (totDif >= 0 ? 'pos' : 'neg') : ''}">${totDif !== null ? fmtGrid(totDif) : '—'}</td>
+    <td class="td-r wide">${hasPE ? fmtGrid(totPE) : '—'}</td>
+    <td class="td-r wide dif-cell ${totDif !== null ? (totDif >= 0 ? 'pos' : 'neg') : ''}">${totDif !== null ? fmtGrid(totDif) : '—'}</td>
   </tr>`;
 
   tbody.innerHTML = consolidado + rows;
