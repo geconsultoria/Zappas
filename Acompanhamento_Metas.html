@@ -598,15 +598,17 @@ a.side-brand:hover { opacity:.85; }
   border-radius: var(--r);
   border: 1px solid var(--border);
   box-shadow: var(--sh);
+  overflow: hidden;
   margin-bottom: 24px;
+  position: sticky;
+  top: var(--tbl-card-top, 0px);
+  z-index: 20;
 }
 .tbl-head {
   padding: 14px 20px;
   background: var(--surface2);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between;
-  border-radius: var(--r) var(--r) 0 0;
-  overflow: hidden;
 }
 .tbl-head-title { font-size: 14px; font-weight: 700; }
 .tbl-head-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
@@ -616,7 +618,10 @@ a.side-brand:hover { opacity:.85; }
   background: var(--blue-lt); color: var(--blue);
   white-space: nowrap;
 }
-.tbl-scroll { overflow-x: hidden; }
+.tbl-scroll {
+  overflow: auto;
+  max-height: 70vh;
+}
 
 /* ─── TABLE STYLES ─── */
 table {
@@ -625,6 +630,12 @@ table {
   border-spacing: 0;
   font-size: 10px;
   table-layout: fixed;
+}
+
+thead {
+  position: sticky;
+  top: 0;
+  z-index: 15;
 }
 
 /* Group header row */
@@ -636,9 +647,6 @@ table {
   text-transform: uppercase; letter-spacing: .4px;
   white-space: nowrap;
   border-right: 1px solid rgba(255,255,255,.25);
-  position: sticky;
-  top: var(--tbl-stick-1, 0px);
-  z-index: 12;
 }
 .tr-grp th:last-child { border-right: none; }
 .grp-aa    { background: #2B3F6B; color: #fff; }
@@ -657,9 +665,6 @@ table {
   border-bottom: 2px solid var(--border-hi);
   border-right: 1px solid var(--border);
   white-space: nowrap;
-  position: sticky;
-  top: var(--tbl-stick-2, 0px);
-  z-index: 11;
   box-shadow: 0 2px 3px rgba(12,24,48,.08);
 }
 .tr-sub th.tl { text-align: left; }
@@ -703,21 +708,19 @@ td.dash { color: var(--muted); }
 /* Footer/summary rows */
 .tr-media { background: #EFF5FF; }
 .tr-media td { border-top: 2px solid var(--blue-mid); }
-tfoot tr:last-child td:first-child { border-radius: 0 0 0 var(--r); }
-tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 .tr-media td {
   font-weight: 600; color: var(--blue);
   font-size: 9.5px;
 }
-.tr-total {
-  background: var(--navy);
-  border-top: 2px solid #3D5098;
-}
+.tr-total { background: var(--navy); }
+.tr-total td { border-top: 2px solid #3D5098; }
 .tr-total td {
   color: #fff !important;
   font-weight: 600;
   font-size: 9.5px;
 }
+tfoot tr:last-child td:first-child { border-radius: 0 0 0 var(--r); }
+tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 
 /* ─── LOADING / ERROR ─── */
 .loading-box {
@@ -2156,7 +2159,7 @@ function renderDashboard(f) {
   </table>`;
 
   document.getElementById('tblScroll').innerHTML = tblH;
-  updateStickyOffsets();
+  updateTblCardStickyTop();
 
   buildChartAcum(anoA, anoAnt, mes, loja, dias, metaDia, dailyCurrent, dailyPrev, isThisMon, today);
   buildChartAnual(anoA, anoAnt, loja);
@@ -2759,46 +2762,33 @@ async function enviarResumoDiarioImagem(btnEl) {
   }
 }
 
-/* ═══════════════ CABEÇALHO FIXO DO GRIDE (Abertura Diária) ═══════════════
+/* ═══════════════ CABEÇALHO FIXO DO CARTÃO DA TABELA ═══════════════
    Calcula, em pixels reais, a altura do header (.hdr) + barra de filtros
-   (#sub-filter-bar) que já ficam fixos no topo da página, e usa isso como
-   offset para "colar" as duas linhas de título do gride (grupo + colunas)
-   logo abaixo deles ao rolar a tela. Assim o usuário sempre vê a que coluna
-   (ANO ANTERIOR, ANO ATUAL, DESVIOS META × REALIZADO, TÍQUETE MÉDIO,
-   BAIXAS...) cada dado pertence. */
-function updateStickyOffsets() {
+   (#sub-filter-bar) fixos no topo da página, soma uma pequena folga, e usa
+   isso como offset para o cartão "Abertura Diária do Mês" (título + grid)
+   grudar logo abaixo deles ao rolar a tela — sem cortar nem sobrepor nada. */
+function updateTblCardStickyTop() {
   const hdr    = document.querySelector('.hdr');
   const subBar = document.getElementById('sub-filter-bar');
-  const grpRow = document.querySelector('#tblScroll .tr-grp');
-
   const hdrH = hdr    ? hdr.offsetHeight    : 0;
   const subH = subBar ? subBar.offsetHeight : 0;
-  const grpH = grpRow ? grpRow.offsetHeight : 0;
-
-  const stick1 = hdrH + subH;        // onde a linha de grupos gruda
-  const stick2 = stick1 + grpH;      // onde a linha de colunas gruda (logo abaixo)
-
-  document.documentElement.style.setProperty('--tbl-stick-1', stick1 + 'px');
-  document.documentElement.style.setProperty('--tbl-stick-2', stick2 + 'px');
+  const gap  = 14; // folga entre a barra de filtros e o cartão
+  document.documentElement.style.setProperty('--tbl-card-top', (hdrH + subH + gap) + 'px');
 }
 
-// Recalcula se a janela for redimensionada (ex.: a barra de filtros pode
-// quebrar linha em telas menores e mudar de altura).
-let _stickyResizeT;
+let _tblCardResizeT;
 window.addEventListener('resize', () => {
-  clearTimeout(_stickyResizeT);
-  _stickyResizeT = setTimeout(updateStickyOffsets, 120);
+  clearTimeout(_tblCardResizeT);
+  _tblCardResizeT = setTimeout(updateTblCardStickyTop, 120);
 });
 
-// Recalcula também se o header ou a barra de filtros mudarem de tamanho
-// por qualquer outro motivo (abrir/fechar sidebar, filtros dinâmicos etc).
 if (window.ResizeObserver) {
-  const ro = new ResizeObserver(() => updateStickyOffsets());
+  const _roTblCard = new ResizeObserver(() => updateTblCardStickyTop());
   window.addEventListener('DOMContentLoaded', () => {
     const hdr    = document.querySelector('.hdr');
     const subBar = document.getElementById('sub-filter-bar');
-    if (hdr)    ro.observe(hdr);
-    if (subBar) ro.observe(subBar);
+    if (hdr)    _roTblCard.observe(hdr);
+    if (subBar) _roTblCard.observe(subBar);
   });
 }
 
