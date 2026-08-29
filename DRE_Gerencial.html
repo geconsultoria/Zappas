@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DRE Gerencial — Dashboard Executivo</title>
+<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -1080,7 +1080,7 @@ tr.is-open .expand-hint { display: none; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DRE Gerencial
+          DFC Fluxo de Caixa
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1097,6 +1097,10 @@ tr.is-open .expand-hint { display: none; }
         <a href="Banco_Declaracao.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
           Banco
+        </a>
+        <a href="Reembolso.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4 4-4"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-7a4 4 0 00-4-4H5"/></svg>
+          Reembolso
         </a>
       </div>
     </div>
@@ -1127,7 +1131,7 @@ tr.is-open .expand-hint { display: none; }
 <!-- LOADING -->
 <div id="overlay">
   <div class="loader-ring"></div>
-  <div class="loader-text">DRE Gerencial</div>
+  <div class="loader-text">DFC Fluxo de Caixa</div>
   <div class="loader-sub" id="loaderMsg">Carregando dados…</div>
 </div>
 
@@ -1143,15 +1147,9 @@ tr.is-open .expand-hint { display: none; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">DRE Gerencial</div>
+      <div class="logo-text">DFC Fluxo de Caixa</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
-  </div>
-  <div class="header-divider"></div>
-  <div class="header-meta">
-    <div class="meta-item">Período: <strong id="hdrPeriodo">—</strong></div>
-    <div class="meta-item">Lojas: <strong id="hdrLojas">—</strong></div>
-    <div class="meta-item">Total: <strong id="hdrTotal">—</strong></div>
   </div>
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
@@ -1276,11 +1274,11 @@ tr.is-open .expand-hint { display: none; }
   </div>
 
   <!-- DRE TABLE -->
-  <div class="section-head"><span class="section-title">DRE — Demonstrativo de Resultados</span><div class="section-line"></div></div>
+  <div class="section-head"><span class="section-title">DFC — Demonstração do Fluxo de Caixa</span><div class="section-line"></div></div>
   <div class="dre-card" style="margin-bottom:28px">
     <div class="dre-card-header">
       <div>
-        <div class="dre-card-title">DRE — Demonstração do Resultado do Exercício</div>
+        <div class="dre-card-title">DFC - Demonstração do Fluxo de Caixa</div>
         <div class="dre-card-sub" id="dreSubtitle">Valores em R$ · Clique em cada linha para expandir os detalhes</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
@@ -2114,6 +2112,13 @@ function populateFilters(){
   sel('fAno',anos,a=>String(a),'Todos os Anos');
   sel('fMes',meses,m=>MES_FULL[m]||m,'Todos os Meses');
   sel('fLoja',lojas,l=>l,'Todas as Lojas');
+
+  // Filtro padrão: Ano e Mês atuais (quando ainda não há seleção do usuário
+  // e existem dados para o período atual).
+  const hoje=new Date(), anoAtual=hoje.getFullYear(), mesAtual=hoje.getMonth()+1;
+  const fAnoEl=document.getElementById('fAno'), fMesEl=document.getElementById('fMes');
+  if(!fAnoEl.value && anos.includes(anoAtual)) fAnoEl.value=String(anoAtual);
+  if(!fMesEl.value && meses.includes(mesAtual)) fMesEl.value=String(mesAtual);
 }
 
 function applyFilters(){
@@ -2155,29 +2160,11 @@ function render(){
 function groupBy(arr,key){ return arr.reduce((a,r)=>{const k=r[key]??'N/A';a[k]=(a[k]||0)+r.valor;return a;},{}); }
 function sumVal(arr){ return arr.reduce((s,r)=>s+r.valor,0); }
 
-/* ─── Header meta ─── */
-function renderHeader(){
-  const total=sumVal(filtered);
-  const anoFiltro=document.getElementById('fAno').value;
-  const anos=uniq(filtered.map(r=>r.ano).filter(Boolean),true);
-  const anoAtual=new Date().getFullYear();
-  let periodo;
-  if(anoFiltro){
-    /* Ano específico selecionado no filtro */
-    periodo=String(anoFiltro);
-  } else if(anos.length===1){
-    periodo=String(anos[0]);
-  } else if(anos.length>1){
-    periodo=`${anos[0]}–${anos[anos.length-1]}`;
-  } else {
-    /* Sem dados — mostra ano atual */
-    periodo=String(anoAtual);
-  }
-  const lojas=uniq(filtered.map(r=>r.loja));
-  document.getElementById('hdrPeriodo').textContent=periodo;
-  document.getElementById('hdrLojas').textContent=lojas.length;
-  document.getElementById('hdrTotal').textContent=fmtShort(total);
-}
+/* ─── Header meta ───
+   Removido a pedido: os campos Período / Lojas / Total não são mais
+   exibidos no cabeçalho. Função mantida como no-op para não quebrar a
+   chamada em render(). */
+function renderHeader(){}
 
 /* ─── KPI helpers ─── */
 function getSlugTotal(slug){

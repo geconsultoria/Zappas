@@ -406,7 +406,7 @@ a.side-brand:hover { opacity:.85; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DRE Gerencial
+          DFC Fluxo de Caixa
         </a>
         <a href="Contas_a_Pagar.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -423,6 +423,10 @@ a.side-brand:hover { opacity:.85; }
         <a href="Banco_Declaracao.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
           Banco
+        </a>
+        <a href="Reembolso.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4 4-4"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-7a4 4 0 00-4-4H5"/></svg>
+          Reembolso
         </a>
       </div>
     </div>
@@ -553,7 +557,7 @@ function fBRL(v){ return (v||0).toLocaleString('pt-BR', {style:'currency', curre
 function fN(v){ return (v||0).toLocaleString('pt-BR'); }
 
 function findCol(headers, ...names){
-  const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[\s_\-]+/g,'');
+  const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
   const wanted = names.map(norm);
   return headers.findIndex(h => wanted.includes(norm(h)));
 }
@@ -832,7 +836,9 @@ window.addEventListener('storage', (e) => {
 function lojaLabel(l){ return l==='BELVEDER' ? 'BELVEDERE' : l; }
 
 function populateFilters(){
-  const anos = [...new Set(rawData.map(r=>r.ano))].filter(Boolean).sort();
+  const anoAtual = new Date().getFullYear();
+  const anoMin = anoAtual - 15, anoMax = anoAtual + 5; // faixa plausível — filtra erro de digitação tipo "8023"
+  const anos = [...new Set(rawData.map(r=>r.ano))].filter(a => a && a>=anoMin && a<=anoMax).sort((a,b)=>a-b);
   const lojas = [...new Set(rawData.map(r=>r.loja))].filter(Boolean).sort();
   const curAno = $('f-ano').value;
   const curLoja = $('f-loja').value;
