@@ -1076,7 +1076,9 @@ const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 // Quebras/Baixas: vem da planilha de Recebidos (mesmo backend, mesmo
 // padrão usado no DRE_Gerencial.html), somando a coluna "conta" (valor)
 // das linhas cujo "nomepgto" é "X BAIXAS E QUEBRAS" ou "BAIXAS E QUEBRAS".
-// Só tem granularidade de mês (não de dia).
+// A planilha de Recebidos agora também traz a coluna "dtentrada" com a
+// data diária do lançamento, permitindo granularidade por dia (além do
+// total por mês, usado como fallback quando não há dtentrada).
 const RECBIDOS_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=recebidos&loja=${k}`);
 const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
 
@@ -1109,12 +1111,12 @@ function openDB() {
     req.onerror   = () => reject(req.error);
   });
 }
-async function saveCache(data, ts, rawTs, metas, quebras) {
+async function saveCache(data, ts, rawTs, metas, quebras, quebrasDia) {
   try {
     const db = await openDB();
     await new Promise((resolve, reject) => {
       const tx = db.transaction(DB_STORE, 'readwrite');
-      tx.objectStore(DB_STORE).put({ data, ts, rawTs, metas, quebras }, DB_KEY);
+      tx.objectStore(DB_STORE).put({ data, ts, rawTs, metas, quebras, quebrasDia }, DB_KEY);
       tx.oncomplete = resolve;
       tx.onerror    = () => reject(tx.error);
     });
@@ -1261,11 +1263,31 @@ function parseAnoRec(v){
   return null;
 }
 
-// quebrasMap[loja][ano][mes] = valor acumulado
+// Converte uma data em texto (dtentrada) em {ano, mes, dia}. Aceita
+// DD/MM/AAAA, AAAA-MM-DD e formatos que o Date() do JS reconheça.
+function parseDtEntrada(s) {
+  if (s === null || s === undefined) return null;
+  const str = String(s).trim();
+  if (!str) return null;
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return { ano: +m[3], mes: +m[2], dia: +m[1] };
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return { ano: +m[1], mes: +m[2], dia: +m[3] };
+  const d = new Date(str);
+  if (!isNaN(d)) return { ano: d.getFullYear(), mes: d.getMonth() + 1, dia: d.getDate() };
+  return null;
+}
+
+// quebrasMap[loja][ano][mes] = valor acumulado (granularidade de mês,
+// vinda da coluna mes/competência — usada como fallback).
 let quebrasMap = {};
+// quebrasMapDia[loja][ano][mes][dia] = valor daquele dia específico,
+// vindo da coluna "dtentrada" (granularidade diária real).
+let quebrasMapDia = {};
 
 async function loadQuebrasMap() {
   const map = {};
+  const mapDia = {};
   const cacheBust = '&_cb=' + Date.now();
   await Promise.all(RECBIDOS_URLS.map(async (url, idx) => {
     const lojaFallback = STORE_KEYS[idx].toUpperCase();
@@ -1280,6 +1302,7 @@ async function loadQuebrasMap() {
       const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
+      const cDtEntrada = headers.find(h => h === 'dtentrada' || h === 'dt_entrada' || h === 'data_entrada') || null;
       if (!cNome || !cConta) {
         console.warn('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
         return;
@@ -1293,16 +1316,27 @@ async function loadQuebrasMap() {
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
         const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : (parseAnoRec(mesRaw) || new Date().getFullYear());
-        if (!mes || !ano) return;
-        map[loja] = map[loja] || {};
-        map[loja][ano] = map[loja][ano] || {};
-        map[loja][ano][mes] = (map[loja][ano][mes] || 0) + valor;
+        if (mes && ano) {
+          map[loja] = map[loja] || {};
+          map[loja][ano] = map[loja][ano] || {};
+          map[loja][ano][mes] = (map[loja][ano][mes] || 0) + valor;
+        }
+        // Granularidade diária, a partir de "dtentrada".
+        if (cDtEntrada) {
+          const dt = parseDtEntrada(r[cDtEntrada]);
+          if (dt && dt.ano && dt.mes && dt.dia) {
+            mapDia[loja] = mapDia[loja] || {};
+            mapDia[loja][dt.ano] = mapDia[loja][dt.ano] || {};
+            mapDia[loja][dt.ano][dt.mes] = mapDia[loja][dt.ano][dt.mes] || {};
+            mapDia[loja][dt.ano][dt.mes][dt.dia] = (mapDia[loja][dt.ano][dt.mes][dt.dia] || 0) + valor;
+          }
+        }
       });
     } catch(e) {
       console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
     }
   }));
-  return map;
+  return { mensal: map, diario: mapDia };
 }
 
 function getQuebrasTotal(ano, mes, loja) {
@@ -1313,6 +1347,28 @@ function getQuebrasTotal(ano, mes, loja) {
   const lojas = loja ? [loja] : Object.keys(quebrasMap);
   lojas.forEach(lj => { total += (quebrasMap[lj]?.[ano]?.[mes]) || 0; });
   return total;
+}
+
+// Retorna a baixa/quebra do dia específico (dia individual), somando entre
+// lojas quando "loja" não é informado. Vem da coluna "dtentrada".
+function getQuebrasDia(ano, mes, dia, loja) {
+  if (!ano || !mes || !dia) return 0;
+  let total = 0;
+  const lojas = loja ? [loja] : Object.keys(quebrasMapDia);
+  lojas.forEach(lj => { total += (quebrasMapDia[lj]?.[ano]?.[mes]?.[dia]) || 0; });
+  return total;
+}
+
+// Indica se há dados diários reais de baixas (dtentrada) para o
+// mês/loja selecionados — usado para decidir entre valor real por dia
+// ou distribuição uniforme (fallback para meses sem dtentrada).
+function hasDailyQuebrasData(ano, mes, loja) {
+  if (!ano || !mes) return false;
+  const lojas = loja ? [loja] : Object.keys(quebrasMapDia);
+  return lojas.some(lj => {
+    const diasObj = quebrasMapDia[lj]?.[ano]?.[mes];
+    return diasObj && Object.keys(diasObj).length > 0;
+  });
 }
 
 function transform(rows, headers) {
@@ -1419,8 +1475,9 @@ async function loadData(forceRefresh = false, silent = false) {
 
       // Quebras (Recebidos) muda com frequência — sempre busca fresco;
       // só cai pro cache salvo se a busca falhar.
-      quebrasMap = (cached.quebras && typeof cached.quebras === 'object') ? cached.quebras : {};
-      loadQuebrasMap().then(m => { quebrasMap = m; applyFilters(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
+      quebrasMap    = (cached.quebras    && typeof cached.quebras    === 'object') ? cached.quebras    : {};
+      quebrasMapDia = (cached.quebrasDia && typeof cached.quebrasDia === 'object') ? cached.quebrasDia : {};
+      loadQuebrasMap().then(m => { quebrasMap = m.mensal; quebrasMapDia = m.diario; applyFilters(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
 
       if (Array.isArray(cached.metas)) {
         // Metas já vieram salvas junto com o cache — não precisa buscar de novo.
@@ -1442,7 +1499,7 @@ async function loadData(forceRefresh = false, silent = false) {
   try {
     const cacheBust = '&_cb=' + Date.now();
     const metasPromise = loadMetasData(); // roda em paralelo, é leve e é outro script
-    const quebrasPromise = loadQuebrasMap().catch(e => { console.warn('Quebras (Recebidos) indisponível:', e.message); return {}; });
+    const quebrasPromise = loadQuebrasMap().catch(e => { console.warn('Quebras (Recebidos) indisponível:', e.message); return { mensal: {}, diario: {} }; });
 
     let headers = [];
     let allRows = [];
@@ -1487,7 +1544,9 @@ async function loadData(forceRefresh = false, silent = false) {
     }
 
     await metasPromise;
-    quebrasMap = await quebrasPromise;
+    const quebrasResult = await quebrasPromise;
+    quebrasMap    = quebrasResult.mensal  || {};
+    quebrasMapDia = quebrasResult.diario  || {};
     rawData = transform(allRows, headers);
     if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
     const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
@@ -1498,7 +1557,7 @@ async function loadData(forceRefresh = false, silent = false) {
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
     document.getElementById('lastUpd').textContent = ts +
       (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
-    saveCache(rawData, ts, now.getTime(), metasData, quebrasMap);
+    saveCache(rawData, ts, now.getTime(), metasData, quebrasMap, quebrasMapDia);
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
@@ -1736,7 +1795,7 @@ function query(ano, mes, loja, field) {
 }
 
 function dayQuery(ano, mes, loja, day, field) {
-  if (field === 'quebras') return 0; // Recebidos não tem granularidade diária
+  if (field === 'quebras') return getQuebrasDia(ano, mes, day, loja); // valor real do dia, via dtentrada
   return rawData
     .filter(d =>
       (!ano  || d.ano  === ano)  &&
@@ -1927,6 +1986,9 @@ function renderDashboard(f) {
 
   const dailyCurrent = hasDailyData(anoA, mes, loja);
   const dailyPrev    = hasDailyData(anoAnt, mes, loja);
+  // Baixas/quebras agora têm data individual (dtentrada) — usa o valor
+  // real por dia quando disponível; senão cai na distribuição uniforme.
+  const dailyQuebrasCurrent = hasDailyQuebrasData(anoA, mes, loja);
 
   const today = new Date();
   const isThisMon = (anoA === today.getFullYear() && mes === today.getMonth() + 1);
@@ -1960,7 +2022,7 @@ function renderDashboard(f) {
     <div class="tbl-head">
       <div>
         <div class="tbl-head-title">Abertura Diária do Mês</div>
-        <div class="tbl-head-sub">${dailyCurrent ? 'Dados reais extraídos do arquivo diário' : 'Valores distribuídos uniformemente pelos ' + dias + ' dias do mês'}</div>
+        <div class="tbl-head-sub">${dailyCurrent ? 'Dados reais extraídos do arquivo diário' : 'Valores distribuídos uniformemente pelos ' + dias + ' dias do mês'}${dailyQuebrasCurrent ? ' · Baixas com data individual (dtentrada)' : ''}</div>
       </div>
       <span class="tbl-badge">${mesLbl} ${anoA} · ${dias} dias · Meta/dia: ${metaMes > 0 ? R(metaDia) : '—'}</span>
     </div>
@@ -1978,7 +2040,7 @@ function renderDashboard(f) {
     const cAn  = dailyPrev ? dayQuery(anoAnt, mes, loja, d, 'cupons') : cDiaAnt;
     const tk   = c    > 0 && v    ? v / c    : (dailyCurrent ? dayQuery(anoA, mes, loja, d, 'ticket')  : tktDia);
     const tkAn = cAn  > 0 && vAn  ? vAn / cAn: (dailyPrev    ? dayQuery(anoAnt, mes, loja, d, 'ticket'): tktDiaAnt);
-    const q    = isFuture ? null : qDia; // Recebidos só tem total do mês — distribui uniformemente pelos dias
+    const q    = isFuture ? null : (dailyQuebrasCurrent ? dayQuery(anoA, mes, loja, d, 'quebras') : qDia);
 
     acumAnt  += (vAn  || 0);
     acumMeta += metaDia;
