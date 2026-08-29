@@ -908,17 +908,26 @@ function cleanRows(raw){
     const mesInfo = normalizeMonth(norm.MES);
     const canalRaw = pickNorm(norm, ["CANAL","CANAIS"]).trim();
     const total = parseMoney(pickNorm(norm, ["TOTAL","TOTALVENDA","VENDA","FATURAMENTO"]));
+    // Coluna "VS" (True/False) adicionada na planilha: para o canal
+    // DISTRIBUICAO, só devem entrar nas análises as linhas onde VS = False.
+    const vsRaw = pickNorm(norm, ["VS"]).trim();
+    const vs = /^(true|verdadeiro|1|sim)$/i.test(vsRaw);
     return {
       ano: ano,
       lojaRaw: lojaRaw,
       lojaKey: normalizeLojaKey(lojaRaw),
       canal: canalRaw.toUpperCase(),
+      vs: vs,
       mesIndex: mesInfo ? mesInfo.index : null,
       semana: (norm.SEMANA || "").trim(),
       semana2: (norm.SEMANA2 || "").trim(),
       total: total
     };
-  }).filter(function(r){ return r.lojaRaw && r.ano && r.mesIndex !== null; });
+  }).filter(function(r){
+    // Regra VS: quando Canal = DISTRIBUICAO, só entra se VS for False.
+    if (r.canal === "DISTRIBUICAO" && r.vs) return false;
+    return r.lojaRaw && r.ano && r.mesIndex !== null;
+  });
 }
 
 /* ---------------------------------------------------------------------

@@ -866,6 +866,7 @@ async function loadData(forceRefresh, silent = false) {
       const colFatMes    = findCol(fatHeaders, ['mes','m_s','month','mês','mes_','periodo']);
       const colFatVenda  = findCol(fatHeaders, ['total_venda','totalvenda','venda','vendas','faturamento','receita','total','valor_venda','vlr_venda','fat']);
       const colFatCanal  = findCol(fatHeaders, ['canais','canal','channel','canal_venda','canal_distribuicao','categoria']);
+      const colFatVs     = findCol(fatHeaders, ['vs']);
 
       debugLog.push(`Arquivo ${i+1}: ${fatRows.length} linhas — venda:<strong>${colFatVenda||'não encontrado'}</strong> canal:<strong>${colFatCanal||'não encontrado'}</strong>`);
 
@@ -879,8 +880,11 @@ async function loadData(forceRefresh, silent = false) {
         loja:        colFatLoja  ? String(r[colFatLoja]||'').trim().toUpperCase() : 'SEM LOJA',
         mes:         colFatMes   ? parseMes(r[colFatMes])                         : 0,
         canal:       colFatCanal ? String(r[colFatCanal]||'').trim().replace(/^["']|["']$/g, '') : '',
+        vs:          colFatVs    ? /^(true|verdadeiro|1|sim)$/i.test(String(r[colFatVs]||'').trim()) : false,
         total_venda: parseNum(r[colFatVenda])
-      })).filter(r => r.total_venda !== 0 || (r.ano && r.loja));
+      })).filter(r => r.total_venda !== 0 || (r.ano && r.loja))
+        // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
+        .filter(r => !(String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO' && r.vs));
 
       rawFat.push(...parsed);
     }

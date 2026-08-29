@@ -1119,7 +1119,13 @@ function parseCSV(text) {
       semana2: String(obj.semana2||'').trim(),
       fat:    fatVal,
       cupons: cuponsVal,
+      // Coluna "VS" (True/False) adicionada na planilha.
+      vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
     };
+    // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
+    const canalNormVs = String(row.canal||'').trim().toUpperCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    if(canalNormVs==='DISTRIBUICAO' && row.vs) continue;
     rows.push(row);
   }
   return rows;

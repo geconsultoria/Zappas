@@ -1358,8 +1358,12 @@ function parseCSV(text) {
       // daqui — é buscada à parte na planilha de Recebidos (ver quebrasMap).
       ticket: obj.ticket!==undefined ? toNum(obj.ticket) : (cuponsVal? fatVal/cuponsVal : 0),
       quebras:toNum(obj.quebras),
+      // Coluna "VS" (True/False) adicionada na planilha.
+      vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
     };
     if(!row.ano||!row.loja) continue;
+    // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
+    if(normTxt(row.canal)==='distribuicao' && row.vs) continue;
     rows.push(row);
   }
   return rows;

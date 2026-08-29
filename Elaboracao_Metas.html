@@ -1328,6 +1328,7 @@ function transformFaturamento(rows, headers) {
     throw new Error(`Colunas obrigatórias não encontradas. Encontradas: [${headers.join(', ')}]. Necessárias: ANO, LOJA, MES, Total_Venda`);
   }
   const colCanal = findCol(['canais','canal','channel']);
+  const colVs = findCol(['vs']);
   const result = [];
   for (const row of rows) {
     const ano = parseInt(row[colAno]);
@@ -1336,6 +1337,11 @@ function transformFaturamento(rows, headers) {
     const venda = parseNumber(row[colVenda]);
     const canal = colCanal ? (row[colCanal] || '').trim().replace(/^["']|["']$/g, '') : '';
     if (!ano || !loja || !mes || venda === null) continue;
+    // Coluna "VS" (True/False) adicionada na planilha: para o canal
+    // DISTRIBUICAO, só devem entrar nas análises as linhas onde VS = False.
+    const canalNormVs = canal.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
+    const vs = colVs ? /^(true|verdadeiro|1|sim)$/i.test((row[colVs] || '').trim()) : false;
+    if (canalNormVs === 'DISTRIBUICAO' && vs) continue;
     result.push({ ano, loja, mes, venda, canal });
   }
   return result;

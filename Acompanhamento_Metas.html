@@ -1326,6 +1326,7 @@ function transform(rows, headers) {
   const cQuebra = find(['quebras','baixas','quebra']);
   const cCanal  = find(['canais','canal','channel']);
   const cData   = find(['data', 'dt', 'data_venda', 'dt_venda', 'dia']);
+  const cVs     = find(['vs']);
 
   if (!cAno || !cLoja || !cMes || !cVenda)
     throw new Error('Colunas obrigatórias não encontradas. Detectadas: [' + headers.join(', ') + ']. Necessárias: ANO, LOJA, MÊS, Total_Venda');
@@ -1378,9 +1379,15 @@ function transform(rows, headers) {
       }
     }
 
+    const canalVal = cCanal ? (row[cCanal] || '').trim().replace(/^["']|["']$/g, '') : '';
+    // Coluna "VS" (True/False) adicionada na planilha: para o canal
+    // DISTRIBUICAO, só devem entrar nas análises as linhas onde VS = False.
+    const vsVal = cVs ? /^(true|verdadeiro|1|sim)$/i.test(String(row[cVs]||'').trim()) : false;
+    if (normTxt(canalVal) === 'distribuicao' && vsVal) continue;
+
     result.push({
       ano, loja, mes, dia,
-      canal:   cCanal ? (row[cCanal] || '').trim().replace(/^["']|["']$/g, '') : '',
+      canal:   canalVal,
       venda:   Number(venda),
       cupons:  parseNum(row[cCupons])  || 0,
       ticket:  parseNum(row[cTicket])  || 0,
