@@ -279,6 +279,15 @@ body {
   flex: 1; height: 1px;
   background: var(--border);
 }
+.section-period {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--ink-4);
+  background: var(--bg-2);
+  padding: 3px 10px;
+  border-radius: 20px;
+  white-space: nowrap;
+}
 
 /* ══════════════════════════════════════════════════════
    KPI CARDS
@@ -1297,7 +1306,7 @@ tr.is-open .expand-hint { display: none; }
   </div>
 
   <!-- LOJAS -->
-  <div class="section-head"><span class="section-title">Performance por Loja</span><div class="section-line"></div></div>
+  <div class="section-head"><span class="section-title">Performance por Loja</span><div class="section-line"></div><span class="section-period" id="lojaPeriodo">—</span></div>
   <div class="loja-grid" id="lojaGrid"></div>
 
   <!-- COMPARATIVO MENSAL -->
@@ -1874,7 +1883,7 @@ function parseContasPagar(text, planoMap, lojaFallback){
     }
     if(!loja) continue;
 
-    rows.push({ mes, ano, loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl });
+    rows.push({ mes, ano, loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo });
   }
   return { rows, naoMapeados };
 }
@@ -2787,6 +2796,33 @@ function renderLojas(){
   const maxVal=sorted[0]?.[1]||1;
   const total=sumVal(filtered);
   const grid=document.getElementById('lojaGrid');
+
+  // Período que compõe a soma exibida em cada card (respeita os filtros
+  // de Ano/Mês selecionados; se "Todos", mostra a faixa real dos dados).
+  const periodoEl=document.getElementById('lojaPeriodo');
+  if(periodoEl){
+    const anoFiltro=document.getElementById('fAno').value;
+    const mesFiltro=document.getElementById('fMes').value;
+    const anosPresentes=uniq(filtered.map(r=>r.ano).filter(Boolean),true);
+    let periodo;
+    if(anoFiltro && mesFiltro){
+      periodo=`${MES_FULL[+mesFiltro]} de ${anoFiltro}`;
+    } else if(anoFiltro){
+      periodo=String(anoFiltro);
+    } else if(mesFiltro){
+      periodo=anosPresentes.length===1
+        ? `${MES_FULL[+mesFiltro]} de ${anosPresentes[0]}`
+        : `${MES_FULL[+mesFiltro]} (${anosPresentes.length? anosPresentes[0]+'–'+anosPresentes[anosPresentes.length-1]:'—'})`;
+    } else if(anosPresentes.length===1){
+      periodo=String(anosPresentes[0]);
+    } else if(anosPresentes.length>1){
+      periodo=`${anosPresentes[0]}–${anosPresentes[anosPresentes.length-1]}`;
+    } else {
+      periodo='—';
+    }
+    periodoEl.textContent='Período: '+periodo;
+  }
+
   if(!sorted.length){
     grid.innerHTML='<div style="color:var(--ink-4);font-size:13px;padding:32px 0">Nenhuma loja encontrada.</div>';
     return;
@@ -2983,6 +3019,26 @@ function renderComparativoMensal() {
 /* ══════════════════════════════════════════════════════════════
    BREAK-EVEN POR LOJA
 ══════════════════════════════════════════════════════════════ */
+// Identifica, dentro de "Despesas Comerciais", as linhas de Comissão de
+// Terceiros / Comissão de Vendas / Taxas Cartões-Recebíveis — usadas como
+// custo VARIÁVEL no Break-Even (o restante das despesas comerciais é
+// tratado como custo FIXO). Casa pelo Cod_Grupo do Plano de Contas
+// (mais confiável que casar por nome/texto, que pode variar).
+const COD_GRUPO_COMISSAO_TERCEIROS = '2.17.02';
+const COD_GRUPO_COMISSAO_VENDAS    = '2.17.01';
+const COD_GRUPO_TAXAS_CARTAO       = '2.17.14';
+const COD_GRUPOS_COMISSOES_TAXAS = [COD_GRUPO_COMISSAO_TERCEIROS, COD_GRUPO_COMISSAO_VENDAS, COD_GRUPO_TAXAS_CARTAO];
+// Normaliza o código removendo zeros à esquerda de cada segmento (ex.:
+// "02.17.02" e "2.17.2" batem com "2.17.02"), pra não depender de
+// formatação exata vinda da planilha.
+function normCodGrupo(s){
+  return String(s||'').trim().split('.').map(p => String(parseInt(p,10)||0)).join('.');
+}
+const COD_GRUPOS_COMISSOES_TAXAS_NORM = COD_GRUPOS_COMISSOES_TAXAS.map(normCodGrupo);
+function isComissaoOuTaxaCartao(r){
+  return COD_GRUPOS_COMISSOES_TAXAS_NORM.includes(normCodGrupo(r.cod_grupo));
+}
+
 function renderBreakEven() {
   const lojas = uniq(filtered.filter(r=>slugFromGrupo(r.grupo)==='receita_operacional').map(r=>r.loja));
   if (!lojas.length) {
@@ -2994,12 +3050,20 @@ function renderBreakEven() {
     const map = {};
     uniq(rows.map(r=>r.grupo)).forEach(g=>{const s=slugFromGrupo(g);if(s){if(!map[s])map[s]=[];map[s].push(g);}});
     const v = s => rows.filter(r=>(map[s]||[]).includes(r.grupo)).reduce((a,r)=>a+r.valor,0);
-    const rec=v('receita_operacional'), cmv=v('cmv'), imp=v('impostos_vendas'),
-      comVar=v('despesas_comerciais')*0.4, // 40% variável (comissões, fretes)
-      dp=v('despesas_pessoal'), da=v('despesas_administrativas'),
-      df=v('despesas_financeiras'), pl=v('pro_labore'),
-      comFix=v('despesas_comerciais')*0.6;
-    const cv=cmv+imp+comVar, cf=dp+da+df+pl+comFix, mc=rec-cv, mcPct=rec?(mc/rec*100):0, be=mcPct?(cf/(mcPct/100)):0;
+    const rec=v('receita_operacional'), cmv=v('cmv'), imp=v('impostos_vendas');
+    const despComTotal = v('despesas_comerciais');
+    // Comissão de Terceiros (2.17.02) + Comissão de Vendas (2.17.01) + Taxas Cartões/Recebíveis (2.17.14)
+    const comissoesTaxas = rows
+      .filter(r => slugFromGrupo(r.grupo)==='despesas_comerciais' && isComissaoOuTaxaCartao(r))
+      .reduce((a,r)=>a+r.valor,0);
+    const despComRestante = despComTotal - comissoesTaxas; // resto das despesas comerciais -> custo fixo
+    const dp=v('despesas_pessoal'), da=v('despesas_administrativas'),
+      df=v('despesas_financeiras'), pl=v('pro_labore');
+    // Custos Variáveis = CMV + Impostos sobre Vendas + Comissão de Terceiros + Comissão de Vendas + Taxas Cartões/Recebíveis
+    const cv = cmv + imp + comissoesTaxas;
+    // Custos Fixos = Desp. Pessoal + Desp. Administrativas + Desp. Financeiras + Pró-labore + (Desp. Comerciais - Comissões/Taxas)
+    const cf = dp + da + df + pl + despComRestante;
+    const mc=rec-cv, mcPct=rec?(mc/rec*100):0, be=mcPct?(cf/(mcPct/100)):0;
     return {loja,rec,cv,mc,mcPct,cf,be};
   });
   data.sort((a,b)=>b.rec-a.rec);
