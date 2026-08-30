@@ -1050,6 +1050,38 @@ tr.is-open .expand-hint { display: none; }
 }
 
 
+/* ── Cartão leve de atualização em segundo plano ──
+   Usado só quando os dados são atualizados sozinhos (sem o usuário
+   clicar em nada) — o overlay de tela cheia (#overlay) acima é opaco
+   e só deve aparecer no 1º carregamento ou num clique manual. */
+.update-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,20,40,.35);
+  backdrop-filter: blur(2px);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .25s ease, visibility .25s ease;
+}
+.update-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.update-card {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, #0B1E3D 0%, #16283F 60%, #122C52 100%);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 18px 26px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.35);
+  min-width: 300px; max-width: 90vw;
+  transform: translateY(6px) scale(.98);
+  transition: transform .25s ease;
+}
+.update-overlay.show .update-card { transform: translateY(0) scale(1); }
+.update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
+.update-card-icon svg { width: 100%; height: 100%; }
+.update-card-icon.spin svg { animation: spin .8s linear infinite; }
+.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
+.update-card-sub.ok  { color: #7FCBA4; }
+.update-card-sub.err { color: #E39184; }
 </style>
 </head>
 <body>
@@ -1962,12 +1994,12 @@ function openDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-async function saveCache(data,ts){
+async function saveCache(data,ts,rawTs){
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -1982,6 +2014,18 @@ async function loadCacheDB(){
       req.onerror=()=>reject(req.error);
     });
   }catch(e){ console.warn('Cache local indisponível:',e); return null; }
+}
+
+// Detecta se a "Atualização Geral" (tela GestaoZappas) rodou depois do
+// cache local desta página — mesmo mecanismo usado nas outras 10 telas
+// do painel. Faltava aqui, por isso o DFC não se atualizava sozinho ao
+// abrir pela primeira vez após uma Atualização Geral.
+const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
+function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheRawTs || 0);
+  } catch(e) { return false; }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2082,15 +2126,39 @@ async function carregarTudo(){
   document.getElementById('mainArea').style.display='block';
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
-  saveCache(raw, ts);
+  saveCache(raw, ts, Date.now());
 }
 
-async function loadData(forceRefresh){
+function showUpdateOverlay(){
+  const ov = document.getElementById('update-overlay');
+  const icon = document.getElementById('update-card-icon');
+  const sub = document.getElementById('update-card-sub');
+  if(!ov) return;
+  icon.classList.add('spin');
+  sub.className = 'update-card-sub';
+  sub.textContent = 'Buscando as informações mais recentes, aguarde…';
+  ov.classList.add('show');
+}
+function hideUpdateOverlay(isError, msg){
+  const ov = document.getElementById('update-overlay');
+  const icon = document.getElementById('update-card-icon');
+  const sub = document.getElementById('update-card-sub');
+  if(!ov) return;
+  icon.classList.remove('spin');
+  sub.className = 'update-card-sub ' + (isError ? 'err' : 'ok');
+  sub.textContent = msg || (isError ? 'Falha ao atualizar.' : '✓ Atualizado.');
+  setTimeout(() => ov.classList.remove('show'), 1200);
+}
+
+async function loadData(forceRefresh, silent){
   const overlay=document.getElementById('overlay');
   const btn=document.getElementById('btnRefresh');
   const errBox=document.getElementById('errBox');
 
-  overlay.classList.remove('hidden');
+  // Atualização silenciosa (disparada sozinha em segundo plano) usa o
+  // cartão leve; qualquer outro caso (1º carregamento ou clique manual)
+  // usa o overlay de tela cheia original.
+  if(silent) showUpdateOverlay(); else overlay.classList.remove('hidden');
   btn.classList.add('spin');
   errBox.style.display='none';
   document.getElementById('loaderMsg').textContent='Conectando…';
@@ -2104,7 +2172,9 @@ async function loadData(forceRefresh){
         applyFilters();
         toggleFixHeader(true);
         document.getElementById('mainArea').style.display='block';
-        document.getElementById('lastUpdate').textContent=cached.ts+' (dados salvos)';
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+        document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
+        if(stale) loadData(true, true); // dado novo disponível: atualiza sozinho, em segundo plano, sem esconder a tela
         return;
       }
     }
@@ -2116,12 +2186,17 @@ async function loadData(forceRefresh){
       carregarTudo(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido ao carregar os dados (40s). Verifique sua conexão e tente novamente.')), 40000))
     ]);
+    if(silent) hideUpdateOverlay(false, '✓ Dados atualizados.');
   }catch(err){
-    document.getElementById('mainArea').style.display='block';
-    errBox.style.display='flex';
-    document.getElementById('errMsg').textContent=err.message;
+    if(silent){
+      hideUpdateOverlay(true, 'Falha ao atualizar: ' + err.message);
+    } else {
+      document.getElementById('mainArea').style.display='block';
+      errBox.style.display='flex';
+      document.getElementById('errMsg').textContent=err.message;
+    }
   }finally{
-    overlay.classList.add('hidden');
+    if(!silent) overlay.classList.add('hidden');
     btn.classList.remove('spin');
   }
 }
@@ -3217,6 +3292,13 @@ function renderRecomendacoes() {
    INIT
 ══════════════════════════════════════════════════════════════ */
 window.addEventListener('DOMContentLoaded', () => loadData());
+
+// Se outra página do painel (ex.: GestaoZappas) disparar uma
+// "Atualização Geral" enquanto esta aba já estiver aberta, esta também
+// se atualiza sozinha, em segundo plano.
+window.addEventListener('storage', (e) => {
+  if (e.key === GLOBAL_REFRESH_KEY && e.newValue) loadData(true, true);
+});
 </script>
 
 <script>
@@ -3303,6 +3385,17 @@ function collapseSidebar(){
 // igual nos demais dashboards do painel.
 if(window.innerWidth > 900) collapseSidebar();
 </script>
+<div class="update-overlay" id="update-overlay">
+  <div class="update-card">
+    <div class="update-card-icon spin" id="update-card-icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    </div>
+    <div>
+      <div class="update-card-title">Atualizando</div>
+      <div class="update-card-sub" id="update-card-sub">Buscando as informações mais recentes, aguarde…</div>
+    </div>
+  </div>
+</div>
 </body>
 
 </html>
