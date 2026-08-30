@@ -409,7 +409,41 @@ a.side-brand:hover { opacity:.85; }
   .topbar, .wrap { margin-left: 0 !important; }
   .topbar-inner { padding-left: 62px; }
 }
+
+/* ── Overlay central de atualização ──
+   Aparece sempre que os dados estão sendo buscados de novo (clique em
+   "Atualizar" ou atualização automática em segundo plano), pra deixar
+   claro que a tela está sendo atualizada sem esconder o conteúdo. */
+.update-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,20,40,.35);
+  backdrop-filter: blur(2px);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .25s ease, visibility .25s ease;
+}
+.update-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.update-card {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, #0B1E3D 0%, #16283F 60%, #122C52 100%);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 18px 26px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.35);
+  min-width: 300px; max-width: 90vw;
+  transform: translateY(6px) scale(.98);
+  transition: transform .25s ease;
+}
+.update-overlay.show .update-card { transform: translateY(0) scale(1); }
+.update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
+.update-card-icon svg { width: 100%; height: 100%; }
+.update-card-icon.spin svg { animation: spin .8s linear infinite; }
+.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
+.update-card-sub.ok  { color: #7FCBA4; }
+.update-card-sub.err { color: #E39184; }
 </style>
+
 </head>
 <body>
 
@@ -1177,9 +1211,35 @@ function updateMesOptions(reset){
 /* ---------------------------------------------------------------------
    CARREGAMENTO DE DADOS
 --------------------------------------------------------------------- */
+function showUpdateOverlay(){
+  const ov = $('update-overlay'), icon = $('update-card-icon'), sub = $('update-card-sub');
+  if(!ov) return;
+  icon.classList.add('spin');
+  sub.className = 'update-card-sub';
+  sub.textContent = 'Buscando as informações mais recentes, aguarde…';
+  ov.classList.add('show');
+}
+function hideUpdateOverlay(isError, msg){
+  const ov = $('update-overlay'), icon = $('update-card-icon'), sub = $('update-card-sub');
+  if(!ov) return;
+  icon.classList.remove('spin');
+  sub.className = 'update-card-sub ' + (isError ? 'err' : 'ok');
+  sub.textContent = msg || (isError ? 'Falha ao atualizar.' : '✓ Atualizado.');
+  setTimeout(() => ov.classList.remove('show'), 1200);
+}
 function setLoading(isLoading){
-  $("loadingOverlay").style.display = isLoading ? "flex" : "none";
-  $("dashboardContent").style.display = isLoading ? "none" : "block";
+  // No primeiro carregamento (dashboard ainda escondido) usa a tela cheia
+  // original. Em atualizações seguintes (manual ou em segundo plano), usa
+  // o cartão central leve, sem esconder o dashboard de novo — o próprio
+  // fetchData() fecha esse cartão (com sucesso ou erro) quando termina.
+  var content = $("dashboardContent");
+  var firstLoad = content.style.display !== "block";
+  if (firstLoad) {
+    $("loadingOverlay").style.display = isLoading ? "flex" : "none";
+    if (!isLoading) content.style.display = "block";
+  } else if (isLoading) {
+    showUpdateOverlay();
+  }
   $("btnRefresh").disabled = isLoading;
 }
 function showError(message){
@@ -1257,6 +1317,7 @@ async function fetchData(forceRefresh, silent){
       (lojasComFalha.length ? " ⚠️ Sem dados de: " + lojasComFalha.join(", ") : "");
     $("lastSync").textContent = "Última atualização: " + ts;
     saveCache(rows, ts, tsDate.getTime());
+    if ($("dashboardContent").style.display === "block") hideUpdateOverlay(false, '✓ Dados atualizados.');
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
     // página avisando a outra em cadeia forçava recarregar tudo
@@ -1264,6 +1325,7 @@ async function fetchData(forceRefresh, silent){
   } catch (err) {
     var msg = err && err.message ? err.message : "";
     if (err && err.name === "AbortError") msg = "Tempo limite excedido (20s).";
+    if ($("dashboardContent").style.display === "block") hideUpdateOverlay(true, 'Falha ao atualizar: ' + msg);
     if (silent) {
       var el = $("lastSync");
       el.textContent = el.textContent.replace(" — atualizando…", " — falha ao atualizar, tente novamente mais tarde");
@@ -1585,5 +1647,17 @@ function collapseSidebar(){
 // igual nos demais dashboards do painel.
 if(window.innerWidth > 900) collapseSidebar();
 </script>
+<div class="update-overlay" id="update-overlay">
+  <div class="update-card">
+    <div class="update-card-icon spin" id="update-card-icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    </div>
+    <div>
+      <div class="update-card-title">Atualizando</div>
+      <div class="update-card-sub" id="update-card-sub">Buscando as informações mais recentes, aguarde…</div>
+    </div>
+  </div>
+</div>
 </body>
+
 </html>
