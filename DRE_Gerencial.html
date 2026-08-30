@@ -2969,10 +2969,11 @@ function renderComparativoMensal() {
   }
 
   /* Determina o par (atual, anterior) com base nos filtros */
-  let uP, aP;
+  let uP, aP, avisoMesAberto = false;
 
-  if (fMesVal && fAnoVal) {
-    /* Filtro completo: mês + ano selecionados → compara com mês imediatamente anterior */
+  if (fMesVal && fAnoVal && (parseInt(fAnoVal) !== anoCorrente || parseInt(fMesVal) !== mesCorrente)) {
+    /* Filtro completo: mês + ano selecionados (e não é o mês corrente,
+       ainda em aberto) → compara com o mês imediatamente anterior */
     const mesSel = parseInt(fMesVal);
     const anoSel = parseInt(fAnoVal);
     const kSel = String(anoSel)+'-'+String(mesSel).padStart(2,'0');
@@ -2989,7 +2990,7 @@ function renderComparativoMensal() {
     uP = periodos[kSel];
     aP = periodos[kAnt];
 
-  } else if (fMesVal && !fAnoVal) {
+  } else if (fMesVal && !fAnoVal && parseInt(fMesVal) !== mesCorrente) {
     /* Só mês selecionado (sem ano) → pega o ano mais recente com esse mês */
     const mesSel = parseInt(fMesVal);
     const chavesDoMes = todasChaves.filter(k => periodos[k].mes === mesSel);
@@ -3013,7 +3014,9 @@ function renderComparativoMensal() {
     aP = periodos[kAnt];
 
   } else {
-    /* Sem filtro de mês → usa os dois meses fechados mais recentes nos dados */
+    /* Sem filtro de mês, ou filtro aponta pro mês corrente (ainda aberto)
+       → usa os dois meses fechados mais recentes nos dados */
+    if (fMesVal && (parseInt(fAnoVal||anoCorrente)===anoCorrente && parseInt(fMesVal)===mesCorrente)) avisoMesAberto = true;
     const ultimo = todasChaves[todasChaves.length-1];
     const anterior = todasChaves[todasChaves.length-2];
     uP = periodos[ultimo];
@@ -3042,7 +3045,9 @@ function renderComparativoMensal() {
       <td class="${dif>0?'val-pos':dif<0?'val-neg':''}">${pctDif.toFixed(1)}%</td></tr>`;
   }).join('');
   const fmt = (p) => { const m = MES[p.mes]||p.mes; return m+'/'+String(p.ano); };
-  document.getElementById('compMensalSub').textContent = `${fmt(uP)} → ${fmt(aP)}`;
+  document.getElementById('compMensalSub').textContent = avisoMesAberto
+    ? `${fmt(uP)} → ${fmt(aP)} (mês corrente ainda em aberto — mostrando os 2 últimos meses fechados)`
+    : `${fmt(uP)} → ${fmt(aP)}`;
 }
 
 /* ══════════════════════════════════════════════════════════════
