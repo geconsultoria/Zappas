@@ -729,6 +729,16 @@ tr.is-open .expand-hint { display: none; }
   color: var(--ink); margin-bottom: 4px;
 }
 .loja-pct { font-size: 11px; color: var(--ink-4); }
+.loja-flow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-top: 10px; padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.loja-flow-item { display: flex; flex-direction: column; gap: 2px; }
+.loja-flow-lbl { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); }
+.loja-flow-val { font-family: var(--font-numeric); font-size: 13px; font-weight: 700; }
+.loja-flow-val.pos { color: var(--emerald-mid); }
+.loja-flow-val.neg { color: var(--crimson); }
 .loja-bar-bg {
   height: 3px; background: var(--border);
   border-radius: 2px; margin-top: 12px;
@@ -2791,10 +2801,19 @@ function toggleAll(open){
 
 /* ─── Loja Cards ─── */
 function renderLojas(){
-  const byLoja=groupBy(filtered,'loja');
-  const sorted=Object.entries(byLoja).sort((a,b)=>b[1]-a[1]);
-  const maxVal=sorted[0]?.[1]||1;
-  const total=sumVal(filtered);
+  // Separa Entradas (Recebimentos = grupo "RECEITA OPERACIONAL") de
+  // Saídas (todas as demais linhas, vindas de Contas a Pagar) por loja —
+  // em vez de somar tudo junto num único número, que misturava o que
+  // entrou com o que saiu e confundia a leitura.
+  const lojas = uniq(filtered.map(r=>r.loja).filter(Boolean));
+  const porLoja = lojas.map(loja => {
+    const rows = filtered.filter(r=>r.loja===loja);
+    const entradas = rows.filter(r=>slugFromGrupo(r.grupo)==='receita_operacional').reduce((a,r)=>a+r.valor,0);
+    const saidas   = rows.filter(r=>slugFromGrupo(r.grupo)!=='receita_operacional').reduce((a,r)=>a+r.valor,0);
+    return { loja, entradas, saidas, saldo: entradas - saidas };
+  });
+  const sorted = porLoja.sort((a,b)=>b.entradas-a.entradas);
+  const maxVal = Math.max(1, ...sorted.map(l=>Math.max(l.entradas,l.saidas)));
   const grid=document.getElementById('lojaGrid');
 
   // Período que compõe a soma exibida em cada card (respeita os filtros
@@ -2827,16 +2846,26 @@ function renderLojas(){
     grid.innerHTML='<div style="color:var(--ink-4);font-size:13px;padding:32px 0">Nenhuma loja encontrada.</div>';
     return;
   }
-  grid.innerHTML=sorted.map(([loja,val],i)=>`
+  grid.innerHTML=sorted.map((d,i)=>`
     <div class="loja-card">
       <div class="loja-card-name">
         <span class="loja-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
-        ${loja==='BELVEDER'?'BELVEDERE':loja}
+        ${d.loja==='BELVEDER'?'BELVEDERE':d.loja}
       </div>
-      <div class="loja-total">${fmtBRL(val)}</div>
-      <div class="loja-pct">${pct(val,total)} do total · ${periodo}</div>
+      <div class="loja-total ${d.saldo>=0?'':'val-neg'}">${fmtBRL(d.saldo)}</div>
+      <div class="loja-pct">Saldo de caixa · ${periodo}</div>
       <div class="loja-bar-bg">
-        <div class="loja-bar-fill" style="width:${(val/maxVal*100).toFixed(1)}%;background:${PALETTE[i%PALETTE.length]}"></div>
+        <div class="loja-bar-fill" style="width:${(d.entradas/maxVal*100).toFixed(1)}%;background:${PALETTE[i%PALETTE.length]}"></div>
+      </div>
+      <div class="loja-flow">
+        <div class="loja-flow-item">
+          <span class="loja-flow-lbl">Entradas</span>
+          <span class="loja-flow-val pos">${fmtBRL(d.entradas)}</span>
+        </div>
+        <div class="loja-flow-item" style="align-items:flex-end">
+          <span class="loja-flow-lbl">Saídas</span>
+          <span class="loja-flow-val neg">${fmtBRL(d.saidas)}</span>
+        </div>
       </div>
     </div>
   `).join('');
