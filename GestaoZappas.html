@@ -87,6 +87,42 @@ body {
 .sidebar.collapsed .side-status { display:none; }
 .sidebar.collapsed.peek .side-status { display:block; }
 @keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Overlay central de "Atualização Geral" ──
+   Mesmo aviso que já existe no rodapé do menu, mas centralizado na tela
+   e sempre visível (o texto do rodapé some quando o menu está recolhido). */
+.update-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(10,20,40,.35);
+  backdrop-filter: blur(2px);
+  opacity: 0; visibility: hidden; pointer-events: none;
+  transition: opacity .25s ease, visibility .25s ease;
+}
+.update-overlay.show { opacity: 1; visibility: visible; pointer-events: auto; }
+.update-card {
+  display: flex; align-items: center; gap: 14px;
+  background: linear-gradient(135deg, #0B1E3D 0%, #16283F 60%, #122C52 100%);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 16px;
+  padding: 18px 26px;
+  box-shadow: 0 12px 48px rgba(0,0,0,.35);
+  min-width: 300px; max-width: 90vw;
+  transform: translateY(6px) scale(.98);
+  transition: transform .25s ease;
+}
+.update-overlay.show .update-card { transform: translateY(0) scale(1); }
+.update-card-icon {
+  width: 34px; height: 34px; flex-shrink: 0;
+  color: var(--gold, #C8961A);
+}
+.update-card-icon svg { width: 100%; height: 100%; }
+.update-card-icon.spin svg { animation: spin .8s linear infinite; }
+.update-card-title { font-family: var(--font-head, 'Syne', sans-serif); font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
+.update-card-sub.ok  { color: #7FCBA4; }
+.update-card-sub.err { color: #E39184; }
+
 .side-item { display:flex; flex-direction:column; }
 .side-link {
   display:flex; align-items:center; gap:11px; width:100%; text-align:left;
@@ -299,6 +335,19 @@ body {
   </div>
 </div>
 
+<!-- Overlay central de "Atualização Geral" -->
+<div class="update-overlay" id="update-overlay">
+  <div class="update-card">
+    <div class="update-card-icon" id="update-card-icon">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+    </div>
+    <div>
+      <div class="update-card-title">Atualização Geral</div>
+      <div class="update-card-sub" id="update-card-sub">Gerando resumo mensal, aguarde…</div>
+    </div>
+  </div>
+</div>
+
 <script>
 // ── Evita "tela congelada" ao usar o botão Voltar do navegador ──
 // Quando se navega para outra página (ex: Análise Comercial) e depois
@@ -327,10 +376,19 @@ async function gerarResumoMensal() {
   const icon   = document.getElementById('icon-gerar-resumo');
   const status = document.getElementById('status-gerar-resumo');
 
+  const overlay   = document.getElementById('update-overlay');
+  const cardIcon  = document.getElementById('update-card-icon');
+  const cardSub   = document.getElementById('update-card-sub');
+
   btn.disabled = true;
   icon.style.animation = 'spin .8s linear infinite';
   status.style.color = 'var(--slate,#5B6B7C)';
   status.textContent = 'Gerando resumo mensal, aguarde…';
+
+  overlay.classList.add('show');
+  cardIcon.classList.add('spin');
+  cardSub.className = 'update-card-sub';
+  cardSub.textContent = 'Gerando resumo mensal, aguarde…';
 
   try {
     const res = await fetch(APPS_SCRIPT_URL + '?action=gerarResumo&_=' + Date.now(), { cache: 'no-store' });
@@ -338,6 +396,9 @@ async function gerarResumoMensal() {
     if (texto.startsWith('OK')) {
       status.style.color = '#1C6E54';
       status.textContent = '✓ ' + texto.replace(/^OK - /, '');
+      cardIcon.classList.remove('spin');
+      cardSub.className = 'update-card-sub ok';
+      cardSub.textContent = '✓ ' + texto.replace(/^OK - /, '');
       // Resumo gerado com sucesso: avisa as 6 páginas de relatório que
       // há dado novo, pra elas se atualizarem sozinhas (sem precisar
       // clicar em "Atualizar" em cada uma).
@@ -345,13 +406,21 @@ async function gerarResumoMensal() {
     } else {
       status.style.color = '#A23B2E';
       status.textContent = texto;
+      cardIcon.classList.remove('spin');
+      cardSub.className = 'update-card-sub err';
+      cardSub.textContent = texto;
     }
   } catch (e) {
     status.style.color = '#A23B2E';
     status.textContent = 'Falha na conexão: ' + e.message;
+    cardIcon.classList.remove('spin');
+    cardSub.className = 'update-card-sub err';
+    cardSub.textContent = 'Falha na conexão: ' + e.message;
   } finally {
     btn.disabled = false;
     icon.style.animation = '';
+    // Deixa a mensagem final visível por um instante antes de sumir.
+    setTimeout(() => overlay.classList.remove('show'), 1800);
   }
 }
 
