@@ -506,7 +506,7 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <div class="sec">
-    <span class="sec-title">Lançamentos de Reembolso</span><span class="sec-line"></span>
+    <span class="sec-title">Lançamentos de Reembolso por Mês</span><span class="sec-line"></span>
     <span class="sec-count" id="sec-count">0 registros</span>
   </div>
   <div class="comp-card">
@@ -898,21 +898,33 @@ function renderPorLoja(data){
 function renderTabela(data){
   $('sec-count').textContent = fN(data.length) + ' registros';
   $('cth-reembolso').innerHTML = `<tr>
-    <th>Ano</th><th>Loja</th><th>Data</th><th class="num">Total</th>
+    <th>Ano</th><th>Mês</th><th>Loja</th><th class="num">Qtd.</th><th class="num">Total</th>
   </tr>`;
   if(!data.length){
-    $('ctb-reembolso').innerHTML = '<tr><td colspan="4" class="nd">Nenhum reembolso (Canal DISTRIBUIÇÃO + VS = True) encontrado para os filtros selecionados</td></tr>';
+    $('ctb-reembolso').innerHTML = '<tr><td colspan="5" class="nd">Nenhum reembolso (Canal DISTRIBUIÇÃO + VS = True) encontrado para os filtros selecionados</td></tr>';
     return;
   }
-  const ordenado = [...data].sort((a,b) => (b.dataTs||0) - (a.dataTs||0)).slice(0, 500);
-  $('ctb-reembolso').innerHTML = ordenado.map(r => `
+  // Agrupa por Ano + Mês + Loja (em vez de listar lançamento por lançamento/dia).
+  const grupos = new Map();
+  data.forEach(r => {
+    const mesNum = r.mes || 0;
+    const key = r.ano + '|' + mesNum + '|' + r.loja;
+    const cur = grupos.get(key) || { ano: r.ano, mes: mesNum, loja: r.loja, qtd: 0, total: 0 };
+    cur.qtd += 1;
+    cur.total += r.total;
+    grupos.set(key, cur);
+  });
+  const ordenado = [...grupos.values()].sort((a,b) => (b.ano - a.ano) || (b.mes - a.mes) || a.loja.localeCompare(b.loja));
+  const totalGeral = data.reduce((s,r)=>s+r.total,0);
+  $('ctb-reembolso').innerHTML = ordenado.map(g => `
     <tr>
-      <td>${r.ano}</td>
-      <td>${lojaLabel(r.loja)}</td>
-      <td>${r.dataLabel || '—'}</td>
-      <td class="num">${fBRL(r.total)}</td>
+      <td>${g.ano}</td>
+      <td>${g.mes ? MONTHS[g.mes-1] : '—'}</td>
+      <td>${lojaLabel(g.loja)}</td>
+      <td class="num">${fN(g.qtd)}</td>
+      <td class="num">${fBRL(g.total)}</td>
     </tr>`).join('') +
-    (data.length > 500 ? `<tr><td colspan="4" class="nd">Mostrando os 500 reembolsos mais recentes, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    `<tr class="total-row"><td colspan="3">Total do período</td><td class="num">${fN(data.length)}</td><td class="num">${fBRL(totalGeral)}</td></tr>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
