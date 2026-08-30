@@ -3,13 +3,10 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contas a Pagar</title>
+<title>Ciclo Financeiro</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
-/* ╔═══════════════════════════════════════╗
-   ║  DESIGN TOKENS                       ║
-   ╚═══════════════════════════════════════╝ */
 :root {
   --bg:       #F7F6F2;
   --bg-2:     #EDECE6;
@@ -76,9 +73,6 @@ body {
   line-height: 1.5;
 }
 
-/* ╔═══════════════════════════════════════╗
-   ║  LOADING                             ║
-   ╚═══════════════════════════════════════╝ */
 #loader {
   position: fixed; inset: 0; z-index: 9999;
   background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
@@ -101,9 +95,6 @@ body {
 @keyframes ldAnim { 0%{width:0} 55%{width:70%} 100%{width:100%} }
 .ld-txt { font-size: 11.5px; color: rgba(255,255,255,.4); letter-spacing: .05em; }
 
-/* ╔═══════════════════════════════════════╗
-   ║  SIDEBAR MENU                        ║
-   ╚═══════════════════════════════════════╝ */
 .sidebar {
   position: fixed; top:0; left:0; bottom:0; width: var(--side-w);
   background: linear-gradient(180deg, #0B1E3D 0%, #122C52 45%, #0A1830 100%);
@@ -173,7 +164,7 @@ a.side-brand:hover { opacity:.85; }
   z-index: 320;
 }
 .sidebar.collapsed:not(.peek) .side-link:hover::after { opacity:1; visibility:visible; }
-.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-item.open > .side-sub { max-height:320px; opacity:1; padding: 3px 0 6px 24px; }
 .side-sub a {
   display:flex; align-items:center; gap:9px;
   padding: 8px 10px; border-radius:8px;
@@ -203,9 +194,6 @@ a.side-brand:hover { opacity:.85; }
   .filter-bar { padding-left: 62px; }
 }
 
-/* ╔═══════════════════════════════════════╗
-   ║  STICKY FILTER BAR                   ║
-   ╚═══════════════════════════════════════╝ */
 .filter-bar {
   position: sticky; top: 0; z-index: 100;
   margin-left: var(--side-w);
@@ -271,17 +259,8 @@ a.side-brand:hover { opacity:.85; }
   min-width: 120px;
 }
 .fb-select:focus { outline: none; border-color: var(--blue-mid); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
-.fb-search {
-  font-family: var(--font-body); font-size: 12.5px; color: var(--ink-2);
-  background: var(--bg); border: 1px solid var(--border-2); border-radius: var(--r);
-  padding: 7px 11px; min-width: 180px;
-}
-.fb-search:focus { outline: none; border-color: var(--blue-mid); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
 .fb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
 
-/* ╔═══════════════════════════════════════╗
-   ║  MAIN CONTENT                        ║
-   ╚═══════════════════════════════════════╝ */
 .content { padding: 20px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w); transition: margin-left .25s ease; }
 .content.hidden { display: none; }
 
@@ -291,29 +270,43 @@ a.side-brand:hover { opacity:.85; }
 .sec-line  { flex:1; height:1px; background: var(--border); }
 .sec-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); background: var(--bg-2); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
 
-/* KPI CARDS */
-.kpi-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 13px; margin-bottom: 14px; }
+.kpi-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 13px; margin-bottom: 14px; }
 .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 16px 18px; box-shadow: var(--sh); position: relative; overflow: hidden; transition: box-shadow .2s var(--ease), transform .2s var(--ease); display: flex; flex-direction: column; }
 .kpi:hover { box-shadow: var(--sh-md); transform: translateY(-2px); }
+.kpi.pending { opacity: .72; }
 .kpi-accent { position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: var(--r-lg) var(--r-lg) 0 0; }
 .ac-blue  { background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); }
 .ac-teal  { background: linear-gradient(90deg, var(--teal) 0%, var(--teal-mid) 100%); }
 .ac-olive { background: linear-gradient(90deg, var(--olive) 0%, var(--olive-mid) 100%); }
 .ac-rust  { background: linear-gradient(90deg, var(--rust) 0%, var(--rust-mid) 100%); }
 .ac-amber { background: linear-gradient(90deg, var(--amber) 0%, var(--amber-mid) 100%); }
-.kpi-lbl { font-family: var(--font-head); font-size: 12.5px; font-weight: 700; letter-spacing: -0.2px; color: var(--ink-4); margin-bottom: 10px; }
+.ac-gray  { background: var(--border-2); }
+.kpi-lbl { font-family: var(--font-head); font-size: 12.5px; font-weight: 700; letter-spacing: -0.2px; color: var(--ink-4); margin-bottom: 10px; display: flex; align-items: center; gap: 8px; }
+.kpi-tag { font-size: 9px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; padding: 2px 7px; border-radius: 20px; }
+.kpi-tag.ready   { background: var(--olive-lt); color: var(--olive); }
+.kpi-tag.pending { background: var(--amber-lt); color: var(--amber); }
 .kpi-val { font-family: var(--font-num); font-size: 23px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; line-height: 1; }
+.kpi-val.dash { color: var(--ink-4); font-size: 19px; }
 .kpi-foot { font-size: 10.5px; color: var(--ink-4); margin-top: 8px; }
 .kpi-foot b { color: var(--ink-3); font-weight: 600; }
 
-/* CARD / TABLE */
+.cycle-row { display: grid; grid-template-columns: repeat(3,1fr); gap: 13px; margin-bottom: 16px; }
+.cycle-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 18px 20px; box-shadow: var(--sh); }
+.cycle-card.blocked { background: var(--surf-2); border-style: dashed; }
+.cycle-name { font-family: var(--font-head); font-size: 14px; font-weight: 700; color: var(--ink); margin-bottom: 6px; }
+.cycle-formula { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink-3); background: var(--bg-2); padding: 6px 10px; border-radius: 8px; display: inline-block; margin-bottom: 10px; }
+.cycle-val { font-family: var(--font-num); font-size: 22px; font-weight: 700; color: var(--ink); }
+.cycle-val.dash { color: var(--ink-4); font-size: 15px; font-family: var(--font-body); font-weight: 500; }
+
 .comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
 .comp-card-head { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
 .cc-head-blue { background: var(--blue-xl); }
+.cc-head-amber { background: var(--amber-lt); }
 .cc-head-left { display: flex; align-items: center; gap: 12px; }
 .cc-icon { width: 34px; height: 34px; border-radius: var(--r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cc-icon svg { width: 17px; height: 17px; }
 .cc-icon-blue { background: var(--blue-lt); color: var(--blue); }
+.cc-icon-amber { background: #F5DFA8; color: var(--amber); }
 .cc-head-left .title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); }
 .cc-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
 
@@ -334,31 +327,35 @@ a.side-brand:hover { opacity:.85; }
 .comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
 .comp-table .nd { text-align: center; padding: 40px 20px; color: var(--ink-4); }
 
-/* Status badges */
-.badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-.badge-pago    { background: var(--olive-lt); color: var(--olive); }
-.badge-pendente{ background: var(--blue-lt);  color: var(--blue); }
-.badge-vencido { background: var(--rust-lt);  color: var(--rust-mid); }
-
-/* Category bars */
-.cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
-.cat-name { width: 220px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.cat-bar-bg { flex: 1; height: 8px; background: var(--bg-2); border-radius: 6px; overflow: hidden; }
-.cat-bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); border-radius: 6px; }
-.cat-val { width: 110px; flex-shrink: 0; text-align: right; font-family: var(--font-num); font-size: 12.5px; font-weight: 700; color: var(--ink); }
-
-/* Loading / error banners inside content */
 .status-center { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px 20px; color: var(--ink-4); font-size: 13px; }
 .err-banner { background: var(--rust-lt); border: 1px solid #F0B8A8; color: var(--rust-mid); border-radius: var(--r); padding: 12px 16px; font-size: 12.5px; font-weight: 600; margin-bottom: 16px; display: none; align-items: center; gap: 10px; }
 .err-banner.show { display: flex; }
+
+.info-banner {
+  background: var(--blue-xl); border: 1px solid var(--blue-lt); color: var(--blue);
+  border-radius: var(--r); padding: 14px 16px; font-size: 12.5px; font-weight: 500;
+  margin-bottom: 16px; display: flex; align-items: flex-start; gap: 10px; line-height: 1.6;
+}
+.info-banner svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+
+.pending-banner {
+  background: var(--amber-lt); border: 1px solid #F0DCA8; color: var(--amber);
+  border-radius: var(--r); padding: 14px 16px; font-size: 12.5px; font-weight: 500;
+  line-height: 1.7;
+}
+.pending-banner svg { width: 16px; height: 16px; flex-shrink: 0; margin-top: 1px; }
+.pending-banner ul { margin: 8px 0 0 18px; }
+.pending-banner code { font-family: var(--font-mono); background: rgba(255,255,255,.5); padding: 1px 5px; border-radius: 4px; font-size: 11px; }
+
+@media (max-width: 1100px) { .kpi-row, .cycle-row { grid-template-columns: repeat(1,1fr); } }
 </style>
 </head>
 <body>
 
 <div id="loader">
   <div class="ld-logo">
-    <div class="ld-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
-    <div><div class="ld-name">Contas a Pagar</div><div class="ld-sub">Grupo Pratic</div></div>
+    <div class="ld-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg></div>
+    <div><div class="ld-name">Ciclo Financeiro</div><div class="ld-sub">Grupo Pratic</div></div>
   </div>
   <div class="ld-track"><div class="ld-fill"></div></div>
   <div class="ld-txt" id="ld-txt">Conectando…</div>
@@ -408,17 +405,13 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           DFC Fluxo de Caixa
         </a>
-        <a href="Contas_a_Pagar.html" class="active">
+        <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
           Contas a Pagar
         </a>
         <a href="#" onclick="return false" style="opacity:0.4;pointer-events:none">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v8m-3-3l3 3 3-3"/></svg>
           Contas a Receber <span style="font-size:10px;margin-left:4px">(em breve)</span>
-        </a>
-        <a href="#" onclick="return false" style="opacity:0.4;pointer-events:none">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 12h4l2-7 4 14 2-7h6"/></svg>
-          Fluxo de Caixa <span style="font-size:10px;margin-left:4px">(em breve)</span>
         </a>
         <a href="Banco_Declaracao.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg>
@@ -428,7 +421,7 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4 4-4"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-7a4 4 0 00-4-4H5"/></svg>
           Reembolso entre Lojas
         </a>
-        <a href="Ciclo_Financeiro.html">
+        <a href="Ciclo_Financeiro.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
@@ -455,11 +448,10 @@ a.side-brand:hover { opacity:.85; }
   </nav>
 </aside>
 
-<!-- FILTER BAR -->
 <div class="filter-bar" id="filter-bar">
   <div class="fb-brand">
-    <div class="fb-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
-    <div><div class="fb-title">Contas a Pagar</div><div class="fb-sub">Gestão financeira</div></div>
+    <div class="fb-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg></div>
+    <div><div class="fb-title">Ciclo Financeiro</div><div class="fb-sub">Ciclo Econômico, Operacional e Financeiro</div></div>
   </div>
   <div class="fb-right">
     <div class="fb-ts">Última atualização<br><span id="fb-ts">—</span></div>
@@ -470,7 +462,6 @@ a.side-brand:hover { opacity:.85; }
   </div>
 </div>
 
-<!-- FILTER ROW -->
 <div class="sub-filter-bar" id="sub-filter-bar">
   <div class="fb-filters">
     <div class="fb-group"><span class="fb-label">Ano</span><select class="fb-select" id="f-ano"></select></div>
@@ -478,71 +469,110 @@ a.side-brand:hover { opacity:.85; }
     <div class="fb-group"><span class="fb-label">Mês</span><select class="fb-select" id="f-mes"><option value="">Todos</option></select></div>
     <div class="fb-sep"></div>
     <div class="fb-group"><span class="fb-label">Loja</span><select class="fb-select" id="f-loja"><option value="">Todas</option></select></div>
-    <div class="fb-sep"></div>
-    <div class="fb-group"><span class="fb-label">Status</span>
-      <select class="fb-select" id="f-status">
-        <option value="">Todos</option>
-        <option value="PENDENTE">Pendente</option>
-        <option value="VENCIDO">Vencido</option>
-        <option value="PAGO">Pago</option>
-      </select>
-    </div>
-    <div class="fb-sep"></div>
-    <div class="fb-group"><span class="fb-label">Buscar</span><input class="fb-search" id="f-busca" placeholder="Documento, categoria…"></div>
   </div>
 </div>
 
-<!-- CONTENT -->
 <div class="content hidden" id="content">
   <div class="err-banner" id="err-banner">⚠️ <span id="err-msg"></span></div>
 
-  <div class="sec"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
+  <div class="info-banner">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>
+    <span>Esta tela está em construção assistida: o <b>PMP (Prazo Médio de Pagamento)</b> já é calculado com dados reais de Contas a Pagar. O <b>PME</b> e o <b>PMR</b> — e por consequência os Ciclos Econômico, Operacional e Financeiro — ficam com o cálculo pronto para ativar assim que os dados que faltam forem fornecidos (veja o quadro "O que falta" no fim da página).</span>
+  </div>
+
+  <div class="sec"><span class="sec-title">Prazos Médios</span><span class="sec-line"></span></div>
   <div class="kpi-row">
-    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total do Período</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Pago</div><div class="kpi-val" id="kv-pago">—</div><div class="kpi-foot"><b id="kv-qtd-pago">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Pendente</div><div class="kpi-val" id="kv-pendente">—</div><div class="kpi-foot"><b id="kv-qtd-pendente">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Vencido</div><div class="kpi-val" id="kv-vencido">—</div><div class="kpi-foot"><b id="kv-qtd-vencido">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Ticket Médio</div><div class="kpi-val" id="kv-ticket">—</div><div class="kpi-foot">por título</div></div>
+    <div class="kpi pending">
+      <div class="kpi-accent ac-gray"></div>
+      <div class="kpi-lbl">PME <span class="kpi-tag pending">Pendente</span></div>
+      <div class="kpi-val dash">Aguardando estoque</div>
+      <div class="kpi-foot">Prazo Médio de Estocagem — precisa do arquivo de Estoque</div>
+    </div>
+    <div class="kpi pending">
+      <div class="kpi-accent ac-gray"></div>
+      <div class="kpi-lbl">PMR <span class="kpi-tag pending">Pendente</span></div>
+      <div class="kpi-val dash">Aguardando vínculo</div>
+      <div class="kpi-foot">Prazo Médio de Recebimento — precisa ligar venda → recebimento</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-accent ac-blue"></div>
+      <div class="kpi-lbl">PMP <span class="kpi-tag ready">Pronto</span></div>
+      <div class="kpi-val" id="kv-pmp">—</div>
+      <div class="kpi-foot">dias · Contas a Pagar ÷ Total pago × dias do período</div>
+    </div>
   </div>
 
-  <div class="sec"><span class="sec-title">Por Categoria</span><span class="sec-line"></span></div>
+  <div class="sec"><span class="sec-title">Ciclos</span><span class="sec-line"></span></div>
+  <div class="cycle-row">
+    <div class="cycle-card blocked">
+      <div class="cycle-name">Ciclo Econômico</div>
+      <div class="cycle-formula">PME</div>
+      <div class="cycle-val dash">Aguardando estoque</div>
+    </div>
+    <div class="cycle-card blocked">
+      <div class="cycle-name">Ciclo Operacional</div>
+      <div class="cycle-formula">PME + PMR</div>
+      <div class="cycle-val dash">Aguardando PME e PMR</div>
+    </div>
+    <div class="cycle-card blocked">
+      <div class="cycle-name">Ciclo Financeiro (Caixa)</div>
+      <div class="cycle-formula">PME + PMR − PMP</div>
+      <div class="cycle-val dash">Aguardando PME e PMR</div>
+    </div>
+  </div>
+
+  <div class="sec"><span class="sec-title">PMP por Loja</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 lojas</span></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
-        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg></div>
-        <div><div class="title">Gasto por Categoria (Grupo)</div><div class="sub">Somatório do período filtrado, via Plano de Contas</div></div>
+        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
+        <div><div class="title">PMP — Prazo Médio de Pagamento</div><div class="sub">Saldo de Contas a Pagar em aberto ÷ Total pago no período × dias do período</div></div>
       </div>
     </div>
-    <div id="cat-list"></div>
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-pmp">
+        <thead id="cth-pmp"></thead>
+        <tbody id="ctb-pmp"></tbody>
+      </table>
+    </div>
   </div>
 
-  <div class="sec"><span class="sec-title">Títulos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
-  <div class="comp-card">
-    <div class="comp-card-head cc-head-blue">
-      <div class="cc-head-left">
-        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
-        <div><div class="title">Lista de Títulos</div><div class="sub">Ordenado por data de vencimento</div></div>
+  <div class="sec"><span class="sec-title">O que falta para fechar os 3 ciclos</span><span class="sec-line"></span></div>
+  <div class="pending-banner">
+    <div style="display:flex;gap:10px;margin-bottom:10px">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <div>
+        <b>1. Arquivo de Estoque (para o PME)</b>
+        <div>Salvo no Google Drive como um novo arquivo de "Estoque", precisa trazer, por loja e por data:</div>
+        <ul>
+          <li><code>ano</code>, <code>mes</code> (ou <code>data</code>) — período do saldo de estoque</li>
+          <li><code>loja</code></li>
+          <li><code>valor_estoque</code> (valor de estoque a custo) — ou <code>quantidade</code> + <code>custo_unitario</code> para eu calcular o valor</li>
+        </ul>
+        <div style="margin-top:6px">Com isso: PME = (Estoque médio ÷ CMV do período) × dias do período. O CMV já está disponível no DFC.</div>
       </div>
     </div>
-    <div class="comp-scroll"><table class="comp-table" id="ct-titulos"><thead id="cth-titulos"></thead><tbody id="ctb-titulos"></tbody></table></div>
+    <div style="display:flex;gap:10px">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
+      <div>
+        <b>2. Vínculo Venda → Recebimento (para o PMR)</b>
+        <div>Hoje a planilha de Recebidos traz o total recebido por mês e forma de pagamento (Boleto/Convênio, Cartão/PIX, Dinheiro), mas não informa a qual venda (nem a que data de venda) cada recebimento se refere. Para calcular o PMR de verdade, preciso de uma das opções:</div>
+        <ul>
+          <li>Uma coluna <code>data_venda</code> (ou nº do pedido/nota) na planilha de Recebidos, ligando o recebimento à venda original; ou</li>
+          <li>O prazo médio de compensação de cada forma de pagamento (ex.: Cartão de Crédito compensa em X dias, Boleto em Y dias) para eu aplicar como estimativa por categoria.</li>
+        </ul>
+      </div>
+    </div>
   </div>
 </div>
 
 <script>
-/* ══════════════════════════════════════════════════════════════
-   CONFIGURAÇÃO
-══════════════════════════════════════════════════════════════ */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+const APPS_SCRIPT_URL_DRE = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
 const CTASPAGAR_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
-const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
-const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
+const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=ctaspagar&loja=${k}`);
 
-/* ── Evita "tela congelada" ao usar o botão Voltar do navegador ── */
 window.addEventListener('pageshow', function(e){ if (e.persisted) window.location.reload(); });
 
-/* ══════════════════════════════════════════════════════════════
-   SINCRONIA GLOBAL ENTRE PÁGINAS (Zappas)
-══════════════════════════════════════════════════════════════ */
 const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
 function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
   try {
@@ -551,14 +581,13 @@ function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
   } catch(e) { return false; }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   UTILS
-══════════════════════════════════════════════════════════════ */
 const $ = id => document.getElementById(id);
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 function fBRL(v){ return (v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
 function fN(v){ return (v||0).toLocaleString('pt-BR'); }
+function fD(v){ return (v||0).toLocaleString('pt-BR', {maximumFractionDigits:1}); }
+function lojaLabel(l){ return l==='BELVEDER' ? 'BELVEDERE' : l; }
 
 function findCol(headers, ...names){
   const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
@@ -575,13 +604,24 @@ function parseNum(v){
   const n = parseFloat(s);
   return isNaN(n) ? 0 : n;
 }
-function parseDataBR(str){
-  const s = String(str||'').trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(!m) return null;
-  const dia = +m[1], mes = +m[2], ano = +m[3];
-  if(mes<1||mes>12||dia<1||dia>31) return null;
-  return { dia, mes, ano, ts: new Date(ano, mes-1, dia).getTime() };
+function parseDataFlex(v){
+  if(v===null||v===undefined) return null;
+  const s = String(v).trim();
+  if(!s) return null;
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){
+    const dia=+m[1], mes=+m[2], ano=+m[3];
+    if(mes>=1&&mes<=12&&dia>=1&&dia<=31) return { dia, mes, ano, ts: new Date(ano,mes-1,dia).getTime() };
+    return null;
+  }
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m){
+    const ano=+m[1], mes=+m[2], dia=+m[3];
+    return { dia, mes, ano, ts: new Date(ano,mes-1,dia).getTime() };
+  }
+  const d = new Date(s);
+  if(!isNaN(d)) return { dia:d.getDate(), mes:d.getMonth()+1, ano:d.getFullYear(), ts:d.getTime() };
+  return null;
 }
 function detectSepExt(txt){
   const l = txt.split('\n')[0];
@@ -602,9 +642,6 @@ function splitLine(line, sep){
   return out;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   FETCH (com timeout + fallbacks)
-══════════════════════════════════════════════════════════════ */
 async function fetchComTimeout(url, opts, ms){
   const controller = new AbortController();
   const t = setTimeout(() => controller.abort(), ms || 15000);
@@ -625,97 +662,50 @@ async function fetchCSV(url){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PLANO DE CONTAS (de-para) + CONTAS A PAGAR
+   PARSE — Contas a Pagar (mesmas colunas usadas em Contas_a_Pagar.html)
 ══════════════════════════════════════════════════════════════ */
-async function fetchPlanoContas(){
-  const text = await fetchCSV(PLANO_CONTAS_URL);
+function parseCtasPagar(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const map = new Map();
-  if(!lines.length) return map;
-  const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iCodPL = findCol(headers,'cod_pl','codpl');
-  const iConta = findCol(headers,'conta_pl','contapl');
-  const iCodGrp= findCol(headers,'cod_grupo','codgrupo');
-  const iGrupo = findCol(headers,'grupo');
-  const iSub   = findCol(headers,'sub_grupo','subgrupo');
-  if(iCodPL<0) throw new Error('Plano de Contas: coluna Cod_PL não encontrada.');
-  for(let i=1;i<lines.length;i++){
-    const line=lines[i].trim(); if(!line) continue;
-    const c = splitLine(line,sep);
-    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
-    const codRaw = g(iCodPL); if(!codRaw) continue;
-    const entry = { conta_pl:g(iConta), cod_grupo:g(iCodGrp), grupo:g(iGrupo), sub_grupo:g(iSub) };
-    map.set(codRaw, entry);
-    const codNum = String(parseInt(codRaw.replace(/\D/g,''),10)||'');
-    if(codNum) map.set(codNum, entry);
-  }
-  return map;
-}
+  const rows = [];
+  if(!lines.length) return rows;
+  const headers = splitLine(lines[0], sep).map(h => h.replace(/^"|"$/g,'').trim());
 
-// Lê um CSV de Contas a Pagar de UMA loja e devolve TODAS as linhas
-// (pagas e pendentes) — diferente do DRE, que só usa as pagas.
-function parseContasPagarCompleto(text, planoMap, lojaFallback){
-  const sep = detectSepExt(text);
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const rows = []; const naoMapeados = new Set();
-  if(!lines.length) return { rows, naoMapeados };
-  const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iLoja   = findCol(headers,'loja');
-  const iCodCtr = findCol(headers,'codcentro');
-  const iValor  = findCol(headers,'vparcela');
-  const iVenc   = findCol(headers,'dtvencimento');
-  const iPgto   = findCol(headers,'dtpagamento');
-  const iPaga   = findCol(headers,'paga');
-  const iForma  = findCol(headers,'nforma');
-  const iDoc    = findCol(headers,'ndoc');
-  const iFav    = findCol(headers,'codfavorecido');
+  const iLoja  = findCol(headers, 'loja');
+  const iValor = findCol(headers, 'vparcela');
+  const iVenc  = findCol(headers, 'dtvencimento');
+  const iPgto  = findCol(headers, 'dtpagamento');
+  const iPaga  = findCol(headers, 'paga');
 
-  const missing=[];
-  if(iCodCtr<0) missing.push('codcentro');
-  if(iValor<0)  missing.push('vparcela');
-  if(iVenc<0)   missing.push('dtvencimento');
-  if(missing.length) throw new Error('Contas a Pagar — colunas não encontradas: '+missing.join(', '));
+  if(iValor<0 || iVenc<0) return rows;
 
   for(let i=1;i<lines.length;i++){
-    const line=lines[i].trim(); if(!line) continue;
-    const c = splitLine(line,sep);
+    const line = lines[i].trim(); if(!line) continue;
+    const c = splitLine(line, sep);
     const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
-
-    const dtVencStr = g(iVenc);
-    const venc = parseDataBR(dtVencStr);
-    if(!venc) continue;
 
     const valor = parseNum(g(iValor));
     if(!valor) continue;
-
-    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
-    const codCentroRaw = g(iCodCtr);
-    const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10)||'');
-    const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
-    if(!info || !info.grupo){ naoMapeados.add(codCentroRaw || '(vazio)'); continue; }
-    if(!loja) continue;
-
-    const pagaFlag = (iPaga>=0 ? g(iPaga) : '').toUpperCase();
-    const dtPgtoStr = iPgto>=0 ? g(iPgto) : '';
+    const venc = parseDataFlex(g(iVenc));
+    if(!venc) continue;
+    const pgtoRaw = g(iPgto);
+    const pgto = pgtoRaw ? parseDataFlex(pgtoRaw) : null;
+    const pagaRaw = g(iPaga).toLowerCase();
+    const paga = pgto ? true : /^(true|verdadeiro|sim|1)$/i.test(pagaRaw);
 
     rows.push({
-      loja, ano: venc.ano, mes: venc.mes, dia: venc.dia, vencTs: venc.ts,
-      dtVenc: dtVencStr, dtPagto: dtPgtoStr,
-      valor, paga: pagaFlag === 'S',
-      forma: iForma>=0 ? g(iForma) : '',
-      doc: iDoc>=0 ? g(iDoc) : '',
-      favorecido: iFav>=0 ? g(iFav) : '',
-      grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl,
+      loja: (iLoja>=0 ? g(iLoja) : lojaFallback).toUpperCase() || lojaFallback,
+      valor,
+      ano: venc.ano, mes: venc.mes,
+      vencTs: venc.ts,
+      pgtoTs: pgto ? pgto.ts : null,
+      paga,
     });
   }
-  return { rows, naoMapeados };
+  return rows;
 }
 
-/* ══════════════════════════════════════════════════════════════
-   CACHE (IndexedDB) — mesmo padrão das demais páginas
-══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='contasAPagar_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='ciclo_financeiro_data_v1';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -746,42 +736,24 @@ async function loadCacheDB(){
   }catch(e){ console.warn('Cache local indisponível:', e); return null; }
 }
 
-/* ══════════════════════════════════════════════════════════════
-   STATE
-══════════════════════════════════════════════════════════════ */
 let rawData = [];
 
-/* ══════════════════════════════════════════════════════════════
-   LOAD
-══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
-  document.getElementById('ld-txt') && (document.getElementById('ld-txt').textContent = 'Carregando plano de contas…');
-  let planoMap = new Map();
-  try { planoMap = await fetchPlanoContas(); }
-  catch(e){ console.warn('Plano de Contas não carregado:', e.message); }
-
   let rows = [];
-  const naoMapeadosGeral = new Set();
   const BATCH = 2;
   for(let i=0;i<CTASPAGAR_URLS.length;i+=BATCH){
     const grupo = CTASPAGAR_URLS.slice(i, i+BATCH);
     const lbl = document.getElementById('ld-txt');
-    if(lbl) lbl.textContent = 'Carregando despesas ('+Math.min(i+BATCH,CTASPAGAR_URLS.length)+'/'+CTASPAGAR_URLS.length+')…';
+    if(lbl) lbl.textContent = 'Carregando Contas a Pagar ('+Math.min(i+BATCH,CTASPAGAR_URLS.length)+'/'+CTASPAGAR_URLS.length+')…';
     await Promise.all(grupo.map(async (url,j) => {
       const idx = i+j;
       const lojaKey = CTASPAGAR_STORE_KEYS[idx];
       try{
         const text = await fetchCSV(url);
-        const { rows: r, naoMapeados } = parseContasPagarCompleto(text, planoMap, lojaKey.toUpperCase());
-        rows = rows.concat(r);
-        naoMapeados.forEach(c=>naoMapeadosGeral.add(c));
-      }catch(e){ console.warn('Contas a pagar indisponível ('+lojaKey+'):', e.message); }
+        rows = rows.concat(parseCtasPagar(text, lojaKey.toUpperCase()));
+      }catch(e){ console.warn('Contas a Pagar indisponível ('+lojaKey+'):', e.message); }
     }));
   }
-  if(naoMapeadosGeral.size){
-    console.warn('[Contas a Pagar] Códigos de centro sem correspondência no Plano de Contas:', [...naoMapeadosGeral].join(', '));
-  }
-  if(!rows.length) throw new Error('Nenhuma linha válida encontrada.');
   rawData = rows;
 }
 
@@ -791,7 +763,7 @@ async function loadData(forceRefresh){
 
   if(!forceRefresh){
     const cached = await loadCacheDB();
-    if(cached && cached.data && cached.data.length){
+    if(cached && Array.isArray(cached.data)){
       rawData = cached.data;
       populateFilters();
       applyFilters();
@@ -834,14 +806,9 @@ window.addEventListener('storage', (e) => {
   if(e.key === GLOBAL_REFRESH_KEY && e.newValue) loadData(true);
 });
 
-/* ══════════════════════════════════════════════════════════════
-   FILTERS
-══════════════════════════════════════════════════════════════ */
-function lojaLabel(l){ return l==='BELVEDER' ? 'BELVEDERE' : l; }
-
 function populateFilters(){
   const anoAtual = new Date().getFullYear();
-  const anoMin = anoAtual - 15, anoMax = anoAtual + 5; // faixa plausível — filtra erro de digitação tipo "8023"
+  const anoMin = anoAtual - 15, anoMax = anoAtual + 5;
   const anos = [...new Set(rawData.map(r=>r.ano))].filter(a => a && a>=anoMin && a<=anoMax).sort((a,b)=>a-b);
   const lojas = [...new Set(rawData.map(r=>r.loja))].filter(Boolean).sort();
   const curAno = $('f-ano').value;
@@ -852,120 +819,92 @@ function populateFilters(){
 
   $('f-mes').innerHTML = '<option value="">Todos</option>' + MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
 
+  const hoje = new Date();
+  if(!$('f-mes').value && anos.includes(hoje.getFullYear())) $('f-mes').value = String(hoje.getMonth()+1);
+
   $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l=>`<option value="${l}">${lojaLabel(l)}</option>`).join('');
   if(lojas.includes(curLoja)) $('f-loja').value = curLoja;
 }
 
-function statusDe(row){
-  if(row.paga) return 'PAGO';
-  const hojeTs = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
-  return row.vencTs < hojeTs ? 'VENCIDO' : 'PENDENTE';
-}
-
-function getFiltered(){
+function getPeriodo(){
   const ano = $('f-ano').value ? +$('f-ano').value : null;
   const mes = $('f-mes').value ? +$('f-mes').value : null;
   const loja = $('f-loja').value || null;
-  const status = $('f-status').value || null;
-  const busca = $('f-busca').value.trim().toLowerCase();
-
-  return rawData.filter(r => {
-    if(ano && r.ano !== ano) return false;
-    if(mes && r.mes !== mes) return false;
-    if(loja && r.loja !== loja) return false;
-    if(status && statusDe(r) !== status) return false;
-    if(busca){
-      const alvo = (r.doc+' '+r.grupo+' '+r.subgrupo+' '+r.plano+' '+r.forma).toLowerCase();
-      if(!alvo.includes(busca)) return false;
-    }
-    return true;
-  });
+  return {ano, mes, loja};
 }
 
-['f-ano','f-mes','f-loja','f-status'].forEach(id => $(id).addEventListener('change', applyFilters));
-$('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer); window._buscaTimer = setTimeout(applyFilters, 200); });
+['f-ano','f-mes','f-loja'].forEach(id => $(id).addEventListener('change', applyFilters));
 
 /* ══════════════════════════════════════════════════════════════
-   RENDER
+   PMP — Prazo Médio de Pagamento
+   PMP = (Saldo de Contas a Pagar em aberto ao fim do período ÷
+          Total pago no período) × nº de dias do período
+   Saldo em aberto = soma de vparcela de títulos com vencimento até
+   o fim do período que ainda não foram pagos até essa data.
 ══════════════════════════════════════════════════════════════ */
+function calcPMP(rows, ano, mes){
+  // Define o intervalo do período filtrado
+  let inicioTs, fimTs, dias;
+  if(ano && mes){
+    inicioTs = new Date(ano, mes-1, 1).getTime();
+    fimTs = new Date(ano, mes, 0, 23, 59, 59).getTime();
+  } else if(ano){
+    inicioTs = new Date(ano, 0, 1).getTime();
+    fimTs = new Date(ano, 11, 31, 23, 59, 59).getTime();
+  } else {
+    const tss = rows.map(r=>r.vencTs);
+    if(!tss.length) return null;
+    inicioTs = Math.min(...tss);
+    fimTs = Math.max(...tss);
+  }
+  dias = Math.max(1, Math.round((fimTs - inicioTs) / 86400000));
+
+  const totalPago = rows
+    .filter(r => r.pgtoTs && r.pgtoTs >= inicioTs && r.pgtoTs <= fimTs)
+    .reduce((s,r)=>s+r.valor,0);
+
+  const saldoAberto = rows
+    .filter(r => r.vencTs <= fimTs && (!r.pgtoTs || r.pgtoTs > fimTs))
+    .reduce((s,r)=>s+r.valor,0);
+
+  if(!totalPago) return { pmp: null, saldoAberto, totalPago, dias };
+  const pmp = (saldoAberto / totalPago) * dias;
+  return { pmp, saldoAberto, totalPago, dias };
+}
+
 function applyFilters(){
-  const data = getFiltered();
-  renderKPIs(data);
-  renderCategorias(data);
-  renderTabela(data);
-}
+  const {ano, mes, loja} = getPeriodo();
+  const base = loja ? rawData.filter(r=>r.loja===loja) : rawData;
 
-function renderKPIs(data){
-  const total = data.reduce((s,r)=>s+r.valor,0);
-  const pago = data.filter(r=>statusDe(r)==='PAGO');
-  const pendente = data.filter(r=>statusDe(r)==='PENDENTE');
-  const vencido = data.filter(r=>statusDe(r)==='VENCIDO');
-  const vPago = pago.reduce((s,r)=>s+r.valor,0);
-  const vPendente = pendente.reduce((s,r)=>s+r.valor,0);
-  const vVencido = vencido.reduce((s,r)=>s+r.valor,0);
+  const geral = calcPMP(base, ano, mes);
+  $('kv-pmp').textContent = geral && geral.pmp!==null ? fD(geral.pmp) + ' dias' : '—';
 
-  $('kv-total').textContent = fBRL(total);
-  $('kv-qtd').textContent = fN(data.length);
-  $('kv-pago').textContent = fBRL(vPago);
-  $('kv-qtd-pago').textContent = fN(pago.length);
-  $('kv-pendente').textContent = fBRL(vPendente);
-  $('kv-qtd-pendente').textContent = fN(pendente.length);
-  $('kv-vencido').textContent = fBRL(vVencido);
-  $('kv-qtd-vencido').textContent = fN(vencido.length);
-  $('kv-ticket').textContent = fBRL(data.length ? total/data.length : 0);
-  $('sec-count').textContent = fN(data.length) + ' registros';
-}
+  const lojas = [...new Set(rawData.map(r=>r.loja))].filter(Boolean).sort();
+  $('sec-count').textContent = fN(lojas.length) + ' loja' + (lojas.length===1?'':'s');
 
-function renderCategorias(data){
-  const porGrupo = new Map();
-  data.forEach(r => {
-    const g = r.grupo || 'SEM CATEGORIA';
-    porGrupo.set(g, (porGrupo.get(g)||0) + r.valor);
-  });
-  const lista = [...porGrupo.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12);
-  const max = lista.length ? lista[0][1] : 0;
-  const el = $('cat-list');
-  if(!lista.length){
-    el.innerHTML = '<div class="nd" style="padding:30px;text-align:center;color:var(--ink-4)">Sem dados para o período selecionado</div>';
-    return;
-  }
-  el.innerHTML = lista.map(([nome,val]) => `
-    <div class="cat-row">
-      <div class="cat-name" title="${nome}">${nome}</div>
-      <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${max?(val/max*100):0}%"></div></div>
-      <div class="cat-val">${fBRL(val)}</div>
-    </div>`).join('');
-}
-
-function renderTabela(data){
-  $('cth-titulos').innerHTML = `<tr>
-    <th>Vencimento</th><th>Loja</th><th>Documento</th><th>Categoria</th><th>Forma</th><th class="num">Valor</th><th>Status</th>
+  $('cth-pmp').innerHTML = `<tr>
+    <th>Loja</th><th class="num">Saldo em Aberto</th><th class="num">Total Pago no Período</th><th class="num">PMP (dias)</th>
   </tr>`;
-  if(!data.length){
-    $('ctb-titulos').innerHTML = '<tr><td colspan="7" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>';
+  if(!lojas.length){
+    $('ctb-pmp').innerHTML = '<tr><td colspan="4" class="nd">Nenhum dado de Contas a Pagar encontrado.</td></tr>';
     return;
   }
-  const ordenado = [...data].sort((a,b)=>a.vencTs-b.vencTs).slice(0, 500);
-  const badge = st => st==='PAGO' ? '<span class="badge badge-pago">Pago</span>'
-    : st==='VENCIDO' ? '<span class="badge badge-vencido">Vencido</span>'
-    : '<span class="badge badge-pendente">Pendente</span>';
+  const linhas = lojas.map(lj => {
+    const rowsLj = rawData.filter(r=>r.loja===lj);
+    const res = calcPMP(rowsLj, ano, mes);
+    return { loja: lj, ...res };
+  }).sort((a,b) => (b.pmp||0) - (a.pmp||0));
 
-  $('ctb-titulos').innerHTML = ordenado.map(r => `
+  $('ctb-pmp').innerHTML = linhas.map(l => `
     <tr>
-      <td>${r.dtVenc}</td>
-      <td>${lojaLabel(r.loja)}</td>
-      <td>${r.doc || '—'}</td>
-      <td>${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</td>
-      <td>${r.forma || '—'}</td>
-      <td class="num">${fBRL(r.valor)}</td>
-      <td>${badge(statusDe(r))}</td>
+      <td>${lojaLabel(l.loja)}</td>
+      <td class="num">${fBRL(l.saldoAberto)}</td>
+      <td class="num">${fBRL(l.totalPago)}</td>
+      <td class="num">${l.pmp!==null ? fD(l.pmp)+' dias' : '—'}</td>
     </tr>`).join('') +
-    (data.length > 500 ? `<tr><td colspan="7" class="nd">Mostrando os 500 títulos mais próximos do vencimento, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    (geral && geral.pmp!==null ? `<tr class="total-row"><td>Geral (${loja?lojaLabel(loja):'todas as lojas'})</td><td class="num">${fBRL(geral.saldoAberto)}</td><td class="num">${fBRL(geral.totalPago)}</td><td class="num">${fD(geral.pmp)} dias</td></tr>` : '');
 }
 
-/* ══════════════════════════════════════════════════════════════
-   SIDEBAR (hover/collapse) — mesmo padrão das demais páginas
-══════════════════════════════════════════════════════════════ */
 document.querySelectorAll('.side-item > .side-link').forEach(btn => {
   btn.addEventListener('click', () => {
     const item = btn.closest('.side-item');
@@ -975,9 +914,6 @@ document.querySelectorAll('.side-item > .side-link').forEach(btn => {
   });
 });
 
-/* ══════════════════════════════════════════════════════════════
-   INIT
-══════════════════════════════════════════════════════════════ */
 loadData(false);
 </script>
 </body>
