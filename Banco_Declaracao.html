@@ -204,15 +204,37 @@ a{ color:inherit; }
 }
 
 /* ---------- Loading overlay ---------- */
-.loading-overlay{
-  display:flex; align-items:center; justify-content:center; gap:12px; flex-direction:column;
-  padding:60px 20px; color:var(--slate); font-size:13.5px;
-}
 .spinner{
   width:34px; height:34px; border-radius:50%; border:3px solid var(--line); border-top-color:var(--gold);
   animation:spin .85s linear infinite;
 }
 @keyframes spin{ to{ transform:rotate(360deg); } }
+
+/* ---------- Loader de tela cheia (1º carregamento) ----------
+   Mesmo padrão visual das demais telas do painel, mas usando as cores
+   e fontes já usadas neste arquivo (dourado/marinho, Fraunces). */
+#loader {
+  position: fixed; inset: 0; z-index: 9999;
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 18px;
+  transition: opacity .4s ease, visibility .4s;
+}
+#loader.out { opacity: 0; visibility: hidden; pointer-events: none; }
+.ld-logo { display: flex; align-items: center; gap: 13px; }
+.ld-mark {
+  width: 46px; height: 46px; border-radius: 50%; flex: none;
+  background: radial-gradient(circle at 32% 28%, #2A3F5C, var(--ink) 72%);
+  border: 1.5px solid var(--gold-soft);
+  display: flex; align-items: center; justify-content: center;
+}
+.ld-mark svg { width: 22px; height: 22px; color: var(--gold-soft); }
+.ld-name { font-family: var(--font-display); font-size: 22px; font-weight: 700; color: #fff; letter-spacing: -.01em; }
+.ld-sub  { font-size: 10px; color: rgba(255,255,255,.5); letter-spacing: .12em; text-transform: uppercase; margin-top: 2px; }
+.ld-track { width: 200px; height: 2px; background: rgba(255,255,255,.12); border-radius: 2px; overflow: hidden; }
+.ld-fill  { height: 100%; background: var(--gold); border-radius: 2px; animation: ldAnim 1.8s ease forwards; }
+@keyframes ldAnim { 0%{width:0} 55%{width:70%} 100%{width:100%} }
+.ld-txt { font-size: 11.5px; color: rgba(255,255,255,.6); letter-spacing: .05em; }
 
 /* =====================================================================
    KPI GRID
@@ -447,6 +469,15 @@ a.side-brand:hover { opacity:.85; }
 </head>
 <body>
 
+<div id="loader">
+  <div class="ld-logo">
+    <div class="ld-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 21h18M4 21V9l8-6 8 6v12M9 21v-6h6v6"/></svg></div>
+    <div><div class="ld-name">Banco</div><div class="ld-sub">Grupo Pratic</div></div>
+  </div>
+  <div class="ld-track"><div class="ld-fill"></div></div>
+  <div class="ld-txt" id="ld-txt">Conectando…</div>
+</div>
+
 <!-- SIDEBAR MENU -->
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
 <button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
@@ -608,11 +639,6 @@ a.side-brand:hover { opacity:.85; }
       <span class="ico">⚠️</span>
       <span class="error-text"></span>
       <button id="btnRetry" type="button">Tentar novamente</button>
-    </div>
-
-    <div class="loading-overlay" id="loadingOverlay">
-      <div class="spinner"></div>
-      <span>Carregando lançamentos da planilha…</span>
     </div>
 
     <div id="dashboardContent" style="display:none;">
@@ -1235,8 +1261,9 @@ function setLoading(isLoading){
   var content = $("dashboardContent");
   var firstLoad = content.style.display !== "block";
   if (firstLoad) {
-    $("loadingOverlay").style.display = isLoading ? "flex" : "none";
-    if (!isLoading) content.style.display = "block";
+    var ld = $("loader");
+    if (isLoading) { if (ld) ld.classList.remove('out'); }
+    else { if (ld) ld.classList.add('out'); content.style.display = "block"; }
   } else if (isLoading) {
     showUpdateOverlay();
   }
