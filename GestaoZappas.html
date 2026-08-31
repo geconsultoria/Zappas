@@ -321,6 +321,12 @@ body {
       <span>Atualização Geral</span>
     </button>
     <div class="side-status" id="status-gerar-resumo"></div>
+
+    <button class="side-link" id="btn-backup-geral" type="button" onclick="backupGeral()" title="Backup Geral">
+      <svg id="icon-backup-geral" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+      <span>Backup Geral</span>
+    </button>
+    <div class="side-status" id="status-backup-geral"></div>
   </div>
 </aside>
 
@@ -342,7 +348,7 @@ body {
       <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
     </div>
     <div>
-      <div class="update-card-title">Atualização Geral</div>
+      <div class="update-card-title" id="update-card-title">Atualização Geral</div>
       <div class="update-card-sub" id="update-card-sub">Gerando resumo mensal, aguarde…</div>
     </div>
   </div>
@@ -378,6 +384,7 @@ async function gerarResumoMensal() {
 
   const overlay   = document.getElementById('update-overlay');
   const cardIcon  = document.getElementById('update-card-icon');
+  const cardTitle = document.getElementById('update-card-title');
   const cardSub   = document.getElementById('update-card-sub');
 
   btn.disabled = true;
@@ -385,6 +392,8 @@ async function gerarResumoMensal() {
   status.style.color = 'var(--slate,#5B6B7C)';
   status.textContent = 'Gerando resumo mensal, aguarde…';
 
+  cardTitle.textContent = 'Atualização Geral';
+  cardIcon.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
   overlay.classList.add('show');
   cardIcon.classList.add('spin');
   cardSub.className = 'update-card-sub';
@@ -424,7 +433,189 @@ async function gerarResumoMensal() {
   }
 }
 
-// ── Atualização automática ao reabrir o sistema ──
+// ── BOTÃO: Backup Geral (dados + telas do app) ──
+// Mesmo endpoint único (APPS_SCRIPT_URL) usado por todas as telas,
+// roteado por querystring (?loja=, ?tipo=ctaspagar, ?tipo=recebidos,
+// ?tipo=depara, ?tipo=planocontas) — e o endpoint separado de Metas.
+const BACKUP_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const BACKUP_METAS_URL = 'https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec';
+// As 11 telas do painel, publicadas junto no mesmo endereço (GitHub
+// Pages) — buscadas por caminho relativo pra entrar no backup.
+const BACKUP_APP_FILES = [
+  'GestaoZappas.html','Acompanhamento_Metas.html','Analise_Comercial.html',
+  'Banco_Declaracao.html','Contas_a_Pagar.html','DRE_Gerencial.html',
+  'Elaboracao_Metas.html','Faturamento_Detalhado.html','Faturamento_Lucro.html',
+  'Reembolso.html','Ciclo_Financeiro.html'
+];
+
+let _jszipPromise = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve();
+  if (_jszipPromise) return _jszipPromise;
+  _jszipPromise = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = resolve;
+    s.onerror = () => reject(new Error('Não foi possível carregar a biblioteca de compactação (verifique a conexão).'));
+    document.head.appendChild(s);
+  });
+  return _jszipPromise;
+}
+
+async function backupGeral() {
+  const btn    = document.getElementById('btn-backup-geral');
+  const icon   = document.getElementById('icon-backup-geral');
+  const status = document.getElementById('status-backup-geral');
+
+  const overlay   = document.getElementById('update-overlay');
+  const cardIcon  = document.getElementById('update-card-icon');
+  const cardTitle = document.getElementById('update-card-title');
+  const cardSub   = document.getElementById('update-card-sub');
+
+  btn.disabled = true;
+  icon.style.animation = 'spin .8s linear infinite';
+  status.style.color = 'var(--slate,#5B6B7C)';
+  status.textContent = 'Preparando backup…';
+
+  cardTitle.textContent = 'Backup Geral';
+  cardIcon.innerHTML = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
+  overlay.classList.add('show');
+  cardIcon.classList.add('spin');
+  cardSub.className = 'update-card-sub';
+  cardSub.textContent = 'Preparando backup, aguarde…';
+
+  const setMsg = (msg) => {
+    status.textContent = msg;
+    cardSub.textContent = msg;
+  };
+
+  const falhas = [];
+  const cacheBust = '_bk=' + Date.now();
+
+  async function fetchTexto(url, rotulo) {
+    try {
+      const sep = url.includes('?') ? '&' : '?';
+      const res = await fetch(url + sep + cacheBust, { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      return await res.text();
+    } catch (e) {
+      falhas.push(rotulo + ': ' + e.message);
+      return null;
+    }
+  }
+
+  try {
+    await loadJSZip();
+    const zip = new JSZip();
+    const dados = zip.folder('dados');
+    const app = zip.folder('app');
+
+    // ── Dados (mesmas fontes que os dashboards já usam) ──
+    let etapa = 0;
+    const totalEtapas = (BACKUP_STORE_KEYS.length * 4) + 2 + BACKUP_APP_FILES.length;
+    const avancar = (msg) => { etapa++; setMsg(`${msg} (${etapa}/${totalEtapas})`); };
+
+    for (const loja of BACKUP_STORE_KEYS) {
+      avancar(`Faturamento — ${loja}`);
+      const txt = await fetchTexto(`${APPS_SCRIPT_URL}?loja=${loja}`, `Faturamento (${loja})`);
+      if (txt) dados.file(`faturamento/${loja}.csv`, txt);
+    }
+    for (const loja of BACKUP_STORE_KEYS) {
+      avancar(`Contas a Pagar — ${loja}`);
+      const txt = await fetchTexto(`${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${loja}`, `Contas a Pagar (${loja})`);
+      if (txt) dados.file(`contas_a_pagar/${loja}.csv`, txt);
+    }
+    for (const loja of BACKUP_STORE_KEYS) {
+      avancar(`Recebidos — ${loja}`);
+      const txt = await fetchTexto(`${APPS_SCRIPT_URL}?tipo=recebidos&loja=${loja}`, `Recebidos (${loja})`);
+      if (txt) dados.file(`recebidos/${loja}.csv`, txt);
+    }
+    for (const loja of BACKUP_STORE_KEYS) {
+      avancar(`De-Para — ${loja}`);
+      const txt = await fetchTexto(`${APPS_SCRIPT_URL}?tipo=depara&loja=${loja}`, `De-Para (${loja})`);
+      if (txt) dados.file(`depara/${loja}.csv`, txt);
+    }
+    avancar('Plano de Contas');
+    const planoTxt = await fetchTexto(`${APPS_SCRIPT_URL}?tipo=planocontas`, 'Plano de Contas');
+    if (planoTxt) dados.file('plano_de_contas.csv', planoTxt);
+
+    avancar('Metas');
+    const metasTxt = await fetchTexto(BACKUP_METAS_URL, 'Metas');
+    if (metasTxt) dados.file('metas.csv', metasTxt);
+
+    // ── Telas do app (HTML publicado no mesmo endereço) ──
+    for (const arquivo of BACKUP_APP_FILES) {
+      avancar(`Tela — ${arquivo}`);
+      try {
+        const res = await fetch(arquivo + '?' + cacheBust, { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+        app.file(arquivo, await res.text());
+      } catch (e) {
+        falhas.push(`Tela ${arquivo}: ` + e.message);
+      }
+    }
+
+    // ── Manifesto ──
+    const agora = new Date();
+    const tsLegivel = agora.toLocaleString('pt-BR');
+    const leiaMe = [
+      'BACKUP GERAL — GESTÃO ZAPPAS',
+      'Gerado em: ' + tsLegivel,
+      '',
+      'CONTEÚDO:',
+      '  /dados  → CSVs de Faturamento, Contas a Pagar, Recebidos, De-Para,',
+      '            Plano de Contas e Metas, exatamente como os dashboards',
+      '            leem hoje (mesmos endpoints do Apps Script).',
+      '  /app    → cópia das 11 telas HTML do painel, como publicadas.',
+      '',
+      'O QUE NÃO ESTÁ NESTE BACKUP:',
+      '  O código-fonte do Apps Script (o script que roda no Google e lê',
+      '  as planilhas) não pode ser baixado por um botão na página — o',
+      '  Google não expõe esse código pela URL pública do app.',
+      '  Para fazer backup dele: abra script.google.com, entre no projeto,',
+      '  e use Arquivo → Fazer uma cópia (ou exporte via clasp).',
+      '',
+      falhas.length ? 'FALHAS NESTE BACKUP:\n  ' + falhas.join('\n  ') : 'Nenhuma falha — todas as fontes foram incluídas.'
+    ].join('\n');
+    zip.file('LEIA-ME.txt', leiaMe);
+
+    setMsg('Compactando arquivo…');
+    const blob = await zip.generateAsync({ type: 'blob', compression: 'DEFLATE', compressionOptions: { level: 6 } });
+
+    const nomeArq = 'Backup_Zappas_' + agora.toISOString().slice(0,16).replace(/[-T:]/g,'').replace(/^(\d{8})(\d{4})$/, '$1_$2') + '.zip';
+    const urlBlob = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = urlBlob; a.download = nomeArq;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(urlBlob), 4000);
+
+    if (falhas.length) {
+      status.style.color = '#B87010';
+      status.textContent = `✓ Backup baixado com ${falhas.length} falha(s) — veja LEIA-ME.txt`;
+      cardIcon.classList.remove('spin');
+      cardSub.className = 'update-card-sub err';
+      cardSub.textContent = `✓ Backup baixado com ${falhas.length} falha(s) — veja LEIA-ME.txt no zip`;
+    } else {
+      status.style.color = '#1C6E54';
+      status.textContent = '✓ Backup baixado com sucesso';
+      cardIcon.classList.remove('spin');
+      cardSub.className = 'update-card-sub ok';
+      cardSub.textContent = '✓ Backup baixado com sucesso';
+    }
+  } catch (e) {
+    status.style.color = '#A23B2E';
+    status.textContent = 'Falha ao gerar backup: ' + e.message;
+    cardIcon.classList.remove('spin');
+    cardSub.className = 'update-card-sub err';
+    cardSub.textContent = 'Falha ao gerar backup: ' + e.message;
+  } finally {
+    btn.disabled = false;
+    icon.style.animation = '';
+    setTimeout(() => overlay.classList.remove('show'), 2400);
+  }
+}
+
+
 // sessionStorage dura enquanto a aba/app ficar aberto, mesmo navegando
 // entre páginas — mas ZERA quando você fecha de vez o navegador/app e
 // abre de novo. Por isso: dispara "Atualização Geral" sozinho só na
