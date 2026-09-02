@@ -1800,7 +1800,9 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
     if(!permitida) continue;
 
-    // Extrai mês e ano
+    // Extrai mês e ano. Nunca "chuta" o ano atual quando não dá pra
+    // identificar o ano com segurança — isso jogava linhas de anos
+    // passados (ex.: 2025) pra dentro do ano corrente, sumindo do DFC.
     let mes = null, ano = null;
     if(iMes>=0){
       const mesRaw = g(iMes);
@@ -1808,8 +1810,7 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       ano = iAno>=0 ? parseInt(g(iAno)) : parseAno(mesRaw);
     }
     if(iAno>=0 && !ano) ano = parseInt(g(iAno));
-    if(!ano) ano = new Date().getFullYear();
-    if(!mes) mes = new Date().getMonth()+1;
+    if(!ano || !mes) continue; // sem mês/ano confiável, não dá pra classificar por período
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;

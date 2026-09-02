@@ -1486,7 +1486,7 @@ async function loadQuebrasMap() {
       if (!txt || !txt.trim()) return;
       const { headers, rows } = parseCSVGeneric(txt);
       const cLoja  = headers.includes('loja') ? 'loja' : null;
-      const cAno   = headers.includes('ano') ? 'ano' : null;
+      const cAno   = headers.find(h => h === 'ano' || h === 'ano_ref' || h === 'ano_competencia' || h === 'anoref') || null;
       const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
@@ -1505,8 +1505,14 @@ async function loadQuebrasMap() {
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
-        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : (parseAnoRec(mesRaw) || new Date().getFullYear());
-        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas data não reconhecida ("' + mesRaw + '").'); return; }
+        // IMPORTANTE: nunca cair no ano atual como "chute" quando o ano não
+        // é identificável — isso jogava silenciosamente linhas de anos
+        // passados (ex.: 2025) para dentro do ano corrente, fazendo esses
+        // anos sumirem do quadro de Quebras. Se não der pra determinar o
+        // ano com segurança, a linha é ignorada (e avisada no console).
+        const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
+        const ano = anoColuna || parseAnoRec(mesRaw);
+        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').'); return; }
         matched++;
         const anoKey = String(ano), mesKey = String(mes);
         map[loja] = map[loja] || {};

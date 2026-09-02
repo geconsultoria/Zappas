@@ -1340,7 +1340,7 @@ async function loadQuebrasMap() {
       if (!txt || !txt.trim()) return;
       const { headers, rows } = parseCSV(txt);
       const cLoja  = headers.includes('loja') ? 'loja' : null;
-      const cAno   = headers.includes('ano') ? 'ano' : null;
+      const cAno   = headers.find(h => h === 'ano' || h === 'ano_ref' || h === 'ano_competencia' || h === 'anoref') || null;
       const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
@@ -1357,11 +1357,17 @@ async function loadQuebrasMap() {
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
-        const ano = (cAno && r[cAno]) ? parseInt(r[cAno]) : (parseAnoRec(mesRaw) || new Date().getFullYear());
+        // Nunca "chutar" o ano atual quando não dá pra identificar o ano —
+        // isso jogava linhas de anos passados (ex.: 2025) pra dentro do
+        // ano corrente, fazendo esses anos sumirem do quadro de Quebras.
+        const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
+        const ano = anoColuna || parseAnoRec(mesRaw);
         if (mes && ano) {
           map[loja] = map[loja] || {};
           map[loja][ano] = map[loja][ano] || {};
           map[loja][ano][mes] = (map[loja][ano][mes] || 0) + valor;
+        } else {
+          console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').');
         }
         // Granularidade diária, a partir de "dtentrada".
         if (cDtEntrada) {
