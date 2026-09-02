@@ -1753,6 +1753,25 @@ function parseDepara(text){
 }
 
 /**
+ * Extrai {ano, mes, dia} da coluna "dtentrada" (data completa do
+ * lançamento). Usada como fonte confiável de ano/mês quando a planilha
+ * de Recebidos não tem coluna de ano própria e "mes" só traz o número
+ * solto (ex.: "3"), sem indicar a qual ano pertence.
+ */
+function parseDtEntrada(s) {
+  if (s === null || s === undefined) return null;
+  const str = String(s).trim();
+  if (!str) return null;
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return { ano: +m[3], mes: +m[2], dia: +m[1] };
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return { ano: +m[1], mes: +m[2], dia: +m[3] };
+  const d = new Date(str);
+  if (!isNaN(d)) return { ano: d.getFullYear(), mes: d.getMonth() + 1, dia: d.getDate() };
+  return null;
+}
+
+/**
  * Lê um CSV de recebidos de uma loja, aplica o de-para e filtra
  * apenas as categorias permitidas (Boleto/Conv, Cartão/PIX, Dinheiro).
  * Retorna array de rows no formato padronizado do DRE.
@@ -1764,12 +1783,13 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
-  // Colunas reais: mes, loja, codpgto, nomepgto, conta
+  // Colunas reais: mes, loja, codpgto, nomepgto, conta, dtentrada
   const iMes    = findCol(rawHeaders,'mes','mês','month','competencia','data');
   const iAno    = findCol(rawHeaders,'ano','year','exercicio');
   const iLoja   = findCol(rawHeaders,'loja','store','filial','unidade');
   const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento');
   const iConta  = findCol(rawHeaders,'conta','valor','valor_conta','v_conta');
+  const iDtEntrada = findCol(rawHeaders,'dtentrada','dt_entrada','data_entrada');
 
   if(iCodPgto<0) throw new Error('Recebidos — coluna codpgto não encontrada. Colunas: '+rawHeaders.join(', '));
   if(iConta<0) throw new Error('Recebidos — coluna conta (valor) não encontrada. Colunas: '+rawHeaders.join(', '));
@@ -1803,6 +1823,10 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     // Extrai mês e ano. Nunca "chuta" o ano atual quando não dá pra
     // identificar o ano com segurança — isso jogava linhas de anos
     // passados (ex.: 2025) pra dentro do ano corrente, sumindo do DFC.
+    // Usa a coluna "ano", depois tenta extrair do texto do mês, e por
+    // fim usa "dtentrada" (data completa) — só descarta a linha se
+    // nenhuma dessas fontes tiver o ano.
+    const dt = iDtEntrada>=0 ? parseDtEntrada(g(iDtEntrada)) : null;
     let mes = null, ano = null;
     if(iMes>=0){
       const mesRaw = g(iMes);
@@ -1810,6 +1834,8 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       ano = iAno>=0 ? parseInt(g(iAno)) : parseAno(mesRaw);
     }
     if(iAno>=0 && !ano) ano = parseInt(g(iAno));
+    if(!mes) mes = dt ? dt.mes : null;
+    if(!ano) ano = dt ? dt.ano : null;
     if(!ano || !mes) continue; // sem mês/ano confiável, não dá pra classificar por período
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;

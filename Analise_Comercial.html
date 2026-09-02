@@ -1469,6 +1469,21 @@ function parseAnoRec(v){
   if(mSlash){ const y=parseInt(mSlash[1]); return y<100?y+2000:y; }
   return null;
 }
+// "dtentrada" traz a data completa (dia/mês/ano) do lançamento — é usada
+// como fallback confiável de ano/mês quando a planilha não tem coluna de
+// ano própria (ex.: "mes" só com o número solto, sem indicar o ano).
+function parseDtEntrada(s) {
+  if (s === null || s === undefined) return null;
+  const str = String(s).trim();
+  if (!str) return null;
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return { ano: +m[3], mes: +m[2], dia: +m[1] };
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return { ano: +m[1], mes: +m[2], dia: +m[3] };
+  const d = new Date(str);
+  if (!isNaN(d)) return { ano: d.getFullYear(), mes: d.getMonth() + 1, dia: d.getDate() };
+  return null;
+}
 
 // quebrasMap[loja][ano_string][mes_string] = valor acumulado
 let quebrasMap = {};
@@ -1490,6 +1505,7 @@ async function loadQuebrasMap() {
       const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
+      const cDtEntrada = headers.find(h => h === 'dtentrada' || h === 'dt_entrada' || h === 'data_entrada') || null;
       if (!cNome || !cConta) {
         console.error('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
         return;
@@ -1504,15 +1520,15 @@ async function loadQuebrasMap() {
         if (!valor) return;
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
-        const mes = parseMesRec(mesRaw);
+        const dt = cDtEntrada ? parseDtEntrada(r[cDtEntrada]) : null;
+        const mes = parseMesRec(mesRaw) || (dt ? dt.mes : null);
         // IMPORTANTE: nunca cair no ano atual como "chute" quando o ano não
-        // é identificável — isso jogava silenciosamente linhas de anos
-        // passados (ex.: 2025) para dentro do ano corrente, fazendo esses
-        // anos sumirem do quadro de Quebras. Se não der pra determinar o
-        // ano com segurança, a linha é ignorada (e avisada no console).
+        // é identificável. Usa a coluna "ano", depois tenta extrair do
+        // texto do mês, e por fim usa "dtentrada" (data completa) — só
+        // ignora a linha se nenhuma dessas fontes tiver o ano.
         const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
-        const ano = anoColuna || parseAnoRec(mesRaw);
-        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').'); return; }
+        const ano = anoColuna || parseAnoRec(mesRaw) || (dt ? dt.ano : null);
+        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + (cDtEntrada ? ', dtentrada="' + r[cDtEntrada] + '"' : ', sem coluna dtentrada') + ').'); return; }
         matched++;
         const anoKey = String(ano), mesKey = String(mes);
         map[loja] = map[loja] || {};
