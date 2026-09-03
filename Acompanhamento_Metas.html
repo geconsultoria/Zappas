@@ -2048,12 +2048,12 @@ function renderDashboard(f) {
   const vAntAcumDia  = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'venda') : vAnt;
 
   // % Meta Acum. Atual × Venda = (total da Meta Acum. / total da Venda
-  // Acum.) − 1. "Meta Acum." é a meta proporcional aos dias já passados
+  // Acum. AA) − 1. "Meta Acum." é a meta proporcional aos dias já passados
   // (metaMes × dias-decorridos/dias-do-mês) — a mesma conta da coluna
   // "Meta Acum." da tabela — não a meta do mês inteiro de uma vez, senão
   // distorce o resultado enquanto o mês ainda está em andamento.
   const metaAcumDia = (metaMes > 0 && ultimoDiaVenda > 0) ? metaMes * (ultimoDiaVenda / dias) : metaMes;
-  const pctMeta   = vAAcumDia > 0 ? ((metaAcumDia / vAAcumDia) - 1) * 100 : null;
+  const pctMeta   = vAntAcumDia > 0 ? ((metaAcumDia / vAntAcumDia) - 1) * 100 : null;
   const pctVsAnt  = vAntAcumDia > 0 ? ((vAAcumDia / vAntAcumDia) - 1) * 100 : null;
 
   const vDia    = vA   / dias;
@@ -2555,8 +2555,8 @@ function computeResumoLoja(loja) {
   const metaAcumLoja = (metaMesLoja > 0 && diaAnt) ? metaMesLoja * (diaAnt / dias) : 0;
   const metaAcumDel  = (metaMesDel  > 0 && diaAnt) ? metaMesDel  * (diaAnt / dias) : 0;
 
-  const pctMetaLoja = vLojaAcumDia > 0 ? ((metaAcumLoja / vLojaAcumDia) - 1) * 100 : null;
-  const pctMetaDel  = vDelAcumDia  > 0 ? ((metaAcumDel  / vDelAcumDia)  - 1) * 100 : null;
+  const pctMetaLoja = vLojaAcumDiaAA > 0 ? ((metaAcumLoja / vLojaAcumDiaAA) - 1) * 100 : null;
+  const pctMetaDel  = vDelAcumDiaAA  > 0 ? ((metaAcumDel  / vDelAcumDiaAA)  - 1) * 100 : null;
 
   // VENDA ACUM x ANO ANTERIOR = mesma conta do Meta Acum x Venda Mês, só
   // que no lugar da "Meta Acum." usa a venda acumulada do ANO ANTERIOR
