@@ -313,7 +313,7 @@ a.side-brand:hover { opacity:.85; }
 .mb { margin-bottom: 14px; }
 
 /* ─── LEGENDA DE FAIXAS (ao lado dos filtros) ─── */
-.rm-legend-static { display:flex; align-items:center; gap:6px; margin-left:auto; flex-wrap:wrap; }
+.rm-legend-static { display:flex; align-items:center; gap:6px; flex-wrap:wrap; }
 .rm-legend-item {
   font-size: 9.5px; font-weight: 700; padding: 4px 9px; border-radius: 20px;
   white-space: nowrap;
@@ -368,7 +368,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 9px;
+  font-size: 10px;
   table-layout: fixed;
 }
 thead { position: sticky; top: 0; z-index: 15; }
@@ -377,7 +377,7 @@ thead { position: sticky; top: 0; z-index: 15; }
   padding: 4px 3px;
   text-align: center;
   font-family: 'Outfit', sans-serif;
-  font-size: 8.5px; font-weight: 700;
+  font-size: 9.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .3px;
   white-space: nowrap;
   border-right: 1px solid rgba(255,255,255,.25);
@@ -391,8 +391,8 @@ thead { position: sticky; top: 0; z-index: 15; }
 
 .tr-sub th {
   padding: 3px 3px;
-  text-align: right;
-  font-size: 8px; font-weight: 600;
+  text-align: center;
+  font-size: 8.5px; font-weight: 600;
   line-height: 1.15;
   color: var(--ink2);
   background: var(--surface2);
@@ -417,21 +417,21 @@ td {
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 8.5px;
+  font-size: 9.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
+td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.ctr { text-align: center; }
 td.pos { color: var(--green); font-weight: 600; }
 td.neg { color: var(--red); font-weight: 600; }
 td.dash { color: var(--muted); }
 
-.badge { display:inline-block; padding: 2px 6px; border-radius: 20px; font-size: 7.5px; font-weight: 700; white-space:nowrap; }
+.badge { display:inline-block; padding: 2px 6px; border-radius: 20px; font-size: 8.5px; font-weight: 700; white-space:nowrap; }
 .badge-ok { background: var(--green-lt); color: #085C44; }
 .badge-no { background: var(--red-lt);   color: #991B13; }
 .badge-na { background: var(--surface2); color: var(--muted); }
@@ -441,7 +441,7 @@ td.dash { color: var(--muted); }
 .fx-desafio { background:#C9F2D8; color:#07523B; font-weight:700; }
 
 .tr-media { background: #EFF5FF; }
-.tr-media td { border-top: 2px solid var(--blue-mid); font-weight: 700; color: var(--blue); font-size: 10px; }
+.tr-media td { border-top: 2px solid var(--blue-mid); font-weight: 700; color: var(--blue); font-size: 11px; }
 
 /* ─── LOADING / ERROR ─── */
 .loading-box {
@@ -672,11 +672,6 @@ td.dash { color: var(--muted); }
         </div>
       </div>
     </div>
-  </div>
-  <div class="rm-legend-static">
-    <span class="rm-legend-item fx-meta">100% · Meta</span>
-    <span class="rm-legend-item fx-super">105% · Super Meta</span>
-    <span class="rm-legend-item fx-desafio">110% · Desafio</span>
   </div>
 </div>
 
@@ -1581,6 +1576,11 @@ function renderResultado() {
         <div class="tbl-head-title">Análise de Venda Mensal · Meta</div>
         <div class="tbl-head-sub">Realizado ${anoAnt} × Meta ${ano} × Realizado ${ano}, por loja · Canal: ${canalLabelTexto()}</div>
       </div>
+      <div class="rm-legend-static">
+        <span class="rm-legend-item fx-meta">100% · Meta</span>
+        <span class="rm-legend-item fx-super">105% · Super Meta</span>
+        <span class="rm-legend-item fx-desafio">110% · Desafio</span>
+      </div>
       <span class="tbl-badge">${mesLbl} ${ano} · ${linhas[0].dias} dias</span>
     </div>
     <div class="tbl-scroll">
@@ -1628,7 +1628,7 @@ function renderResultado() {
             <td>${Num0(r.vAnt)}</td>
             <td>${r.metaAtual>0?Num0(r.metaAtual):'—'}</td>
             <td>${Num0(r.vAtual)}</td>
-            <td>${r.pctMetaConcluida===null?'<span class="badge badge-na">—</span>':(r.pctMetaConcluida>=100?'<span class="badge badge-ok">Meta Concluída</span>':'<span class="badge badge-no">Meta não Concluída</span>')}</td>
+            <td>${r.pctMetaConcluida===null?'<span class="badge badge-na">—</span>':(r.pctMetaConcluida>=100?'<span class="badge badge-ok">Concluída</span>':'<span class="badge badge-no">Não Concluída</span>')}</td>
             <td class="${r.crescimento===null?'dash':(r.crescimento>=0?'pos':'neg')}">${Pct(r.crescimento)}</td>
             <td class="sep ${faixaClass(r.pctMetaConcluida)}">${Pct(r.pctMetaConcluida)}</td>
             <td class="ctr">${r.dias}</td>
@@ -1649,7 +1649,7 @@ function renderResultado() {
             <td>${Num0(tVAnt)}</td>
             <td>${tMeta>0?Num0(tMeta):'—'}</td>
             <td>${Num0(tVAtual)}</td>
-            <td>${tPctMeta===null?'<span class="badge badge-na">—</span>':(tPctMeta>=100?'<span class="badge badge-ok">Meta Concluída</span>':'<span class="badge badge-no">Meta não Concluída</span>')}</td>
+            <td>${tPctMeta===null?'<span class="badge badge-na">—</span>':(tPctMeta>=100?'<span class="badge badge-ok">Concluída</span>':'<span class="badge badge-no">Não Concluída</span>')}</td>
             <td class="${tCrescimento===null?'dash':(tCrescimento>=0?'pos':'neg')}">${Pct(tCrescimento)}</td>
             <td class="sep ${faixaClass(tPctMeta)}">${Pct(tPctMeta)}</td>
             <td class="ctr">${linhas[0].dias}</td>
