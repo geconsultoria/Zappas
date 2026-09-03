@@ -1356,27 +1356,28 @@ async function loadQuebrasMap() {
         if (!valor) return;
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
-        // "dtentrada" traz a data completa (dia/mês/ano) do lançamento —
-        // é a fonte mais confiável de ano, já que a planilha não tem uma
-        // coluna de ano própria e "mes" às vezes só traz o número solto
-        // (ex.: "3"), sem indicar a qual ano pertence.
-        const dt = cDtEntrada ? parseDtEntrada(r[cDtEntrada]) : null;
-        const mes = parseMesRec(mesRaw) || (dt ? dt.mes : null);
+        const mes = parseMesRec(mesRaw);
+        // Nunca "chutar" o ano atual quando não dá pra identificar o ano —
+        // isso jogava linhas de anos passados (ex.: 2025) pra dentro do
+        // ano corrente, fazendo esses anos sumirem do quadro de Quebras.
         const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
-        const ano = anoColuna || parseAnoRec(mesRaw) || (dt ? dt.ano : null);
+        const ano = anoColuna || parseAnoRec(mesRaw);
         if (mes && ano) {
           map[loja] = map[loja] || {};
           map[loja][ano] = map[loja][ano] || {};
           map[loja][ano][mes] = (map[loja][ano][mes] || 0) + valor;
         } else {
-          console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + (cDtEntrada ? ', dtentrada="' + r[cDtEntrada] + '"' : ', sem coluna dtentrada') + ').');
+          console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').');
         }
         // Granularidade diária, a partir de "dtentrada".
-        if (dt && dt.ano && dt.mes && dt.dia) {
-          mapDia[loja] = mapDia[loja] || {};
-          mapDia[loja][dt.ano] = mapDia[loja][dt.ano] || {};
-          mapDia[loja][dt.ano][dt.mes] = mapDia[loja][dt.ano][dt.mes] || {};
-          mapDia[loja][dt.ano][dt.mes][dt.dia] = (mapDia[loja][dt.ano][dt.mes][dt.dia] || 0) + valor;
+        if (cDtEntrada) {
+          const dt = parseDtEntrada(r[cDtEntrada]);
+          if (dt && dt.ano && dt.mes && dt.dia) {
+            mapDia[loja] = mapDia[loja] || {};
+            mapDia[loja][dt.ano] = mapDia[loja][dt.ano] || {};
+            mapDia[loja][dt.ano][dt.mes] = mapDia[loja][dt.ano][dt.mes] || {};
+            mapDia[loja][dt.ano][dt.mes][dt.dia] = (mapDia[loja][dt.ano][dt.mes][dt.dia] || 0) + valor;
+          }
         }
       });
     } catch(e) {
@@ -2046,13 +2047,13 @@ function renderDashboard(f) {
   const vAAcumDia    = ultimoDiaVenda > 0 ? queryAteDia(anoA,   mes, loja, ultimoDiaVenda, 'venda') : vA;
   const vAntAcumDia  = ultimoDiaVenda > 0 ? queryAteDia(anoAnt, mes, loja, ultimoDiaVenda, 'venda') : vAnt;
 
-  // % Meta Acum. Atual × Venda = (total da Venda Acum. / total da Meta
+  // % Meta Acum. Atual × Venda = (total da Meta Acum. / total da Venda
   // Acum.) − 1. "Meta Acum." é a meta proporcional aos dias já passados
   // (metaMes × dias-decorridos/dias-do-mês) — a mesma conta da coluna
   // "Meta Acum." da tabela — não a meta do mês inteiro de uma vez, senão
   // distorce o resultado enquanto o mês ainda está em andamento.
   const metaAcumDia = (metaMes > 0 && ultimoDiaVenda > 0) ? metaMes * (ultimoDiaVenda / dias) : metaMes;
-  const pctMeta   = metaAcumDia > 0 ? ((vAAcumDia / metaAcumDia) - 1) * 100 : null;
+  const pctMeta   = vAAcumDia > 0 ? ((metaAcumDia / vAAcumDia) - 1) * 100 : null;
   const pctVsAnt  = vAntAcumDia > 0 ? ((vAAcumDia / vAntAcumDia) - 1) * 100 : null;
 
   const vDia    = vA   / dias;
@@ -2554,8 +2555,8 @@ function computeResumoLoja(loja) {
   const metaAcumLoja = (metaMesLoja > 0 && diaAnt) ? metaMesLoja * (diaAnt / dias) : 0;
   const metaAcumDel  = (metaMesDel  > 0 && diaAnt) ? metaMesDel  * (diaAnt / dias) : 0;
 
-  const pctMetaLoja = metaAcumLoja > 0 ? ((vLojaAcumDia / metaAcumLoja) - 1) * 100 : null;
-  const pctMetaDel  = metaAcumDel  > 0 ? ((vDelAcumDia  / metaAcumDel)  - 1) * 100 : null;
+  const pctMetaLoja = vLojaAcumDia > 0 ? ((metaAcumLoja / vLojaAcumDia) - 1) * 100 : null;
+  const pctMetaDel  = vDelAcumDia  > 0 ? ((metaAcumDel  / vDelAcumDia)  - 1) * 100 : null;
 
   // VENDA ACUM x ANO ANTERIOR = mesma conta do Meta Acum x Venda Mês, só
   // que no lugar da "Meta Acum." usa a venda acumulada do ANO ANTERIOR
