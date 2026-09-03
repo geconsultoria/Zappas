@@ -1352,6 +1352,7 @@ async function loadQuebrasMap() {
         return;
       }
       let linhasMatch = 0;
+      let linhasSemData = 0;
       rows.forEach(r => {
         const nome = normTxt(r[cNome]);
         if (!NOMEPGTO_QUEBRAS.includes(nome)) return;
@@ -1359,28 +1360,38 @@ async function loadQuebrasMap() {
         if (!valor) return;
         linhasMatch++;
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
-        const mesRaw = cMes ? r[cMes] : '';
-        const mes = parseMesRec(mesRaw);
-        const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
-        const ano = anoColuna || parseAnoRec(mesRaw);
+
+        // dtentrada traz a data completa (dia/mês/ano) do lançamento — é a
+        // fonte mais confiável, já que a coluna "mes" costuma vir só com o
+        // número do mês solto (ex.: "8") e não existe coluna de ano
+        // separada nessa planilha. Só cai pro fallback (colunas soltas de
+        // mês/ano) quando não há dtentrada ou ele não é reconhecível.
+        const dt = cDtEntrada ? parseDtEntrada(r[cDtEntrada]) : null;
+        let mes = (dt && dt.mes) || null;
+        let ano = (dt && dt.ano) || null;
+        if (!mes || !ano) {
+          const mesRaw = cMes ? r[cMes] : '';
+          mes = mes || parseMesRec(mesRaw);
+          const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
+          ano = ano || anoColuna || parseAnoRec(mesRaw);
+        }
+
         if (mes && ano) {
           map[loja] = map[loja] || {};
           map[loja][ano] = map[loja][ano] || {};
           map[loja][ano][mes] = (map[loja][ano][mes] || 0) + valor;
         } else {
-          console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').');
+          linhasSemData++;
+          console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido (dtentrada="' + (cDtEntrada ? r[cDtEntrada] : '∅') + '", mes="' + (cMes ? r[cMes] : '∅') + '"' + (cAno ? ', ano="' + r[cAno] + '"' : ', sem coluna ano') + ').');
         }
-        if (cDtEntrada) {
-          const dt = parseDtEntrada(r[cDtEntrada]);
-          if (dt && dt.ano && dt.mes && dt.dia) {
-            mapDia[loja] = mapDia[loja] || {};
-            mapDia[loja][dt.ano] = mapDia[loja][dt.ano] || {};
-            mapDia[loja][dt.ano][dt.mes] = mapDia[loja][dt.ano][dt.mes] || {};
-            mapDia[loja][dt.ano][dt.mes][dt.dia] = (mapDia[loja][dt.ano][dt.mes][dt.dia] || 0) + valor;
-          }
+        if (dt && dt.ano && dt.mes && dt.dia) {
+          mapDia[loja] = mapDia[loja] || {};
+          mapDia[loja][dt.ano] = mapDia[loja][dt.ano] || {};
+          mapDia[loja][dt.ano][dt.mes] = mapDia[loja][dt.ano][dt.mes] || {};
+          mapDia[loja][dt.ano][dt.mes][dt.dia] = (mapDia[loja][dt.ano][dt.mes][dt.dia] || 0) + valor;
         }
       });
-      console.log('[QUEBRAS] ' + lojaFallback + ': ' + linhasMatch + ' linhas de quebras encontradas.');
+      console.log('[QUEBRAS] ' + lojaFallback + ': ' + linhasMatch + ' linhas de quebras encontradas' + (linhasSemData ? ' (' + linhasSemData + ' sem mês/ano reconhecido)' : '') + '.');
     } catch(e) {
       console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
     }
