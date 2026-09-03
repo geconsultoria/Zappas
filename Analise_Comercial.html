@@ -1541,6 +1541,19 @@ async function loadQuebrasMap() {
 // mensal repetidas vezes). Se houver filtro de canal específico ativo,
 // retorna 0 — o Recebidos não tem canal, não dá pra atribuir o valor
 // com segurança a um canal só.
+// Normaliza loja/mês para casar rawData (Faturamento, ex.: loja "Bady",
+// mês "08") com as chaves de quebrasMap (Recebidos, sempre loja em
+// MAIÚSCULA e mês sem zero à esquerda, ex.: "BADY" / "8"). Sem essa
+// normalização a busca em quebrasMap[loja][ano][mes] falhava sempre que a
+// planilha de Faturamento trazia a loja com outra caixa ou o mês com zero
+// à esquerda, fazendo Quebras aparecer zerado mesmo com dado carregado.
+function quebrasLookupKeys(r) {
+  const loja = String(r.loja || '').trim().toUpperCase();
+  const ano  = String(parseInt(r.ano, 10) || r.ano);
+  const mesN = parseInt(r.mes, 10);
+  const mes  = isNaN(mesN) ? String(r.mes) : String(mesN);
+  return { loja, ano, mes };
+}
 function quebrasTotalFor(rows) {
   // Quebras (Recebidos) não tem canal — mostra o total da loja sempre,
   // independente do filtro de canal selecionado (a tela já vem com
@@ -1551,7 +1564,8 @@ function quebrasTotalFor(rows) {
     const key = r.loja + '|' + r.ano + '|' + r.mes;
     if (vistos.has(key)) return;
     vistos.add(key);
-    total += (quebrasMap[r.loja]?.[r.ano]?.[r.mes]) || 0;
+    const { loja, ano, mes } = quebrasLookupKeys(r);
+    total += (quebrasMap[loja]?.[ano]?.[mes]) || 0;
   });
   return total;
 }
@@ -1564,7 +1578,8 @@ function quebrasPorMesFor(rows) {
     const key = r.loja + '|' + r.ano + '|' + r.mes;
     if (vistos.has(key)) return;
     vistos.add(key);
-    const v = (quebrasMap[r.loja]?.[r.ano]?.[r.mes]) || 0;
+    const { loja, ano, mes } = quebrasLookupKeys(r);
+    const v = (quebrasMap[loja]?.[ano]?.[mes]) || 0;
     if (!v) return;
     out[r.mes] = (out[r.mes] || 0) + v;
   });

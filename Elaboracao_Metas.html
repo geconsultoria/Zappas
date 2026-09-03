@@ -2525,6 +2525,12 @@ function onMetaChange(loja, mes, type) {
       if (res.ok) {
         input.classList.add('saved');
         setTimeout(() => input.classList.remove('saved'), 1200);
+        // Meta gravada com sucesso na planilha: avisa as outras páginas
+        // (Acompanhamento de Metas, Resultado Metas etc.) que há dado
+        // novo, pra elas se atualizarem sozinhas — na hora, se estiverem
+        // abertas em outra aba, ou automaticamente na próxima vez que
+        // forem abertas.
+        avisarOutrasPaginasZappas();
       } else {
         input.classList.add('sync-error');
         input.title = 'Não sincronizou com a planilha: ' + res.error + ' (o valor ficou salvo só neste navegador)';
