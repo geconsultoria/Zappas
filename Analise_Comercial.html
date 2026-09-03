@@ -1510,7 +1510,7 @@ async function loadQuebrasMap() {
       // etc.) — usada como fonte do ano quando a planilha só tem uma
       // coluna "mes" com o número do mês (1-12) e nenhuma coluna "ano"
       // separada foi encontrada.
-      const cDataCompleta = headers.find(h => h === 'competencia' || h === 'data' || h === 'dtpagamento' || h === 'data_pagamento' || h === 'periodo' || h === 'referencia' || h === 'mes_ano');
+      const cDataCompleta = headers.find(h => h === 'competencia' || h === 'data' || h === 'dtpagamento' || h === 'data_pagamento' || h === 'dtentrada' || h === 'data_entrada' || h === 'periodo' || h === 'referencia' || h === 'mes_ano');
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
       console.log('[Quebras] ' + lojaFallback + ': cabeçalhos=' + headers.join(', ') + ' | colunas usadas: loja=' + cLoja + ' ano=' + cAno + ' mes=' + cMes + ' data_completa=' + cDataCompleta + ' nomepgto=' + cNome + ' conta=' + cConta);
