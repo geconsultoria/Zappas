@@ -986,8 +986,8 @@ async function loadData(forceRefresh, silent = false) {
       const main = document.getElementById('mainContent');
       const warn = document.createElement('div');
       warn.className = 'status-center';
-      warn.style.cssText = 'padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;color:#9a3412;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px';
-      warn.innerHTML = `<span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis (Contas a Pagar / Plano de Contas) — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Verifique se há lançamentos classificados como CMV no período.</span>`;
+      warn.style.cssText = 'padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;color:#9a3412;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;flex-direction:column;align-items:stretch';
+      warn.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis (Contas a Pagar / Plano de Contas) — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Verifique se há lançamentos classificados como CMV no período.</span></div>${buildDebugPanel()}`;
       main.insertBefore(warn, main.firstChild);
     }
 
