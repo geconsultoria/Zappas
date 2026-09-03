@@ -902,7 +902,13 @@ function populateFilters(){
   const curLoja = $('f-loja').value;
 
   $('f-ano').innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option value="${a}">${a}</option>`).join('');
-  $('f-ano').value = anos.includes(+curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
+  if (anos.includes(+curAno)) {
+    $('f-ano').value = curAno;
+  } else if (anos.includes(anoAtual)) {
+    $('f-ano').value = anoAtual; // padrão: ano atual, quando existe título nele
+  } else {
+    $('f-ano').value = anos.length ? anos[anos.length-1] : '';
+  }
 
   $('f-mes').innerHTML = '<option value="">Todos</option>' + MONTHS.map((m,i)=>`<option value="${i+1}">${m}</option>`).join('');
 
