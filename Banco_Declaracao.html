@@ -1304,35 +1304,61 @@ async function fetchData(forceRefresh, silent){
   }
 
   try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(function(){ controller.abort(); }, 20000);
+    // IMPORTANTE: esta tela ainda lê o CSV bruto (venda a venda) de cada
+    // loja — as outras telas do painel (Faturamento x Lucro, Elaboração
+    // de Metas etc.) migraram para um endpoint "?loja=resumo" já
+    // agregado por mês, bem mais rápido, mas esse resumo não traz
+    // SEMANA/SEMANA2 (usados aqui em "Média semanal"), então não dá pra
+    // trocar sem perder esse KPI. Por isso o carregamento aqui é mesmo
+    // mais pesado que nas outras telas.
+    //
+    // O timeout antigo (20s) valia para TODAS as 6 lojas juntas — em vez
+    // de por requisição — e abortava o carregamento inteiro (e mostrava
+    // erro) sempre que a soma das 6 respostas passava de 20s, o que em
+    // planilhas com mais histórico é fácil de acontecer. Cada loja agora
+    // tem seu próprio timeout de 30s, e o processo todo só é abortado se
+    // passar de 3 minutos — o carregamento fica mais lento sempre que a
+    // planilha realmente demora, mas não é mais interrompido cedo demais
+    // com uma tela de erro.
+    const overallController = new AbortController();
+    const overallTimeoutId = setTimeout(function(){ overallController.abort(); }, 180000);
 
     let raw = [];
     const lojasComFalha = [];
-    // Busca 2 lojas por vez (em vez de 1 por vez, ou todas de uma vez) —
-    // um meio-termo bem mais rápido, mas que ainda evita sobrecarregar o
-    // Apps Script disparando as 6 simultaneamente. Além disso, uma loja
-    // com problema não derruba a página inteira: as demais continuam
-    // sendo mostradas normalmente.
-    var BATCH = 2;
+    // Busca 3 lojas por vez (em vez de 2) — reduz de 3 para 2 rodadas
+    // sequenciais, ainda sem disparar as 6 de uma vez no Apps Script.
+    // Uma loja com problema não derruba a página inteira: as demais
+    // continuam sendo mostradas normalmente.
+    var BATCH = 3;
     for (var i = 0; i < CSV_URLS.length; i += BATCH) {
       var grupo = CSV_URLS.slice(i, i + BATCH);
       await Promise.all(grupo.map(async function(url, j){
         var idx = i + j;
         var nomeLoja = STORE_LABELS[idx] || ("loja " + (idx+1));
+        var perStoreController = new AbortController();
+        var onOverallAbort = function(){ perStoreController.abort(); };
+        overallController.signal.addEventListener('abort', onOverallAbort);
+        var perStoreTimeoutId = setTimeout(function(){ perStoreController.abort(); }, 30000);
         try {
-          var res = await fetch(url, { cache:"no-store", signal:controller.signal });
+          var res = await fetch(url, { cache:"no-store", signal:perStoreController.signal });
           if (!res.ok) throw new Error("HTTP " + res.status);
           var text = await res.text();
           if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
           raw = raw.concat(parseCSV(text));
         } catch (errLoja) {
-          console.warn("Loja indisponível (" + nomeLoja + "):", errLoja.message);
+          var motivo = errLoja && errLoja.name === "AbortError" ? "tempo limite excedido" : errLoja.message;
+          console.warn("Loja indisponível (" + nomeLoja + "):", motivo);
           lojasComFalha.push(nomeLoja);
+        } finally {
+          clearTimeout(perStoreTimeoutId);
+          overallController.signal.removeEventListener('abort', onOverallAbort);
         }
       }));
     }
-    clearTimeout(timeoutId);
+    clearTimeout(overallTimeoutId);
+    if (overallController.signal.aborted && !raw.length) {
+      throw new Error("Tempo limite excedido (3min). Verifique sua conexão e tente novamente.");
+    }
 
     console.log('[Banco_Declaracao] Linhas brutas lidas:', raw.length);
     if (raw.length) console.log('[Banco_Declaracao] Colunas encontradas:', Object.keys(raw[0]));
