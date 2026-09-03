@@ -987,7 +987,7 @@ a.side-brand:hover { opacity:.85; }
           <div class="kpi-lbl">Quebras</div>
         </div>
         <div class="kpi-val" id="kv-quebras">—</div>
-        <div class="kpi-foot">Total de perdas no período</div>
+        <div class="kpi-foot" id="kv-quebras-foot">Total de perdas no período</div>
       </div>
     </div>
   </div>
@@ -1164,7 +1164,7 @@ a.side-brand:hover { opacity:.85; }
         </div>
         <div>
           <div class="title">Quebras (Perdas)</div>
-          <div class="sub">Total de perdas por mês e ano · AH% e AV%</div>
+          <div class="sub" id="cc-quebras-sub">Total de perdas por mês e ano · AH% e AV%</div>
         </div>
       </div>
     </div>
@@ -1477,9 +1477,16 @@ function parseAnoRec(v){
 // quebrasMap[loja][ano_string][mes_string] = valor acumulado
 let quebrasMap = {};
 
+// Diagnóstico legível do último carregamento de Quebras — usado pra
+// mostrar na própria tela (não só no console) por que o valor pode estar
+// vindo zerado/vazio: falha de rede por loja, coluna não encontrada, ou
+// nenhuma linha batendo com "baixas e quebras".
+let quebrasStatus = { totalMatched: 0, fetchErrors: [], columnErrors: [], noMatchStores: [] };
+
 async function loadQuebrasMap() {
   console.log('[Quebras] v2 (com fallback de ano) rodando…');
   const map = {};
+  quebrasStatus = { totalMatched: 0, fetchErrors: [], columnErrors: [], noMatchStores: [] };
   const cacheBust = '&_cb=' + Date.now();
   await Promise.all(RECBIDOS_URLS.map(async (url, idx) => {
     const lojaFallback = STORE_KEYS[idx].toUpperCase();
@@ -1490,12 +1497,26 @@ async function loadQuebrasMap() {
       if (!txt || !txt.trim()) return;
       const { headers, rows } = parseCSVGeneric(txt);
       const cLoja  = headers.includes('loja') ? 'loja' : null;
-      const cAno   = headers.find(h => h === 'ano' || h === 'ano_ref' || h === 'ano_competencia' || h === 'anoref') || null;
-      const cMes   = headers.find(h => h === 'mes' || h === 'competencia' || h === 'data') || null;
+      // Coluna de ANO: tenta os nomes mais comuns primeiro e, se nenhum
+      // bater, tenta qualquer cabeçalho que contenha "ano" (ex.: "ano_pgto",
+      // "exercicio_ano"). Sem achar essa coluna — e sem conseguir extrair o
+      // ano de uma coluna de data completa (ver cDataCompleta abaixo) —
+      // TODA linha de Quebras é descartada, porque o código nunca "chuta"
+      // o ano atual (ver comentário mais abaixo).
+      const cAno = headers.find(h => h === 'ano' || h === 'ano_ref' || h === 'ano_competencia' || h === 'anoref' || h === 'ano_pgto' || h === 'ano_pagamento' || h === 'exercicio')
+                || headers.find(h => h.includes('ano')) || null;
+      const cMes = headers.find(h => h === 'mes' || h === 'mes_ref' || h === 'mes_pgto' || h === 'mes_pagamento') || null;
+      // Coluna alternativa com mês E ano juntos (data completa, "MM/AAAA"
+      // etc.) — usada como fonte do ano quando a planilha só tem uma
+      // coluna "mes" com o número do mês (1-12) e nenhuma coluna "ano"
+      // separada foi encontrada.
+      const cDataCompleta = headers.find(h => h === 'competencia' || h === 'data' || h === 'dtpagamento' || h === 'data_pagamento' || h === 'periodo' || h === 'referencia' || h === 'mes_ano');
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
+      console.log('[Quebras] ' + lojaFallback + ': cabeçalhos=' + headers.join(', ') + ' | colunas usadas: loja=' + cLoja + ' ano=' + cAno + ' mes=' + cMes + ' data_completa=' + cDataCompleta + ' nomepgto=' + cNome + ' conta=' + cConta);
       if (!cNome || !cConta) {
         console.error('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
+        quebrasStatus.columnErrors.push(lojaFallback + ' (colunas: ' + headers.join(', ') + ')');
         return;
       }
       const nomesVistos = new Set();
@@ -1507,7 +1528,9 @@ async function loadQuebrasMap() {
         const valor = toNum(r[cConta]);
         if (!valor) return;
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
-        const mesRaw = cMes ? r[cMes] : '';
+        // Mês: prefere a coluna "mes" quando existe (número puro); se não
+        // existir, usa a coluna de data completa (que também carrega o mês).
+        const mesRaw = cMes ? r[cMes] : (cDataCompleta ? r[cDataCompleta] : '');
         const mes = parseMesRec(mesRaw);
         // IMPORTANTE: nunca cair no ano atual como "chute" quando o ano não
         // é identificável — isso jogava silenciosamente linhas de anos
@@ -1515,25 +1538,62 @@ async function loadQuebrasMap() {
         // anos sumirem do quadro de Quebras. Se não der pra determinar o
         // ano com segurança, a linha é ignorada (e avisada no console).
         const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
-        const ano = anoColuna || parseAnoRec(mesRaw);
-        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').'); return; }
+        // Se não achou uma coluna "ano" separada, e a coluna "mes" for só
+        // o número do mês (sem ano embutido, ex.: planilha grava "7" em
+        // vez de "07/2024"), tenta achar o ano numa coluna de data
+        // completa separada (ex.: "competencia", "data", "dtpagamento").
+        const dataCompletaRaw = (cDataCompleta && cDataCompleta !== cMes) ? r[cDataCompleta] : null;
+        const ano = anoColuna || parseAnoRec(mesRaw) || (dataCompletaRaw ? parseAnoRec(dataCompletaRaw) : null);
+        if (!mes || !ano) { skippedData++; console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + (dataCompletaRaw ? ', data_completa="' + dataCompletaRaw + '"' : '') + ').'); return; }
         matched++;
         const anoKey = String(ano), mesKey = String(mes);
         map[loja] = map[loja] || {};
         map[loja][anoKey] = map[loja][anoKey] || {};
         map[loja][anoKey][mesKey] = (map[loja][anoKey][mesKey] || 0) + valor;
       });
+      quebrasStatus.totalMatched += matched;
       if (matched === 0) {
         const parecidos = [...nomesVistos].filter(n => n.includes('quebra') || n.includes('baixa'));
         console.log('[Quebras] ' + lojaFallback + ': nenhuma linha bateu com "baixas e quebras" (' + rows.length + ' linhas lidas). Valores parecidos em nomepgto: ' + (parecidos.length ? JSON.stringify(parecidos) : '(nenhum)'));
+        quebrasStatus.noMatchStores.push(lojaFallback + (parecidos.length ? ' (parecidos: ' + parecidos.join(' / ') + ')' : ''));
       } else {
         console.log('[Quebras] ' + lojaFallback + ': ' + matched + ' linha(s) somada(s)' + (skippedData ? ', ' + skippedData + ' ignorada(s) por data inválida' : '') + '.');
       }
     } catch(e) {
       console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
+      quebrasStatus.fetchErrors.push(lojaFallback + ': ' + e.message);
     }
   }));
   return map;
+}
+
+// Mostra na própria tela (não só no console) por que Quebras pode estar
+// vazio/zerado, usando o diagnóstico coletado em loadQuebrasMap().
+function updateQuebrasStatusUI() {
+  const footEl = $('kv-quebras-foot');
+  const subEl  = $('cc-quebras-sub');
+  if (!footEl || !subEl) return;
+  const s = quebrasStatus;
+  const semNenhumDado = Object.keys(quebrasMap).length === 0;
+  if (!semNenhumDado) {
+    footEl.textContent = 'Total de perdas no período';
+    footEl.style.color = '';
+    subEl.textContent = 'Total de perdas por mês e ano · AH% e AV%';
+    return;
+  }
+  let motivo;
+  if (s.fetchErrors.length === RECBIDOS_URLS.length) {
+    motivo = 'planilha de Recebidos indisponível em todas as lojas (' + s.fetchErrors.join(' | ') + ')';
+  } else if (s.columnErrors.length === RECBIDOS_URLS.length) {
+    motivo = 'coluna de nome de pagamento/valor não encontrada em nenhuma loja';
+  } else if (s.noMatchStores.length) {
+    motivo = 'nenhum lançamento "baixas e quebras" encontrado na planilha de Recebidos (' + s.noMatchStores.length + ' loja(s) lida(s) sem bater)';
+  } else {
+    motivo = 'nenhum dado retornado — veja o console (F12) para detalhes, prefixo [Quebras]';
+  }
+  footEl.textContent = '⚠ Quebras indisponível: ' + motivo;
+  footEl.style.color = 'var(--rust-mid)';
+  subEl.textContent = '⚠ Sem dados: ' + motivo;
 }
 
 // Soma quebras uma única vez por combinação loja+ano+mes presente em
@@ -2322,7 +2382,8 @@ async function loadData(forceRefresh = false, silent = false) {
       // só cai pro cache salvo se a busca falhar.
       quebrasMap = (cached.quebras && typeof cached.quebras === 'object') ? cached.quebras : {};
       renderAll();
-      loadQuebrasMap().then(m => { quebrasMap = m; console.log('[Quebras] mapa carregado:', quebrasMap); renderAll(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
+      updateQuebrasStatusUI();
+      loadQuebrasMap().then(m => { quebrasMap = m; console.log('[Quebras] mapa carregado:', quebrasMap); renderAll(); updateQuebrasStatusUI(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(isFirst) setTimeout(()=>showLoader(false), 300);
@@ -2372,6 +2433,7 @@ async function loadData(forceRefresh = false, silent = false) {
     hideErr();
     $('content').classList.remove('hidden');
     renderAll();
+    updateQuebrasStatusUI();
     const tsDate = new Date();
     const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
     $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
