@@ -1975,7 +1975,7 @@ function getVizUrl(url){
 
 async function fetchComTimeout(url, opts, ms){
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), ms || 15000);
+  const timeoutId = setTimeout(() => controller.abort(), ms || 20000);
   try {
     return await fetch(url, { ...opts, signal: controller.signal });
   } finally {
@@ -2211,7 +2211,7 @@ async function loadData(forceRefresh, silent){
     // pra sempre na tela.
     await Promise.race([
       carregarTudo(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido ao carregar os dados (40s). Verifique sua conexão e tente novamente.')), 40000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido ao carregar os dados (90s). Verifique sua conexão e tente novamente.')), 90000))
     ]);
     if(silent) hideUpdateOverlay(false, '✓ Dados atualizados.');
   }catch(err){

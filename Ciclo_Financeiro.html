@@ -678,7 +678,7 @@ function splitLine(line, sep){
 
 async function fetchComTimeout(url, opts, ms){
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), ms || 15000);
+  const t = setTimeout(() => controller.abort(), ms || 20000);
   try { return await fetch(url, { ...opts, signal: controller.signal }); }
   finally { clearTimeout(t); }
 }
@@ -834,7 +834,7 @@ async function loadData(forceRefresh){
   try{
     await Promise.race([
       carregarTudo(),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tempo limite excedido (40s). Verifique sua conexão e tente novamente.')), 40000))
+      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tempo limite excedido (90s). Verifique sua conexão e tente novamente.')), 90000))
     ]);
     populateFilters();
     applyFilters();
