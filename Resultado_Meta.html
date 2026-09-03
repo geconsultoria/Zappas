@@ -229,44 +229,114 @@ a.side-brand:hover { opacity:.85; }
 .fb-select:focus { outline: none; border-color: var(--blue); background-color: var(--surface); box-shadow: 0 0 0 3px var(--blue-lt); }
 .fb-sep { width: 1px; height: 24px; background: var(--border); margin: 0 6px; }
 
+/* ── Canal multi-select ── */
+.canal-wrap { position: relative; }
+.canal-trigger {
+  font-family: var(--font-head);
+  font-size: 12.5px; font-weight: 500; color: var(--ink);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  cursor: pointer; white-space: nowrap;
+  min-width: 140px; max-width: 220px;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .18s var(--tr);
+  user-select: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%238594AF' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+.canal-trigger:hover,
+.canal-trigger.open { border-color: var(--blue); background-color: var(--surface); }
+.canal-trigger.open { box-shadow: 0 0 0 3px var(--blue-lt); }
+.canal-trigger.has-sel { border-color: var(--amber); color: var(--amber); background-color: var(--amber-lt); }
+.canal-trigger.has-sel.open { box-shadow: 0 0 0 3px var(--amber-lt); }
+.canal-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--amber); color: #fff;
+  border-radius: 20px; font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px; padding: 0 4px; line-height: 1;
+}
+.canal-dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--r);
+  box-shadow: var(--sh-md);
+  min-width: 200px; max-width: 280px;
+  overflow: hidden;
+}
+.canal-dropdown.open { display: block; }
+.canal-dd-head {
+  padding: 9px 12px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surface2);
+}
+.canal-dd-title { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.canal-dd-actions { display: flex; gap: 8px; }
+.canal-dd-btn {
+  font-size: 9.5px; font-weight: 700; color: var(--blue);
+  background: none; border: none; cursor: pointer; padding: 0;
+  letter-spacing: .03em; text-decoration: underline; text-underline-offset: 2px;
+}
+.canal-dd-btn:hover { color: var(--blue); }
+.canal-dd-list { max-height: 220px; overflow-y: auto; padding: 6px 0; }
+.canal-dd-list::-webkit-scrollbar { width: 4px; }
+.canal-dd-list::-webkit-scrollbar-track { background: transparent; }
+.canal-dd-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+.canal-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 13px; cursor: pointer;
+  transition: background .12s;
+}
+.canal-item:hover { background: var(--bg); }
+.canal-item input[type=checkbox] {
+  width: 14px; height: 14px; flex-shrink: 0;
+  accent-color: var(--blue); cursor: pointer;
+}
+.canal-item-label { font-size: 12px; font-weight: 500; color: var(--ink); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canal-item.checked .canal-item-label { color: var(--blue); font-weight: 600; }
+
 /* ─── MAIN LAYOUT ─── */
-.main { padding: 22px 28px 56px; max-width: 1800px; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
+.main { padding: 16px 20px 32px; max-width: 100%; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
 
 /* ─── SECTION HEADER ─── */
 .sh {
   display: flex; align-items: center; gap: 10px;
-  margin-bottom: 14px;
+  margin-bottom: 10px;
 }
-.sh-bar { width: 4px; height: 22px; border-radius: 2px; background: var(--blue); flex-shrink: 0; }
-.sh-title { font-size: 14px; font-weight: 700; letter-spacing: -.2px; }
+.sh-bar { width: 4px; height: 20px; border-radius: 2px; background: var(--blue); flex-shrink: 0; }
+.sh-title { font-size: 13px; font-weight: 700; letter-spacing: -.2px; }
 .sh-sub { font-size: 11px; color: var(--muted); margin-left: auto; }
-.mb { margin-bottom: 24px; }
+.mb { margin-bottom: 14px; }
 
-/* ─── LEGENDA DE FAIXAS ─── */
-.rm-legend { display:flex; align-items:center; gap:8px; margin-left:auto; flex-wrap:wrap; }
+/* ─── LEGENDA DE FAIXAS (ao lado dos filtros) ─── */
+.rm-legend-static { display:flex; align-items:center; gap:6px; margin-left:auto; flex-wrap:wrap; }
 .rm-legend-item {
-  font-size: 10px; font-weight: 700; padding: 4px 10px; border-radius: 20px;
+  font-size: 9.5px; font-weight: 700; padding: 4px 9px; border-radius: 20px;
   white-space: nowrap;
 }
 
 /* ─── RESUMO TOTAL (cards) ─── */
 .rm-sum-row {
-  display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;
-  margin-bottom: 24px;
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
+  margin-bottom: 14px;
 }
 .rm-sum-card {
   background: var(--surface); border-radius: var(--radius); border: 1px solid var(--border);
-  box-shadow: var(--sh); padding: 16px 20px; position: relative; overflow: hidden;
+  box-shadow: var(--sh); padding: 11px 16px; position: relative; overflow: hidden;
 }
 .rm-sum-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
 .rm-sum-card.c-blue::before  { background: var(--blue); }
 .rm-sum-card.c-green::before { background: var(--green); }
 .rm-sum-card.c-amber::before { background: var(--amber); }
 .rm-sum-card.c-red::before   { background: var(--red); }
-.rm-sum-lbl { font-size: 9.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 6px; }
-.rm-sum-val { font-family: 'IBM Plex Mono', monospace; font-size: 21px; font-weight: 700; color: var(--ink); line-height:1.1; }
-.rm-sum-sub { font-size: 11px; font-weight: 600; margin-top: 5px; }
-.rm-sum-sub.pos { color: var(--green); }
+.rm-sum-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
+.rm-sum-val { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; color: var(--ink); line-height:1.1; }
+.rm-sum-sub { font-size: 10px; font-weight: 600; margin-top: 3px; }
+.rm-sum-sub.pos { color: var(--ink); }
 .rm-sum-sub.neg { color: var(--red); }
 
 /* ─── TABLE CARD ─── */
@@ -276,16 +346,16 @@ a.side-brand:hover { opacity:.85; }
   border: 1px solid var(--border);
   box-shadow: var(--sh);
   overflow: hidden;
-  margin-bottom: 24px;
+  margin-bottom: 16px;
 }
 .tbl-head {
-  padding: 14px 20px;
+  padding: 10px 16px;
   background: var(--surface2);
   border-bottom: 1px solid var(--border);
   display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap:10px;
 }
-.tbl-head-title { font-size: 14px; font-weight: 700; }
-.tbl-head-sub   { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.tbl-head-title { font-size: 13px; font-weight: 700; }
+.tbl-head-sub   { font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 .tbl-badge {
   font-size: 11px; font-weight: 600;
   padding: 5px 12px; border-radius: 20px;
@@ -298,63 +368,70 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 10px;
+  font-size: 9px;
+  table-layout: fixed;
 }
 thead { position: sticky; top: 0; z-index: 15; }
 
 .tr-grp th {
-  padding: 6px 4px;
+  padding: 4px 3px;
   text-align: center;
   font-family: 'Outfit', sans-serif;
-  font-size: 9px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: .4px;
+  font-size: 8.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: .3px;
   white-space: nowrap;
   border-right: 1px solid rgba(255,255,255,.25);
 }
 .tr-grp th:last-child { border-right: none; }
-.grp-loja  { background: #0C1830; color: #fff; }
+.grp-loja  { background: #0C1830; color: #fff; width: 66px; }
 .grp-res   { background: var(--blue); color: #fff; }
 .grp-proj  { background: #07523B; color: #fff; }
 .grp-tkt   { background: #7A3800; color: #fff; }
 .grp-pe    { background: #1C2E6B; color: #fff; }
 
 .tr-sub th {
-  padding: 5px 5px;
+  padding: 3px 3px;
   text-align: right;
-  font-size: 9px; font-weight: 600;
+  font-size: 8px; font-weight: 600;
+  line-height: 1.15;
   color: var(--ink2);
   background: var(--surface2);
   border-bottom: 2px solid var(--border-hi);
   border-right: 1px solid var(--border);
-  white-space: nowrap;
+  white-space: normal;
+  word-break: break-word;
   box-shadow: 0 2px 3px rgba(12,24,48,.08);
 }
 .tr-sub th.tl { text-align: left; }
 .tr-sub th.sep { border-right: 2px solid var(--border-hi); }
+.tr-sub th.ctr { text-align: center; }
 
 tbody tr { transition: background var(--tr); }
 tbody tr:hover { background: #F0F4FF; }
 tbody tr.tr-total-store { background: #F5F7FC; }
 
 td {
-  padding: 6px 5px;
+  padding: 3px 3px;
   text-align: right;
   vertical-align: middle;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 10px;
+  font-size: 8.5px;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 11px; font-weight:700; color: var(--ink); }
+td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 9.5px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
 td.sep { border-right: 2px solid var(--border-hi); }
+td.ctr { text-align: center; }
 td.pos { color: var(--green); font-weight: 600; }
 td.neg { color: var(--red); font-weight: 600; }
 td.dash { color: var(--muted); }
 
-.badge { display:inline-block; padding: 3px 9px; border-radius: 20px; font-size: 9.5px; font-weight: 700; white-space:nowrap; }
+.badge { display:inline-block; padding: 2px 6px; border-radius: 20px; font-size: 7.5px; font-weight: 700; white-space:nowrap; }
 .badge-ok { background: var(--green-lt); color: #085C44; }
 .badge-no { background: var(--red-lt);   color: #991B13; }
 .badge-na { background: var(--surface2); color: var(--muted); }
@@ -575,6 +652,31 @@ td.dash { color: var(--muted); }
       <span class="fb-label">Mês</span>
       <select class="fb-select" id="f-mes"></select>
     </div>
+    <div class="fb-sep"></div>
+    <div class="fb-group">
+      <span class="fb-label">Canal</span>
+      <div class="canal-wrap" id="canal-wrap">
+        <div class="canal-trigger" id="canal-trigger" onclick="toggleCanalDropdown(event)">
+          <span id="canal-trigger-txt">Todos</span>
+          <span class="canal-badge" id="canal-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="canal-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Canais de Distribuição</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllCanais()">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllCanais()">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="canal-dd-list"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="rm-legend-static">
+    <span class="rm-legend-item fx-meta">100% · Meta</span>
+    <span class="rm-legend-item fx-super">105% · Super Meta</span>
+    <span class="rm-legend-item fx-desafio">110% · Desafio</span>
   </div>
 </div>
 
@@ -788,6 +890,13 @@ function R(v, dec=2) {
   return 'R$ ' + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
 }
 function R0(v) { return R(v, 0); }
+// Mesma formatação de R()/R0(), mas sem o prefixo "R$" — usado nas colunas
+// da tabela (os cartões de resumo no topo continuam mostrando "R$").
+function Num(v, dec=2) {
+  if (v === null || v === undefined || isNaN(v)) return '—';
+  return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: dec, maximumFractionDigits: dec});
+}
+function Num0(v) { return Num(v, 0); }
 function N0(v) {
   if (v === null || v === undefined || isNaN(v)) return '—';
   return Number(v).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
@@ -1048,6 +1157,172 @@ function getMetaSheet(loja, mes, ano) {
     .reduce((s, d) => s + (d.meta || 0), 0);
 }
 
+// Meta de UM canal específico (LOJA ou DELIVERY) — mesma lógica/regras do
+// Acompanhamento de Metas, incluindo a regra especial de Anísio/Damha
+// (que não têm meta de Delivery cadastrada separadamente: o valor total
+// cadastrado é dividido 97% Loja / 3% Delivery).
+function getMetaCanal(loja, mes, ano, canalNome) {
+  if (!loja || !mes || !ano || !metasData.length) return 0;
+  const alvo = String(canalNome || '').toUpperCase();
+  const lojaUpper = loja.toUpperCase();
+
+  const base = metasData.filter(d => {
+    if (Number(d.ano) !== Number(ano) || Number(d.mes) !== Number(mes)) return false;
+    return d.loja === lojaUpper || d.loja.startsWith(lojaUpper) || lojaUpper.startsWith(d.loja);
+  });
+
+  const SEM_META_DELIVERY_PROPRIA = ['ANISIO', 'DAMHA'];
+  if (SEM_META_DELIVERY_PROPRIA.includes(lojaUpper) && (alvo === 'DELIVERY' || alvo === 'LOJA')) {
+    const totalCadastrado = base.reduce((s, d) => s + (d.meta || 0), 0);
+    if (totalCadastrado > 0) return Math.round(totalCadastrado * (alvo === 'DELIVERY' ? 0.03 : 0.97));
+  }
+
+  const rEspecifico = base.filter(d => {
+    const dc = String(d.canal || '').toUpperCase();
+    return alvo ? dc === alvo : !dc;
+  }).reduce((s, d) => s + (d.meta || 0), 0);
+  if (rEspecifico > 0) return rEspecifico;
+
+  const rFallback = base.filter(d => !String(d.canal || '').trim()).reduce((s, d) => s + (d.meta || 0), 0);
+  if (rFallback > 0) {
+    const DELIVERY_PCT_STORES = ['ANISIO', 'DAMHA'];
+    const pct = (alvo === 'DELIVERY' && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.03
+              : (alvo === 'LOJA'      && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.97
+              : 1;
+    return Math.round(rFallback * pct);
+  }
+  return 0;
+}
+
+// Meta respeitando o filtro de canal selecionado no topo da página:
+// Set vazio (ou cobrindo 100% dos canais existentes) = Todos, soma tudo;
+// senão soma só a meta dos canais marcados.
+function getMetaFiltrada(loja, mes, ano) {
+  const canaisAll = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  if (selectedCanais.size === 0 || selectedCanais.size === canaisAll.length) {
+    return getMetaSheet(loja, mes, ano);
+  }
+  return [...selectedCanais].reduce((s, c) => s + getMetaCanal(loja, mes, ano, c), 0);
+}
+
+/* ═══════════════ CANAL (multi-select) ═══════════════
+   Mesmo padrão do Acompanhamento de Metas: por padrão vem com "Loja" e
+   "Delivery" pré-selecionados (se cobrir 100% dos canais existentes,
+   equivale internamente a "Todos"). */
+let selectedCanais = new Set();
+const DEFAULT_CANAIS = ['loja', 'delivery'];
+
+function getCanaisDisponiveis() {
+  return [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+}
+
+function buildCanalOptions() {
+  const canais = getCanaisDisponiveis();
+  const defaults = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
+  selectedCanais = (defaults.length === canais.length) ? new Set() : new Set(defaults);
+  const container = document.getElementById('canal-dd-list');
+  container.innerHTML = canais.map(c => {
+    const isChecked = selectedCanais.size === 0 ? true : selectedCanais.has(c);
+    return `
+    <label class="canal-item${isChecked ? ' checked' : ''}" id="msopt_${CSS.escape(c)}">
+      <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleCanal('${c.replace(/'/g,"\\'")}')">
+      <span class="canal-item-label">${c}</span>
+    </label>`;
+  }).join('');
+  updateCanalLabel(canais);
+}
+function toggleCanalDropdown(e) {
+  e.stopPropagation();
+  document.getElementById('canal-trigger').classList.toggle('open');
+  document.getElementById('canal-dropdown').classList.toggle('open');
+}
+function closeCanalDropdown() {
+  document.getElementById('canal-trigger').classList.remove('open');
+  document.getElementById('canal-dropdown').classList.remove('open');
+}
+function toggleCanal(canal) {
+  const canais = getCanaisDisponiveis();
+  if (selectedCanais.has(canal)) selectedCanais.delete(canal); else selectedCanais.add(canal);
+  updateCanalCheckmarks(canais);
+  updateCanalLabel(canais);
+  renderResultado();
+}
+function selectAllCanais() {
+  selectedCanais = new Set();
+  const canais = getCanaisDisponiveis();
+  updateCanalCheckmarks(canais);
+  updateCanalLabel(canais);
+  renderResultado();
+}
+function clearAllCanais() {
+  const canais = getCanaisDisponiveis();
+  selectedCanais = new Set(canais);
+  updateCanalCheckmarks(canais);
+  updateCanalLabel(canais);
+  renderResultado();
+}
+function updateCanalCheckmarks(canais) {
+  const allSel = selectedCanais.size === 0;
+  canais.forEach(c => {
+    const opt = document.getElementById('msopt_' + CSS.escape(c));
+    if (opt) {
+      const cb = opt.querySelector('input[type=checkbox]');
+      if (cb) cb.checked = allSel || selectedCanais.has(c);
+      opt.classList.toggle('checked', allSel || selectedCanais.has(c));
+    }
+  });
+}
+function updateCanalLabel(canais) {
+  const label = document.getElementById('canal-trigger-txt');
+  const badge = document.getElementById('canal-badge');
+  const trigger = document.getElementById('canal-trigger');
+  if (selectedCanais.size === 0) {
+    const defaultCanais = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
+    if (defaultCanais.length > 0 && defaultCanais.length === canais.length) {
+      label.textContent = defaultCanais.length === 1 ? defaultCanais[0] : 'Canais';
+      if (badge) { badge.textContent = defaultCanais.length; badge.style.display = ''; }
+      trigger.classList.add('has-sel');
+    } else {
+      label.textContent = 'Todos';
+      if (badge) badge.style.display = 'none';
+      trigger.classList.remove('has-sel');
+    }
+  } else if (selectedCanais.size === canais.length) {
+    label.textContent = 'Todos';
+    if (badge) badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else {
+    label.textContent = selectedCanais.size === 1 ? [...selectedCanais][0] : 'Canais';
+    if (badge) { badge.textContent = selectedCanais.size; badge.style.display = ''; }
+    trigger.classList.add('has-sel');
+  }
+}
+document.addEventListener('click', e => {
+  const wrap = document.getElementById('canal-wrap');
+  if (wrap && !wrap.contains(e.target)) closeCanalDropdown();
+});
+function canalMatch(d) {
+  if (selectedCanais.size === 0) return true;
+  // Registros antigos (ex.: 2024) podem não ter a coluna "canal" preenchida
+  // — antes dela existir na planilha. Se filtrássemos por igualdade estrita,
+  // essas vendas antigas sumiam de qualquer comparação (ex.: Crescimento
+  // 2024/2025), mesmo elas sendo vendas reais e válidas. Então um canal em
+  // branco sempre entra, não importa o filtro selecionado.
+  if (!d.canal) return true;
+  return selectedCanais.has(d.canal);
+}
+// Texto amigável do canal selecionado, pra mostrar no cabeçalho da tabela
+// (mesmo texto do seletor no topo — ex.: "Canais" quando é Loja+Delivery,
+// ou o nome de um canal só quando apenas um está marcado).
+function canalLabelTexto() {
+  const canais = getCanaisDisponiveis();
+  if (selectedCanais.size === 0 || selectedCanais.size === canais.length) {
+    const defaultCanais = canais.filter(c => DEFAULT_CANAIS.includes(String(c).toLowerCase()));
+    return (defaultCanais.length > 0 && defaultCanais.length === canais.length) ? defaultCanais.join(' + ') : 'Todos';
+  }
+  return [...selectedCanais].join(' + ');
+}
+
 /* ═══════════════ FETCH ═══════════════ */
 function showUpdateOverlay(){
   const ov = document.getElementById('update-overlay');
@@ -1080,6 +1355,7 @@ async function loadData(forceRefresh = false, silent = false) {
       quebrasMapDia = (cached.quebrasDia && typeof cached.quebrasDia === 'object') ? cached.quebrasDia : {};
       document.getElementById('lastUpd').textContent = cached.ts || '—';
       buildFilters();
+      buildCanalOptions();
       renderResultado();
       if (existeAtualizacaoMaisRecenteZappas(cached.rawTs)) loadData(true, true);
       return;
@@ -1124,6 +1400,7 @@ async function loadData(forceRefresh = false, silent = false) {
     quebrasMapDia = quebrasResult.diario  || {};
 
     buildFilters();
+    buildCanalOptions();
     renderResultado();
     const now = new Date();
     const ts = now.toLocaleDateString('pt-BR') + ' ' + now.toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'});
@@ -1168,16 +1445,16 @@ function buildFilters() {
   selMes.onchange = renderResultado;
 }
 
-/* ═══════════════ QUERIES SIMPLES (todas as lojas / todos os canais) ═══════════════ */
+/* ═══════════════ QUERIES SIMPLES (respeitam o filtro de Canal) ═══════════════ */
 function sumField(ano, mes, loja, field) {
   if (!ano || !mes || !loja) return 0;
   return rawData
-    .filter(d => d.ano === ano && d.mes === mes && d.loja === loja)
+    .filter(d => d.ano === ano && d.mes === mes && d.loja === loja && canalMatch(d))
     .reduce((s, d) => s + (d[field] || 0), 0);
 }
 function getUltimoDiaComVenda(ano, mes, loja) {
   const dias = rawData
-    .filter(d => d.ano === ano && d.mes === mes && d.loja === loja &&
+    .filter(d => d.ano === ano && d.mes === mes && d.loja === loja && canalMatch(d) &&
       d.dia !== null && d.dia >= 1 && d.dia <= 31 && (d.venda || 0) > 0)
     .map(d => d.dia);
   return dias.length ? Math.max(...dias) : 0;
@@ -1196,25 +1473,26 @@ function faixaClass(pct) {
   return '';
 }
 function computeRow(lojaVal, lojaLabel, ano, mes) {
-  const anoAnt = ano - 1, anoAntAnt = ano - 2;
+  const anoAnt = ano - 1;
   const dias = daysInMonth(ano, mes);
 
-  const vAntAnt = sumField(anoAntAnt, mes, lojaVal, 'venda');
-  const vAnt    = sumField(anoAnt,    mes, lojaVal, 'venda');
-  const vAtual  = sumField(ano,       mes, lojaVal, 'venda');
-  const cAtual  = sumField(ano,       mes, lojaVal, 'cupons');
-  const cAnt    = sumField(anoAnt,    mes, lojaVal, 'cupons');
+  const vAnt    = sumField(anoAnt, mes, lojaVal, 'venda');
+  const vAtual  = sumField(ano,    mes, lojaVal, 'venda');
+  const cAtual  = sumField(ano,    mes, lojaVal, 'cupons');
+  const cAnt    = sumField(anoAnt, mes, lojaVal, 'cupons');
   const tktAtual = cAtual > 0 ? vAtual / cAtual : 0;
   const tktAnt   = cAnt   > 0 ? vAnt   / cAnt   : 0;
 
-  const metaAtual = getMetaSheet(lojaVal, mes, ano);
+  const metaAtual = getMetaFiltrada(lojaVal, mes, ano);
   const diasVendidos = getUltimoDiaComVenda(ano, mes, lojaVal);
   const prevFat = diasVendidos > 0 ? (vAtual / diasVendidos) * dias : vAtual;
 
   const pctMetaConcluida = metaAtual > 0 ? (vAtual  / metaAtual) * 100 : null;
   const pctPrevFat       = metaAtual > 0 ? (prevFat / metaAtual) * 100 : null;
   const diferenca        = metaAtual > 0 ? (prevFat - metaAtual) : null;
-  const crescimento      = vAntAnt > 0 ? ((vAnt / vAntAnt) - 1) * 100 : null;
+  // Crescimento = Realizado do ano atual vs Realizado do mesmo mês no ano
+  // anterior (ex.: Realizado 2026 / Realizado 2025).
+  const crescimento      = vAnt > 0 ? ((vAtual / vAnt) - 1) * 100 : null;
 
   const ticketMedioDif = (cAtual > 0 && cAnt > 0) ? (tktAtual - tktAnt) * cAtual : null;
   const pessoasPDia = dias > 0 ? cAtual / dias : 0;
@@ -1225,7 +1503,7 @@ function computeRow(lojaVal, lojaLabel, ano, mes) {
 
   return {
     loja: lojaLabel, ano, mes, dias,
-    vAntAnt, vAnt, vAtual, metaAtual, cAtual, cAnt,
+    vAnt, vAtual, metaAtual, cAtual, cAnt,
     pctMetaConcluida, crescimento, diasVendidos, prevFat, pctPrevFat, diferenca,
     ticketMedioDif, pessoasPDia, tmPessoa, baixaValor, baixaPct,
   };
@@ -1241,7 +1519,7 @@ function renderResultado() {
     return;
   }
   const mesLbl = MESES[mes-1];
-  const anoAnt = ano - 1, anoAntAnt = ano - 2;
+  const anoAnt = ano - 1;
 
   const linhas = LOJAS_ORDEM
     .map(l => ({ ...l, val: findLojaValue(l.key) }))
@@ -1255,13 +1533,13 @@ function renderResultado() {
 
   // ── Totais (linha TOTAL) ──
   const sum = f => linhas.reduce((s,r)=>s+(r[f]||0), 0);
-  const tVAntAnt = sum('vAntAnt'), tVAnt = sum('vAnt'), tVAtual = sum('vAtual');
+  const tVAnt = sum('vAnt'), tVAtual = sum('vAtual');
   const tMeta = sum('metaAtual'), tPrevFat = sum('prevFat'), tCAtual = sum('cAtual');
   const tBaixaValor = sum('baixaValor');
   const tPctMeta = tMeta > 0 ? (tVAtual / tMeta) * 100 : null;
   const tPctPrevFat = tMeta > 0 ? (tPrevFat / tMeta) * 100 : null;
   const tDiferenca = tMeta > 0 ? (tPrevFat - tMeta) : null;
-  const tCrescimento = tVAntAnt > 0 ? ((tVAnt / tVAntAnt) - 1) * 100 : null;
+  const tCrescimento = tVAnt > 0 ? ((tVAtual / tVAnt) - 1) * 100 : null;
   const tTicketMedioDif = linhas.some(r=>r.ticketMedioDif!==null) ? linhas.reduce((s,r)=>s+(r.ticketMedioDif||0),0) : null;
   const tPessoasPDia = sum('pessoasPDia');
   const tTmPessoa = (tDiferenca !== null && tCAtual > 0) ? tDiferenca / tCAtual : null;
@@ -1272,23 +1550,18 @@ function renderResultado() {
   <div class="sh mb">
     <div class="sh-bar"></div>
     <div class="sh-title">Resultado da Meta — ${mesLbl} ${ano}</div>
-    <div class="rm-legend">
-      <span class="rm-legend-item fx-meta">100% · Meta</span>
-      <span class="rm-legend-item fx-super">105% · Super Meta</span>
-      <span class="rm-legend-item fx-desafio">110% · Desafio</span>
-    </div>
   </div>
 
   <div class="rm-sum-row">
     <div class="rm-sum-card c-blue">
       <div class="rm-sum-lbl">Realizado ${mesLbl} ${ano}</div>
       <div class="rm-sum-val">${R0(tVAtual)}</div>
-      <div class="rm-sum-sub ${tCrescimento===null?'':(tCrescimento>=0?'pos':'neg')}">${tCrescimento===null?'Sem comparação':(Pct(tCrescimento)+' vs '+anoAntAnt+'/'+anoAnt)}</div>
+      <div class="rm-sum-sub ${tCrescimento===null?'':(tCrescimento>=0?'pos':'neg')}">${tCrescimento===null?'Sem comparação':(Pct(tCrescimento)+' vs '+anoAnt)}</div>
     </div>
     <div class="rm-sum-card c-green">
       <div class="rm-sum-lbl">Meta ${mesLbl} ${ano}</div>
       <div class="rm-sum-val">${tMeta>0?R0(tMeta):'—'}</div>
-      <div class="rm-sum-sub ${tPctMeta===null?'':(tPctMeta>=100?'pos':'neg')}">${tPctMeta===null?'Meta não informada':Pct(tPctMeta)+' concluído'}</div>
+      <div class="rm-sum-sub ${tPctMeta===null?'':(tPctMeta>=0?'pos':'neg')}">${tPctMeta===null?'Meta não informada':Pct(tPctMeta)+' concluído'}</div>
     </div>
     <div class="rm-sum-card c-amber">
       <div class="rm-sum-lbl">Previsão de Fechamento</div>
@@ -1306,12 +1579,21 @@ function renderResultado() {
     <div class="tbl-head">
       <div>
         <div class="tbl-head-title">Análise de Venda Mensal · Meta</div>
-        <div class="tbl-head-sub">Realizado ${anoAnt} × Meta ${ano} × Realizado ${ano}, por loja</div>
+        <div class="tbl-head-sub">Realizado ${anoAnt} × Meta ${ano} × Realizado ${ano}, por loja · Canal: ${canalLabelTexto()}</div>
       </div>
       <span class="tbl-badge">${mesLbl} ${ano} · ${linhas[0].dias} dias</span>
     </div>
     <div class="tbl-scroll">
       <table>
+        <colgroup>
+          <col style="width:68px">
+          <col style="width:88px"><col style="width:88px"><col style="width:88px">
+          <col style="width:92px"><col style="width:62px"><col style="width:58px">
+          <col style="width:40px"><col style="width:88px"><col style="width:44px"><col style="width:58px">
+          <col style="width:82px"><col style="width:70px"><col style="width:50px">
+          <col style="width:68px">
+          <col style="width:82px"><col style="width:42px">
+        </colgroup>
         <thead>
           <tr class="tr-grp">
             <th class="grp-loja" rowspan="2">Loja</th>
@@ -1321,65 +1603,65 @@ function renderResultado() {
             <th class="grp-pe" colspan="2">Baixa / Quebra</th>
           </tr>
           <tr class="tr-sub">
-            <th>Realizado ${mesLbl} ${anoAnt}</th>
-            <th>Meta ${mesLbl} ${ano}</th>
-            <th>Realizado ${mesLbl} ${ano}</th>
+            <th>Realizado ${anoAnt}</th>
+            <th>Meta ${ano}</th>
+            <th>Realizado ${ano}</th>
             <th>Meta Concluída</th>
-            <th>Crescimento ${anoAntAnt}/${anoAnt}</th>
-            <th class="sep">% Meta Concluída</th>
-            <th>Dias Mês</th>
+            <th>Cresc. ${anoAnt}/${ano}</th>
+            <th class="sep">% Meta</th>
+            <th class="ctr">Dias Mês</th>
             <th>Prev. Fat.</th>
-            <th>Dias Vendidos</th>
-            <th>% Prev. Fat.</th>
+            <th class="ctr">Dias Vend.</th>
+            <th>% Prev.</th>
             <th class="sep">Diferença</th>
-            <th>Diferença</th>
-            <th>Pessoas/Dia</th>
+            <th>Dif. TKM</th>
+            <th class="ctr">Pessoas/Dia</th>
             <th class="sep">T.M. Pessoa</th>
             <th>Valor</th>
-            <th>%</th>
+            <th class="ctr">%</th>
           </tr>
         </thead>
         <tbody>
           ${linhas.map(r => `
           <tr>
             <td class="tl">${r.loja}</td>
-            <td>${R0(r.vAntAnt)}</td>
-            <td>${r.metaAtual>0?R0(r.metaAtual):'—'}</td>
-            <td>${R0(r.vAtual)}</td>
+            <td>${Num0(r.vAnt)}</td>
+            <td>${r.metaAtual>0?Num0(r.metaAtual):'—'}</td>
+            <td>${Num0(r.vAtual)}</td>
             <td>${r.pctMetaConcluida===null?'<span class="badge badge-na">—</span>':(r.pctMetaConcluida>=100?'<span class="badge badge-ok">Meta Concluída</span>':'<span class="badge badge-no">Meta não Concluída</span>')}</td>
             <td class="${r.crescimento===null?'dash':(r.crescimento>=0?'pos':'neg')}">${Pct(r.crescimento)}</td>
             <td class="sep ${faixaClass(r.pctMetaConcluida)}">${Pct(r.pctMetaConcluida)}</td>
-            <td>${r.dias}</td>
-            <td>${R0(r.prevFat)}</td>
-            <td>${r.diasVendidos}</td>
+            <td class="ctr">${r.dias}</td>
+            <td>${Num0(r.prevFat)}</td>
+            <td class="ctr">${r.diasVendidos}</td>
             <td class="${faixaClass(r.pctPrevFat)}">${Pct(r.pctPrevFat)}</td>
-            <td class="sep ${r.diferenca===null?'dash':(r.diferenca>=0?'pos':'neg')}">${r.diferenca===null?'—':R0(r.diferenca)}</td>
-            <td class="${r.ticketMedioDif===null?'dash':(r.ticketMedioDif>=0?'pos':'neg')}">${r.ticketMedioDif===null?'—':R(r.ticketMedioDif,2)}</td>
-            <td>${N0(r.pessoasPDia)}</td>
-            <td class="sep ${r.tmPessoa===null?'dash':(r.tmPessoa>=0?'pos':'neg')}">${r.tmPessoa===null?'—':R(r.tmPessoa,2)}</td>
-            <td>${R0(r.baixaValor)}</td>
-            <td>${r.baixaPct===null?'—':Pct(r.baixaPct,2)}</td>
+            <td class="sep ${r.diferenca===null?'dash':(r.diferenca>=0?'pos':'neg')}">${r.diferenca===null?'—':Num0(r.diferenca)}</td>
+            <td class="${r.ticketMedioDif===null?'dash':(r.ticketMedioDif>=0?'pos':'neg')}">${r.ticketMedioDif===null?'—':Num(r.ticketMedioDif,2)}</td>
+            <td class="ctr">${N0(r.pessoasPDia)}</td>
+            <td class="sep ${r.tmPessoa===null?'dash':(r.tmPessoa>=0?'pos':'neg')}">${r.tmPessoa===null?'—':Num(r.tmPessoa,2)}</td>
+            <td>${Num0(r.baixaValor)}</td>
+            <td class="ctr">${r.baixaPct===null?'—':Pct(r.baixaPct,2)}</td>
           </tr>`).join('')}
         </tbody>
         <tfoot>
           <tr class="tr-media">
             <td class="tl">TOTAL</td>
-            <td>${R0(tVAntAnt)}</td>
-            <td>${tMeta>0?R0(tMeta):'—'}</td>
-            <td>${R0(tVAtual)}</td>
+            <td>${Num0(tVAnt)}</td>
+            <td>${tMeta>0?Num0(tMeta):'—'}</td>
+            <td>${Num0(tVAtual)}</td>
             <td>${tPctMeta===null?'<span class="badge badge-na">—</span>':(tPctMeta>=100?'<span class="badge badge-ok">Meta Concluída</span>':'<span class="badge badge-no">Meta não Concluída</span>')}</td>
             <td class="${tCrescimento===null?'dash':(tCrescimento>=0?'pos':'neg')}">${Pct(tCrescimento)}</td>
             <td class="sep ${faixaClass(tPctMeta)}">${Pct(tPctMeta)}</td>
-            <td>${linhas[0].dias}</td>
-            <td>${R0(tPrevFat)}</td>
-            <td>${tDiasVendidos}</td>
+            <td class="ctr">${linhas[0].dias}</td>
+            <td>${Num0(tPrevFat)}</td>
+            <td class="ctr">${tDiasVendidos}</td>
             <td class="${faixaClass(tPctPrevFat)}">${Pct(tPctPrevFat)}</td>
-            <td class="sep ${tDiferenca===null?'dash':(tDiferenca>=0?'pos':'neg')}">${tDiferenca===null?'—':R0(tDiferenca)}</td>
-            <td class="${tTicketMedioDif===null?'dash':(tTicketMedioDif>=0?'pos':'neg')}">${tTicketMedioDif===null?'—':R(tTicketMedioDif,2)}</td>
-            <td>${N0(tPessoasPDia)}</td>
-            <td class="sep ${tTmPessoa===null?'dash':(tTmPessoa>=0?'pos':'neg')}">${tTmPessoa===null?'—':R(tTmPessoa,2)}</td>
-            <td>${R0(tBaixaValor)}</td>
-            <td>${tBaixaPct===null?'—':Pct(tBaixaPct,2)}</td>
+            <td class="sep ${tDiferenca===null?'dash':(tDiferenca>=0?'pos':'neg')}">${tDiferenca===null?'—':Num0(tDiferenca)}</td>
+            <td class="${tTicketMedioDif===null?'dash':(tTicketMedioDif>=0?'pos':'neg')}">${tTicketMedioDif===null?'—':Num(tTicketMedioDif,2)}</td>
+            <td class="ctr">${N0(tPessoasPDia)}</td>
+            <td class="sep ${tTmPessoa===null?'dash':(tTmPessoa>=0?'pos':'neg')}">${tTmPessoa===null?'—':Num(tTmPessoa,2)}</td>
+            <td>${Num0(tBaixaValor)}</td>
+            <td class="ctr">${tBaixaPct===null?'—':Pct(tBaixaPct,2)}</td>
           </tr>
         </tfoot>
       </table>
