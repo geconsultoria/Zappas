@@ -1331,13 +1331,14 @@ async function loadQuebrasMap() {
   const map = {};
   const mapDia = {};
   const cacheBust = '&_cb=' + Date.now();
+  console.log('[QUEBRAS] Iniciando busca de Recebidos...');
   await Promise.all(RECBIDOS_URLS.map(async (url, idx) => {
     const lojaFallback = STORE_KEYS[idx].toUpperCase();
     try {
       const res = await fetch(url + cacheBust, { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const txt = await res.text();
-      if (!txt || !txt.trim()) return;
+      if (!txt || !txt.trim()) { console.warn('[QUEBRAS] ' + lojaFallback + ': resposta vazia.'); return; }
       const { headers, rows } = parseCSV(txt);
       const cLoja  = headers.includes('loja') ? 'loja' : null;
       const cAno   = headers.find(h => h === 'ano' || h === 'ano_ref' || h === 'ano_competencia' || h === 'anoref') || null;
@@ -1345,21 +1346,21 @@ async function loadQuebrasMap() {
       const cNome  = headers.find(h => h === 'nomepgto' || h === 'nome_pgto' || h === 'descricaopgto') || null;
       const cConta = headers.find(h => h === 'conta' || h === 'valor' || h === 'valor_conta') || null;
       const cDtEntrada = headers.find(h => h === 'dtentrada' || h === 'dt_entrada' || h === 'data_entrada') || null;
+      console.log('[QUEBRAS] ' + lojaFallback + ': ' + rows.length + ' linhas | colunas detectadas: nome=' + (cNome||'∅') + ', conta=' + (cConta||'∅') + ', loja=' + (cLoja||'∅') + ', mes=' + (cMes||'∅') + ', ano=' + (cAno||'∅'));
       if (!cNome || !cConta) {
         console.warn('Recebidos (' + lojaFallback + '): coluna nomepgto/conta não encontrada. Cabeçalhos: ' + headers.join(', '));
         return;
       }
+      let linhasMatch = 0;
       rows.forEach(r => {
         const nome = normTxt(r[cNome]);
         if (!NOMEPGTO_QUEBRAS.includes(nome)) return;
         const valor = parseNum(r[cConta]);
         if (!valor) return;
+        linhasMatch++;
         const loja = (cLoja && r[cLoja]) ? String(r[cLoja]).trim().toUpperCase() : lojaFallback;
         const mesRaw = cMes ? r[cMes] : '';
         const mes = parseMesRec(mesRaw);
-        // Nunca "chutar" o ano atual quando não dá pra identificar o ano —
-        // isso jogava linhas de anos passados (ex.: 2025) pra dentro do
-        // ano corrente, fazendo esses anos sumirem do quadro de Quebras.
         const anoColuna = (cAno && r[cAno]) ? parseInt(r[cAno]) : null;
         const ano = anoColuna || parseAnoRec(mesRaw);
         if (mes && ano) {
@@ -1369,7 +1370,6 @@ async function loadQuebrasMap() {
         } else {
           console.warn('[Quebras] ' + lojaFallback + ': linha com nomepgto correto mas mês/ano não reconhecido ("' + mesRaw + '"' + (cAno ? ', coluna ano="' + r[cAno] + '"' : ', sem coluna ano') + ').');
         }
-        // Granularidade diária, a partir de "dtentrada".
         if (cDtEntrada) {
           const dt = parseDtEntrada(r[cDtEntrada]);
           if (dt && dt.ano && dt.mes && dt.dia) {
@@ -1380,10 +1380,13 @@ async function loadQuebrasMap() {
           }
         }
       });
+      console.log('[QUEBRAS] ' + lojaFallback + ': ' + linhasMatch + ' linhas de quebras encontradas.');
     } catch(e) {
       console.warn('Recebidos indisponível (' + lojaFallback + '):', e.message);
     }
   }));
+  console.log('[QUEBRAS] Mapa final (mensal):', JSON.stringify(map));
+  console.log('[QUEBRAS] Chaves do mapa:', Object.keys(map));
   return { mensal: map, diario: mapDia };
 }
 
