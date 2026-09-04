@@ -29,11 +29,9 @@
   var GOOGLE_CLIENT_ID = "660941198657-kolngnc6en0etp73afcdffl2c9il1au7.apps.googleusercontent.com";
   var AUTH_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbz3ZLCz2tQFFWyGQ58tw2w1kCMhvfNI2nH9hPX3SxS7bHAEQZkcVijNd1hzvTnP3JEppw/exec";
   var AUTH_TOKEN = "zappas2026usuarios";
-  var HOSTED_DOMAIN = "zappas.com.br";
-  // E-mails fora do domínio @zappas.com.br que também podem entrar (ex.: o
-  // administrador do painel usando sua conta pessoal). Edite esta lista
-  // conforme necessário — mantenha tudo em minúsculas.
-  var EMAIL_EXCECOES = ["reginaldo.rfo2@gmail.com"];
+  // Não há mais restrição de domínio de e-mail: o acesso é controlado só
+  // pelo cadastro em Administração (qualquer conta Google, inclusive Gmail
+  // pessoal, funciona desde que esteja cadastrada e ativa por lá).
   var SESSION_KEY = "zappas_session";
 
   // Mapa telaKey -> {label, href} usado no link "Administração" injetado no
@@ -161,7 +159,7 @@
       '<div class="ag-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">' +
       '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>' +
       '<div class="ag-title">Painel de Gestão</div>' +
-      '<div class="ag-sub">Entre com sua conta Google @' + HOSTED_DOMAIN + ' para continuar.</div>' +
+      '<div class="ag-sub">Entre com a conta Google cadastrada para você acessar este painel.</div>' +
       '<div class="ag-gsi" id="ag-gsi-btn"></div>' +
       (errorMsg ? '<div class="ag-err">' + errorMsg + "</div>" : "") +
       "</div>";
@@ -208,10 +206,10 @@
     if (gisReady) return;
     window.google.accounts.id.initialize({
       client_id: GOOGLE_CLIENT_ID,
-      // Não usamos o parâmetro "hd" aqui porque isso restringiria o próprio
-      // seletor de contas do Google, impedindo até os e-mails da lista de
-      // EMAIL_EXCECOES (fora do domínio) de aparecerem. A checagem de
-      // domínio/exceção é feita manualmente em handleCredentialResponse.
+      // Não usamos o parâmetro "hd" aqui: o acesso não é mais restrito a um
+      // domínio específico, qualquer conta Google cadastrada em
+      // Administração pode entrar (checagem feita via getUsuario, dentro
+      // de handleCredentialResponse).
       auto_select: true,
       callback: handleCredentialResponse
     });
@@ -233,11 +231,13 @@
     if (!payload) { showLoginOverlay("Não foi possível validar o login. Tente novamente."); return; }
 
     var email = String(payload.email || "").toLowerCase();
-    var noDominio = payload.hd === HOSTED_DOMAIN || email.indexOf("@" + HOSTED_DOMAIN) !== -1;
-    var naExcecao = EMAIL_EXCECOES.indexOf(email) !== -1;
 
-    if (!payload.email_verified || (!noDominio && !naExcecao)) {
-      showLoginOverlay("Use uma conta @" + HOSTED_DOMAIN + " para entrar.");
+    // Não exigimos mais domínio @zappas.com.br nem lista de exceções: quem
+    // controla o acesso é o cadastro em Administração (getUsuario abaixo).
+    // Isso permite cadastrar qualquer conta Google (inclusive Gmail pessoal)
+    // direto na tela de Administração, sem precisar editar código.
+    if (!payload.email_verified) {
+      showLoginOverlay("Não foi possível confirmar seu e-mail com o Google. Tente novamente.");
       return;
     }
 
