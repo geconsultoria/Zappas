@@ -232,9 +232,9 @@ body {
   padding: 16px 18px; box-shadow: var(--sh); position:relative; overflow:hidden;
 }
 .kpi-accent { position:absolute; top:0; left:0; right:0; height:3px; border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--gold); }
-.kpi-label { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-4); margin-bottom:8px; }
-.kpi-value { font-family: var(--font-head); font-weight:800; font-size:21px; color: var(--ink); line-height:1.15; }
-.kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; }
+.kpi-label { font-size:11px; font-weight:600; letter-spacing:.6px; text-transform:uppercase; color: var(--ink-3); margin-bottom:8px; }
+.kpi-value { font-family: var(--font-body); font-weight:700; font-size:22px; letter-spacing:-0.8px; color: var(--ink); line-height:1.15; }
+.kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; letter-spacing:normal; }
 .kpi-foot { font-size:11px; color: var(--ink-3); margin-top:6px; }
 .kpi-foot.pos { color:#3E8F63; }
 .kpi-foot.neg { color:#B4483A; }
@@ -466,7 +466,6 @@ body {
   <div class="home-inner">
     <div class="home-card">
       <div class="home-title">Gestão Zappas</div>
-      <div class="home-sub">Resumo geral do mês · selecione um item no menu ao lado para ver o detalhe</div>
     </div>
 
     <div class="ig-filter-bar">
@@ -561,39 +560,6 @@ body {
       </div>
     </div>
     <div class="resumo-note" style="margin:-6px 0 20px;">Receita Operacional aqui vem dos Recebidos (dinheiro efetivamente recebido, igual ao DFC), por isso pode ser um pouco diferente do "Faturamento Total" acima, que soma o valor total vendido.</div>
-
-    <div class="resumo-head" style="margin-top:8px;">
-      <div class="resumo-title">Outros indicadores</div>
-    </div>
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Meta do mês</div>
-        <div class="kpi-value skel" id="kpi-meta">—</div>
-        <div class="kpi-foot" id="kpi-meta-foot"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Saldo de Caixa (aproximado)</div>
-        <div class="kpi-value skel" id="kpi-saldo">—</div>
-        <div class="kpi-foot" id="kpi-saldo-foot"></div>
-        <div class="resumo-note">Entradas (faturamento) − saídas (Contas a Pagar pagas no mês). Não é o extrato bancário real.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Contas a Pagar em aberto</div>
-        <div class="kpi-value skel" id="kpi-ctaspagar">—</div>
-        <div class="kpi-foot" id="kpi-ctaspagar-foot"></div>
-        <div class="kpi-list" id="kpi-ctaspagar-list"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Ciclo Financeiro</div>
-        <div class="kpi-value skel" id="kpi-ciclo">—</div>
-        <div class="kpi-foot" id="kpi-ciclo-foot"></div>
-        <div class="resumo-note">PME e PMR ainda em desenvolvimento na tela de Ciclo Financeiro — o número completo aparece aqui automaticamente assim que estiverem prontos.</div>
-      </div>
-    </div>
 
     <div class="resumo-head" style="margin-top:8px;">
       <div class="resumo-title">Performance por loja</div>
@@ -1168,8 +1134,8 @@ async function carregarResumoGeral() {
     } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
   }));
 
-  let receitaOperacional = 0;
-  const entradasPorLoja = {};
+  // recebidosRows guarda TODOS os meses/anos (não só o atual) pra alimentar os filtros de Ano/Mês/Loja.
+  const recebidosRows = [];
   await Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
     const lojaKey = RESUMO_STORE_KEYS[idx];
     try {
@@ -1196,86 +1162,58 @@ async function carregarResumoGeral() {
         let ano = cAno ? resumoParseAno(r[cAno]) : null;
         if (!mes) mes = dt ? dt.mes : null;
         if (!ano) ano = dt ? dt.ano : null;
-        if (ano !== anoAtual || mes !== mesAtual) return;
+        if (!ano || !mes) return;
 
-        receitaOperacional += valor;
         const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaKey).toUpperCase();
-        entradasPorLoja[loja] = (entradasPorLoja[loja] || 0) + valor;
+        recebidosRows.push({ ano, mes, valor, loja });
+        anosDisponiveis.add(ano);
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
   }));
 
-  // ── Contas a Pagar (todas as lojas) — CMV, DFC (todos os grupos), saldo de caixa, "em aberto", Performance por Loja ──
-  // cmvRows guarda o CMV de TODOS os meses (não só o atual) pra alimentar o gráfico de Evolução Mensal.
-  let totalCmv = 0, saidasMes = 0, totalEmAberto = 0, jurosBancarios = 0;
-  const proximosVencimentos = [];
-  const sumsBySlug = {};
-  const saidasPorLoja = {};
+  // ── Contas a Pagar (todas as lojas) — CMV, DFC (todos os grupos), Performance por Loja ──
+  // cmvRows / ctasPagarRows guardam TODOS os meses (não só o atual) pra alimentar os filtros e o gráfico de Evolução Mensal.
   const cmvRows = [];
+  const ctasPagarRows = [];
   await Promise.all(RESUMO_CTASPAGAR_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
       const cCodCtr = resumoFindCol(headers, ['codcentro', 'cod_centro']);
       const cValor = resumoFindCol(headers, ['vparcela', 'valor_parcela']);
-      const cVenc = resumoFindCol(headers, ['dtvencimento', 'data_vencimento']);
       const cPgto = resumoFindCol(headers, ['dtpagamento', 'data_pagamento']);
-      const cPaga = resumoFindCol(headers, ['paga']);
       const cLoja = resumoFindCol(headers, ['loja']);
       if (!cValor) return;
       const lojaFallback = RESUMO_STORE_KEYS[idx].toUpperCase();
 
       rows.forEach(r => {
         const valor = resumoParseNum(r[cValor]); if (!valor) return;
+        if (!cPgto) return;
+        const pg = resumoParseDataBR(r[cPgto]);
+        if (!pg) return;
 
-        // CMV + DFC (todos os grupos) + saídas do mês (regime de caixa: pela data de pagamento)
-        if (cPgto) {
-          const pg = resumoParseDataBR(r[cPgto]);
-          if (pg) {
-            let grupoInfo = null;
-            if (cCodCtr) {
-              const codRaw = String(r[cCodCtr] || '').trim();
-              const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
-              grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
-            }
-            if (grupoInfo && grupoInfo.grupo && resumoIsGrupoCMV(grupoInfo.grupo)) {
-              cmvRows.push({ ano: pg.ano, mes: pg.mes, valor, loja: lojaFallback });
-            }
-          }
-          if (pg && pg.ano === anoAtual && pg.mes === mesAtual) {
-            saidasMes += valor;
-            const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaFallback).toUpperCase();
-            saidasPorLoja[loja] = (saidasPorLoja[loja] || 0) + valor;
-            if (cCodCtr) {
-              const codRaw = String(r[cCodCtr] || '').trim();
-              const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
-              const info = planoMap.get(codRaw) || planoMap.get(codNum);
-              if (info && info.grupo) {
-                if (resumoIsGrupoCMV(info.grupo)) totalCmv += valor;
-                const slug = resumoSlugFromGrupo(info.grupo);
-                if (slug) sumsBySlug[slug] = (sumsBySlug[slug] || 0) + valor;
-                if (resumoIsJuros(info.sub_grupo) || resumoIsJuros(info.conta_pl)) jurosBancarios += valor;
-              }
-            }
-          }
+        let grupoInfo = null;
+        if (cCodCtr) {
+          const codRaw = String(r[cCodCtr] || '').trim();
+          const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
+          grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
+        }
+        const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaFallback).toUpperCase();
+
+        if (grupoInfo && grupoInfo.grupo && resumoIsGrupoCMV(grupoInfo.grupo)) {
+          cmvRows.push({ ano: pg.ano, mes: pg.mes, valor, loja });
         }
 
-        // Em aberto (não paga) + próximos vencimentos
-        const paga = cPaga ? String(r[cPaga] || '').toUpperCase() === 'S' : false;
-        if (!paga && cVenc) {
-          const venc = resumoParseDataBR(r[cVenc]);
-          if (venc) {
-            totalEmAberto += valor;
-            proximosVencimentos.push({ ts: venc.ts, dia: venc.dia, mes: venc.mes, ano: venc.ano, valor, loja: RESUMO_STORE_KEYS[idx].toUpperCase() });
-          }
-        }
+        const slug = grupoInfo && grupoInfo.grupo ? resumoSlugFromGrupo(grupoInfo.grupo) : null;
+        const isJuros = grupoInfo ? (resumoIsJuros(grupoInfo.sub_grupo) || resumoIsJuros(grupoInfo.conta_pl)) : false;
+        ctasPagarRows.push({ ano: pg.ano, mes: pg.mes, valor, loja, slug, isJuros });
+        anosDisponiveis.add(pg.ano);
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
   }));
 
   // ── Meta do mês (soma de todas as lojas/canais) ──
   // metaRows guarda a meta de TODOS os meses/anos (não só o atual) pra alimentar o gráfico de Evolução Mensal.
-  let totalMeta = 0;
   const metaRows = [];
   try {
     const txt = await resumoFetchCSV(BACKUP_METAS_URL);
@@ -1291,133 +1229,31 @@ async function carregarResumoGeral() {
         metaRows.push({ ano, mes, valor });
         anosDisponiveis.add(ano);
       }
-      if (ano !== anoAtual || mes !== mesAtual) return;
-      totalMeta += valor;
     });
   } catch (e) { /* metas indisponível */ }
 
-  // ── Renderiza ──
-  const lucro = totalFat - totalCmv;
-  const margem = totalFat > 0 ? (lucro / totalFat) * 100 : 0;
-  const saldoCaixa = totalFat - saidasMes;
-  const pctMeta = totalMeta > 0 ? (totalFat / totalMeta) * 100 : null;
-
-  const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
-  const setFoot = (id, text, cls) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.className = 'kpi-foot' + (cls ? ' ' + cls : ''); } };
-
-  // kpi-faturamento / kpi-cmv / kpi-lucro / kpi-margem agora são calculados por resumoRenderIndicadoresGerais(),
-  // que reage aos filtros de Ano/Mês/Loja — ver chamada no fim da função.
-
-  if (pctMeta === null) {
-    setVal('kpi-meta', '—');
-    setFoot('kpi-meta-foot', 'meta do mês não cadastrada');
-  } else {
-    setVal('kpi-meta', resumoFmtPct(pctMeta));
-    setFoot('kpi-meta-foot', resumoFmtBRL(totalFat) + ' de ' + resumoFmtBRL(totalMeta), pctMeta >= 100 ? 'pos' : 'neg');
-  }
-
-  setVal('kpi-saldo', resumoFmtBRL(saldoCaixa));
-  setFoot('kpi-saldo-foot', 'entradas ' + resumoFmtBRL(totalFat) + ' · saídas ' + resumoFmtBRL(saidasMes), saldoCaixa >= 0 ? 'pos' : 'neg');
-
-  setVal('kpi-ctaspagar', resumoFmtBRL(totalEmAberto));
-  setFoot('kpi-ctaspagar-foot', proximosVencimentos.length + ' título(s) em aberto');
-  const listEl = document.getElementById('kpi-ctaspagar-list');
-  if (listEl) {
-    const proximos = proximosVencimentos.sort((a, b) => a.ts - b.ts).slice(0, 3);
-    listEl.innerHTML = proximos.map(v =>
-      `<div class="kpi-list-item"><span>${v.loja} · ${String(v.dia).padStart(2,'0')}/${String(v.mes).padStart(2,'0')}</span><span>${resumoFmtBRL(v.valor)}</span></div>`
-    ).join('');
-  }
-
-  setVal('kpi-ciclo', '—');
-  setFoot('kpi-ciclo-foot', 'em desenvolvimento');
-
-  // ── Indicadores Principais (DFC) — mesma fórmula do DRE_Gerencial.html ──
-  const g = slug => sumsBySlug[slug] || 0;
-  const impVendas = g('impostos_vendas'), dedVendas = g('deducoes_vendas');
-  const recLiq = receitaOperacional - impVendas - dedVendas;
-  const lucroBrutoDre = recLiq - g('cmv');
-  const resOp = lucroBrutoDre - g('despesas_comerciais') - g('despesas_pessoal') - g('despesas_administrativas') - g('despesas_financeiras') - g('pro_labore');
-  const ebitda = resOp + jurosBancarios;
-  const resLiqDre = (resOp - g('distribuicao_lucro') - g('ir_csll')) - g('emprestimos_financiamentos') - g('investimento') - g('parcelamento_impostos');
-
-  setVal('kpi-dre-receita', resumoFmtBRL(receitaOperacional));
-  setFoot('kpi-dre-receita-foot', 'recebido no mês (dinheiro em caixa)');
-
-  setVal('kpi-dre-lucrobruto', resumoFmtBRL(lucroBrutoDre));
-  setFoot('kpi-dre-lucrobruto-foot', receitaOperacional > 0 ? 'margem bruta ' + resumoFmtPct((lucroBrutoDre / receitaOperacional) * 100) : '—', lucroBrutoDre >= 0 ? 'pos' : 'neg');
-
-  setVal('kpi-dre-resultop', resumoFmtBRL(resOp));
-  setFoot('kpi-dre-resultop-foot', receitaOperacional > 0 ? 'mg. operacional ' + resumoFmtPct((resOp / receitaOperacional) * 100) : '—', resOp >= 0 ? 'pos' : 'neg');
-
-  setVal('kpi-dre-ebitda', resumoFmtBRL(ebitda));
-  setFoot('kpi-dre-ebitda-foot', receitaOperacional > 0 ? 'margem EBITDA ' + resumoFmtPct((ebitda / receitaOperacional) * 100) : '—', ebitda >= 0 ? 'pos' : 'neg');
-
-  setVal('kpi-dre-resultliq', resumoFmtBRL(resLiqDre));
-  setFoot('kpi-dre-resultliq-foot', receitaOperacional > 0 ? 'margem líquida ' + resumoFmtPct((resLiqDre / receitaOperacional) * 100) : '—', resLiqDre >= 0 ? 'pos' : 'neg');
-
-  const lojaPeriodoEl = document.getElementById('loja-period');
-  if (lojaPeriodoEl) lojaPeriodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
-
-  // ── Performance por Loja (entradas = Recebidos filtrados, saídas = Contas a Pagar pagas no mês) ──
-  // Layout no modelo de cards do DFC Fluxo de Caixa (renderLojas / .loja-card).
-  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja)])];
-  const emptyEl = document.getElementById('loja-perf-empty');
-  const listPerfEl = document.getElementById('loja-perf-list');
-  if (!lojasPerf.length) {
-    if (emptyEl) { emptyEl.textContent = 'Sem dados de lojas para o mês atual.'; emptyEl.style.display = ''; }
-    if (listPerfEl) listPerfEl.innerHTML = '';
-  } else if (emptyEl && listPerfEl) {
-    emptyEl.style.display = 'none';
-    const dados = lojasPerf.map(loja => {
-      const entradas = entradasPorLoja[loja] || 0, saidas = saidasPorLoja[loja] || 0;
-      return { loja, entradas, saidas, saldo: entradas - saidas };
-    }).sort((a, b) => b.entradas - a.entradas);
-    const maxVal = Math.max(1, ...dados.map(d => Math.max(d.entradas, d.saidas)));
-    const periodoLoja = MES_NOME[mesAtual].charAt(0).toUpperCase() + MES_NOME[mesAtual].slice(1) + ' de ' + anoAtual;
-    listPerfEl.innerHTML = dados.map((d, i) => `
-      <div class="perf-loja-card">
-        <div class="perf-loja-name">
-          <span class="perf-loja-dot" style="background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></span>
-          ${d.loja}
-        </div>
-        <div class="perf-loja-total ${d.saldo >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldo)}</div>
-        <div class="perf-loja-sub">Saldo de caixa · ${periodoLoja}</div>
-        <div class="perf-loja-bar-bg"><div class="perf-loja-bar-fill" style="width:${(d.entradas / maxVal * 100).toFixed(1)}%;background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></div></div>
-        <div class="perf-loja-flow">
-          <div class="perf-loja-flow-item">
-            <span class="perf-loja-flow-lbl">Entradas</span>
-            <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradas)}</span>
-          </div>
-          <div class="perf-loja-flow-item" style="align-items:flex-end">
-            <span class="perf-loja-flow-lbl">Saídas</span>
-            <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
-          </div>
-        </div>
-      </div>
-    `).join('');
-  }
-
-  // ── Indicadores Gerais (filtráveis por Ano/Mês/Loja) ──
-  resumoInicializarFiltrosIG({ fatRows, cmvRows, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+  // ── Indicadores Gerais + Indicadores Principais (DFC) + Performance por Loja ──
+  // Os três são recalculados juntos, reagindo aos filtros de Ano/Mês/Loja — ver resumoRenderFiltrados().
+  resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
 
   // ── Evolução mensal (gráficos + filtro de ano) ──
   resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
 }
 
 // ---------------------------------------------------------------------------
-// Indicadores Gerais — recalcula Faturamento/CMV/Lucro/%Lucro a partir dos
-// filtros de Ano, Mês e Loja (dados já carregados em memória, sem novo fetch)
+// Indicadores Gerais / Indicadores Principais (DFC) / Performance por Loja —
+// recalculados juntos a partir dos filtros de Ano, Mês e Loja (dados já
+// carregados em memória, sem novo fetch)
 // ---------------------------------------------------------------------------
 const RESUMO_PALETTE = [
   '#1A3D6B', '#2E6AB0', '#0D4F35', '#1A7A52', '#7A5C00',
   '#C8A92A', '#7A1E1E', '#B85C00', '#3D1A6B', '#1A5A7A'
 ];
 
-let resumoIGState = null;
+let resumoFiltroState = null;
 
-function resumoInicializarFiltrosIG(state) {
-  resumoIGState = state;
+function resumoInicializarFiltros(state) {
+  resumoFiltroState = state;
   const selAno = document.getElementById('ig-f-ano');
   const selMes = document.getElementById('ig-f-mes');
   const selLoja = document.getElementById('ig-f-loja');
@@ -1436,14 +1272,14 @@ function resumoInicializarFiltrosIG(state) {
 
   if (!selAno.dataset.wired) {
     selAno.dataset.wired = '1'; selMes.dataset.wired = '1'; selLoja.dataset.wired = '1';
-    [selAno, selMes, selLoja].forEach(el => el.addEventListener('change', resumoRenderIndicadoresGerais));
+    [selAno, selMes, selLoja].forEach(el => el.addEventListener('change', resumoRenderFiltrados));
   }
-  resumoRenderIndicadoresGerais();
+  resumoRenderFiltrados();
 }
 
-function resumoRenderIndicadoresGerais() {
-  if (!resumoIGState) return;
-  const { fatRows, cmvRows, MES_NOME } = resumoIGState;
+function resumoRenderFiltrados() {
+  if (!resumoFiltroState) return;
+  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, MES_NOME } = resumoFiltroState;
   const selAno = document.getElementById('ig-f-ano');
   const selMes = document.getElementById('ig-f-mes');
   const selLoja = document.getElementById('ig-f-loja');
@@ -1452,17 +1288,23 @@ function resumoRenderIndicadoresGerais() {
   const loja = selLoja && selLoja.value ? selLoja.value : null;
 
   const bate = r => (!ano || r.ano === ano) && (!mes || r.mes === mes) && (!loja || r.loja === loja);
+
+  const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
+  const setSub = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+  const setFoot = (id, text, cls) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.className = 'kpi-foot' + (cls ? ' ' + cls : ''); } };
+
+  const MES_NOME_CAP = MES_NOME.map(m => m ? m.charAt(0).toUpperCase() + m.slice(1) : m);
+  const periodoLongo = (mes ? MES_NOME_CAP[mes] + ' de ' : (ano ? '' : 'todos os períodos · ')) + (ano || '');
+  const periodoCurto = (mes ? MES_NOME[mes] + '/' : '') + (ano || '—') + (loja ? ' · ' + loja : '');
+
+  // ── Indicadores Gerais ──
   const totalFatF = fatRows.filter(bate).reduce((a, r) => a + r.valor, 0);
   const totalCmvF = cmvRows.filter(bate).reduce((a, r) => a + r.valor, 0);
   const lucroF = totalFatF - totalCmvF;
   const margemF = totalFatF > 0 ? (lucroF / totalFatF) * 100 : 0;
 
-  const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
-  const setSub = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
-
-  const periodoTxt = (mes ? MES_NOME[mes] + '/' : '') + (ano || '—') + (loja ? ' · ' + loja : '');
   const resumoPeriodEl = document.getElementById('resumo-period');
-  if (resumoPeriodEl) resumoPeriodEl.textContent = periodoTxt;
+  if (resumoPeriodEl) resumoPeriodEl.textContent = periodoCurto;
 
   setVal('kpi-faturamento', resumoFmtBRL(totalFatF));
   setSub('kpi-faturamento-foot', (loja || 'todas as lojas'));
@@ -1475,6 +1317,84 @@ function resumoRenderIndicadoresGerais() {
 
   setVal('kpi-margem', resumoFmtPct(margemF));
   setSub('kpi-margem-foot', margemF >= 30 ? '✓ acima do esperado' : margemF >= 15 ? '→ dentro do esperado' : '↓ abaixo do esperado');
+
+  // ── Indicadores Principais (DFC) — mesma fórmula do DRE_Gerencial.html ──
+  const recF = recebidosRows.filter(bate);
+  const receitaOperacional = recF.reduce((a, r) => a + r.valor, 0);
+  const ctasF = ctasPagarRows.filter(bate);
+  const sumsBySlug = {};
+  let jurosBancarios = 0;
+  ctasF.forEach(r => {
+    if (r.slug) sumsBySlug[r.slug] = (sumsBySlug[r.slug] || 0) + r.valor;
+    if (r.isJuros) jurosBancarios += r.valor;
+  });
+  const g = slug => sumsBySlug[slug] || 0;
+  const impVendas = g('impostos_vendas'), dedVendas = g('deducoes_vendas');
+  const recLiq = receitaOperacional - impVendas - dedVendas;
+  const lucroBrutoDre = recLiq - g('cmv');
+  const resOp = lucroBrutoDre - g('despesas_comerciais') - g('despesas_pessoal') - g('despesas_administrativas') - g('despesas_financeiras') - g('pro_labore');
+  const ebitda = resOp + jurosBancarios;
+  const resLiqDre = (resOp - g('distribuicao_lucro') - g('ir_csll')) - g('emprestimos_financiamentos') - g('investimento') - g('parcelamento_impostos');
+
+  setVal('kpi-dre-receita', resumoFmtBRL(receitaOperacional));
+  setFoot('kpi-dre-receita-foot', 'recebido no período (dinheiro em caixa)');
+
+  setVal('kpi-dre-lucrobruto', resumoFmtBRL(lucroBrutoDre));
+  setFoot('kpi-dre-lucrobruto-foot', receitaOperacional > 0 ? 'margem bruta ' + resumoFmtPct((lucroBrutoDre / receitaOperacional) * 100) : '—', lucroBrutoDre >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dre-resultop', resumoFmtBRL(resOp));
+  setFoot('kpi-dre-resultop-foot', receitaOperacional > 0 ? 'mg. operacional ' + resumoFmtPct((resOp / receitaOperacional) * 100) : '—', resOp >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dre-ebitda', resumoFmtBRL(ebitda));
+  setFoot('kpi-dre-ebitda-foot', receitaOperacional > 0 ? 'margem EBITDA ' + resumoFmtPct((ebitda / receitaOperacional) * 100) : '—', ebitda >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dre-resultliq', resumoFmtBRL(resLiqDre));
+  setFoot('kpi-dre-resultliq-foot', receitaOperacional > 0 ? 'margem líquida ' + resumoFmtPct((resLiqDre / receitaOperacional) * 100) : '—', resLiqDre >= 0 ? 'pos' : 'neg');
+
+  // ── Performance por Loja (respeita os mesmos filtros; Loja selecionada mostra só aquele card) ──
+  const lojaPeriodoEl = document.getElementById('loja-period');
+  if (lojaPeriodoEl) lojaPeriodoEl.textContent = periodoCurto;
+
+  const entradasPorLoja = {};
+  recF.forEach(r => { entradasPorLoja[r.loja] = (entradasPorLoja[r.loja] || 0) + r.valor; });
+  const saidasPorLoja = {};
+  ctasF.forEach(r => { saidasPorLoja[r.loja] = (saidasPorLoja[r.loja] || 0) + r.valor; });
+
+  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja)])];
+  const emptyEl = document.getElementById('loja-perf-empty');
+  const listPerfEl = document.getElementById('loja-perf-list');
+  if (!lojasPerf.length) {
+    if (emptyEl) { emptyEl.textContent = 'Sem dados de lojas para o período selecionado.'; emptyEl.style.display = ''; }
+    if (listPerfEl) listPerfEl.innerHTML = '';
+  } else if (emptyEl && listPerfEl) {
+    emptyEl.style.display = 'none';
+    const dados = lojasPerf.map(l => {
+      const entradas = entradasPorLoja[l] || 0, saidas = saidasPorLoja[l] || 0;
+      return { loja: l, entradas, saidas, saldo: entradas - saidas };
+    }).sort((a, b) => b.entradas - a.entradas);
+    const maxVal = Math.max(1, ...dados.map(d => Math.max(d.entradas, d.saidas)));
+    listPerfEl.innerHTML = dados.map((d, i) => `
+      <div class="perf-loja-card">
+        <div class="perf-loja-name">
+          <span class="perf-loja-dot" style="background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></span>
+          ${d.loja}
+        </div>
+        <div class="perf-loja-total ${d.saldo >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldo)}</div>
+        <div class="perf-loja-sub">Saldo de caixa · ${periodoLongo || 'todos os períodos'}</div>
+        <div class="perf-loja-bar-bg"><div class="perf-loja-bar-fill" style="width:${(d.entradas / maxVal * 100).toFixed(1)}%;background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></div></div>
+        <div class="perf-loja-flow">
+          <div class="perf-loja-flow-item">
+            <span class="perf-loja-flow-lbl">Entradas</span>
+            <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradas)}</span>
+          </div>
+          <div class="perf-loja-flow-item" style="align-items:flex-end">
+            <span class="perf-loja-flow-lbl">Saídas</span>
+            <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
 }
 
 // ---------------------------------------------------------------------------
