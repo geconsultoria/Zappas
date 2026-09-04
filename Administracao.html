@@ -354,7 +354,7 @@ function abrirModal(usuario) {
   editingEmail = usuario ? usuario.email : null;
   $('modal-title').textContent = usuario ? 'Editar usuário' : 'Novo usuário';
   $('f-email').value = usuario ? usuario.email : '';
-  $('f-email').disabled = !!usuario;
+  $('f-email').disabled = false;
   $('f-nome').value = usuario ? usuario.nome : '';
   $('f-role').value = usuario ? usuario.role : 'user';
   $('f-ativo').checked = usuario ? !!usuario.ativo : true;
@@ -403,7 +403,8 @@ function salvarUsuario() {
 
   $('btn-salvar').disabled = true;
   postAuthAction({
-    action: 'salvarUsuario', email: email, nome: nome, role: role, ativo: ativo, loja: loja, permissoes: permissoes
+    action: 'salvarUsuario', email: email, emailAntigo: editingEmail || undefined,
+    nome: nome, role: role, ativo: ativo, loja: loja, permissoes: permissoes
   }).then(function (res) {
     $('btn-salvar').disabled = false;
     if (res && res.erro) { mostrarErroModal(res.erro); return; }
