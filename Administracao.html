@@ -412,8 +412,15 @@ function salvarUsuario() {
     if (res && res.erro) { mostrarErroModal(res.erro); return; }
     fecharModal();
     carregarUsuarios();
-  }).catch(function () {
+  }).catch(function (err) {
     $('btn-salvar').disabled = false;
+    if (err && err.__timeout) {
+      // Provavelmente já salvou (o Apps Script só demorou a confirmar).
+      // Fecha o modal e recarrega a lista pra conferir.
+      fecharModal();
+      carregarUsuarios();
+      return;
+    }
     mostrarErroModal('Erro ao salvar. Tente novamente.');
   });
 }
@@ -431,11 +438,20 @@ function removerUsuarioAtual() {
 
 function postAuthAction(body) {
   body.token = window.__AUTH_TOKEN__;
-  return fetch(window.__AUTH_APPS_SCRIPT_URL__, {
+  var fetchPromise = fetch(window.__AUTH_APPS_SCRIPT_URL__, {
     method: 'POST',
     headers: { 'Content-Type': 'text/plain;charset=utf-8' },
     body: JSON.stringify(body)
   }).then(function (r) { return r.json(); });
+
+  // O Apps Script às vezes demora (ou trava) pra devolver a confirmação
+  // HTTP mesmo depois de já ter gravado na planilha (limitação conhecida
+  // do Google). Depois de 12s desistimos de esperar a resposta.
+  var timeoutPromise = new Promise(function (resolve, reject) {
+    setTimeout(function () { reject({ __timeout: true }); }, 12000);
+  });
+
+  return Promise.race([fetchPromise, timeoutPromise]);
 }
 
 function carregarUsuarios() {
