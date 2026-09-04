@@ -215,7 +215,7 @@ body {
   background: var(--bg);
   overflow-y: auto;
 }
-.home-inner { max-width: 1080px; margin: 0 auto; padding: 22px 28px 60px; }
+.home-inner { max-width: 1440px; margin: 0 auto; padding: 22px 32px 60px; }
 .home-card {
   position: sticky; top:0; z-index:20;
   display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; text-align:left;
@@ -1542,11 +1542,19 @@ function resumoRenderGraficos(ano, tentativa) {
   cmvRows.forEach(r => { if (r.ano === ano && r.mes >= 1 && r.mes <= 12) { cmvMes[r.mes] += r.valor; } });
   metaRows.forEach(r => { if (r.ano === ano && r.mes >= 1 && r.mes <= 12) { metaMes[r.mes] += r.valor; metaTemDado[r.mes] = true; temMeta = true; } });
 
+  // Diagnóstico temporário: enquanto o problema não for confirmado como resolvido, mostra
+  // contagens reais em vez de só "sem dados", pra sabermos se o problema é "não chegou nenhum
+  // dado de faturamento" ou "chegou, mas nenhuma linha bate com o ano selecionado".
+  const anosDoFatRows = [...new Set(fatRows.map(r => r.ano))].sort();
+  const diagFat = `(diagnóstico: ${fatRows.length} linha(s) de faturamento no total; anos encontrados: ${anosDoFatRows.length ? anosDoFatRows.join(', ') : 'nenhum'}; ano selecionado: ${ano})`;
+  const anosDoMetaRows = [...new Set(metaRows.map(r => r.ano))].sort();
+  const diagMeta = `(diagnóstico: ${metaRows.length} linha(s) de meta no total; anos encontrados: ${anosDoMetaRows.length ? anosDoMetaRows.join(', ') : 'nenhum'}; ano selecionado: ${ano})`;
+
   // ── Gráfico 1: Faturamento x CMV x Lucro ──
   if (!temFat) {
     resumoDestroyChart('chartEvolucao');
     if (evoCanvas) evoCanvas.style.display = 'none';
-    if (evoEmpty) evoEmpty.hidden = false;
+    if (evoEmpty) { evoEmpty.hidden = false; evoEmpty.textContent = 'Sem dados suficientes para este ano. ' + diagFat; }
   } else {
     if (evoCanvas) evoCanvas.style.display = '';
     if (evoEmpty) evoEmpty.hidden = true;
@@ -1599,7 +1607,7 @@ function resumoRenderGraficos(ano, tentativa) {
   if (!temMeta) {
     resumoDestroyChart('chartMeta');
     if (metaCanvas) metaCanvas.style.display = 'none';
-    if (metaEmpty) metaEmpty.hidden = false;
+    if (metaEmpty) { metaEmpty.hidden = false; metaEmpty.textContent = 'Sem metas cadastradas para este ano. ' + diagMeta; }
   } else {
     if (metaCanvas) metaCanvas.style.display = '';
     if (metaEmpty) metaEmpty.hidden = true;
