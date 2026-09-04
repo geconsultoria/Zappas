@@ -39,7 +39,7 @@
   --font-head: 'Syne', system-ui, sans-serif;
   --font-body: 'Epilogue', system-ui, sans-serif;
 
-  --side-w: 232px;
+  --side-w: var(--side-w-collapsed);
   --side-w-collapsed: 74px;
   --ease: cubic-bezier(.4,0,.2,1);
 }
@@ -85,6 +85,13 @@ body {
 .side-footer { padding:12px 10px 14px; border-top:1px solid rgba(255,255,255,.08); }
 .side-footer .side-link { width:100%; background:none; border:none; cursor:pointer; justify-content:center; }
 .side-footer .side-link span { display:none; }
+/* Rail recolhida (padrão): ícones do rodapé lado a lado, sem rótulo/status */
+.sidebar.collapsed:not(.peek) .side-footer {
+  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:center;
+  gap:6px; padding:12px 6px 14px;
+}
+.sidebar.collapsed:not(.peek) .side-footer .side-link { width:auto; padding:9px; border-radius:8px; }
+.sidebar.collapsed:not(.peek) .side-footer .side-status { display:none; }
 .side-status { font-size:10.5px; line-height:1.4; padding:6px 11px 0; color:rgba(255,255,255,.55); }
 .sidebar.collapsed .side-status { display:none; }
 .sidebar.collapsed.peek .side-status { display:block; }
@@ -361,7 +368,7 @@ body {
   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
 </button>
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar collapsed" id="sidebar">
   <div class="side-brand">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
     <div class="side-brand-text">
