@@ -736,6 +736,7 @@ a.side-brand:hover { opacity:.85; }
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- LOADER -->
 <div id="loader" class="out">
@@ -1698,7 +1699,7 @@ document.getElementById('link-faturamento-detalhado').addEventListener('click', 
   e.preventDefault();
   openFaturamentoDetalhado();
 });
-openFaturamentoDetalhado();
+AuthGuard.requireScreen('faturamento_detalhado', function(){ openFaturamentoDetalhado(); });
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

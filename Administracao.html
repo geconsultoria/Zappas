@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Administração · Painel de Gestão</title>
+<link rel="icon" type="image/png" sizes="48x48" href="logo.png?v=1">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:#F7F6F2; --bg-2:#EDECE6; --surface:#FFFFFF; --surf-2:#FAFAF7;
+  --border:#E8E6DE; --border-2:#D8D5CC;
+  --ink:#16160F; --ink-2:#3A3A2E; --ink-3:#787868; --ink-4:#AEADA0;
+  --gold:#C8961A; --blue:#1B3D6E; --blue-mid:#2C4E78; --blue-lt:#E4ECF6;
+  --green:#3E8F63; --red:#B4483A;
+  --r:10px; --r-lg:16px; --r-xl:22px;
+  --sh: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
+  --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
+  --font-head:'Syne', system-ui, sans-serif;
+  --font-body:'Epilogue', system-ui, sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+  --side-w:232px; --ease: cubic-bezier(.4,0,.2,1);
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:14px;}
+body{font-family:var(--font-body);background:var(--bg);color:var(--ink);line-height:1.5;-webkit-font-smoothing:antialiased;}
+
+/* Sidebar (mesmo padrão visual das demais páginas) */
+.sidebar{position:fixed;top:0;left:0;bottom:0;width:var(--side-w);
+  background:linear-gradient(180deg,#0B1E3D 0%,#122C52 45%,#0A1830 100%);
+  z-index:300;display:flex;flex-direction:column;overflow:visible;}
+.side-brand{display:flex;align-items:center;gap:11px;padding:18px 18px 16px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:8px;text-decoration:none;}
+.side-brand svg{width:22px;height:22px;color:var(--gold);flex-shrink:0;}
+.side-brand-text .t{font-family:var(--font-head);font-weight:700;color:#fff;font-size:14.5px;}
+.side-brand-text .s{font-size:10.5px;color:rgba(255,255,255,.45);letter-spacing:.03em;}
+.side-nav{flex:1;padding:4px 10px 16px;display:flex;flex-direction:column;gap:2px;overflow-y:auto;}
+.side-link{display:flex;align-items:center;gap:11px;width:100%;text-align:left;background:none;border:none;cursor:pointer;
+  color:rgba(255,255,255,.7);font-family:var(--font-head);font-weight:600;font-size:13px;padding:10px 11px;border-radius:10px;
+  text-decoration:none;transition:background .15s ease,color .15s ease;}
+.side-link svg{width:18px;height:18px;flex-shrink:0;opacity:.85;}
+.side-link:hover{background:rgba(255,255,255,.07);color:#fff;}
+.side-link.active{color:#fff;background:rgba(255,255,255,.09);}
+.side-footer{padding:12px 10px 14px;border-top:1px solid rgba(255,255,255,.08);}
+.side-user{display:flex;align-items:center;gap:9px;padding:8px 11px 14px;}
+.side-user img{width:30px;height:30px;border-radius:50%;flex-shrink:0;background:rgba(255,255,255,.15);}
+.side-user .n{font-size:12px;font-weight:600;color:#fff;line-height:1.3;}
+.side-user .e{font-size:10.5px;color:rgba(255,255,255,.5);}
+.side-toggle{display:none;position:fixed;top:14px;left:14px;z-index:301;width:38px;height:38px;border-radius:10px;
+  background:var(--ink);border:1px solid rgba(255,255,255,.12);align-items:center;justify-content:center;cursor:pointer;}
+.side-toggle svg{width:19px;height:19px;color:#fff;}
+.side-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.4);z-index:250;}
+@media (max-width:900px){
+  .sidebar{transform:translateX(-100%);transition:transform .25s ease;}
+  body.side-open .sidebar{transform:translateX(0);}
+  body.side-open .side-overlay{display:block;}
+  .side-toggle{display:flex;}
+  .topbar,.content{margin-left:0 !important;}
+  .topbar{padding-left:62px;}
+}
+
+/* Topbar */
+.topbar{position:sticky;top:0;z-index:100;margin-left:var(--side-w);
+  background:linear-gradient(90deg,#16283F 0%,#2C4E78 100%);
+  border-bottom:1px solid rgba(255,255,255,.08);box-shadow:0 2px 20px rgba(0,0,0,.15);
+  height:66px;display:flex;align-items:center;padding:0 28px;gap:16px;}
+.tb-title{font-family:var(--font-head);font-size:18px;font-weight:700;color:#fff;}
+.tb-sub{font-size:11px;color:rgba(255,255,255,.55);letter-spacing:.05em;text-transform:uppercase;}
+.tb-right{margin-left:auto;display:flex;align-items:center;gap:10px;}
+.btn{display:flex;align-items:center;gap:6px;background:var(--blue);color:#fff;border:none;border-radius:var(--r);
+  padding:9px 15px;font-family:var(--font-body);font-size:12px;font-weight:700;letter-spacing:.03em;cursor:pointer;
+  transition:all .18s var(--ease);}
+.btn:hover{background:var(--blue-mid);transform:translateY(-1px);}
+.btn.gold{background:var(--gold);color:var(--ink);}
+.btn.gold:hover{background:#DBA82A;}
+.btn svg{width:14px;height:14px;flex-shrink:0;}
+
+/* Content */
+.content{padding:24px 28px 64px;max-width:1200px;margin:0 auto;margin-left:var(--side-w);}
+.tabs{display:flex;gap:6px;margin-bottom:18px;border-bottom:1px solid var(--border);}
+.tab{padding:10px 4px;margin-right:22px;font-family:var(--font-head);font-weight:700;font-size:13px;color:var(--ink-4);
+  cursor:pointer;border-bottom:2px solid transparent;}
+.tab.active{color:var(--ink);border-color:var(--gold);}
+.panel{display:none;}
+.panel.active{display:block;}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);box-shadow:var(--sh);overflow:hidden;}
+table{width:100%;border-collapse:collapse;font-size:12.5px;}
+thead th{text-align:left;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);
+  background:var(--surf-2);padding:12px 16px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--ink-2);}
+tbody tr:last-child td{border-bottom:none;}
+tbody tr:hover{background:var(--surf-2);}
+.badge{display:inline-flex;align-items:center;font-size:10.5px;font-weight:700;padding:3px 9px;border-radius:20px;}
+.badge.admin{background:rgba(200,150,26,.15);color:var(--gold);}
+.badge.user{background:var(--blue-lt);color:var(--blue);}
+.badge.ativo{background:rgba(62,143,99,.13);color:var(--green);}
+.badge.inativo{background:rgba(180,72,58,.12);color:var(--red);}
+.badge.permitido{background:rgba(62,143,99,.13);color:var(--green);}
+.badge.negado{background:rgba(180,72,58,.12);color:var(--red);}
+.badge.admin_override{background:rgba(200,150,26,.15);color:var(--gold);}
+.row-actions{display:flex;gap:8px;}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--ink-4);padding:4px;border-radius:6px;}
+.icon-btn:hover{color:var(--ink);background:var(--bg-2);}
+.icon-btn svg{width:15px;height:15px;}
+.empty{padding:40px;text-align:center;color:var(--ink-4);font-size:13px;}
+.mono{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);}
+
+/* Modal */
+.modal-overlay{position:fixed;inset:0;background:rgba(10,20,40,.4);backdrop-filter:blur(2px);z-index:400;
+  display:none;align-items:center;justify-content:center;}
+.modal-overlay.show{display:flex;}
+.modal{background:var(--surface);border-radius:var(--r-xl);padding:28px;width:92vw;max-width:460px;max-height:88vh;overflow-y:auto;
+  box-shadow:0 20px 60px rgba(0,0,0,.3);}
+.modal h3{font-family:var(--font-head);font-size:17px;margin-bottom:18px;}
+.field{margin-bottom:14px;}
+.field label{display:block;font-size:11px;font-weight:700;color:var(--ink-3);margin-bottom:5px;letter-spacing:.02em;}
+.field input[type=text],.field input[type=email],.field select{
+  width:100%;padding:9px 11px;border:1px solid var(--border-2);border-radius:var(--r);font-family:var(--font-body);
+  font-size:13px;background:var(--bg);}
+.field input:focus,.field select:focus{outline:none;border-color:var(--blue-mid);box-shadow:0 0 0 3px var(--blue-lt);}
+.check-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.check-row label{font-size:12.5px;font-weight:600;color:var(--ink-2);}
+.perm-note{background:var(--blue-lt);color:var(--blue);border-radius:var(--r);padding:10px 12px;font-size:12px;margin-bottom:6px;}
+.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:6px;}
+.perm-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);}
+.modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
+.btn.ghost{background:none;color:var(--ink-3);border:1px solid var(--border-2);}
+.btn.ghost:hover{background:var(--bg-2);color:var(--ink);}
+.err-msg{color:var(--red);font-size:12px;margin-top:8px;display:none;}
+
+.toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.toolbar input[type=text]{padding:8px 12px;border:1px solid var(--border-2);border-radius:var(--r);font-size:12.5px;min-width:220px;background:var(--surface);}
+</style>
+</head>
+<body>
+
+<div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
+<button class="side-toggle" id="side-toggle" type="button" aria-label="Abrir menu">
+  <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
+</button>
+
+<aside class="sidebar" id="sidebar">
+  <a class="side-brand" href="GestaoZappas.html" style="text-decoration:none;">
+    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+    <div class="side-brand-text">
+      <div class="t">Dashboards</div>
+      <div class="s">Painel de Gestão</div>
+    </div>
+  </a>
+  <nav class="side-nav">
+    <a class="side-link active" href="Administracao.html">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+      <span>Administração</span>
+    </a>
+  </nav>
+  <div class="side-footer">
+    <div class="side-user" id="side-user"></div>
+    <button class="side-link" type="button" onclick="AuthGuard.logout()">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+      <span>Sair</span>
+    </button>
+  </div>
+</aside>
+
+<header class="topbar">
+  <div>
+    <div class="tb-title">Administração</div>
+    <div class="tb-sub">Usuários · Permissões · Log de acesso</div>
+  </div>
+  <div class="tb-right">
+    <button class="btn gold" id="btn-novo-usuario" type="button">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+      Novo usuário
+    </button>
+  </div>
+</header>
+
+<main class="content">
+  <div class="tabs">
+    <div class="tab active" data-tab="usuarios">Usuários</div>
+    <div class="tab" data-tab="log">Log de acesso</div>
+  </div>
+
+  <section class="panel active" id="panel-usuarios">
+    <div class="toolbar">
+      <input type="text" id="filtro-usuarios" placeholder="Buscar por nome ou e-mail…">
+      <span class="mono" id="contador-usuarios"></span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Usuário</th><th>Cargo</th><th>Status</th><th>Telas liberadas</th><th></th></tr>
+        </thead>
+        <tbody id="tbody-usuarios"></tbody>
+      </table>
+      <div class="empty" id="empty-usuarios" style="display:none;">Nenhum usuário cadastrado ainda.</div>
+    </div>
+  </section>
+
+  <section class="panel" id="panel-log">
+    <div class="toolbar">
+      <input type="text" id="filtro-log" placeholder="Buscar por e-mail ou tela…">
+      <span class="mono" id="contador-log"></span>
+    </div>
+    <div class="card">
+      <table>
+        <thead>
+          <tr><th>Data/Hora</th><th>Usuário</th><th>Tela</th><th>Resultado</th></tr>
+        </thead>
+        <tbody id="tbody-log"></tbody>
+      </table>
+      <div class="empty" id="empty-log" style="display:none;">Nenhum acesso registrado ainda.</div>
+    </div>
+  </section>
+</main>
+
+<!-- Modal de usuário -->
+<div class="modal-overlay" id="modal-overlay">
+  <div class="modal">
+    <h3 id="modal-title">Novo usuário</h3>
+    <div class="field">
+      <label>E-mail (@zappas.com.br, ou da lista de exceções)</label>
+      <input type="email" id="f-email" placeholder="nome.sobrenome@zappas.com.br">
+    </div>
+    <div class="field">
+      <label>Nome</label>
+      <input type="text" id="f-nome" placeholder="Nome completo">
+    </div>
+    <div class="field">
+      <label>Cargo</label>
+      <select id="f-role">
+        <option value="user">Usuário</option>
+        <option value="admin">Administrador</option>
+      </select>
+    </div>
+    <div class="check-row">
+      <input type="checkbox" id="f-ativo" checked>
+      <label for="f-ativo">Conta ativa (pode fazer login)</label>
+    </div>
+    <div id="bloco-permissoes">
+      <label style="display:block;font-size:11px;font-weight:700;color:var(--ink-3);margin-bottom:8px;">Telas liberadas</label>
+      <div class="perm-grid" id="perm-grid"></div>
+    </div>
+    <div class="perm-note" id="perm-note" style="display:none;">Administradores têm acesso total a todas as telas, independente das permissões marcadas.</div>
+    <div class="err-msg" id="modal-err"></div>
+    <div class="modal-actions">
+      <button class="btn ghost" type="button" id="btn-remover" style="margin-right:auto;">Remover usuário</button>
+      <button class="btn ghost" type="button" id="btn-cancelar">Cancelar</button>
+      <button class="btn gold" type="button" id="btn-salvar">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<script src="auth-common.js"></script>
+<script>
+'use strict';
+
+// Mantenha igual à lista EMAIL_EXCECOES em auth-common.js / Code.gs
+var EMAIL_EXCECOES = ['reginaldo.rfo2@gmail.com'];
+
+var TELA_LABELS = {
+  home: 'Início', analise_comercial: 'Análise Comercial', faturamento_lucro: 'Faturamento x Lucro',
+  faturamento_detalhado: 'Faturamento Detalhado', dre_gerencial: 'DFC Fluxo de Caixa', contas_a_pagar: 'Contas a Pagar',
+  banco_declaracao: 'Banco', reembolso: 'Reembolso entre Lojas', ciclo_financeiro: 'Ciclo Financeiro',
+  elaboracao_metas: 'Elaboração de Metas', resultado_meta: 'Resultado Metas', acompanhamento_metas: 'Acompanhamento de Metas'
+};
+var TELA_KEYS = Object.keys(TELA_LABELS);
+
+var usuarios = [];
+var logRows = [];
+var editingEmail = null; // null = criando novo
+
+function $(id) { return document.getElementById(id); }
+
+// 'admin' é uma telaKey especial que nunca existe na planilha de Permissoes,
+// então só quem tem role==='admin' passa por requireScreen aqui (ver a regra
+// "autorizado = role==='admin' || permissoes[key]" em auth-common.js).
+AuthGuard.requireScreen('admin', function (session) {
+  // Reforço extra no cliente, redundante de propósito.
+  if (session.role !== 'admin') {
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Epilogue,sans-serif;color:#787868;">Acesso restrito a administradores.</div>';
+    return;
+  }
+
+  $('side-user').innerHTML =
+    '<div><div class="n">' + (session.name || session.email) + '</div><div class="e">' + session.email + '</div></div>';
+
+  renderPermGrid();
+  wireTabs();
+  wireModal();
+  carregarUsuarios();
+  carregarLog();
+
+  $('filtro-usuarios').addEventListener('input', renderUsuarios);
+  $('filtro-log').addEventListener('input', renderLog);
+  $('btn-novo-usuario').addEventListener('click', function () { abrirModal(null); });
+});
+
+function renderPermGrid() {
+  var grid = $('perm-grid');
+  grid.innerHTML = TELA_KEYS.map(function (key) {
+    return '<label class="perm-item"><input type="checkbox" data-tela="' + key + '"> ' + TELA_LABELS[key] + '</label>';
+  }).join('');
+}
+
+function wireTabs() {
+  document.querySelectorAll('.tab').forEach(function (tab) {
+    tab.addEventListener('click', function () {
+      document.querySelectorAll('.tab').forEach(function (t) { t.classList.remove('active'); });
+      document.querySelectorAll('.panel').forEach(function (p) { p.classList.remove('active'); });
+      tab.classList.add('active');
+      $('panel-' + tab.dataset.tab).classList.add('active');
+    });
+  });
+}
+
+function wireModal() {
+  $('btn-cancelar').addEventListener('click', fecharModal);
+  $('modal-overlay').addEventListener('click', function (e) { if (e.target === $('modal-overlay')) fecharModal(); });
+  $('f-role').addEventListener('change', atualizarBlocoPermissoes);
+  $('btn-salvar').addEventListener('click', salvarUsuario);
+  $('btn-remover').addEventListener('click', removerUsuarioAtual);
+}
+
+function atualizarBlocoPermissoes() {
+  var isAdmin = $('f-role').value === 'admin';
+  $('bloco-permissoes').style.display = isAdmin ? 'none' : 'block';
+  $('perm-note').style.display = isAdmin ? 'block' : 'none';
+}
+
+function abrirModal(usuario) {
+  editingEmail = usuario ? usuario.email : null;
+  $('modal-title').textContent = usuario ? 'Editar usuário' : 'Novo usuário';
+  $('f-email').value = usuario ? usuario.email : '';
+  $('f-email').disabled = !!usuario;
+  $('f-nome').value = usuario ? usuario.nome : '';
+  $('f-role').value = usuario ? usuario.role : 'user';
+  $('f-ativo').checked = usuario ? !!usuario.ativo : true;
+  $('btn-remover').style.display = usuario ? 'inline-flex' : 'none';
+  $('modal-err').style.display = 'none';
+
+  document.querySelectorAll('#perm-grid input[type=checkbox]').forEach(function (cb) {
+    var key = cb.getAttribute('data-tela');
+    cb.checked = usuario && usuario.permissoes ? !!usuario.permissoes[key] : false;
+  });
+  atualizarBlocoPermissoes();
+  $('modal-overlay').classList.add('show');
+}
+
+function fecharModal() {
+  $('modal-overlay').classList.remove('show');
+}
+
+function mostrarErroModal(msg) {
+  var el = $('modal-err');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function salvarUsuario() {
+  var email = $('f-email').value.trim().toLowerCase();
+  var nome = $('f-nome').value.trim();
+  var role = $('f-role').value;
+  var ativo = $('f-ativo').checked;
+
+  if (!email || (email.indexOf('@zappas.com.br') === -1 && EMAIL_EXCECOES.indexOf(email) === -1)) {
+    mostrarErroModal('Informe um e-mail válido do domínio @zappas.com.br (ou de um e-mail liberado na lista de exceções).');
+    return;
+  }
+  if (!nome) {
+    mostrarErroModal('Informe o nome do usuário.');
+    return;
+  }
+
+  var permissoes = {};
+  document.querySelectorAll('#perm-grid input[type=checkbox]').forEach(function (cb) {
+    permissoes[cb.getAttribute('data-tela')] = cb.checked;
+  });
+
+  $('btn-salvar').disabled = true;
+  postAuthAction({
+    action: 'salvarUsuario', email: email, nome: nome, role: role, ativo: ativo, permissoes: permissoes
+  }).then(function (res) {
+    $('btn-salvar').disabled = false;
+    if (res && res.erro) { mostrarErroModal(res.erro); return; }
+    fecharModal();
+    carregarUsuarios();
+  }).catch(function () {
+    $('btn-salvar').disabled = false;
+    mostrarErroModal('Erro ao salvar. Tente novamente.');
+  });
+}
+
+function removerUsuarioAtual() {
+  if (!editingEmail) return;
+  if (!confirm('Remover o acesso de ' + editingEmail + '? Essa ação não pode ser desfeita.')) return;
+  postAuthAction({ action: 'removerUsuario', email: editingEmail }).then(function () {
+    fecharModal();
+    carregarUsuarios();
+  }).catch(function () {
+    mostrarErroModal('Erro ao remover. Tente novamente.');
+  });
+}
+
+function postAuthAction(body) {
+  body.token = window.__AUTH_TOKEN__;
+  return fetch(window.__AUTH_APPS_SCRIPT_URL__, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify(body)
+  }).then(function (r) { return r.json(); });
+}
+
+function carregarUsuarios() {
+  fetch(window.__AUTH_APPS_SCRIPT_URL__ + '?action=getUsuarios&_cb=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) { usuarios = Array.isArray(data) ? data : []; renderUsuarios(); })
+    .catch(function () { usuarios = []; renderUsuarios(); });
+}
+
+function renderUsuarios() {
+  var filtro = ($('filtro-usuarios').value || '').toLowerCase();
+  var filtrados = usuarios.filter(function (u) {
+    return !filtro || (u.email || '').toLowerCase().indexOf(filtro) !== -1 || (u.nome || '').toLowerCase().indexOf(filtro) !== -1;
+  });
+
+  $('contador-usuarios').textContent = filtrados.length + ' de ' + usuarios.length;
+  $('empty-usuarios').style.display = filtrados.length ? 'none' : 'block';
+
+  $('tbody-usuarios').innerHTML = filtrados.map(function (u) {
+    var telas = u.role === 'admin' ? 'Todas (admin)' : TELA_KEYS.filter(function (k) { return u.permissoes && u.permissoes[k]; })
+      .map(function (k) { return TELA_LABELS[k]; }).join(', ') || '—';
+    return '<tr>' +
+      '<td><div style="font-weight:600;color:var(--ink);">' + (u.nome || '—') + '</div><div class="mono">' + u.email + '</div></td>' +
+      '<td><span class="badge ' + (u.role === 'admin' ? 'admin' : 'user') + '">' + (u.role === 'admin' ? 'Administrador' : 'Usuário') + '</span></td>' +
+      '<td><span class="badge ' + (u.ativo ? 'ativo' : 'inativo') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
+      '<td style="max-width:320px;">' + telas + '</td>' +
+      '<td class="row-actions"><button class="icon-btn" title="Editar" onclick="abrirModal(usuarios.find(function(x){return x.email===\'' + u.email + '\';}))">' +
+      '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg></button></td>' +
+      '</tr>';
+  }).join('');
+}
+
+function carregarLog() {
+  fetch(window.__AUTH_APPS_SCRIPT_URL__ + '?action=getAccessLog&limit=500&_cb=' + Date.now(), { cache: 'no-store' })
+    .then(function (r) { return r.json(); })
+    .then(function (data) { logRows = Array.isArray(data) ? data : []; renderLog(); })
+    .catch(function () { logRows = []; renderLog(); });
+}
+
+function renderLog() {
+  var filtro = ($('filtro-log').value || '').toLowerCase();
+  var filtrados = logRows.filter(function (r) {
+    return !filtro || (r.email || '').toLowerCase().indexOf(filtro) !== -1 || (r.telaKey || '').toLowerCase().indexOf(filtro) !== -1;
+  });
+
+  $('contador-log').textContent = filtrados.length + ' de ' + logRows.length;
+  $('empty-log').style.display = filtrados.length ? 'none' : 'block';
+
+  var resultadoLabel = { permitido: 'Permitido', negado: 'Negado', admin_override: 'Admin' };
+
+  $('tbody-log').innerHTML = filtrados.map(function (r) {
+    var dt = r.timestamp ? new Date(r.timestamp) : null;
+    var dtStr = dt && !isNaN(dt) ? dt.toLocaleString('pt-BR') : String(r.timestamp || '—');
+    return '<tr>' +
+      '<td class="mono">' + dtStr + '</td>' +
+      '<td>' + (r.email || '—') + '</td>' +
+      '<td>' + (TELA_LABELS[r.telaKey] || r.telaKey || '—') + '</td>' +
+      '<td><span class="badge ' + (r.resultado || '') + '">' + (resultadoLabel[r.resultado] || r.resultado || '—') + '</span></td>' +
+      '</tr>';
+  }).join('');
+}
+
+document.getElementById('side-toggle') && document.getElementById('side-toggle').addEventListener('click', function () {
+  document.body.classList.toggle('side-open');
+});
+</script>
+</body>
+</html>

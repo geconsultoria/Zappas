@@ -799,6 +799,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- SIDEBAR MENU -->
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
@@ -2959,7 +2960,7 @@ if (window.ResizeObserver) {
   });
 }
 
-window.addEventListener('DOMContentLoaded', () => loadData());
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('acompanhamento_metas', function(){ loadData(); }));
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

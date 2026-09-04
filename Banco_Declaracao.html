@@ -468,6 +468,7 @@ a.side-brand:hover { opacity:.85; }
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <div id="loader">
   <div class="ld-logo">
@@ -1615,7 +1616,7 @@ $("periodConfirm").addEventListener("click", function(){
 /* ---------------------------------------------------------------------
    INÍCIO
 --------------------------------------------------------------------- */
-fetchData();
+AuthGuard.requireScreen('banco_declaracao', function(){ fetchData(); });
 
 })();
 </script>

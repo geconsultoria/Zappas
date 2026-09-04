@@ -1085,6 +1085,7 @@ tr.is-open .expand-hint { display: none; }
 </style>
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- SIDEBAR MENU -->
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
@@ -3322,7 +3323,7 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded', () => loadData());
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(){ loadData(); }));
 
 // Se outra página do painel (ex.: GestaoZappas) disparar uma
 // "Atualização Geral" enquanto esta aba já estiver aberta, esta também

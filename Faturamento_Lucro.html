@@ -363,6 +363,7 @@
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <aside class="sidebar collapsed" id="sidebar">
   <a class="side-brand" href="GestaoZappas.html" title="Voltar ao Painel de Gestão">
@@ -1758,7 +1759,7 @@ function collapseSidebar(){
   if (el) el.addEventListener('change', renderDashboard);
 });
 
-loadData();
+AuthGuard.requireScreen('faturamento_lucro', function(){ loadData(); });
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

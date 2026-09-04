@@ -385,6 +385,7 @@ a.side-brand:hover { opacity:.85; }
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <div id="loader">
   <div class="ld-logo">
@@ -972,7 +973,7 @@ document.querySelectorAll('.side-item > .side-link').forEach(btn => {
   });
 });
 
-loadData(false);
+AuthGuard.requireScreen('ciclo_financeiro', function(){ loadData(false); });
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

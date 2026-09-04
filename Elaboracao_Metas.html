@@ -921,6 +921,7 @@
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- SIDEBAR MENU -->
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
@@ -2622,7 +2623,7 @@ function computeMetaRowV2(loja, mesKey, prevKey, currR25, prevR25, metaPrevReal)
 /* =========================================================
    INIT
    ========================================================= */
-window.addEventListener('DOMContentLoaded', () => loadData());
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('elaboracao_metas', function(){ loadData(); }));
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

@@ -736,6 +736,7 @@ a.side-brand:hover { opacity:.85; }
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- LOADER -->
 <div id="loader" class="out">
@@ -2602,7 +2603,7 @@ document.getElementById('link-analise-comercial').addEventListener('click', e=>{
 // Abre o dashboard automaticamente ao carregar a página
 // (antes só abria se o clique acontecesse dentro desta mesma página;
 // agora funciona também vindo de outro dashboard, como o Faturamento x Lucro).
-openAnaliseComercial();
+AuthGuard.requireScreen('analise_comercial', function(){ openAnaliseComercial(); });
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

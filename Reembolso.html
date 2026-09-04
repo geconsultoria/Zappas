@@ -394,6 +394,7 @@ a.side-brand:hover { opacity:.85; }
 
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <div id="loader">
   <div class="ld-logo">
@@ -1004,7 +1005,7 @@ document.querySelectorAll('.side-item > .side-link').forEach(btn => {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-loadData(false);
+AuthGuard.requireScreen('reembolso', function(){ loadData(false); });
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

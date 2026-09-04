@@ -513,6 +513,7 @@ td.dash { color: var(--muted); }
 </style>
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- SIDEBAR MENU -->
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
@@ -1675,7 +1676,7 @@ function renderResultado() {
 }
 
 /* ═══════════════ INIT ═══════════════ */
-loadData(false);
+AuthGuard.requireScreen('resultado_meta', function(){ loadData(false); });
 </script>
 
 </body>

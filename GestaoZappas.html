@@ -219,6 +219,7 @@ body {
 </style>
 </head>
 <body>
+<script src="auth-common.js"></script>
 
 <!-- SIDEBAR MENU -->
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
@@ -626,12 +627,14 @@ async function backupGeral() {
 // PRIMEIRA vez que a GestaoZappas abre numa sessão nova, não toda vez
 // que você volta pra essa tela clicando no logo.
 const SESSION_AUTO_KEY = 'zappas_auto_update_session';
-if (!sessionStorage.getItem(SESSION_AUTO_KEY)) {
-  sessionStorage.setItem(SESSION_AUTO_KEY, '1');
-  window.addEventListener('DOMContentLoaded', () => {
-    gerarResumoMensal();
-  });
-}
+AuthGuard.requireScreen('home', function(){
+  if (!sessionStorage.getItem(SESSION_AUTO_KEY)) {
+    sessionStorage.setItem(SESSION_AUTO_KEY, '1');
+    window.addEventListener('DOMContentLoaded', () => {
+      gerarResumoMensal();
+    });
+  }
+});
 
 function expandSidebar(){
   const sidebar = document.getElementById('sidebar');
