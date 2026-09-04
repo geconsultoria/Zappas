@@ -190,7 +190,7 @@ tbody tr:hover{background:var(--surf-2);}
     <div class="card">
       <table>
         <thead>
-          <tr><th>Usuário</th><th>Cargo</th><th>Status</th><th>Telas liberadas</th><th></th></tr>
+          <tr><th>Usuário</th><th>Cargo</th><th>Loja</th><th>Status</th><th>Telas liberadas</th><th></th></tr>
         </thead>
         <tbody id="tbody-usuarios"></tbody>
       </table>
@@ -238,6 +238,12 @@ tbody tr:hover{background:var(--surf-2);}
       <input type="checkbox" id="f-ativo" checked>
       <label for="f-ativo">Conta ativa (pode fazer login)</label>
     </div>
+    <div class="field" id="bloco-loja">
+      <label>Loja (restringe o Acompanhamento de Metas a essa loja)</label>
+      <select id="f-loja">
+        <option value="">Todas as lojas</option>
+      </select>
+    </div>
     <div id="bloco-permissoes">
       <label style="display:block;font-size:11px;font-weight:700;color:var(--ink-3);margin-bottom:8px;">Telas liberadas</label>
       <div class="perm-grid" id="perm-grid"></div>
@@ -267,6 +273,12 @@ var TELA_LABELS = {
 };
 var TELA_KEYS = Object.keys(TELA_LABELS);
 
+// Mantenha igual à lista STORE_KEYS usada em Acompanhamento_Metas.html.
+var STORE_LABELS = {
+  anisio: 'Anísio', bady: 'Bady', belvedere: 'Belvedere', damha: 'Damha', havan: 'Havan', muffato: 'Muffato'
+};
+var STORE_KEYS = Object.keys(STORE_LABELS);
+
 var usuarios = [];
 var logRows = [];
 var editingEmail = null; // null = criando novo
@@ -287,6 +299,7 @@ AuthGuard.requireScreen('admin', function (session) {
     '<div><div class="n">' + (session.name || session.email) + '</div><div class="e">' + session.email + '</div></div>';
 
   renderPermGrid();
+  renderLojaOpcoes();
   wireTabs();
   wireModal();
   carregarUsuarios();
@@ -302,6 +315,16 @@ function renderPermGrid() {
   grid.innerHTML = TELA_KEYS.map(function (key) {
     return '<label class="perm-item"><input type="checkbox" data-tela="' + key + '"> ' + TELA_LABELS[key] + '</label>';
   }).join('');
+}
+
+function renderLojaOpcoes() {
+  var sel = $('f-loja');
+  STORE_KEYS.forEach(function (key) {
+    var opt = document.createElement('option');
+    opt.value = key;
+    opt.textContent = STORE_LABELS[key];
+    sel.appendChild(opt);
+  });
 }
 
 function wireTabs() {
@@ -327,6 +350,7 @@ function atualizarBlocoPermissoes() {
   var isAdmin = $('f-role').value === 'admin';
   $('bloco-permissoes').style.display = isAdmin ? 'none' : 'block';
   $('perm-note').style.display = isAdmin ? 'block' : 'none';
+  $('bloco-loja').style.display = isAdmin ? 'none' : 'block';
 }
 
 function abrirModal(usuario) {
@@ -337,6 +361,7 @@ function abrirModal(usuario) {
   $('f-nome').value = usuario ? usuario.nome : '';
   $('f-role').value = usuario ? usuario.role : 'user';
   $('f-ativo').checked = usuario ? !!usuario.ativo : true;
+  $('f-loja').value = usuario && usuario.loja ? usuario.loja : '';
   $('btn-remover').style.display = usuario ? 'inline-flex' : 'none';
   $('modal-err').style.display = 'none';
 
@@ -363,6 +388,7 @@ function salvarUsuario() {
   var nome = $('f-nome').value.trim();
   var role = $('f-role').value;
   var ativo = $('f-ativo').checked;
+  var loja = role === 'admin' ? '' : $('f-loja').value;
 
   if (!email || (email.indexOf('@zappas.com.br') === -1 && EMAIL_EXCECOES.indexOf(email) === -1)) {
     mostrarErroModal('Informe um e-mail válido do domínio @zappas.com.br (ou de um e-mail liberado na lista de exceções).');
@@ -380,7 +406,7 @@ function salvarUsuario() {
 
   $('btn-salvar').disabled = true;
   postAuthAction({
-    action: 'salvarUsuario', email: email, nome: nome, role: role, ativo: ativo, permissoes: permissoes
+    action: 'salvarUsuario', email: email, nome: nome, role: role, ativo: ativo, loja: loja, permissoes: permissoes
   }).then(function (res) {
     $('btn-salvar').disabled = false;
     if (res && res.erro) { mostrarErroModal(res.erro); return; }
@@ -434,6 +460,7 @@ function renderUsuarios() {
     return '<tr>' +
       '<td><div style="font-weight:600;color:var(--ink);">' + (u.nome || '—') + '</div><div class="mono">' + u.email + '</div></td>' +
       '<td><span class="badge ' + (u.role === 'admin' ? 'admin' : 'user') + '">' + (u.role === 'admin' ? 'Administrador' : 'Usuário') + '</span></td>' +
+      '<td>' + (u.role === 'admin' ? '—' : (STORE_LABELS[u.loja] || 'Todas')) + '</td>' +
       '<td><span class="badge ' + (u.ativo ? 'ativo' : 'inativo') + '">' + (u.ativo ? 'Ativo' : 'Inativo') + '</span></td>' +
       '<td style="max-width:320px;">' + telas + '</td>' +
       '<td class="row-actions"><button class="icon-btn" title="Editar" onclick="abrirModal(usuarios.find(function(x){return x.email===\'' + u.email + '\';}))">' +

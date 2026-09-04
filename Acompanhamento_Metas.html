@@ -1118,6 +1118,15 @@ const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8
 // Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
 // então basta buscar todos e juntar as linhas num único conjunto.
 const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
+// Valores brutos de "loja" que aparecem nos dados (em maiúsculas), usados
+// para travar os filtros desta tela quando o usuário logado é de uma loja
+// específica (não-administrador). "BELVEDER" cobre a grafia inconsistente
+// já vista nas planilhas de origem.
+const STORE_LOJA_ALIASES = {
+  anisio: ['ANISIO'], bady: ['BADY'], belvedere: ['BELVEDERE', 'BELVEDER'],
+  damha: ['DAMHA'], havan: ['HAVAN'], muffato: ['MUFFATO']
+};
+let restrictedLoja = null; // ex.: 'anisio' — preenchido no login se o usuário não for admin e tiver loja definida
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 // Quebras/Baixas: vem da planilha de Recebidos (mesmo backend, mesmo
@@ -1691,6 +1700,7 @@ function buildFilters() {
   setOpts('f-ano',  anos,  v => v, v => v, '', 'Todos');
   setOpts('f-loja', lojas, v => v, v => v==='BELVEDER'?'BELVEDERE':v, '', 'Todas');
   setOpts('f-mes',  meses, v => v, v => MESES[v-1], '', 'Todos');
+  aplicarRestricaoLoja();
 
   const onFilterChange = () => { resetMetaEdited(); applyFilters(); };
   document.getElementById('f-ano').addEventListener('change', onFilterChange);
@@ -1707,6 +1717,19 @@ function buildFilters() {
   } else if (meses.length) {
     selMes.value = meses[meses.length - 1];
   }
+}
+
+// Trava o filtro "Loja" (e some com a opção "Todas") quando o usuário
+// logado não é administrador e tem uma loja definida no cadastro.
+function aplicarRestricaoLoja() {
+  if (!restrictedLoja) return;
+  const aliases = STORE_LOJA_ALIASES[restrictedLoja] || [restrictedLoja.toUpperCase()];
+  const sel = document.getElementById('f-loja');
+  if (!sel) return;
+  [...sel.options].forEach(o => { if (o.value === '') o.remove(); });
+  const opt = [...sel.options].find(o => aliases.includes(o.value));
+  if (opt) sel.value = opt.value;
+  sel.disabled = true;
 }
 
 function setOpts(id, vals, vFn, lFn, emptyVal, emptyLabel) {
@@ -2624,11 +2647,19 @@ function abrirResumoDiario() {
   document.getElementById('rdTogTodas').classList.remove('active');
   document.getElementById('rdLojaSelect').style.display = '';
   document.querySelector('.rd-modal').classList.remove('todas-lojas');
-  const lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  let lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  if (restrictedLoja) {
+    const aliases = STORE_LOJA_ALIASES[restrictedLoja] || [restrictedLoja.toUpperCase()];
+    lojas = lojas.filter(l => aliases.includes(l));
+  }
   const sel = document.getElementById('rdLojaSelect');
   sel.innerHTML = lojas.map(l => `<option value="${l}">${l}</option>`).join('');
   const fLoja = document.getElementById('f-loja').value;
   if (fLoja && lojas.includes(fLoja)) sel.value = fLoja;
+  if (restrictedLoja) {
+    sel.disabled = true;
+    document.getElementById('rdTogTodas').style.display = 'none';
+  }
   document.getElementById('rdOverlay').classList.add('show');
   renderResumoDiario();
 }
@@ -2636,6 +2667,7 @@ function fecharResumoDiario() {
   document.getElementById('rdOverlay').classList.remove('show');
 }
 function setRdModo(modo) {
+  if (restrictedLoja && modo === 'todas') return; // usuário de loja específica não pode ver "Todas as lojas"
   rdModo = modo;
   rdCarouselPage = 0;
   document.getElementById('rdTogUma').classList.toggle('active', modo==='uma');
@@ -2960,7 +2992,12 @@ if (window.ResizeObserver) {
   });
 }
 
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('acompanhamento_metas', function(){ loadData(); }));
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('acompanhamento_metas', function(session){
+  if (session && session.role !== 'admin' && session.loja) {
+    restrictedLoja = session.loja;
+  }
+  loadData();
+}));
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">

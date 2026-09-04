@@ -54,7 +54,7 @@
   };
 
   // ── Estado interno ──────────────────────────────────────────────────────
-  var session = null; // { email, name, picture, exp, role, ativo, permissoes, fetchedAt }
+  var session = null; // { email, name, picture, exp, role, loja, ativo, permissoes, fetchedAt }
   var gisReady = false;
   var pendingScreenKey = null;
   var pendingCallback = null;
@@ -252,6 +252,7 @@
         picture: payload.picture || "",
         exp: payload.exp,
         role: data.role,
+        loja: data.loja || "",
         permissoes: data.permissoes || {},
         fetchedAt: Date.now()
       };
@@ -333,6 +334,7 @@
       fetchUsuario(session.email).then(function (data) {
         if (data && data.encontrado && data.ativo !== false) {
           session.role = data.role;
+          session.loja = data.loja || "";
           session.permissoes = data.permissoes || {};
           saveSessionToStorage(session);
         }
