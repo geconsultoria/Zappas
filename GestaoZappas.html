@@ -1269,10 +1269,21 @@ async function carregarResumoGeral() {
 
   // ── Indicadores Gerais + Indicadores Principais (DFC) + Performance por Loja ──
   // Os três são recalculados juntos, reagindo aos filtros de Ano/Mês/Loja — ver resumoRenderFiltrados().
-  resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+  // Cada bloco roda em try/catch isolado: um erro num deles não pode impedir os outros de aparecer.
+  try {
+    resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+  } catch (e) { console.error('[Resumo Geral] Falha em Indicadores Gerais/DFC/Performance por Loja:', e); }
 
   // ── Evolução mensal (gráficos + filtro de ano) ──
-  resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
+  try {
+    resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
+  } catch (e) {
+    console.error('[Resumo Geral] Falha em Evolução Mensal:', e);
+    const evoEmpty = document.getElementById('chartEvolucao-empty');
+    const metaEmpty = document.getElementById('chartMeta-empty');
+    if (evoEmpty) { evoEmpty.hidden = false; evoEmpty.textContent = 'Erro ao montar o gráfico: ' + (e && e.message || e); }
+    if (metaEmpty) { metaEmpty.hidden = false; metaEmpty.textContent = 'Erro ao montar o gráfico: ' + (e && e.message || e); }
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -1495,18 +1506,28 @@ function resumoInicializarGraficos(state) {
   resumoRenderGraficos(anoDefault);
 }
 
-function resumoRenderGraficos(ano) {
+function resumoRenderGraficos(ano, tentativa) {
   const evoEmpty = document.getElementById('chartEvolucao-empty');
   const metaEmpty = document.getElementById('chartMeta-empty');
   const evoCanvas = document.getElementById('chartEvolucao');
   const metaCanvas = document.getElementById('chartMeta');
 
+  // O Chart.js vem de um CDN externo (cdnjs) e pode ainda não ter carregado no momento em que os
+  // dados terminam de chegar (rede lenta, ordem de carregamento). Em vez de desistir na primeira
+  // tentativa e deixar o gráfico permanentemente vazio, espera um pouco e tenta de novo algumas vezes.
+  if (ano != null && typeof Chart === 'undefined' && (tentativa || 0) < 20) {
+    if (evoEmpty) { evoEmpty.hidden = false; evoEmpty.textContent = 'Carregando biblioteca de gráficos…'; }
+    if (metaEmpty) { metaEmpty.hidden = false; metaEmpty.textContent = 'Carregando biblioteca de gráficos…'; }
+    setTimeout(() => resumoRenderGraficos(ano, (tentativa || 0) + 1), 300);
+    return;
+  }
+
   if (ano == null || !resumoGraficosState || typeof Chart === 'undefined') {
     resumoDestroyChart('chartEvolucao'); resumoDestroyChart('chartMeta');
     if (evoCanvas) evoCanvas.style.display = 'none';
     if (metaCanvas) metaCanvas.style.display = 'none';
-    if (evoEmpty) evoEmpty.hidden = false;
-    if (metaEmpty) metaEmpty.hidden = false;
+    if (evoEmpty) { evoEmpty.hidden = false; evoEmpty.textContent = typeof Chart === 'undefined' ? 'Não foi possível carregar a biblioteca de gráficos (Chart.js). Verifique a conexão ou tente recarregar a página.' : 'Sem dados suficientes para este ano.'; }
+    if (metaEmpty) { metaEmpty.hidden = false; metaEmpty.textContent = typeof Chart === 'undefined' ? 'Não foi possível carregar a biblioteca de gráficos (Chart.js). Verifique a conexão ou tente recarregar a página.' : 'Sem metas cadastradas para este ano.'; }
     return;
   }
 
