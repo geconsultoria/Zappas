@@ -268,6 +268,58 @@ body {
 .loja-perf-bar-fill.saida { background:#B4483A; }
 .loja-perf-vals { display:flex; justify-content:space-between; font-size:10.5px; color: var(--ink-3); }
 
+.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:10px 16px; margin-bottom:18px; }
+.ig-fgroup { display:flex; align-items:center; gap:7px; }
+.ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-3); white-space:nowrap; }
+.ig-fselect {
+  font-family: var(--font-body); font-size:12.5px; font-weight:500; color: var(--ink-2);
+  background: var(--bg); border:1px solid var(--border-2); border-radius: var(--r);
+  padding: 7px 26px 7px 11px; appearance:none; cursor:pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23AEADA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position: right 9px center; min-width:110px;
+}
+.ig-fselect:focus { outline:none; border-color:#1a56db; }
+
+.ig-kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
+@media (max-width: 900px){ .ig-kpi-grid{ grid-template-columns:1fr 1fr; } }
+@media (max-width: 480px){ .ig-kpi-grid{ grid-template-columns:1fr; } }
+.ig-kpi-card { position:relative; background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:16px 18px; box-shadow: var(--sh); overflow:hidden; transition:box-shadow .2s, transform .2s; }
+.ig-kpi-card:hover { box-shadow: var(--sh-md); transform:translateY(-2px); }
+.ig-kpi-card::before { content:''; position:absolute; top:0; left:0; right:0; height:3px; }
+.ig-kpi-card.blue::before { background:#1a56db; }
+.ig-kpi-card.orange::before { background:#f97316; }
+.ig-kpi-card.green::before { background:#0ea472; }
+.ig-kpi-card.indigo::before { background:#8b5cf6; }
+.ig-kpi-header { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+.ig-kpi-icon { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.ig-kpi-card.blue .ig-kpi-icon { background:#e8effc; } .ig-kpi-card.blue .ig-kpi-icon svg { fill:#1a56db; }
+.ig-kpi-card.orange .ig-kpi-icon { background:#fff1e6; } .ig-kpi-card.orange .ig-kpi-icon svg { fill:#f97316; }
+.ig-kpi-card.green .ig-kpi-icon { background:#e6f7f0; } .ig-kpi-card.green .ig-kpi-icon svg { fill:#0ea472; }
+.ig-kpi-card.indigo .ig-kpi-icon { background:#f5f3ff; } .ig-kpi-card.indigo .ig-kpi-icon svg { fill:#8b5cf6; }
+.ig-kpi-icon svg { width:18px; height:18px; }
+.ig-kpi-label { font-size:11px; font-weight:600; color: var(--ink-3); text-transform:uppercase; letter-spacing:.6px; }
+.ig-kpi-value { font-family: var(--font-body); font-size:22px; font-weight:700; letter-spacing:-0.8px; line-height:1; text-align:center; width:100%; margin-bottom:4px; color: var(--ink); }
+.ig-kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; }
+.ig-kpi-sub { font-size:11px; color: var(--ink-3); text-align:right; }
+
+.perf-loja-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; margin-bottom:26px; }
+.perf-loja-card { background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:18px 20px; box-shadow: var(--sh); transition:box-shadow .2s, transform .2s; }
+.perf-loja-card:hover { box-shadow: var(--sh-md); transform:translateY(-2px); }
+.perf-loja-name { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
+.perf-loja-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.perf-loja-total { font-family: var(--font-body); font-size:22px; font-weight:700; color: var(--ink); margin-bottom:4px; }
+.perf-loja-total.neg { color:#B4483A; }
+.perf-loja-sub { font-size:11px; color: var(--ink-4); }
+.perf-loja-bar-bg { height:3px; background: var(--border); border-radius:2px; margin-top:12px; }
+.perf-loja-bar-fill { height:3px; border-radius:2px; }
+.perf-loja-flow { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
+.perf-loja-flow-item { display:flex; flex-direction:column; gap:2px; }
+.perf-loja-flow-lbl { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-4); }
+.perf-loja-flow-val { font-family: var(--font-body); font-size:13px; font-weight:700; }
+.perf-loja-flow-val.pos { color:#0ea472; }
+.perf-loja-flow-val.neg { color:#B4483A; }
+.perf-loja-empty { font-size:12px; color: var(--ink-4); padding:8px 0; margin-bottom:26px; }
+
 .resumo-filter { display:flex; align-items:center; gap:8px; }
 .resumo-filter label { font-size:11px; color: var(--ink-3); font-weight:600; }
 .resumo-filter select {
@@ -417,68 +469,58 @@ body {
       <div class="home-sub">Resumo geral do mês · selecione um item no menu ao lado para ver o detalhe</div>
     </div>
 
+    <div class="ig-filter-bar">
+      <div class="ig-fgroup">
+        <span class="ig-flabel">Ano</span>
+        <select class="ig-fselect" id="ig-f-ano"></select>
+      </div>
+      <div class="ig-fgroup">
+        <span class="ig-flabel">Mês</span>
+        <select class="ig-fselect" id="ig-f-mes"></select>
+      </div>
+      <div class="ig-fgroup">
+        <span class="ig-flabel">Loja</span>
+        <select class="ig-fselect" id="ig-f-loja"></select>
+      </div>
+    </div>
+
     <div class="resumo-head">
       <div class="resumo-title">Indicadores gerais</div>
       <div class="resumo-period" id="resumo-period">carregando…</div>
     </div>
 
-    <div class="kpi-grid kpi-grid-4">
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Faturamento Total</div>
-        <div class="kpi-value skel" id="kpi-faturamento">—</div>
-        <div class="kpi-foot" id="kpi-faturamento-foot"></div>
+    <div class="ig-kpi-grid">
+      <div class="ig-kpi-card blue">
+        <div class="ig-kpi-header">
+          <div class="ig-kpi-icon"><svg viewBox="0 0 24 24"><path d="M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z"/></svg></div>
+          <div class="ig-kpi-label">Faturamento Total</div>
+        </div>
+        <div class="ig-kpi-value skel" id="kpi-faturamento">—</div>
+        <div class="ig-kpi-sub" id="kpi-faturamento-foot"></div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-accent" style="background:#f97316"></div>
-        <div class="kpi-label">CMV Total</div>
-        <div class="kpi-value skel" id="kpi-cmv">—</div>
-        <div class="kpi-foot" id="kpi-cmv-foot"></div>
+      <div class="ig-kpi-card orange">
+        <div class="ig-kpi-header">
+          <div class="ig-kpi-icon"><svg viewBox="0 0 24 24"><path d="M20 8H4V6h16v2zm1 2H3v9a2 2 0 002 2h14a2 2 0 002-2v-9zM9 13h6v2H9v-2z"/></svg></div>
+          <div class="ig-kpi-label">CMV Total</div>
+        </div>
+        <div class="ig-kpi-value skel" id="kpi-cmv">—</div>
+        <div class="ig-kpi-sub" id="kpi-cmv-foot"></div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-accent" style="background:#0ea472"></div>
-        <div class="kpi-label">Lucro Bruto</div>
-        <div class="kpi-value skel" id="kpi-lucro">—</div>
-        <div class="kpi-foot" id="kpi-lucro-foot"></div>
+      <div class="ig-kpi-card green">
+        <div class="ig-kpi-header">
+          <div class="ig-kpi-icon"><svg viewBox="0 0 24 24"><path d="M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z"/></svg></div>
+          <div class="ig-kpi-label">Lucro Bruto</div>
+        </div>
+        <div class="ig-kpi-value skel" id="kpi-lucro">—</div>
+        <div class="ig-kpi-sub" id="kpi-lucro-foot"></div>
       </div>
-      <div class="kpi-card">
-        <div class="kpi-accent" style="background:#8b5cf6"></div>
-        <div class="kpi-label">% Lucro Bruto</div>
-        <div class="kpi-value skel" id="kpi-margem">—</div>
-        <div class="kpi-foot" id="kpi-margem-foot"></div>
-      </div>
-    </div>
-
-    <div class="resumo-head" style="margin-top:8px;">
-      <div class="resumo-title">Outros indicadores</div>
-    </div>
-    <div class="kpi-grid">
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Meta do mês</div>
-        <div class="kpi-value skel" id="kpi-meta">—</div>
-        <div class="kpi-foot" id="kpi-meta-foot"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Saldo de Caixa (aproximado)</div>
-        <div class="kpi-value skel" id="kpi-saldo">—</div>
-        <div class="kpi-foot" id="kpi-saldo-foot"></div>
-        <div class="resumo-note">Entradas (faturamento) − saídas (Contas a Pagar pagas no mês). Não é o extrato bancário real.</div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Contas a Pagar em aberto</div>
-        <div class="kpi-value skel" id="kpi-ctaspagar">—</div>
-        <div class="kpi-foot" id="kpi-ctaspagar-foot"></div>
-        <div class="kpi-list" id="kpi-ctaspagar-list"></div>
-      </div>
-      <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Ciclo Financeiro</div>
-        <div class="kpi-value skel" id="kpi-ciclo">—</div>
-        <div class="kpi-foot" id="kpi-ciclo-foot"></div>
-        <div class="resumo-note">PME e PMR ainda em desenvolvimento na tela de Ciclo Financeiro — o número completo aparece aqui automaticamente assim que estiverem prontos.</div>
+      <div class="ig-kpi-card indigo">
+        <div class="ig-kpi-header">
+          <div class="ig-kpi-icon"><svg viewBox="0 0 24 24"><path d="M9.9 8.1c1.16 0 2.1-.94 2.1-2.1S11.06 3.9 9.9 3.9 7.8 4.84 7.8 6s.94 2.1 2.1 2.1zm5.1 1.5L13.5 8 4 17.5 5.5 19 15 9.5zM14.1 15.9c-1.16 0-2.1.94-2.1 2.1s.94 2.1 2.1 2.1 2.1-.94 2.1-2.1-.94-2.1-2.1-2.1z"/></svg></div>
+          <div class="ig-kpi-label">% Lucro Bruto</div>
+        </div>
+        <div class="ig-kpi-value skel" id="kpi-margem">—</div>
+        <div class="ig-kpi-sub" id="kpi-margem-foot"></div>
       </div>
     </div>
 
@@ -521,13 +563,44 @@ body {
     <div class="resumo-note" style="margin:-6px 0 20px;">Receita Operacional aqui vem dos Recebidos (dinheiro efetivamente recebido, igual ao DFC), por isso pode ser um pouco diferente do "Faturamento Total" acima, que soma o valor total vendido.</div>
 
     <div class="resumo-head" style="margin-top:8px;">
+      <div class="resumo-title">Outros indicadores</div>
+    </div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Meta do mês</div>
+        <div class="kpi-value skel" id="kpi-meta">—</div>
+        <div class="kpi-foot" id="kpi-meta-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Saldo de Caixa (aproximado)</div>
+        <div class="kpi-value skel" id="kpi-saldo">—</div>
+        <div class="kpi-foot" id="kpi-saldo-foot"></div>
+        <div class="resumo-note">Entradas (faturamento) − saídas (Contas a Pagar pagas no mês). Não é o extrato bancário real.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Contas a Pagar em aberto</div>
+        <div class="kpi-value skel" id="kpi-ctaspagar">—</div>
+        <div class="kpi-foot" id="kpi-ctaspagar-foot"></div>
+        <div class="kpi-list" id="kpi-ctaspagar-list"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Ciclo Financeiro</div>
+        <div class="kpi-value skel" id="kpi-ciclo">—</div>
+        <div class="kpi-foot" id="kpi-ciclo-foot"></div>
+        <div class="resumo-note">PME e PMR ainda em desenvolvimento na tela de Ciclo Financeiro — o número completo aparece aqui automaticamente assim que estiverem prontos.</div>
+      </div>
+    </div>
+
+    <div class="resumo-head" style="margin-top:8px;">
       <div class="resumo-title">Performance por loja</div>
       <div class="resumo-period" id="loja-period"></div>
     </div>
-    <div class="loja-perf-card" id="loja-perf-card">
-      <div class="loja-perf-empty" id="loja-perf-empty">carregando…</div>
-      <div class="loja-perf-list" id="loja-perf-list"></div>
-    </div>
+    <div class="perf-loja-empty" id="loja-perf-empty">carregando…</div>
+    <div class="perf-loja-grid" id="loja-perf-list"></div>
 
     <div class="resumo-head" style="margin-top:8px;">
       <div class="resumo-title">Evolução mensal</div>
@@ -1038,7 +1111,7 @@ async function carregarResumoGeral() {
   let totalFat = 0;
   const fatRows = [];
   const anosDisponiveis = new Set();
-  await Promise.all(RESUMO_FAT_URLS.map(async (url) => {
+  await Promise.all(RESUMO_FAT_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       if (!txt.trim()) return;
@@ -1047,12 +1120,13 @@ async function carregarResumoGeral() {
       const cMes = resumoFindCol(headers, ['mes', 'month', 'periodo']);
       const cVenda = resumoFindCol(headers, ['total_venda', 'totalvenda', 'venda', 'vendas', 'faturamento', 'receita', 'total']);
       if (!cVenda) return;
+      const loja = RESUMO_STORE_KEYS[idx].toUpperCase();
       rows.forEach(r => {
         const ano = cAno ? resumoParseAno(r[cAno]) : anoAtual;
         const mes = cMes ? resumoParseMes(r[cMes]) : mesAtual;
         const valor = resumoParseNum(r[cVenda]);
         if (!ano || !mes || !valor) return;
-        fatRows.push({ ano, mes, valor });
+        fatRows.push({ ano, mes, valor, loja });
         anosDisponiveis.add(ano);
         if (ano === anoAtual && mes === mesAtual) totalFat += valor;
       });
@@ -1165,7 +1239,7 @@ async function carregarResumoGeral() {
               grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
             }
             if (grupoInfo && grupoInfo.grupo && resumoIsGrupoCMV(grupoInfo.grupo)) {
-              cmvRows.push({ ano: pg.ano, mes: pg.mes, valor });
+              cmvRows.push({ ano: pg.ano, mes: pg.mes, valor, loja: lojaFallback });
             }
           }
           if (pg && pg.ano === anoAtual && pg.mes === mesAtual) {
@@ -1231,11 +1305,8 @@ async function carregarResumoGeral() {
   const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
   const setFoot = (id, text, cls) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.className = 'kpi-foot' + (cls ? ' ' + cls : ''); } };
 
-  setVal('kpi-faturamento', resumoFmtBRL(totalFat));
-  setFoot('kpi-faturamento-foot', 'todas as lojas, ' + MES_NOME[mesAtual]);
-
-  setVal('kpi-lucro', resumoFmtBRL(lucro));
-  setFoot('kpi-lucro-foot', 'margem ' + resumoFmtPct(margem), margem >= 0 ? 'pos' : 'neg');
+  // kpi-faturamento / kpi-cmv / kpi-lucro / kpi-margem agora são calculados por resumoRenderIndicadoresGerais(),
+  // que reage aos filtros de Ano/Mês/Loja — ver chamada no fim da função.
 
   if (pctMeta === null) {
     setVal('kpi-meta', '—');
@@ -1260,12 +1331,6 @@ async function carregarResumoGeral() {
 
   setVal('kpi-ciclo', '—');
   setFoot('kpi-ciclo-foot', 'em desenvolvimento');
-
-  setVal('kpi-cmv', resumoFmtBRL(totalCmv));
-  setFoot('kpi-cmv-foot', totalFat > 0 ? resumoFmtPct((totalCmv / totalFat) * 100) + ' do faturamento' : '—');
-
-  setVal('kpi-margem', resumoFmtPct(margem));
-  setFoot('kpi-margem-foot', margem >= 30 ? '✓ acima do esperado' : margem >= 15 ? '→ dentro do esperado' : '↓ abaixo do esperado', margem >= 15 ? 'pos' : 'neg');
 
   // ── Indicadores Principais (DFC) — mesma fórmula do DRE_Gerencial.html ──
   const g = slug => sumsBySlug[slug] || 0;
@@ -1295,11 +1360,13 @@ async function carregarResumoGeral() {
   if (lojaPeriodoEl) lojaPeriodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
 
   // ── Performance por Loja (entradas = Recebidos filtrados, saídas = Contas a Pagar pagas no mês) ──
+  // Layout no modelo de cards do DFC Fluxo de Caixa (renderLojas / .loja-card).
   const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja)])];
   const emptyEl = document.getElementById('loja-perf-empty');
   const listPerfEl = document.getElementById('loja-perf-list');
   if (!lojasPerf.length) {
-    if (emptyEl) emptyEl.textContent = 'Sem dados de lojas para o mês atual.';
+    if (emptyEl) { emptyEl.textContent = 'Sem dados de lojas para o mês atual.'; emptyEl.style.display = ''; }
+    if (listPerfEl) listPerfEl.innerHTML = '';
   } else if (emptyEl && listPerfEl) {
     emptyEl.style.display = 'none';
     const dados = lojasPerf.map(loja => {
@@ -1307,23 +1374,107 @@ async function carregarResumoGeral() {
       return { loja, entradas, saidas, saldo: entradas - saidas };
     }).sort((a, b) => b.entradas - a.entradas);
     const maxVal = Math.max(1, ...dados.map(d => Math.max(d.entradas, d.saidas)));
-    listPerfEl.innerHTML = dados.map(d => `
-      <div class="loja-perf-row">
-        <div class="loja-perf-top">
-          <span class="loja-perf-nome">${d.loja}</span>
-          <span class="loja-perf-saldo ${d.saldo >= 0 ? 'pos' : 'neg'}">${resumoFmtBRL(d.saldo)}</span>
+    const periodoLoja = MES_NOME[mesAtual].charAt(0).toUpperCase() + MES_NOME[mesAtual].slice(1) + ' de ' + anoAtual;
+    listPerfEl.innerHTML = dados.map((d, i) => `
+      <div class="perf-loja-card">
+        <div class="perf-loja-name">
+          <span class="perf-loja-dot" style="background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></span>
+          ${d.loja}
         </div>
-        <div class="loja-perf-bars">
-          <div class="loja-perf-bar-track"><div class="loja-perf-bar-fill entrada" style="width:${(d.entradas / maxVal * 100).toFixed(1)}%"></div></div>
-          <div class="loja-perf-bar-track"><div class="loja-perf-bar-fill saida" style="width:${(d.saidas / maxVal * 100).toFixed(1)}%"></div></div>
+        <div class="perf-loja-total ${d.saldo >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldo)}</div>
+        <div class="perf-loja-sub">Saldo de caixa · ${periodoLoja}</div>
+        <div class="perf-loja-bar-bg"><div class="perf-loja-bar-fill" style="width:${(d.entradas / maxVal * 100).toFixed(1)}%;background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></div></div>
+        <div class="perf-loja-flow">
+          <div class="perf-loja-flow-item">
+            <span class="perf-loja-flow-lbl">Entradas</span>
+            <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradas)}</span>
+          </div>
+          <div class="perf-loja-flow-item" style="align-items:flex-end">
+            <span class="perf-loja-flow-lbl">Saídas</span>
+            <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
+          </div>
         </div>
-        <div class="loja-perf-vals"><span>Entradas ${resumoFmtBRL(d.entradas)}</span><span>Saídas ${resumoFmtBRL(d.saidas)}</span></div>
       </div>
     `).join('');
   }
 
+  // ── Indicadores Gerais (filtráveis por Ano/Mês/Loja) ──
+  resumoInicializarFiltrosIG({ fatRows, cmvRows, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+
   // ── Evolução mensal (gráficos + filtro de ano) ──
   resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
+}
+
+// ---------------------------------------------------------------------------
+// Indicadores Gerais — recalcula Faturamento/CMV/Lucro/%Lucro a partir dos
+// filtros de Ano, Mês e Loja (dados já carregados em memória, sem novo fetch)
+// ---------------------------------------------------------------------------
+const RESUMO_PALETTE = [
+  '#1A3D6B', '#2E6AB0', '#0D4F35', '#1A7A52', '#7A5C00',
+  '#C8A92A', '#7A1E1E', '#B85C00', '#3D1A6B', '#1A5A7A'
+];
+
+let resumoIGState = null;
+
+function resumoInicializarFiltrosIG(state) {
+  resumoIGState = state;
+  const selAno = document.getElementById('ig-f-ano');
+  const selMes = document.getElementById('ig-f-mes');
+  const selLoja = document.getElementById('ig-f-loja');
+  if (!selAno || !selMes || !selLoja) return;
+
+  const anos = [...state.anosDisponiveis].filter(a => a && isFinite(a)).sort((a, b) => b - a);
+  selAno.innerHTML = (anos.length ? anos : [state.anoAtual]).map(a => `<option value="${a}">${a}</option>`).join('');
+  selAno.value = String(anos.includes(state.anoAtual) ? state.anoAtual : (anos[0] || state.anoAtual));
+
+  const MES_NOME_CAP = state.MES_NOME.map(m => m ? m.charAt(0).toUpperCase() + m.slice(1) : m);
+  selMes.innerHTML = '<option value="">Todos</option>' + MES_NOME_CAP.slice(1).map((m, i) => `<option value="${i + 1}">${m}</option>`).join('');
+  selMes.value = String(state.mesAtual);
+
+  selLoja.innerHTML = '<option value="">Todas</option>' + RESUMO_STORE_KEYS.map(k => `<option value="${k.toUpperCase()}">${k.toUpperCase()}</option>`).join('');
+  selLoja.value = '';
+
+  if (!selAno.dataset.wired) {
+    selAno.dataset.wired = '1'; selMes.dataset.wired = '1'; selLoja.dataset.wired = '1';
+    [selAno, selMes, selLoja].forEach(el => el.addEventListener('change', resumoRenderIndicadoresGerais));
+  }
+  resumoRenderIndicadoresGerais();
+}
+
+function resumoRenderIndicadoresGerais() {
+  if (!resumoIGState) return;
+  const { fatRows, cmvRows, MES_NOME } = resumoIGState;
+  const selAno = document.getElementById('ig-f-ano');
+  const selMes = document.getElementById('ig-f-mes');
+  const selLoja = document.getElementById('ig-f-loja');
+  const ano = selAno && selAno.value ? parseInt(selAno.value, 10) : null;
+  const mes = selMes && selMes.value ? parseInt(selMes.value, 10) : null;
+  const loja = selLoja && selLoja.value ? selLoja.value : null;
+
+  const bate = r => (!ano || r.ano === ano) && (!mes || r.mes === mes) && (!loja || r.loja === loja);
+  const totalFatF = fatRows.filter(bate).reduce((a, r) => a + r.valor, 0);
+  const totalCmvF = cmvRows.filter(bate).reduce((a, r) => a + r.valor, 0);
+  const lucroF = totalFatF - totalCmvF;
+  const margemF = totalFatF > 0 ? (lucroF / totalFatF) * 100 : 0;
+
+  const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
+  const setSub = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
+
+  const periodoTxt = (mes ? MES_NOME[mes] + '/' : '') + (ano || '—') + (loja ? ' · ' + loja : '');
+  const resumoPeriodEl = document.getElementById('resumo-period');
+  if (resumoPeriodEl) resumoPeriodEl.textContent = periodoTxt;
+
+  setVal('kpi-faturamento', resumoFmtBRL(totalFatF));
+  setSub('kpi-faturamento-foot', (loja || 'todas as lojas'));
+
+  setVal('kpi-cmv', resumoFmtBRL(totalCmvF));
+  setSub('kpi-cmv-foot', totalFatF > 0 ? resumoFmtPct((totalCmvF / totalFatF) * 100) + ' do faturamento' : '—');
+
+  setVal('kpi-lucro', resumoFmtBRL(lucroF));
+  setSub('kpi-lucro-foot', 'margem ' + resumoFmtPct(margemF));
+
+  setVal('kpi-margem', resumoFmtPct(margemF));
+  setSub('kpi-margem-foot', margemF >= 30 ? '✓ acima do esperado' : margemF >= 15 ? '→ dentro do esperado' : '↓ abaixo do esperado');
 }
 
 // ---------------------------------------------------------------------------
@@ -1414,6 +1565,7 @@ function resumoRenderGraficos(ano) {
     const el = document.getElementById('chartEvolucao');
     if (el) {
       resumoChartInstances['chartEvolucao'] = new Chart(el, {
+        type: 'bar',
         data: {
           labels,
           datasets: [
@@ -1466,6 +1618,7 @@ function resumoRenderGraficos(ano) {
     const el = document.getElementById('chartMeta');
     if (el) {
       resumoChartInstances['chartMeta'] = new Chart(el, {
+        type: 'bar',
         data: {
           labels,
           datasets: [
