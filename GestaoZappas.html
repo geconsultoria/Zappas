@@ -83,7 +83,8 @@ body {
 .side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
 
 .side-footer { padding:12px 10px 14px; border-top:1px solid rgba(255,255,255,.08); }
-.side-footer .side-link { width:100%; background:none; border:none; cursor:pointer; }
+.side-footer .side-link { width:100%; background:none; border:none; cursor:pointer; justify-content:center; }
+.side-footer .side-link span { display:none; }
 .side-status { font-size:10.5px; line-height:1.4; padding:6px 11px 0; color:rgba(255,255,255,.55); }
 .sidebar.collapsed .side-status { display:none; }
 .sidebar.collapsed.peek .side-status { display:block; }
@@ -207,11 +208,12 @@ body {
   background: var(--bg);
   overflow-y: auto;
 }
-.home-inner { max-width: 1080px; margin: 0 auto; padding: 18px 28px 60px; }
+.home-inner { max-width: 1080px; margin: 0 auto; padding: 22px 28px 60px; }
 .home-card {
-  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; text-align:left; margin-bottom: 20px;
+  position: sticky; top:0; z-index:20;
+  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; text-align:left;
   background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
-  border-radius: var(--r-lg); padding:16px 22px; box-shadow: var(--sh);
+  padding:12px 28px; min-height:64px; box-shadow: var(--sh);
 }
 .home-card .home-icon {
   display:flex; align-items:center; justify-content:center;
@@ -469,10 +471,9 @@ body {
 
 <!-- HOME SCREEN -->
 <div class="home-screen" id="home-screen">
-  <div class="home-inner">
-    <div class="home-card">
-      <div class="home-title">Gestão Zappas</div>
-      <div class="ig-filter-bar">
+  <div class="home-card">
+    <div class="home-title">Gestão Zappas</div>
+    <div class="ig-filter-bar">
       <div class="ig-fgroup">
         <span class="ig-flabel">Ano</span>
         <select class="ig-fselect" id="ig-f-ano"></select>
@@ -485,9 +486,9 @@ body {
         <span class="ig-flabel">Loja</span>
         <select class="ig-fselect" id="ig-f-loja"></select>
       </div>
-      </div>
     </div>
-
+  </div>
+  <div class="home-inner">
     <div class="resumo-head">
       <div class="resumo-title">Indicadores gerais</div>
       <div class="resumo-period" id="resumo-period">carregando…</div>
