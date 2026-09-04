@@ -441,8 +441,22 @@ function postAuthAction(body) {
 function carregarUsuarios() {
   fetch(window.__AUTH_APPS_SCRIPT_URL__ + '?action=getUsuarios&_cb=' + Date.now(), { cache: 'no-store' })
     .then(function (r) { return r.json(); })
-    .then(function (data) { usuarios = Array.isArray(data) ? data : []; renderUsuarios(); })
-    .catch(function () { usuarios = []; renderUsuarios(); });
+    .then(function (data) {
+      if (data && !Array.isArray(data) && data.erro) {
+        usuarios = [];
+        $('empty-usuarios').textContent = 'Erro ao carregar usuários: ' + data.erro;
+        renderUsuarios();
+        return;
+      }
+      usuarios = Array.isArray(data) ? data : [];
+      $('empty-usuarios').textContent = 'Nenhum usuário cadastrado ainda.';
+      renderUsuarios();
+    })
+    .catch(function (err) {
+      usuarios = [];
+      $('empty-usuarios').textContent = 'Erro ao carregar usuários (falha de conexão). Tente atualizar a página.';
+      renderUsuarios();
+    });
 }
 
 function renderUsuarios() {
