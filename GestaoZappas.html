@@ -208,14 +208,18 @@ body {
   overflow-y: auto;
 }
 .home-inner { max-width: 1080px; margin: 0 auto; padding: 18px 28px 60px; }
-.home-card { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; text-align:left; margin-bottom: 20px; }
+.home-card {
+  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; text-align:left; margin-bottom: 20px;
+  background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
+  border-radius: var(--r-lg); padding:16px 22px; box-shadow: var(--sh);
+}
 .home-card .home-icon {
   display:flex; align-items:center; justify-content:center;
   margin-bottom: 2px;
 }
 .home-card .home-icon svg { width:26px; height:26px; color: var(--ink); }
 .home-card .home-icon img { height: 60px; width: auto; }
-.home-title { font-family: var(--font-head); font-weight:800; font-size:19px; color: var(--ink); }
+.home-title { font-family: var(--font-head); font-weight:800; font-size:19px; color:#fff; }
 .home-sub { font-family: var(--font-body); font-size:12.5px; color: var(--ink-3); }
 
 /* ╔═══════════════════════════════════════╗
@@ -268,17 +272,18 @@ body {
 .loja-perf-bar-fill.saida { background:#B4483A; }
 .loja-perf-vals { display:flex; justify-content:space-between; font-size:10.5px; color: var(--ink-3); }
 
-.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:8px 14px; }
+.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius: var(--r-lg); padding:8px 14px; }
 .ig-fgroup { display:flex; align-items:center; gap:7px; }
-.ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-3); white-space:nowrap; }
+.ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); white-space:nowrap; }
 .ig-fselect {
-  font-family: var(--font-body); font-size:12.5px; font-weight:500; color: var(--ink-2);
-  background: var(--bg); border:1px solid var(--border-2); border-radius: var(--r);
+  font-family: var(--font-body); font-size:12.5px; font-weight:500; color:#fff;
+  background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.28); border-radius: var(--r);
   padding: 7px 26px 7px 11px; appearance:none; cursor:pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23AEADA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position: right 9px center; min-width:110px;
 }
-.ig-fselect:focus { outline:none; border-color:#1a56db; }
+.ig-fselect:focus { outline:none; border-color: var(--gold); }
+.ig-fselect option { color:#0f1923; }
 
 .ig-kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
 @media (max-width: 900px){ .ig-kpi-grid{ grid-template-columns:1fr 1fr; } }
@@ -319,6 +324,7 @@ body {
 .perf-loja-flow-val.pos { color:#0ea472; }
 .perf-loja-flow-val.neg { color:#B4483A; }
 .perf-loja-empty { font-size:12px; color: var(--ink-4); padding:8px 0; margin-bottom:26px; }
+.perf-loja-debug { margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); font-size:10px; color:#B4483A; line-height:1.4; }
 
 .resumo-filter { display:flex; align-items:center; gap:8px; }
 .resumo-filter label { font-size:11px; color: var(--ink-3); font-weight:600; }
@@ -1165,8 +1171,13 @@ async function carregarResumoGeral() {
   // Depende do De-Para (classificação do tipo de recebimento), então só começa depois dele.
   // recebidosRows guarda TODOS os meses/anos (não só o atual) pra alimentar os filtros de Ano/Mês/Loja.
   const recebidosRows = [];
+  // resumoDebugRecebidos guarda, por loja, em qual etapa cada linha foi descartada — usado pra mostrar
+  // um aviso no card "Performance por loja" quando uma loja fica com Entradas zeradas, em vez de
+  // simplesmente sumir sem explicação.
+  const resumoDebugRecebidos = {};
   const pRecebidos = pDePara.then(() => Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
     const lojaKey = RESUMO_STORE_KEYS[idx];
+    const dbg = resumoDebugRecebidos[lojaKey.toUpperCase()] = { lidos: 0, semColuna: false, semDepara: 0, semCategoria: 0, semData: 0, incluidos: 0, deparaMapSize: (deparaMaps[lojaKey] || new Map()).size, erro: null };
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
@@ -1175,22 +1186,24 @@ async function carregarResumoGeral() {
       const cCodPgto = resumoFindCol(headers, ['codpgto', 'cod_pgto', 'cod_pagamento']);
       const cConta = resumoFindCol(headers, ['conta', 'valor', 'valor_conta']);
       const cDtEntrada = resumoFindCol(headers, ['dtentrada', 'dt_entrada', 'data_entrada']);
-      if (!cCodPgto || !cConta) return;
+      dbg.lidos = rows.length;
+      if (!cCodPgto || !cConta) { dbg.semColuna = true; return; }
       const deparaMap = deparaMaps[lojaKey] || new Map();
 
       rows.forEach(r => {
         const valor = resumoParseNum(r[cConta]); if (!valor) return;
         const codPgto = cCodPgto ? String(r[cCodPgto] || '').trim() : ''; if (!codPgto) return;
         let recebimento = deparaMap.get(codPgto) || deparaMap.get(String(parseInt(codPgto.replace(/\D/g, ''), 10) || '')) || '';
-        if (!recebimento) return;
-        if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) return;
+        if (!recebimento) { dbg.semDepara++; return; }
+        if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) { dbg.semCategoria++; return; }
 
         const dt = cDtEntrada ? resumoParseDtEntrada(r[cDtEntrada]) : null;
         let mes = cMes ? resumoParseMes(r[cMes]) : null;
         let ano = cAno ? resumoParseAno(r[cAno]) : null;
         if (!mes) mes = dt ? dt.mes : null;
         if (!ano) ano = dt ? dt.ano : null;
-        if (!ano || !mes) return;
+        if (!ano || !mes) { dbg.semData++; return; }
+        dbg.incluidos++;
 
         // Usa sempre a loja da URL (não a coluna "loja"/"filial" da planilha, que às vezes vem
         // grafada diferente — ex. "BELVEDER" sem E — e quebrava o cruzamento com o Contas a Pagar).
@@ -1198,7 +1211,7 @@ async function carregarResumoGeral() {
         recebidosRows.push({ ano, mes, valor, loja });
         anosDisponiveis.add(ano);
       });
-    } catch (e) { /* loja indisponível — segue com as demais */ }
+    } catch (e) { dbg.erro = String(e && e.message || e); /* loja indisponível — segue com as demais */ }
   })));
 
   // ── Contas a Pagar (todas as lojas) — CMV, DFC (todos os grupos), Performance por Loja ──
@@ -1248,7 +1261,7 @@ async function carregarResumoGeral() {
 
   // ── Indicadores Gerais + Indicadores Principais (DFC) + Performance por Loja ──
   // Os três são recalculados juntos, reagindo aos filtros de Ano/Mês/Loja — ver resumoRenderFiltrados().
-  resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+  resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
 
   // ── Evolução mensal (gráficos + filtro de ano) ──
   resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
@@ -1259,6 +1272,25 @@ async function carregarResumoGeral() {
 // recalculados juntos a partir dos filtros de Ano, Mês e Loja (dados já
 // carregados em memória, sem novo fetch)
 // ---------------------------------------------------------------------------
+// Mostra, só quando Entradas ficou zerada, em qual etapa os recebimentos daquela loja foram
+// descartados (ex.: não encontrados no De-Para, ou categoria de pagamento não reconhecida) —
+// evita que a loja pareça simplesmente "sem dados" sem explicação.
+function resumoDebugEntradasZero(d, resumoDebugRecebidos) {
+  if (d.entradas > 0 || !resumoDebugRecebidos) return '';
+  const dbg = resumoDebugRecebidos[d.loja];
+  if (!dbg) return '';
+  let motivo;
+  if (dbg.erro) motivo = 'erro ao buscar recebidos (' + dbg.erro + ')';
+  else if (dbg.semColuna) motivo = 'planilha de recebidos sem coluna de código/valor reconhecida';
+  else if (dbg.lidos === 0) motivo = 'planilha de recebidos veio vazia';
+  else if (dbg.deparaMapSize === 0) motivo = 'de-para de pagamentos vazio para esta loja';
+  else if (dbg.semDepara > 0 && dbg.semCategoria === 0 && dbg.incluidos === 0) motivo = dbg.semDepara + ' de ' + dbg.lidos + ' linhas sem código correspondente no de-para';
+  else if (dbg.semCategoria > 0 && dbg.incluidos === 0) motivo = dbg.semCategoria + ' de ' + dbg.lidos + ' linhas com categoria de pagamento fora de boleto/convênio/cartão/pix/dinheiro';
+  else if (dbg.semData > 0 && dbg.incluidos === 0) motivo = dbg.semData + ' linhas elegíveis mas sem ano/mês reconhecido';
+  else motivo = dbg.lidos + ' linhas lidas, 0 elegíveis no período/categoria';
+  return `<div class="perf-loja-debug">Entradas zeradas: ${motivo}</div>`;
+}
+
 const RESUMO_PALETTE = [
   '#1A3D6B', '#2E6AB0', '#0D4F35', '#1A7A52', '#7A5C00',
   '#C8A92A', '#7A1E1E', '#B85C00', '#3D1A6B', '#1A5A7A'
@@ -1293,7 +1325,7 @@ function resumoInicializarFiltros(state) {
 
 function resumoRenderFiltrados() {
   if (!resumoFiltroState) return;
-  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, MES_NOME } = resumoFiltroState;
+  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, resumoDebugRecebidos, MES_NOME } = resumoFiltroState;
   const selAno = document.getElementById('ig-f-ano');
   const selMes = document.getElementById('ig-f-mes');
   const selLoja = document.getElementById('ig-f-loja');
@@ -1406,6 +1438,7 @@ function resumoRenderFiltrados() {
             <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
           </div>
         </div>
+        ${resumoDebugEntradasZero(d, resumoDebugRecebidos)}
       </div>
     `).join('');
   }
