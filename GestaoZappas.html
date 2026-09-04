@@ -203,18 +203,44 @@ body {
 .home-screen {
   position: fixed; inset: 0; left: var(--side-w); z-index: 10;
   transition: left .25s ease;
-  display: flex; align-items: center; justify-content: center;
   background: var(--bg);
+  overflow-y: auto;
 }
-.home-card { display:flex; flex-direction:column; align-items:center; gap:14px; text-align:center; max-width:380px; }
+.home-inner { max-width: 1080px; margin: 0 auto; padding: 32px 28px 60px; }
+.home-card { display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; margin-bottom: 30px; }
 .home-card .home-icon {
   display:flex; align-items:center; justify-content:center;
-  margin-bottom: 4px;
+  margin-bottom: 2px;
 }
-.home-card .home-icon svg { width:32px; height:32px; color: var(--ink); }
-.home-card .home-icon img { height: 92px; width: auto; }
-.home-title { font-family: var(--font-head); font-weight:800; font-size:24px; color: var(--ink); }
-.home-sub { font-family: var(--font-body); font-size:14px; color: var(--ink-3); }
+.home-card .home-icon svg { width:26px; height:26px; color: var(--ink); }
+.home-card .home-icon img { height: 60px; width: auto; }
+.home-title { font-family: var(--font-head); font-weight:800; font-size:19px; color: var(--ink); }
+.home-sub { font-family: var(--font-body); font-size:12.5px; color: var(--ink-3); }
+
+/* ╔═══════════════════════════════════════╗
+   ║  RESUMO GERAL                        ║
+   ╚═══════════════════════════════════════╝ */
+.resumo-head { display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px; flex-wrap:wrap; }
+.resumo-title { font-family: var(--font-head); font-weight:800; font-size:15px; letter-spacing:.02em; color: var(--ink); text-transform:uppercase; }
+.resumo-period { font-size:11.5px; color: var(--ink-3); }
+.kpi-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:14px; margin-bottom:14px; }
+@media (max-width: 900px){ .kpi-grid{ grid-template-columns:1fr 1fr; } }
+@media (max-width: 620px){ .kpi-grid{ grid-template-columns:1fr; } }
+.kpi-card {
+  background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg);
+  padding: 16px 18px; box-shadow: var(--sh); position:relative; overflow:hidden;
+}
+.kpi-accent { position:absolute; top:0; left:0; right:0; height:3px; border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--gold); }
+.kpi-label { font-size:10px; font-weight:800; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-4); margin-bottom:8px; }
+.kpi-value { font-family: var(--font-head); font-weight:800; font-size:21px; color: var(--ink); line-height:1.15; }
+.kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; }
+.kpi-foot { font-size:11px; color: var(--ink-3); margin-top:6px; }
+.kpi-foot.pos { color:#3E8F63; }
+.kpi-foot.neg { color:#B4483A; }
+.kpi-list { margin-top:10px; display:flex; flex-direction:column; gap:5px; }
+.kpi-list-item { display:flex; justify-content:space-between; font-size:11.5px; color: var(--ink-2); gap:10px; }
+.kpi-list-item span:last-child { color: var(--ink-3); white-space:nowrap; }
+.resumo-note { font-size:10.5px; color: var(--ink-4); margin-top:2px; }
 </style>
 </head>
 <body>
@@ -336,12 +362,61 @@ body {
 
 <!-- HOME SCREEN -->
 <div class="home-screen" id="home-screen">
-  <div class="home-card">
-    <div class="home-icon">
-      <img src="logo-zappas-30anos.png" alt="Zappas 30 anos">
+  <div class="home-inner">
+    <div class="home-card">
+      <div class="home-icon">
+        <img src="logo-zappas-30anos.png" alt="Zappas 30 anos">
+      </div>
+      <div class="home-title">Gestão Zappas</div>
+      <div class="home-sub">Resumo geral do mês · selecione um item no menu ao lado para ver o detalhe</div>
     </div>
-    <div class="home-title">Gestão Zappas</div>
-    <div class="home-sub">Selecione um item no menu ao lado para começar</div>
+
+    <div class="resumo-head">
+      <div class="resumo-title">Resumo geral</div>
+      <div class="resumo-period" id="resumo-period">carregando…</div>
+    </div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Faturamento do mês</div>
+        <div class="kpi-value skel" id="kpi-faturamento">—</div>
+        <div class="kpi-foot" id="kpi-faturamento-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Lucro Bruto (margem)</div>
+        <div class="kpi-value skel" id="kpi-lucro">—</div>
+        <div class="kpi-foot" id="kpi-lucro-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Meta do mês</div>
+        <div class="kpi-value skel" id="kpi-meta">—</div>
+        <div class="kpi-foot" id="kpi-meta-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Saldo de Caixa (aproximado)</div>
+        <div class="kpi-value skel" id="kpi-saldo">—</div>
+        <div class="kpi-foot" id="kpi-saldo-foot"></div>
+        <div class="resumo-note">Entradas (faturamento) − saídas (Contas a Pagar pagas no mês). Não é o extrato bancário real.</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Contas a Pagar em aberto</div>
+        <div class="kpi-value skel" id="kpi-ctaspagar">—</div>
+        <div class="kpi-foot" id="kpi-ctaspagar-foot"></div>
+        <div class="kpi-list" id="kpi-ctaspagar-list"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Ciclo Financeiro</div>
+        <div class="kpi-value skel" id="kpi-ciclo">—</div>
+        <div class="kpi-foot" id="kpi-ciclo-foot"></div>
+        <div class="resumo-note">PME e PMR ainda em desenvolvimento na tela de Ciclo Financeiro — o número completo aparece aqui automaticamente assim que estiverem prontos.</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -625,6 +700,253 @@ async function backupGeral() {
 // abre de novo. Por isso: dispara "Atualização Geral" sozinho só na
 // PRIMEIRA vez que a GestaoZappas abre numa sessão nova, não toda vez
 // que você volta pra essa tela clicando no logo.
+// ══════════════════════════════════════════════════════════════
+//  RESUMO GERAL (tela inicial) — versão enxuta dos KPIs que já
+//  existem em outras telas do painel, recalculados aqui só pro
+//  mês atual, pra dar uma visão geral sem precisar abrir cada tela.
+// ══════════════════════════════════════════════════════════════
+const RESUMO_STORE_KEYS = BACKUP_STORE_KEYS;
+const RESUMO_CTASPAGAR_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
+const RESUMO_FAT_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+const RESUMO_PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
+
+function resumoNorm(s) {
+  return String(s).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
+}
+function resumoFindCol(headers, candidates) {
+  for (const c of candidates) { const n = resumoNorm(c); if (headers.includes(n)) return n; }
+  for (const c of candidates) { const n = resumoNorm(c); const found = headers.find(h => h.startsWith(n) || n.startsWith(h)); if (found) return found; }
+  return null;
+}
+function resumoParseNum(v) {
+  if (v === null || v === undefined) return 0;
+  let s = String(v).trim().replace(/[R$\s]/g, '');
+  if (!s) return 0;
+  if (/,\d{1,2}$/.test(s) && s.indexOf(',') > s.indexOf('.')) { s = s.replace(/\./g, '').replace(',', '.'); }
+  else if (/\.\d{1,2}$/.test(s) && s.split('.').length === 2) { s = s.replace(/,/g, ''); }
+  else {
+    s = s.replace(/[.,]/g, match => {
+      const lastSep = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
+      return (s.indexOf(match) === lastSep) ? '.' : '';
+    });
+  }
+  return parseFloat(s) || 0;
+}
+function resumoDetectSep(line) {
+  const sc = (line.match(/;/g) || []).length, cc = (line.match(/,/g) || []).length;
+  return sc > cc ? ';' : ',';
+}
+function resumoParseCSV(text) {
+  const lines = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').split('\n').filter(l => l.trim());
+  if (!lines.length) return { rows: [], headers: [] };
+  const sep = resumoDetectSep(lines[0]);
+  function splitLine(line) {
+    const result = []; const re = new RegExp(`(?:^|${sep})("(?:[^"]|"")*"|[^${sep}]*)`, 'g'); let m;
+    while ((m = re.exec(line)) !== null) {
+      if (m[0] === '' && re.lastIndex >= line.length && result.length && line.slice(-1) !== sep) break;
+      let val = m[1] || ''; val = val.trim();
+      if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1).replace(/""/g, '"');
+      result.push(val);
+    }
+    return result;
+  }
+  const rawHeaders = splitLine(lines[0]);
+  const headers = rawHeaders.map(resumoNorm);
+  const rows = [];
+  for (let i = 1; i < lines.length; i++) {
+    const vals = splitLine(lines[i]);
+    if (vals.every(v => !v)) continue;
+    const obj = {}; headers.forEach((h, idx) => { obj[h] = (vals[idx] || '').trim(); }); rows.push(obj);
+  }
+  return { rows, headers };
+}
+function resumoParseMes(v) {
+  if (!v && v !== 0) return 0;
+  const s = String(v).trim(); const n = parseInt(s);
+  if (!isNaN(n) && n >= 1 && n <= 12) return n;
+  const MESES_MAP = { jan:1, fev:2, mar:3, abr:4, mai:5, jun:6, jul:7, ago:8, set:9, out:10, nov:11, dez:12 };
+  const key = resumoNorm(s).slice(0, 3);
+  return MESES_MAP[key] || 0;
+}
+function resumoParseAno(v) { const n = parseInt(String(v || '').trim()); return (n > 2000 && n < 2100) ? n : null; }
+
+// Data de dtvencimento/dtpagamento no formato dd/mm/aaaa (ou variações) do Contas a Pagar
+function resumoParseDataBR(s) {
+  s = String(s || '').trim(); if (!s) return null;
+  const m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if (!m) return null;
+  const dia = parseInt(m[1]), mes = parseInt(m[2]), ano = parseInt(m[3]);
+  if (!dia || !mes || !ano) return null;
+  return { dia, mes, ano, ts: new Date(ano, mes - 1, dia).getTime() };
+}
+
+// Classificação de CMV — mesma lógica usada em Faturamento_Lucro.html / DRE_Gerencial.html
+function resumoNormKeyCMV(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/[\s_\-\/\+\.]+/g, ' ').trim();
+}
+const RESUMO_KEYWORDS_CMV = ['cmv', 'custo mercadoria vendida', 'custo de mercadoria', 'custo produto vendido', 'cpv', 'custo de venda'];
+function resumoIsGrupoCMV(grupo) {
+  const n = resumoNormKeyCMV(grupo);
+  return RESUMO_KEYWORDS_CMV.some(kw => n.includes(kw));
+}
+
+function resumoFmtBRL(v) {
+  return (v < 0 ? '-' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+function resumoFmtPct(v) {
+  return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
+}
+
+async function resumoFetchCSV(url) {
+  const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now(), { cache: 'no-store' });
+  if (!res.ok) throw new Error('HTTP ' + res.status);
+  return res.text();
+}
+
+async function carregarResumoGeral() {
+  const hoje = new Date();
+  const anoAtual = hoje.getFullYear();
+  const mesAtual = hoje.getMonth() + 1;
+  const MES_NOME = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
+  const periodoEl = document.getElementById('resumo-period');
+  if (periodoEl) periodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
+
+  // ── Faturamento (todas as lojas, ?loja=<k> — não usa ?loja=resumo pra bater com as outras telas) ──
+  let totalFat = 0;
+  await Promise.all(RESUMO_FAT_URLS.map(async (url) => {
+    try {
+      const txt = await resumoFetchCSV(url);
+      if (!txt.trim()) return;
+      const { rows, headers } = resumoParseCSV(txt);
+      const cAno = resumoFindCol(headers, ['ano', 'year']);
+      const cMes = resumoFindCol(headers, ['mes', 'month', 'periodo']);
+      const cVenda = resumoFindCol(headers, ['total_venda', 'totalvenda', 'venda', 'vendas', 'faturamento', 'receita', 'total']);
+      if (!cVenda) return;
+      rows.forEach(r => {
+        const ano = cAno ? resumoParseAno(r[cAno]) : anoAtual;
+        const mes = cMes ? resumoParseMes(r[cMes]) : mesAtual;
+        if (ano !== anoAtual || mes !== mesAtual) return;
+        totalFat += resumoParseNum(r[cVenda]);
+      });
+    } catch (e) { /* loja indisponível — segue com as demais */ }
+  }));
+
+  // ── Contas a Pagar (todas as lojas) — usado para CMV, saldo de caixa e "em aberto" ──
+  const planoMap = new Map();
+  try {
+    const txt = await resumoFetchCSV(RESUMO_PLANO_CONTAS_URL);
+    const { rows, headers } = resumoParseCSV(txt);
+    const cCodPL = resumoFindCol(headers, ['cod_pl', 'codpl']);
+    const cGrupo = resumoFindCol(headers, ['grupo']);
+    if (cCodPL) rows.forEach(r => {
+      const codRaw = String(r[cCodPL] || '').trim(); if (!codRaw) return;
+      const grupo = cGrupo ? r[cGrupo] : '';
+      planoMap.set(codRaw, grupo);
+      const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || ''); if (codNum) planoMap.set(codNum, grupo);
+    });
+  } catch (e) { /* sem plano de contas, CMV fica zerado */ }
+
+  let totalCmv = 0, saidasMes = 0, totalEmAberto = 0;
+  const proximosVencimentos = [];
+  await Promise.all(RESUMO_CTASPAGAR_URLS.map(async (url, idx) => {
+    try {
+      const txt = await resumoFetchCSV(url);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cCodCtr = resumoFindCol(headers, ['codcentro', 'cod_centro']);
+      const cValor = resumoFindCol(headers, ['vparcela', 'valor_parcela']);
+      const cVenc = resumoFindCol(headers, ['dtvencimento', 'data_vencimento']);
+      const cPgto = resumoFindCol(headers, ['dtpagamento', 'data_pagamento']);
+      const cPaga = resumoFindCol(headers, ['paga']);
+      if (!cValor) return;
+
+      rows.forEach(r => {
+        const valor = resumoParseNum(r[cValor]); if (!valor) return;
+
+        // CMV + saídas do mês (regime de caixa: pela data de pagamento)
+        if (cPgto) {
+          const pg = resumoParseDataBR(r[cPgto]);
+          if (pg && pg.ano === anoAtual && pg.mes === mesAtual) {
+            saidasMes += valor;
+            if (cCodCtr) {
+              const codRaw = String(r[cCodCtr] || '').trim();
+              const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
+              const grupo = planoMap.get(codRaw) || planoMap.get(codNum);
+              if (grupo && resumoIsGrupoCMV(grupo)) totalCmv += valor;
+            }
+          }
+        }
+
+        // Em aberto (não paga) + próximos vencimentos
+        const paga = cPaga ? String(r[cPaga] || '').toUpperCase() === 'S' : false;
+        if (!paga && cVenc) {
+          const venc = resumoParseDataBR(r[cVenc]);
+          if (venc) {
+            totalEmAberto += valor;
+            proximosVencimentos.push({ ts: venc.ts, dia: venc.dia, mes: venc.mes, ano: venc.ano, valor, loja: RESUMO_STORE_KEYS[idx].toUpperCase() });
+          }
+        }
+      });
+    } catch (e) { /* loja indisponível — segue com as demais */ }
+  }));
+
+  // ── Meta do mês (soma de todas as lojas/canais) ──
+  let totalMeta = 0;
+  try {
+    const txt = await resumoFetchCSV(BACKUP_METAS_URL);
+    const { rows, headers } = resumoParseCSV(txt);
+    const cAno = resumoFindCol(headers, ['ano', 'year']);
+    const cMes = resumoFindCol(headers, ['mes', 'meses', 'month']);
+    const cMeta = resumoFindCol(headers, ['meta', 'meta_mensal', 'valor_meta', 'target']);
+    if (cMeta) rows.forEach(r => {
+      const ano = cAno ? resumoParseAno(r[cAno]) : null;
+      const mes = cMes ? resumoParseMes(r[cMes]) : null;
+      if (ano !== anoAtual || mes !== mesAtual) return;
+      totalMeta += resumoParseNum(r[cMeta]);
+    });
+  } catch (e) { /* metas indisponível */ }
+
+  // ── Renderiza ──
+  const lucro = totalFat - totalCmv;
+  const margem = totalFat > 0 ? (lucro / totalFat) * 100 : 0;
+  const saldoCaixa = totalFat - saidasMes;
+  const pctMeta = totalMeta > 0 ? (totalFat / totalMeta) * 100 : null;
+
+  const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
+  const setFoot = (id, text, cls) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.className = 'kpi-foot' + (cls ? ' ' + cls : ''); } };
+
+  setVal('kpi-faturamento', resumoFmtBRL(totalFat));
+  setFoot('kpi-faturamento-foot', 'todas as lojas, ' + MES_NOME[mesAtual]);
+
+  setVal('kpi-lucro', resumoFmtBRL(lucro));
+  setFoot('kpi-lucro-foot', 'margem ' + resumoFmtPct(margem), margem >= 0 ? 'pos' : 'neg');
+
+  if (pctMeta === null) {
+    setVal('kpi-meta', '—');
+    setFoot('kpi-meta-foot', 'meta do mês não cadastrada');
+  } else {
+    setVal('kpi-meta', resumoFmtPct(pctMeta));
+    setFoot('kpi-meta-foot', resumoFmtBRL(totalFat) + ' de ' + resumoFmtBRL(totalMeta), pctMeta >= 100 ? 'pos' : 'neg');
+  }
+
+  setVal('kpi-saldo', resumoFmtBRL(saldoCaixa));
+  setFoot('kpi-saldo-foot', 'entradas ' + resumoFmtBRL(totalFat) + ' · saídas ' + resumoFmtBRL(saidasMes), saldoCaixa >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-ctaspagar', resumoFmtBRL(totalEmAberto));
+  setFoot('kpi-ctaspagar-foot', proximosVencimentos.length + ' título(s) em aberto');
+  const listEl = document.getElementById('kpi-ctaspagar-list');
+  if (listEl) {
+    const proximos = proximosVencimentos.sort((a, b) => a.ts - b.ts).slice(0, 3);
+    listEl.innerHTML = proximos.map(v =>
+      `<div class="kpi-list-item"><span>${v.loja} · ${String(v.dia).padStart(2,'0')}/${String(v.mes).padStart(2,'0')}</span><span>${resumoFmtBRL(v.valor)}</span></div>`
+    ).join('');
+  }
+
+  setVal('kpi-ciclo', '—');
+  setFoot('kpi-ciclo-foot', 'em desenvolvimento');
+}
+
 const SESSION_AUTO_KEY = 'zappas_auto_update_session';
 AuthGuard.requireScreen('home', function(){
   if (!sessionStorage.getItem(SESSION_AUTO_KEY)) {
@@ -633,6 +955,10 @@ AuthGuard.requireScreen('home', function(){
       gerarResumoMensal();
     });
   }
+  carregarResumoGeral().catch(() => {
+    const periodoEl = document.getElementById('resumo-period');
+    if (periodoEl) periodoEl.textContent = 'não foi possível carregar';
+  });
 });
 
 function expandSidebar(){
