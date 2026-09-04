@@ -207,8 +207,8 @@ body {
   background: var(--bg);
   overflow-y: auto;
 }
-.home-inner { max-width: 1080px; margin: 0 auto; padding: 32px 28px 60px; }
-.home-card { display:flex; flex-direction:column; align-items:center; gap:8px; text-align:center; margin-bottom: 30px; }
+.home-inner { max-width: 1080px; margin: 0 auto; padding: 18px 28px 60px; }
+.home-card { display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:14px; text-align:left; margin-bottom: 20px; }
 .home-card .home-icon {
   display:flex; align-items:center; justify-content:center;
   margin-bottom: 2px;
@@ -268,7 +268,7 @@ body {
 .loja-perf-bar-fill.saida { background:#B4483A; }
 .loja-perf-vals { display:flex; justify-content:space-between; font-size:10.5px; color: var(--ink-3); }
 
-.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:10px 16px; margin-bottom:18px; }
+.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:8px 14px; }
 .ig-fgroup { display:flex; align-items:center; gap:7px; }
 .ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-3); white-space:nowrap; }
 .ig-fselect {
@@ -466,9 +466,7 @@ body {
   <div class="home-inner">
     <div class="home-card">
       <div class="home-title">Gestão Zappas</div>
-    </div>
-
-    <div class="ig-filter-bar">
+      <div class="ig-filter-bar">
       <div class="ig-fgroup">
         <span class="ig-flabel">Ano</span>
         <select class="ig-fselect" id="ig-f-ano"></select>
@@ -480,6 +478,7 @@ body {
       <div class="ig-fgroup">
         <span class="ig-flabel">Loja</span>
         <select class="ig-fselect" id="ig-f-loja"></select>
+      </div>
       </div>
     </div>
 
@@ -1072,12 +1071,16 @@ async function carregarResumoGeral() {
   const periodoEl = document.getElementById('resumo-period');
   if (periodoEl) periodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
 
+  // A busca de dados foi reorganizada pra rodar em paralelo (todas as chamadas que não dependem
+  // umas das outras saem ao mesmo tempo), em vez de uma etapa esperar a outra terminar — isso reduz
+  // bastante o tempo de carregamento, já que são muitas lojas/planilhas sendo lidas.
+
   // ── Faturamento (todas as lojas, ?loja=<k> — não usa ?loja=resumo pra bater com as outras telas) ──
   // Guarda TODAS as linhas (não só o mês atual) pra alimentar o gráfico de Evolução Mensal também.
   let totalFat = 0;
   const fatRows = [];
   const anosDisponiveis = new Set();
-  await Promise.all(RESUMO_FAT_URLS.map(async (url, idx) => {
+  const pFaturamento = Promise.all(RESUMO_FAT_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       if (!txt.trim()) return;
@@ -1101,24 +1104,26 @@ async function carregarResumoGeral() {
 
   // ── Plano de Contas (Cod_PL → grupo/sub_grupo) — usado para CMV, DFC e "em aberto" ──
   const planoMap = new Map();
-  try {
-    const txt = await resumoFetchCSV(RESUMO_PLANO_CONTAS_URL);
-    const { rows, headers } = resumoParseCSV(txt);
-    const cCodPL = resumoFindCol(headers, ['cod_pl', 'codpl']);
-    const cGrupo = resumoFindCol(headers, ['grupo']);
-    const cSub = resumoFindCol(headers, ['sub_grupo', 'subgrupo']);
-    const cConta = resumoFindCol(headers, ['conta_pl', 'contapl']);
-    if (cCodPL) rows.forEach(r => {
-      const codRaw = String(r[cCodPL] || '').trim(); if (!codRaw) return;
-      const info = { grupo: cGrupo ? r[cGrupo] : '', sub_grupo: cSub ? r[cSub] : '', conta_pl: cConta ? r[cConta] : '' };
-      planoMap.set(codRaw, info);
-      const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || ''); if (codNum) planoMap.set(codNum, info);
-    });
-  } catch (e) { /* sem plano de contas, KPIs de DFC ficam zerados */ }
+  const pPlanoContas = (async () => {
+    try {
+      const txt = await resumoFetchCSV(RESUMO_PLANO_CONTAS_URL);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cCodPL = resumoFindCol(headers, ['cod_pl', 'codpl']);
+      const cGrupo = resumoFindCol(headers, ['grupo']);
+      const cSub = resumoFindCol(headers, ['sub_grupo', 'subgrupo']);
+      const cConta = resumoFindCol(headers, ['conta_pl', 'contapl']);
+      if (cCodPL) rows.forEach(r => {
+        const codRaw = String(r[cCodPL] || '').trim(); if (!codRaw) return;
+        const info = { grupo: cGrupo ? r[cGrupo] : '', sub_grupo: cSub ? r[cSub] : '', conta_pl: cConta ? r[cConta] : '' };
+        planoMap.set(codRaw, info);
+        const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || ''); if (codNum) planoMap.set(codNum, info);
+      });
+    } catch (e) { /* sem plano de contas, KPIs de DFC ficam zerados */ }
+  })();
 
-  // ── Recebidos + De-Para (todas as lojas) — "Receita Operacional" real (dinheiro recebido), igual ao DFC ──
+  // ── De-Para (todas as lojas) — usado pelos Recebidos pra classificar o tipo de recebimento ──
   const deparaMaps = {};
-  await Promise.all(RESUMO_DEPARA_URLS.map(async (url, idx) => {
+  const pDePara = Promise.all(RESUMO_DEPARA_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
@@ -1134,16 +1139,39 @@ async function carregarResumoGeral() {
     } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
   }));
 
+  // ── Meta do mês (soma de todas as lojas/canais) ──
+  // metaRows guarda a meta de TODOS os meses/anos (não só o atual) pra alimentar o gráfico de Evolução Mensal.
+  const metaRows = [];
+  const pMeta = (async () => {
+    try {
+      const txt = await resumoFetchCSV(BACKUP_METAS_URL);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cAno = resumoFindCol(headers, ['ano', 'year']);
+      const cMes = resumoFindCol(headers, ['mes', 'meses', 'month']);
+      const cMeta = resumoFindCol(headers, ['meta', 'meta_mensal', 'valor_meta', 'target']);
+      if (cMeta) rows.forEach(r => {
+        const ano = cAno ? resumoParseAno(r[cAno]) : null;
+        const mes = cMes ? resumoParseMes(r[cMes]) : null;
+        const valor = resumoParseNum(r[cMeta]);
+        if (ano != null && mes != null) {
+          metaRows.push({ ano, mes, valor });
+          anosDisponiveis.add(ano);
+        }
+      });
+    } catch (e) { /* metas indisponível */ }
+  })();
+
+  // ── Recebidos (todas as lojas) — "Receita Operacional" real (dinheiro recebido), igual ao DFC ──
+  // Depende do De-Para (classificação do tipo de recebimento), então só começa depois dele.
   // recebidosRows guarda TODOS os meses/anos (não só o atual) pra alimentar os filtros de Ano/Mês/Loja.
   const recebidosRows = [];
-  await Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
+  const pRecebidos = pDePara.then(() => Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
     const lojaKey = RESUMO_STORE_KEYS[idx];
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
       const cMes = resumoFindCol(headers, ['mes', 'competencia', 'data']);
       const cAno = resumoFindCol(headers, ['ano', 'exercicio']);
-      const cLoja = resumoFindCol(headers, ['loja', 'filial', 'unidade']);
       const cCodPgto = resumoFindCol(headers, ['codpgto', 'cod_pgto', 'cod_pagamento']);
       const cConta = resumoFindCol(headers, ['conta', 'valor', 'valor_conta']);
       const cDtEntrada = resumoFindCol(headers, ['dtentrada', 'dt_entrada', 'data_entrada']);
@@ -1164,25 +1192,27 @@ async function carregarResumoGeral() {
         if (!ano) ano = dt ? dt.ano : null;
         if (!ano || !mes) return;
 
-        const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaKey).toUpperCase();
+        // Usa sempre a loja da URL (não a coluna "loja"/"filial" da planilha, que às vezes vem
+        // grafada diferente — ex. "BELVEDER" sem E — e quebrava o cruzamento com o Contas a Pagar).
+        const loja = lojaKey.toUpperCase();
         recebidosRows.push({ ano, mes, valor, loja });
         anosDisponiveis.add(ano);
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
-  }));
+  })));
 
   // ── Contas a Pagar (todas as lojas) — CMV, DFC (todos os grupos), Performance por Loja ──
+  // Depende do Plano de Contas (classificação de grupo), então só começa depois dele.
   // cmvRows / ctasPagarRows guardam TODOS os meses (não só o atual) pra alimentar os filtros e o gráfico de Evolução Mensal.
   const cmvRows = [];
   const ctasPagarRows = [];
-  await Promise.all(RESUMO_CTASPAGAR_URLS.map(async (url, idx) => {
+  const pCtasPagar = pPlanoContas.then(() => Promise.all(RESUMO_CTASPAGAR_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
       const cCodCtr = resumoFindCol(headers, ['codcentro', 'cod_centro']);
       const cValor = resumoFindCol(headers, ['vparcela', 'valor_parcela']);
       const cPgto = resumoFindCol(headers, ['dtpagamento', 'data_pagamento']);
-      const cLoja = resumoFindCol(headers, ['loja']);
       if (!cValor) return;
       const lojaFallback = RESUMO_STORE_KEYS[idx].toUpperCase();
 
@@ -1198,7 +1228,9 @@ async function carregarResumoGeral() {
           const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
           grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
         }
-        const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaFallback).toUpperCase();
+        // Usa sempre a loja da URL (não a coluna "loja" da planilha, que às vezes vem grafada
+        // diferente — ex. "BELVEDER" sem E — e quebrava o cruzamento com os Recebidos).
+        const loja = lojaFallback;
 
         if (grupoInfo && grupoInfo.grupo && resumoIsGrupoCMV(grupoInfo.grupo)) {
           cmvRows.push({ ano: pg.ano, mes: pg.mes, valor, loja });
@@ -1210,27 +1242,9 @@ async function carregarResumoGeral() {
         anosDisponiveis.add(pg.ano);
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
-  }));
+  })));
 
-  // ── Meta do mês (soma de todas as lojas/canais) ──
-  // metaRows guarda a meta de TODOS os meses/anos (não só o atual) pra alimentar o gráfico de Evolução Mensal.
-  const metaRows = [];
-  try {
-    const txt = await resumoFetchCSV(BACKUP_METAS_URL);
-    const { rows, headers } = resumoParseCSV(txt);
-    const cAno = resumoFindCol(headers, ['ano', 'year']);
-    const cMes = resumoFindCol(headers, ['mes', 'meses', 'month']);
-    const cMeta = resumoFindCol(headers, ['meta', 'meta_mensal', 'valor_meta', 'target']);
-    if (cMeta) rows.forEach(r => {
-      const ano = cAno ? resumoParseAno(r[cAno]) : null;
-      const mes = cMes ? resumoParseMes(r[cMes]) : null;
-      const valor = resumoParseNum(r[cMeta]);
-      if (ano != null && mes != null) {
-        metaRows.push({ ano, mes, valor });
-        anosDisponiveis.add(ano);
-      }
-    });
-  } catch (e) { /* metas indisponível */ }
+  await Promise.all([pFaturamento, pPlanoContas, pDePara, pMeta, pRecebidos, pCtasPagar]);
 
   // ── Indicadores Gerais + Indicadores Principais (DFC) + Performance por Loja ──
   // Os três são recalculados juntos, reagindo aos filtros de Ano/Mês/Loja — ver resumoRenderFiltrados().
