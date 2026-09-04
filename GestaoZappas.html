@@ -6,6 +6,7 @@
 <title>Gestão Zappas · Painel</title>
 <link rel="icon" type="image/png" sizes="48x48" href="logo.png?v=1">
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <style>
 /* ╔═══════════════════════════════════════╗
@@ -241,6 +242,54 @@ body {
 .kpi-list-item { display:flex; justify-content:space-between; font-size:11.5px; color: var(--ink-2); gap:10px; }
 .kpi-list-item span:last-child { color: var(--ink-3); white-space:nowrap; }
 .resumo-note { font-size:10.5px; color: var(--ink-4); margin-top:2px; }
+
+.kpi-grid-4 { grid-template-columns: repeat(4,1fr); }
+@media (max-width: 900px){ .kpi-grid-4{ grid-template-columns:1fr 1fr; } }
+@media (max-width: 620px){ .kpi-grid-4{ grid-template-columns:1fr; } }
+
+.kpi-grid-5 { grid-template-columns: repeat(5,1fr); }
+@media (max-width: 1100px){ .kpi-grid-5{ grid-template-columns:1fr 1fr 1fr; } }
+@media (max-width: 700px){ .kpi-grid-5{ grid-template-columns:1fr 1fr; } }
+@media (max-width: 460px){ .kpi-grid-5{ grid-template-columns:1fr; } }
+
+.loja-perf-card { background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); padding:16px 20px; margin-bottom:26px; }
+.loja-perf-empty { font-size:12px; color: var(--ink-4); padding:8px 0; }
+.loja-perf-list { display:flex; flex-direction:column; gap:14px; }
+.loja-perf-row { display:flex; flex-direction:column; gap:5px; }
+.loja-perf-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
+.loja-perf-nome { font-family: var(--font-head); font-weight:700; font-size:12.5px; color: var(--ink); }
+.loja-perf-saldo { font-family: var(--font-body); font-size:12px; font-weight:700; }
+.loja-perf-saldo.pos { color:#0ea472; }
+.loja-perf-saldo.neg { color:#B4483A; }
+.loja-perf-bars { display:flex; flex-direction:column; gap:3px; }
+.loja-perf-bar-track { position:relative; height:7px; background: var(--bg-2); border-radius:4px; overflow:hidden; }
+.loja-perf-bar-fill { height:100%; border-radius:4px; }
+.loja-perf-bar-fill.entrada { background:#0ea472; }
+.loja-perf-bar-fill.saida { background:#B4483A; }
+.loja-perf-vals { display:flex; justify-content:space-between; font-size:10.5px; color: var(--ink-3); }
+
+.resumo-filter { display:flex; align-items:center; gap:8px; }
+.resumo-filter label { font-size:11px; color: var(--ink-3); font-weight:600; }
+.resumo-filter select {
+  font-family: var(--font-body); font-size:12.5px; font-weight:500; color: var(--ink-2);
+  background: var(--surface); border:1px solid var(--border-2); border-radius: var(--r);
+  padding: 6px 26px 6px 10px; appearance:none; cursor:pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23AEADA0' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position: right 8px center;
+}
+.resumo-filter select:focus { outline:none; border-color:#1a56db; }
+
+.charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:14px; margin-bottom:26px; }
+@media (max-width: 900px){ .charts-grid{ grid-template-columns:1fr; } }
+.chart-card { background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); padding:18px 20px; position:relative; }
+.chart-header { display:flex; align-items:flex-start; justify-content:space-between; gap:10px; margin-bottom:14px; flex-wrap:wrap; }
+.chart-title { font-family: var(--font-head); font-weight:700; font-size:13px; color: var(--ink); }
+.chart-subtitle { font-size:11px; color: var(--ink-3); margin-top:2px; }
+.chart-legend { display:flex; gap:12px; flex-wrap:wrap; }
+.legend-item { display:flex; align-items:center; gap:5px; font-size:10.5px; color: var(--ink-3); }
+.legend-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+.chart-card canvas { max-height:220px; }
+.chart-empty { position:absolute; inset:44px 20px 18px; display:flex; align-items:center; justify-content:center; font-size:12px; color: var(--ink-4); text-align:center; background: var(--surface); }
 </style>
 </head>
 <body>
@@ -364,31 +413,46 @@ body {
 <div class="home-screen" id="home-screen">
   <div class="home-inner">
     <div class="home-card">
-      <div class="home-icon">
-        <img src="logo-zappas-30anos.png" alt="Zappas 30 anos">
-      </div>
       <div class="home-title">Gestão Zappas</div>
       <div class="home-sub">Resumo geral do mês · selecione um item no menu ao lado para ver o detalhe</div>
     </div>
 
     <div class="resumo-head">
-      <div class="resumo-title">Resumo geral</div>
+      <div class="resumo-title">Indicadores gerais</div>
       <div class="resumo-period" id="resumo-period">carregando…</div>
     </div>
 
-    <div class="kpi-grid">
+    <div class="kpi-grid kpi-grid-4">
       <div class="kpi-card">
         <div class="kpi-accent"></div>
-        <div class="kpi-label">Faturamento do mês</div>
+        <div class="kpi-label">Faturamento Total</div>
         <div class="kpi-value skel" id="kpi-faturamento">—</div>
         <div class="kpi-foot" id="kpi-faturamento-foot"></div>
       </div>
       <div class="kpi-card">
-        <div class="kpi-accent"></div>
-        <div class="kpi-label">Lucro Bruto (margem)</div>
+        <div class="kpi-accent" style="background:#f97316"></div>
+        <div class="kpi-label">CMV Total</div>
+        <div class="kpi-value skel" id="kpi-cmv">—</div>
+        <div class="kpi-foot" id="kpi-cmv-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#0ea472"></div>
+        <div class="kpi-label">Lucro Bruto</div>
         <div class="kpi-value skel" id="kpi-lucro">—</div>
         <div class="kpi-foot" id="kpi-lucro-foot"></div>
       </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#8b5cf6"></div>
+        <div class="kpi-label">% Lucro Bruto</div>
+        <div class="kpi-value skel" id="kpi-margem">—</div>
+        <div class="kpi-foot" id="kpi-margem-foot"></div>
+      </div>
+    </div>
+
+    <div class="resumo-head" style="margin-top:8px;">
+      <div class="resumo-title">Outros indicadores</div>
+    </div>
+    <div class="kpi-grid">
       <div class="kpi-card">
         <div class="kpi-accent"></div>
         <div class="kpi-label">Meta do mês</div>
@@ -415,6 +479,93 @@ body {
         <div class="kpi-value skel" id="kpi-ciclo">—</div>
         <div class="kpi-foot" id="kpi-ciclo-foot"></div>
         <div class="resumo-note">PME e PMR ainda em desenvolvimento na tela de Ciclo Financeiro — o número completo aparece aqui automaticamente assim que estiverem prontos.</div>
+      </div>
+    </div>
+
+    <div class="resumo-head" style="margin-top:8px;">
+      <div class="resumo-title">Indicadores principais (DFC)</div>
+      <div class="resumo-period">mesmo cálculo do DFC Fluxo de Caixa</div>
+    </div>
+    <div class="kpi-grid kpi-grid-5" id="dre-kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Receita Operacional</div>
+        <div class="kpi-value skel" id="kpi-dre-receita">—</div>
+        <div class="kpi-foot" id="kpi-dre-receita-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#0ea472"></div>
+        <div class="kpi-label">Lucro Bruto</div>
+        <div class="kpi-value skel" id="kpi-dre-lucrobruto">—</div>
+        <div class="kpi-foot" id="kpi-dre-lucrobruto-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#C8961A"></div>
+        <div class="kpi-label">Resultado Operacional</div>
+        <div class="kpi-value skel" id="kpi-dre-resultop">—</div>
+        <div class="kpi-foot" id="kpi-dre-resultop-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#0ea472"></div>
+        <div class="kpi-label">EBITDA</div>
+        <div class="kpi-value skel" id="kpi-dre-ebitda">—</div>
+        <div class="kpi-foot" id="kpi-dre-ebitda-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#B4483A"></div>
+        <div class="kpi-label">Resultado Líquido</div>
+        <div class="kpi-value skel" id="kpi-dre-resultliq">—</div>
+        <div class="kpi-foot" id="kpi-dre-resultliq-foot"></div>
+      </div>
+    </div>
+    <div class="resumo-note" style="margin:-6px 0 20px;">Receita Operacional aqui vem dos Recebidos (dinheiro efetivamente recebido, igual ao DFC), por isso pode ser um pouco diferente do "Faturamento Total" acima, que soma o valor total vendido.</div>
+
+    <div class="resumo-head" style="margin-top:8px;">
+      <div class="resumo-title">Performance por loja</div>
+      <div class="resumo-period" id="loja-period"></div>
+    </div>
+    <div class="loja-perf-card" id="loja-perf-card">
+      <div class="loja-perf-empty" id="loja-perf-empty">carregando…</div>
+      <div class="loja-perf-list" id="loja-perf-list"></div>
+    </div>
+
+    <div class="resumo-head" style="margin-top:8px;">
+      <div class="resumo-title">Evolução mensal</div>
+      <div class="resumo-filter">
+        <label for="resumo-ano-select">Ano</label>
+        <select id="resumo-ano-select"></select>
+      </div>
+    </div>
+    <div class="charts-grid">
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Faturamento x CMV x Lucro</div>
+            <div class="chart-subtitle">Comparativo mensal</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#1a56db"></div>Faturamento</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div>CMV</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#0ea472"></div>Lucro</div>
+          </div>
+        </div>
+        <canvas id="chartEvolucao" height="180"></canvas>
+        <div class="chart-empty" id="chartEvolucao-empty" hidden>Sem dados suficientes para este ano.</div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-header">
+          <div>
+            <div class="chart-title">Meta x Realizado</div>
+            <div class="chart-subtitle">% atingido por mês</div>
+          </div>
+          <div class="chart-legend">
+            <div class="legend-item"><div class="legend-dot" style="background:#AEADA0"></div>Meta</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#1a56db"></div>Realizado</div>
+            <div class="legend-item"><div class="legend-dot" style="background:#C8961A"></div>% Atingido</div>
+          </div>
+        </div>
+        <canvas id="chartMeta" height="180"></canvas>
+        <div class="chart-empty" id="chartMeta-empty" hidden>Sem metas cadastradas para este ano.</div>
       </div>
     </div>
   </div>
@@ -709,6 +860,8 @@ const RESUMO_STORE_KEYS = BACKUP_STORE_KEYS;
 const RESUMO_CTASPAGAR_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
 const RESUMO_FAT_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 const RESUMO_PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
+const RESUMO_RECBIDOS_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=recebidos&loja=${k}`);
+const RESUMO_DEPARA_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=depara&loja=${k}`);
 
 function resumoNorm(s) {
   return String(s).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -792,6 +945,73 @@ function resumoIsGrupoCMV(grupo) {
   return RESUMO_KEYWORDS_CMV.some(kw => n.includes(kw));
 }
 
+// ══════════════════════════════════════════════════════════════
+//  Classificação DFC (Indicadores Principais / Performance por Loja)
+//  — mesma lógica de slugFromGrupo/FIXED_SLUG_MAP/KEYWORD_MAP do
+//  DRE_Gerencial.html, resumida aqui só com os slugs usados nos 5 KPIs.
+// ══════════════════════════════════════════════════════════════
+const RESUMO_FIXED_SLUG_MAP = {
+  'cofins': 'impostos_vendas', 'pis': 'impostos_vendas', 'icms': 'impostos_vendas',
+  'simples nacional': 'impostos_vendas', 'simples': 'impostos_vendas',
+  'devolucao de mercadorias': 'deducoes_vendas', 'devolucoes de mercadorias': 'deducoes_vendas',
+  'devolucao mercadorias': 'deducoes_vendas', 'devolucoes mercadorias': 'deducoes_vendas',
+  'devolucao': 'deducoes_vendas', 'devolucoes': 'deducoes_vendas',
+  'despesas financeiras': 'despesas_financeiras', 'despesa financeiras': 'despesas_financeiras',
+  'receitas financeiras': 'despesas_financeiras', 'receita financeiras': 'despesas_financeiras',
+  'despesa financeira': 'despesas_financeiras', 'receita financeira': 'despesas_financeiras',
+  'financeiras': 'despesas_financeiras', 'financeira': 'despesas_financeiras',
+  'juros pagos': 'despesas_financeiras', 'juros recebidos': 'despesas_financeiras', 'juros': 'despesas_financeiras',
+  'encargos financeiros': 'despesas_financeiras', 'encargo financeiro': 'despesas_financeiras',
+  'tarifas bancarias': 'despesas_financeiras', 'tarifas bancaria': 'despesas_financeiras',
+  'tarifa bancaria': 'despesas_financeiras', 'tarifa bancarias': 'despesas_financeiras', 'iof': 'despesas_financeiras',
+  'parcelamento inss': 'parcelamento_impostos', 'parcelamento refis': 'parcelamento_impostos',
+  'parcelamento irpj/cssl/pis/cofins': 'parcelamento_impostos', 'parcelamento irpj csll pis cofins': 'parcelamento_impostos',
+  'parcelamento icms': 'parcelamento_impostos', 'parcelamento simples nacional': 'parcelamento_impostos',
+  'parcelamento simples': 'parcelamento_impostos', 'parcelamento irpj': 'parcelamento_impostos',
+};
+const RESUMO_KEYWORD_MAP = [
+  { slug: 'despesas_financeiras', kws: ['despesas financeiras', 'despesa financeira', 'receitas financeiras', 'receita financeira', 'financeiras', 'financeira', 'juros', 'tarifa bancaria', 'tarifa banco', 'iof', 'encargo financeiro', 'encargos financeiros'] },
+  { slug: 'receita_operacional', kws: ['receita operacional', 'receita bruta', 'receita de venda', 'faturamento', 'receita'] },
+  { slug: 'impostos_vendas', kws: ['imposto sobre venda', 'impostos sobre venda', 'imposto s/ venda', 'tributo sobre venda', 'das ', 'imposto', 'tributo'] },
+  { slug: 'deducoes_vendas', kws: ['deducao s/venda', 'deducoes s/venda', 'deducao sobre venda', 'deducoes sobre venda', 'abatimento', 'desconto concedido', 'deducao', 'deducoes'] },
+  { slug: 'cmv', kws: ['cmv', 'custo mercadoria vendida', 'custo de mercadoria', 'custo produto vendido', 'cpv', 'custo de venda'] },
+  { slug: 'despesas_comerciais', kws: ['despesa comercial', 'despesas comerciais', 'marketing', 'publicidade', 'propaganda', 'comissao', 'comissoes', 'frete sobre venda'] },
+  { slug: 'despesas_pessoal', kws: ['despesa com pessoal', 'despesas com pessoal', 'folha de pagamento', 'salario', 'ferias', 'decimo terceiro', '13 salario', 'inss', 'fgts', 'beneficio', 'vale transporte', 'vale refeicao', 'pessoal'] },
+  { slug: 'despesas_administrativas', kws: ['despesa administrativa', 'despesas administrativas', 'despesa operacional', 'despesas operacionais', 'aluguel', 'condominio', 'energia eletrica', 'agua', 'telefone', 'internet', 'manutencao', 'limpeza', 'seguranca', 'contabilidade', 'juridico', 'despesa geral', 'administrativ'] },
+  { slug: 'pro_labore', kws: ['pro labore', 'pro-labore', 'labore', 'retirada socio', 'remuneracao socio'] },
+  { slug: 'distribuicao_lucro', kws: ['distribuicao de lucro', 'distribuicao lucro', 'dividendo', 'dividendos', 'lucro distribuido', 'distribuicao'] },
+  { slug: 'ir_csll', kws: ['ir + csll', 'ir+csll', 'ir e csll', 'irpj csll', 'irpj e csll', 'irpj', 'csll'] },
+  { slug: 'emprestimos_financiamentos', kws: ['emprestimo e financiamento', 'emprestimos e financiamentos', 'financiamento', 'emprestimo', 'cdc', 'leasing', 'debito bancario'] },
+  { slug: 'investimento', kws: ['investimento', 'investimentos', 'capex', 'imobilizado', 'ativo fixo'] },
+  { slug: 'parcelamento_impostos', kws: ['parcelamento imposto', 'parcelamento de imposto', 'parcelamento fiscal', 'refis', 'pert', 'parcel'] },
+];
+function resumoSlugFromGrupo(grupo) {
+  const n = resumoNormKeyCMV(grupo);
+  if (RESUMO_FIXED_SLUG_MAP[n]) return RESUMO_FIXED_SLUG_MAP[n];
+  if (n.includes('parcelamento')) return 'parcelamento_impostos';
+  for (const { slug, kws } of RESUMO_KEYWORD_MAP) for (const kw of kws) if (n.includes(kw)) return slug;
+  return null;
+}
+const RESUMO_JUROS_BANCARIOS = ['juros bancarios', 'juros bancario', 'juro bancario', 'juros bancos', 'juros banco', 'juros financeiros', 'juros financeiro', 'juros sobre emprestimo', 'juros sobre emprestimos', 'juros sobre financiamento', 'juros sobre financiamentos', 'encargos bancarios', 'encargo bancario', 'encargos financeiros', 'encargo financeiro', 'juros pagos', 'juro pago', 'juros pago'];
+function resumoIsJuros(s) {
+  const n = resumoNormKeyCMV(s);
+  return RESUMO_JUROS_BANCARIOS.includes(n) || (n.includes('juros') && n.includes('banc'));
+}
+
+// De-Para (Recebidos) — mesmas categorias permitidas do DRE_Gerencial.html
+const RESUMO_CAT_PERMITIDAS = ['boleto', 'convenio cliente', 'convenio', 'cartao', 'cartão', 'pix', 'dinheiro'];
+function resumoNormCat(s) {
+  return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[\s_\-]+/g, ' ').trim();
+}
+function resumoParseDtEntrada(s) {
+  const str = String(s || '').trim(); if (!str) return null;
+  let m = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (m) return { ano: +m[3], mes: +m[2], dia: +m[1] };
+  m = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (m) return { ano: +m[1], mes: +m[2], dia: +m[3] };
+  return null;
+}
+
 function resumoFmtBRL(v) {
   return (v < 0 ? '-' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
@@ -814,7 +1034,10 @@ async function carregarResumoGeral() {
   if (periodoEl) periodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
 
   // ── Faturamento (todas as lojas, ?loja=<k> — não usa ?loja=resumo pra bater com as outras telas) ──
+  // Guarda TODAS as linhas (não só o mês atual) pra alimentar o gráfico de Evolução Mensal também.
   let totalFat = 0;
+  const fatRows = [];
+  const anosDisponiveis = new Set();
   await Promise.all(RESUMO_FAT_URLS.map(async (url) => {
     try {
       const txt = await resumoFetchCSV(url);
@@ -827,29 +1050,94 @@ async function carregarResumoGeral() {
       rows.forEach(r => {
         const ano = cAno ? resumoParseAno(r[cAno]) : anoAtual;
         const mes = cMes ? resumoParseMes(r[cMes]) : mesAtual;
-        if (ano !== anoAtual || mes !== mesAtual) return;
-        totalFat += resumoParseNum(r[cVenda]);
+        const valor = resumoParseNum(r[cVenda]);
+        if (!ano || !mes || !valor) return;
+        fatRows.push({ ano, mes, valor });
+        anosDisponiveis.add(ano);
+        if (ano === anoAtual && mes === mesAtual) totalFat += valor;
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
   }));
 
-  // ── Contas a Pagar (todas as lojas) — usado para CMV, saldo de caixa e "em aberto" ──
+  // ── Plano de Contas (Cod_PL → grupo/sub_grupo) — usado para CMV, DFC e "em aberto" ──
   const planoMap = new Map();
   try {
     const txt = await resumoFetchCSV(RESUMO_PLANO_CONTAS_URL);
     const { rows, headers } = resumoParseCSV(txt);
     const cCodPL = resumoFindCol(headers, ['cod_pl', 'codpl']);
     const cGrupo = resumoFindCol(headers, ['grupo']);
+    const cSub = resumoFindCol(headers, ['sub_grupo', 'subgrupo']);
+    const cConta = resumoFindCol(headers, ['conta_pl', 'contapl']);
     if (cCodPL) rows.forEach(r => {
       const codRaw = String(r[cCodPL] || '').trim(); if (!codRaw) return;
-      const grupo = cGrupo ? r[cGrupo] : '';
-      planoMap.set(codRaw, grupo);
-      const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || ''); if (codNum) planoMap.set(codNum, grupo);
+      const info = { grupo: cGrupo ? r[cGrupo] : '', sub_grupo: cSub ? r[cSub] : '', conta_pl: cConta ? r[cConta] : '' };
+      planoMap.set(codRaw, info);
+      const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || ''); if (codNum) planoMap.set(codNum, info);
     });
-  } catch (e) { /* sem plano de contas, CMV fica zerado */ }
+  } catch (e) { /* sem plano de contas, KPIs de DFC ficam zerados */ }
 
-  let totalCmv = 0, saidasMes = 0, totalEmAberto = 0;
+  // ── Recebidos + De-Para (todas as lojas) — "Receita Operacional" real (dinheiro recebido), igual ao DFC ──
+  const deparaMaps = {};
+  await Promise.all(RESUMO_DEPARA_URLS.map(async (url, idx) => {
+    try {
+      const txt = await resumoFetchCSV(url);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cCod = resumoFindCol(headers, ['cod', 'codigo', 'codpgto']);
+      const cDesc = resumoFindCol(headers, ['recebimento', 'descricao', 'tipo', 'categoria']);
+      const map = new Map();
+      if (cCod && cDesc) rows.forEach(r => {
+        const cod = String(r[cCod] || '').trim(); if (!cod) return;
+        map.set(cod, r[cDesc]);
+        const codNum = String(parseInt(cod.replace(/\D/g, ''), 10) || ''); if (codNum) map.set(codNum, r[cDesc]);
+      });
+      deparaMaps[RESUMO_STORE_KEYS[idx]] = map;
+    } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
+  }));
+
+  let receitaOperacional = 0;
+  const entradasPorLoja = {};
+  await Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
+    const lojaKey = RESUMO_STORE_KEYS[idx];
+    try {
+      const txt = await resumoFetchCSV(url);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cMes = resumoFindCol(headers, ['mes', 'competencia', 'data']);
+      const cAno = resumoFindCol(headers, ['ano', 'exercicio']);
+      const cLoja = resumoFindCol(headers, ['loja', 'filial', 'unidade']);
+      const cCodPgto = resumoFindCol(headers, ['codpgto', 'cod_pgto', 'cod_pagamento']);
+      const cConta = resumoFindCol(headers, ['conta', 'valor', 'valor_conta']);
+      const cDtEntrada = resumoFindCol(headers, ['dtentrada', 'dt_entrada', 'data_entrada']);
+      if (!cCodPgto || !cConta) return;
+      const deparaMap = deparaMaps[lojaKey] || new Map();
+
+      rows.forEach(r => {
+        const valor = resumoParseNum(r[cConta]); if (!valor) return;
+        const codPgto = cCodPgto ? String(r[cCodPgto] || '').trim() : ''; if (!codPgto) return;
+        let recebimento = deparaMap.get(codPgto) || deparaMap.get(String(parseInt(codPgto.replace(/\D/g, ''), 10) || '')) || '';
+        if (!recebimento) return;
+        if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) return;
+
+        const dt = cDtEntrada ? resumoParseDtEntrada(r[cDtEntrada]) : null;
+        let mes = cMes ? resumoParseMes(r[cMes]) : null;
+        let ano = cAno ? resumoParseAno(r[cAno]) : null;
+        if (!mes) mes = dt ? dt.mes : null;
+        if (!ano) ano = dt ? dt.ano : null;
+        if (ano !== anoAtual || mes !== mesAtual) return;
+
+        receitaOperacional += valor;
+        const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaKey).toUpperCase();
+        entradasPorLoja[loja] = (entradasPorLoja[loja] || 0) + valor;
+      });
+    } catch (e) { /* loja indisponível — segue com as demais */ }
+  }));
+
+  // ── Contas a Pagar (todas as lojas) — CMV, DFC (todos os grupos), saldo de caixa, "em aberto", Performance por Loja ──
+  // cmvRows guarda o CMV de TODOS os meses (não só o atual) pra alimentar o gráfico de Evolução Mensal.
+  let totalCmv = 0, saidasMes = 0, totalEmAberto = 0, jurosBancarios = 0;
   const proximosVencimentos = [];
+  const sumsBySlug = {};
+  const saidasPorLoja = {};
+  const cmvRows = [];
   await Promise.all(RESUMO_CTASPAGAR_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
@@ -859,21 +1147,41 @@ async function carregarResumoGeral() {
       const cVenc = resumoFindCol(headers, ['dtvencimento', 'data_vencimento']);
       const cPgto = resumoFindCol(headers, ['dtpagamento', 'data_pagamento']);
       const cPaga = resumoFindCol(headers, ['paga']);
+      const cLoja = resumoFindCol(headers, ['loja']);
       if (!cValor) return;
+      const lojaFallback = RESUMO_STORE_KEYS[idx].toUpperCase();
 
       rows.forEach(r => {
         const valor = resumoParseNum(r[cValor]); if (!valor) return;
 
-        // CMV + saídas do mês (regime de caixa: pela data de pagamento)
+        // CMV + DFC (todos os grupos) + saídas do mês (regime de caixa: pela data de pagamento)
         if (cPgto) {
           const pg = resumoParseDataBR(r[cPgto]);
-          if (pg && pg.ano === anoAtual && pg.mes === mesAtual) {
-            saidasMes += valor;
+          if (pg) {
+            let grupoInfo = null;
             if (cCodCtr) {
               const codRaw = String(r[cCodCtr] || '').trim();
               const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
-              const grupo = planoMap.get(codRaw) || planoMap.get(codNum);
-              if (grupo && resumoIsGrupoCMV(grupo)) totalCmv += valor;
+              grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
+            }
+            if (grupoInfo && grupoInfo.grupo && resumoIsGrupoCMV(grupoInfo.grupo)) {
+              cmvRows.push({ ano: pg.ano, mes: pg.mes, valor });
+            }
+          }
+          if (pg && pg.ano === anoAtual && pg.mes === mesAtual) {
+            saidasMes += valor;
+            const loja = (cLoja && r[cLoja] ? String(r[cLoja]).trim() : lojaFallback).toUpperCase();
+            saidasPorLoja[loja] = (saidasPorLoja[loja] || 0) + valor;
+            if (cCodCtr) {
+              const codRaw = String(r[cCodCtr] || '').trim();
+              const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
+              const info = planoMap.get(codRaw) || planoMap.get(codNum);
+              if (info && info.grupo) {
+                if (resumoIsGrupoCMV(info.grupo)) totalCmv += valor;
+                const slug = resumoSlugFromGrupo(info.grupo);
+                if (slug) sumsBySlug[slug] = (sumsBySlug[slug] || 0) + valor;
+                if (resumoIsJuros(info.sub_grupo) || resumoIsJuros(info.conta_pl)) jurosBancarios += valor;
+              }
             }
           }
         }
@@ -892,7 +1200,9 @@ async function carregarResumoGeral() {
   }));
 
   // ── Meta do mês (soma de todas as lojas/canais) ──
+  // metaRows guarda a meta de TODOS os meses/anos (não só o atual) pra alimentar o gráfico de Evolução Mensal.
   let totalMeta = 0;
+  const metaRows = [];
   try {
     const txt = await resumoFetchCSV(BACKUP_METAS_URL);
     const { rows, headers } = resumoParseCSV(txt);
@@ -902,8 +1212,13 @@ async function carregarResumoGeral() {
     if (cMeta) rows.forEach(r => {
       const ano = cAno ? resumoParseAno(r[cAno]) : null;
       const mes = cMes ? resumoParseMes(r[cMes]) : null;
+      const valor = resumoParseNum(r[cMeta]);
+      if (ano != null && mes != null) {
+        metaRows.push({ ano, mes, valor });
+        anosDisponiveis.add(ano);
+      }
       if (ano !== anoAtual || mes !== mesAtual) return;
-      totalMeta += resumoParseNum(r[cMeta]);
+      totalMeta += valor;
     });
   } catch (e) { /* metas indisponível */ }
 
@@ -945,6 +1260,254 @@ async function carregarResumoGeral() {
 
   setVal('kpi-ciclo', '—');
   setFoot('kpi-ciclo-foot', 'em desenvolvimento');
+
+  setVal('kpi-cmv', resumoFmtBRL(totalCmv));
+  setFoot('kpi-cmv-foot', totalFat > 0 ? resumoFmtPct((totalCmv / totalFat) * 100) + ' do faturamento' : '—');
+
+  setVal('kpi-margem', resumoFmtPct(margem));
+  setFoot('kpi-margem-foot', margem >= 30 ? '✓ acima do esperado' : margem >= 15 ? '→ dentro do esperado' : '↓ abaixo do esperado', margem >= 15 ? 'pos' : 'neg');
+
+  // ── Indicadores Principais (DFC) — mesma fórmula do DRE_Gerencial.html ──
+  const g = slug => sumsBySlug[slug] || 0;
+  const impVendas = g('impostos_vendas'), dedVendas = g('deducoes_vendas');
+  const recLiq = receitaOperacional - impVendas - dedVendas;
+  const lucroBrutoDre = recLiq - g('cmv');
+  const resOp = lucroBrutoDre - g('despesas_comerciais') - g('despesas_pessoal') - g('despesas_administrativas') - g('despesas_financeiras') - g('pro_labore');
+  const ebitda = resOp + jurosBancarios;
+  const resLiqDre = (resOp - g('distribuicao_lucro') - g('ir_csll')) - g('emprestimos_financiamentos') - g('investimento') - g('parcelamento_impostos');
+
+  setVal('kpi-dre-receita', resumoFmtBRL(receitaOperacional));
+  setFoot('kpi-dre-receita-foot', 'recebido no mês (dinheiro em caixa)');
+
+  setVal('kpi-dre-lucrobruto', resumoFmtBRL(lucroBrutoDre));
+  setFoot('kpi-dre-lucrobruto-foot', receitaOperacional > 0 ? 'margem bruta ' + resumoFmtPct((lucroBrutoDre / receitaOperacional) * 100) : '—', lucroBrutoDre >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dre-resultop', resumoFmtBRL(resOp));
+  setFoot('kpi-dre-resultop-foot', receitaOperacional > 0 ? 'mg. operacional ' + resumoFmtPct((resOp / receitaOperacional) * 100) : '—', resOp >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dre-ebitda', resumoFmtBRL(ebitda));
+  setFoot('kpi-dre-ebitda-foot', receitaOperacional > 0 ? 'margem EBITDA ' + resumoFmtPct((ebitda / receitaOperacional) * 100) : '—', ebitda >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dre-resultliq', resumoFmtBRL(resLiqDre));
+  setFoot('kpi-dre-resultliq-foot', receitaOperacional > 0 ? 'margem líquida ' + resumoFmtPct((resLiqDre / receitaOperacional) * 100) : '—', resLiqDre >= 0 ? 'pos' : 'neg');
+
+  const lojaPeriodoEl = document.getElementById('loja-period');
+  if (lojaPeriodoEl) lojaPeriodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
+
+  // ── Performance por Loja (entradas = Recebidos filtrados, saídas = Contas a Pagar pagas no mês) ──
+  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja)])];
+  const emptyEl = document.getElementById('loja-perf-empty');
+  const listPerfEl = document.getElementById('loja-perf-list');
+  if (!lojasPerf.length) {
+    if (emptyEl) emptyEl.textContent = 'Sem dados de lojas para o mês atual.';
+  } else if (emptyEl && listPerfEl) {
+    emptyEl.style.display = 'none';
+    const dados = lojasPerf.map(loja => {
+      const entradas = entradasPorLoja[loja] || 0, saidas = saidasPorLoja[loja] || 0;
+      return { loja, entradas, saidas, saldo: entradas - saidas };
+    }).sort((a, b) => b.entradas - a.entradas);
+    const maxVal = Math.max(1, ...dados.map(d => Math.max(d.entradas, d.saidas)));
+    listPerfEl.innerHTML = dados.map(d => `
+      <div class="loja-perf-row">
+        <div class="loja-perf-top">
+          <span class="loja-perf-nome">${d.loja}</span>
+          <span class="loja-perf-saldo ${d.saldo >= 0 ? 'pos' : 'neg'}">${resumoFmtBRL(d.saldo)}</span>
+        </div>
+        <div class="loja-perf-bars">
+          <div class="loja-perf-bar-track"><div class="loja-perf-bar-fill entrada" style="width:${(d.entradas / maxVal * 100).toFixed(1)}%"></div></div>
+          <div class="loja-perf-bar-track"><div class="loja-perf-bar-fill saida" style="width:${(d.saidas / maxVal * 100).toFixed(1)}%"></div></div>
+        </div>
+        <div class="loja-perf-vals"><span>Entradas ${resumoFmtBRL(d.entradas)}</span><span>Saídas ${resumoFmtBRL(d.saidas)}</span></div>
+      </div>
+    `).join('');
+  }
+
+  // ── Evolução mensal (gráficos + filtro de ano) ──
+  resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
+}
+
+// ---------------------------------------------------------------------------
+// Gráficos "Evolução mensal" (Faturamento x CMV x Lucro / Meta x Realizado)
+// ---------------------------------------------------------------------------
+const RESUMO_MES_ABREV = ['', 'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+const resumoChartInstances = {};
+
+function resumoDestroyChart(id) {
+  if (resumoChartInstances[id]) { resumoChartInstances[id].destroy(); delete resumoChartInstances[id]; }
+}
+
+function resumoFmtK(v) {
+  const abs = Math.abs(v);
+  if (abs >= 1000000) return (v / 1000000).toFixed(1).replace('.', ',') + 'mi';
+  if (abs >= 1000) return (v / 1000).toFixed(0) + 'k';
+  return String(Math.round(v));
+}
+
+let resumoGraficosState = null;
+
+function resumoInicializarGraficos(state) {
+  resumoGraficosState = state;
+  const selectEl = document.getElementById('resumo-ano-select');
+  if (!selectEl) return;
+
+  const anos = [...state.anosDisponiveis].filter(a => a && isFinite(a)).sort((a, b) => b - a);
+  if (!anos.length) {
+    selectEl.innerHTML = '<option>—</option>';
+    selectEl.disabled = true;
+    resumoRenderGraficos(null);
+    return;
+  }
+  selectEl.disabled = false;
+  selectEl.innerHTML = anos.map(a => `<option value="${a}">${a}</option>`).join('');
+  const anoDefault = anos.includes(state.anoAtual) ? state.anoAtual : anos[0];
+  selectEl.value = String(anoDefault);
+
+  if (!selectEl.dataset.wired) {
+    selectEl.dataset.wired = '1';
+    selectEl.addEventListener('change', () => resumoRenderGraficos(parseInt(selectEl.value, 10)));
+  }
+  resumoRenderGraficos(anoDefault);
+}
+
+function resumoRenderGraficos(ano) {
+  const evoEmpty = document.getElementById('chartEvolucao-empty');
+  const metaEmpty = document.getElementById('chartMeta-empty');
+  const evoCanvas = document.getElementById('chartEvolucao');
+  const metaCanvas = document.getElementById('chartMeta');
+
+  if (ano == null || !resumoGraficosState || typeof Chart === 'undefined') {
+    resumoDestroyChart('chartEvolucao'); resumoDestroyChart('chartMeta');
+    if (evoCanvas) evoCanvas.style.display = 'none';
+    if (metaCanvas) metaCanvas.style.display = 'none';
+    if (evoEmpty) evoEmpty.hidden = false;
+    if (metaEmpty) metaEmpty.hidden = false;
+    return;
+  }
+
+  const { fatRows, cmvRows, metaRows } = resumoGraficosState;
+  const fatMes = new Array(13).fill(0);
+  const cmvMes = new Array(13).fill(0);
+  const metaMes = new Array(13).fill(0);
+  const metaTemDado = new Array(13).fill(false);
+  let temFat = false, temMeta = false;
+
+  fatRows.forEach(r => { if (r.ano === ano && r.mes >= 1 && r.mes <= 12) { fatMes[r.mes] += r.valor; temFat = true; } });
+  cmvRows.forEach(r => { if (r.ano === ano && r.mes >= 1 && r.mes <= 12) { cmvMes[r.mes] += r.valor; } });
+  metaRows.forEach(r => { if (r.ano === ano && r.mes >= 1 && r.mes <= 12) { metaMes[r.mes] += r.valor; metaTemDado[r.mes] = true; temMeta = true; } });
+
+  // ── Gráfico 1: Faturamento x CMV x Lucro ──
+  if (!temFat) {
+    resumoDestroyChart('chartEvolucao');
+    if (evoCanvas) evoCanvas.style.display = 'none';
+    if (evoEmpty) evoEmpty.hidden = false;
+  } else {
+    if (evoCanvas) evoCanvas.style.display = '';
+    if (evoEmpty) evoEmpty.hidden = true;
+    const mesesComDado = [];
+    for (let m = 1; m <= 12; m++) if (fatMes[m] || cmvMes[m]) mesesComDado.push(m);
+    const labels = mesesComDado.map(m => RESUMO_MES_ABREV[m]);
+    const dFat = mesesComDado.map(m => fatMes[m]);
+    const dCmv = mesesComDado.map(m => cmvMes[m]);
+    const dLucro = mesesComDado.map(m => fatMes[m] - cmvMes[m]);
+
+    resumoDestroyChart('chartEvolucao');
+    const el = document.getElementById('chartEvolucao');
+    if (el) {
+      resumoChartInstances['chartEvolucao'] = new Chart(el, {
+        data: {
+          labels,
+          datasets: [
+            { type: 'bar', label: 'Faturamento', data: dFat, backgroundColor: '#1a56db', borderRadius: 6, borderSkipped: false, order: 2 },
+            { type: 'bar', label: 'CMV', data: dCmv, backgroundColor: '#f97316', borderRadius: 6, borderSkipped: false, order: 2 },
+            { type: 'line', label: 'Lucro', data: dLucro, borderColor: '#0ea472', backgroundColor: 'rgba(14,164,114,0.12)', fill: true, tension: 0.4, order: 1 }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f1923', padding: 12, cornerRadius: 10,
+              bodyFont: { family: "'Epilogue',sans-serif", size: 12 },
+              titleFont: { family: "'Epilogue',sans-serif", size: 11, weight: '600' },
+              callbacks: { label: ctx => ` ${ctx.dataset.label}: ${resumoFmtBRL(ctx.parsed.y)}` }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { family: "'Epilogue',sans-serif", size: 11 }, color: '#9aa3b0' } },
+            y: {
+              grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+              border: { display: false },
+              ticks: { font: { family: "'JetBrains Mono',monospace", size: 10 }, color: '#9aa3b0', callback: v => 'R$' + resumoFmtK(v) }
+            }
+          }
+        }
+      });
+    }
+  }
+
+  // ── Gráfico 2: Meta x Realizado x % Atingido ──
+  if (!temMeta) {
+    resumoDestroyChart('chartMeta');
+    if (metaCanvas) metaCanvas.style.display = 'none';
+    if (metaEmpty) metaEmpty.hidden = false;
+  } else {
+    if (metaCanvas) metaCanvas.style.display = '';
+    if (metaEmpty) metaEmpty.hidden = true;
+    const mesesComDado = [];
+    for (let m = 1; m <= 12; m++) if (metaTemDado[m] || fatMes[m]) mesesComDado.push(m);
+    const labels = mesesComDado.map(m => RESUMO_MES_ABREV[m]);
+    const dMeta = mesesComDado.map(m => metaMes[m]);
+    const dReal = mesesComDado.map(m => fatMes[m]);
+    const dPct = mesesComDado.map(m => metaMes[m] > 0 ? (fatMes[m] / metaMes[m]) * 100 : null);
+
+    resumoDestroyChart('chartMeta');
+    const el = document.getElementById('chartMeta');
+    if (el) {
+      resumoChartInstances['chartMeta'] = new Chart(el, {
+        data: {
+          labels,
+          datasets: [
+            { type: 'bar', label: 'Meta', data: dMeta, backgroundColor: '#AEADA0', borderRadius: 6, borderSkipped: false, order: 2, yAxisID: 'y' },
+            { type: 'bar', label: 'Realizado', data: dReal, backgroundColor: '#1a56db', borderRadius: 6, borderSkipped: false, order: 2, yAxisID: 'y' },
+            { type: 'line', label: '% Atingido', data: dPct, borderColor: '#C8961A', backgroundColor: '#C8961A', fill: false, tension: 0.4, order: 1, yAxisID: 'y1', spanGaps: true }
+          ]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: true,
+          interaction: { mode: 'index', intersect: false },
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#0f1923', padding: 12, cornerRadius: 10,
+              bodyFont: { family: "'Epilogue',sans-serif", size: 12 },
+              titleFont: { family: "'Epilogue',sans-serif", size: 11, weight: '600' },
+              callbacks: {
+                label: ctx => ctx.dataset.yAxisID === 'y1'
+                  ? ` ${ctx.dataset.label}: ${ctx.parsed.y == null ? '—' : resumoFmtPct(ctx.parsed.y)}`
+                  : ` ${ctx.dataset.label}: ${resumoFmtBRL(ctx.parsed.y)}`
+              }
+            }
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { font: { family: "'Epilogue',sans-serif", size: 11 }, color: '#9aa3b0' } },
+            y: {
+              position: 'left',
+              grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
+              border: { display: false },
+              ticks: { font: { family: "'JetBrains Mono',monospace", size: 10 }, color: '#9aa3b0', callback: v => 'R$' + resumoFmtK(v) }
+            },
+            y1: {
+              position: 'right',
+              grid: { display: false }, border: { display: false },
+              ticks: { font: { family: "'JetBrains Mono',monospace", size: 10 }, color: '#9aa3b0', callback: v => v + '%' }
+            }
+          }
+        }
+      });
+    }
+  }
 }
 
 const SESSION_AUTO_KEY = 'zappas_auto_update_session';
