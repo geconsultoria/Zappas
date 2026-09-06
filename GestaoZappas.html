@@ -1613,7 +1613,21 @@ function resumoInicializarGraficos(state) {
   const selectEl = document.getElementById('resumo-ano-select');
   if (!selectEl) return;
 
-  const anos = [...state.anosDisponiveis].filter(a => a && isFinite(a)).sort((a, b) => b - a);
+  // Antes usava só state.anosDisponiveis (um Set calculado durante a busca e
+  // salvo no cache local). Um cache salvo com esse conjunto vazio/incompleto
+  // (ex.: de uma versão anterior da tela, antes de metaRows entrar no
+  // cálculo) fazia os gráficos ficarem travados em "sem dados para este
+  // ano" pra sempre, mesmo com fatRows/cmvRows/metaRows cheios de dados
+  // válidos (por isso os KPIs em cima apareciam certos, mas os gráficos
+  // não — eles não dependem do mesmo conjunto de anos). Agora recalcula os
+  // anos direto a partir das próprias linhas, então nunca fica preso a um
+  // valor potencialmente desatualizado vindo do cache.
+  const anosSet = new Set(state.anosDisponiveis || []);
+  (state.fatRows || []).forEach(r => { if (r.ano) anosSet.add(r.ano); });
+  (state.cmvRows || []).forEach(r => { if (r.ano) anosSet.add(r.ano); });
+  (state.metaRows || []).forEach(r => { if (r.ano) anosSet.add(r.ano); });
+
+  const anos = [...anosSet].filter(a => a && isFinite(a)).sort((a, b) => b - a);
   if (!anos.length) {
     selectEl.innerHTML = '<option>—</option>';
     selectEl.disabled = true;
