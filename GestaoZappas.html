@@ -82,19 +82,32 @@ body {
 
 .side-nav { flex:1; padding: 4px 10px 16px; display:flex; flex-direction:column; gap:2px; overflow-y:auto; overflow-x:hidden; }
 
-.side-footer { padding:12px 10px 14px; border-top:1px solid rgba(255,255,255,.08); }
-.side-footer .side-link { width:100%; background:none; border:none; cursor:pointer; justify-content:center; }
-.side-footer .side-link span { display:none; }
-/* Rail recolhida (padrão): ícones do rodapé lado a lado, sem rótulo/status */
-.sidebar.collapsed:not(.peek) .side-footer {
-  display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; justify-content:center;
-  gap:4px; padding:12px 4px 14px;
+.side-footer { padding:14px 10px 16px; border-top:1px solid rgba(255,255,255,.08); display:flex; justify-content:center; }
+.side-footer-toggle {
+  width:38px; height:38px; border-radius:10px; flex-shrink:0;
+  background: rgba(255,255,255,.06); border:1px solid rgba(255,255,255,.1);
+  display:flex; align-items:center; justify-content:center; cursor:pointer;
+  color: rgba(255,255,255,.75); transition: background .15s ease, color .15s ease;
 }
-.sidebar.collapsed:not(.peek) .side-footer .side-link { width:auto; padding:6px; border-radius:8px; flex-shrink:0; }
-.sidebar.collapsed:not(.peek) .side-footer .side-status { display:none; }
-.side-status { font-size:10.5px; line-height:1.4; padding:6px 11px 0; color:rgba(255,255,255,.55); }
-.sidebar.collapsed .side-status { display:none; }
-.sidebar.collapsed.peek .side-status { display:block; }
+.side-footer-toggle svg { width:18px; height:18px; }
+.side-footer-toggle:hover, .side-footer-toggle.active { background: rgba(255,255,255,.13); color:#fff; }
+
+/* Popover com as ações do rodapé (Atualização Geral / Backup Geral) — fica
+   oculto por padrão e abre ancorado no botão de "mais opções", em vez de
+   ficar com os ícones soltos e empilhados o tempo todo no rodapé. */
+.side-footer-menu {
+  position: fixed; left:14px; bottom:70px; width:220px; z-index:340;
+  background: linear-gradient(160deg, #10233F 0%, #17293F 100%);
+  border:1px solid rgba(255,255,255,.1); border-radius:14px;
+  box-shadow: var(--sh-lg);
+  padding:8px;
+  opacity:0; visibility:hidden; transform: translateY(8px);
+  transition: opacity .18s ease, transform .18s ease, visibility .18s ease;
+}
+.side-footer-menu.open { opacity:1; visibility:visible; transform: translateY(0); }
+.side-footer-menu .side-link { width:100%; background:none; border:none; cursor:pointer; justify-content:flex-start; }
+.side-footer-menu .side-link span { display:inline-block; }
+.side-status { font-size:10.5px; line-height:1.4; padding:2px 11px 8px; color:rgba(255,255,255,.55); }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ── Overlay central de "Atualização Geral" ──
@@ -472,17 +485,22 @@ body {
   </nav>
 
   <div class="side-footer">
-    <button class="side-link" id="btn-gerar-resumo" type="button" onclick="gerarResumoMensal()" title="Atualização Geral">
-      <svg id="icon-gerar-resumo" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-      <span>Atualização Geral</span>
+    <button class="side-footer-toggle" id="side-footer-toggle" type="button" aria-label="Mais opções" title="Mais opções" aria-expanded="false">
+      <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
     </button>
-    <div class="side-status" id="status-gerar-resumo"></div>
+    <div class="side-footer-menu" id="side-footer-menu">
+      <button class="side-link" id="btn-gerar-resumo" type="button" onclick="gerarResumoMensal()" title="Atualização Geral">
+        <svg id="icon-gerar-resumo" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        <span>Atualização Geral</span>
+      </button>
+      <div class="side-status" id="status-gerar-resumo"></div>
 
-    <button class="side-link" id="btn-backup-geral" type="button" onclick="backupGeral()" title="Backup Geral">
-      <svg id="icon-backup-geral" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
-      <span>Backup Geral</span>
-    </button>
-    <div class="side-status" id="status-backup-geral"></div>
+      <button class="side-link" id="btn-backup-geral" type="button" onclick="backupGeral()" title="Backup Geral">
+        <svg id="icon-backup-geral" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+        <span>Backup Geral</span>
+      </button>
+      <div class="side-status" id="status-backup-geral"></div>
+    </div>
   </div>
 </aside>
 
@@ -1977,6 +1995,41 @@ function collapseSidebar(){
       }
     });
   }
+})();
+
+// ── Rodapé do menu: botão "mais opções" abre/fecha o menu com
+// Atualização Geral / Backup Geral (em vez de deixar os ícones soltos e
+// empilhados o tempo todo) ──
+(function(){
+  const footerToggle = document.getElementById('side-footer-toggle');
+  const footerMenu = document.getElementById('side-footer-menu');
+  if(!footerToggle || !footerMenu) return;
+
+  function closeFooterMenu(){
+    footerMenu.classList.remove('open');
+    footerToggle.classList.remove('active');
+    footerToggle.setAttribute('aria-expanded', 'false');
+  }
+  function openFooterMenu(){
+    footerMenu.classList.add('open');
+    footerToggle.classList.add('active');
+    footerToggle.setAttribute('aria-expanded', 'true');
+  }
+
+  footerToggle.addEventListener('click', (ev)=>{
+    ev.stopPropagation();
+    if(footerMenu.classList.contains('open')) closeFooterMenu(); else openFooterMenu();
+  });
+
+  document.addEventListener('click', (ev)=>{
+    if(!footerMenu.classList.contains('open')) return;
+    if(footerMenu.contains(ev.target) || footerToggle.contains(ev.target)) return;
+    closeFooterMenu();
+  });
+
+  document.addEventListener('keydown', (ev)=>{
+    if(ev.key === 'Escape') closeFooterMenu();
+  });
 })();
 </script>
 </body>
