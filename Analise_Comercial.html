@@ -1478,6 +1478,12 @@ function parseAnoRec(v){
 // quebrasMap[loja][ano_string][mes_string] = valor acumulado
 let quebrasMap = {};
 
+// Últimos totais calculados em renderKPIs (faturamento e quebras do
+// período/filtro atual), usados só pra exibir o % de Quebras sobre o
+// faturamento no card do KPI e no updateQuebrasStatusUI().
+let lastFatTotal = 0;
+let lastQuebrasTotal = 0;
+
 // Diagnóstico legível do último carregamento de Quebras — usado pra
 // mostrar na própria tela (não só no console) por que o valor pode estar
 // vindo zerado/vazio: falha de rede por loja, coluna não encontrada, ou
@@ -1577,7 +1583,8 @@ function updateQuebrasStatusUI() {
   const s = quebrasStatus;
   const semNenhumDado = Object.keys(quebrasMap).length === 0;
   if (!semNenhumDado) {
-    footEl.textContent = 'Total de perdas no período';
+    const pct = lastFatTotal > 0 ? fPct(lastQuebrasTotal / lastFatTotal * 100) : '—';
+    footEl.textContent = 'Total de perdas no período · ' + pct + ' do faturamento';
     footEl.style.color = '';
     subEl.textContent = 'Total de perdas por mês e ano · AH% e AV%';
     return;
@@ -1974,6 +1981,13 @@ function renderKPIs(data) {
   $('kv-cupons').textContent = fN(cupons);
   $('kv-ticket').textContent = fBRL2(ticket);
   $('kv-quebras').textContent= fBRL(quebras);
+
+  // Guarda os totais pra updateQuebrasStatusUI() poder mostrar o % de
+  // Quebras sobre o faturamento no rodapé do card (fora daqui o card
+  // só mostraria o valor absoluto, sem noção de proporção).
+  lastFatTotal = fat;
+  lastQuebrasTotal = quebras;
+  updateQuebrasStatusUI();
 
   // badge
   const f=getF(); let parts=[];
@@ -2589,10 +2603,14 @@ function openAnaliseComercial(){
   comercialItem.classList.add('open');
   lastOpenMenu = 'comercial';
 
-  if(!dashboardStarted){
-    dashboardStarted = true;
-    loadData();
-  }
+  // Sempre busca/atualiza os dados ao abrir este dashboard — seja na
+  // primeira carga da página, seja ao clicar no link "Análise Comercial"
+  // vindo de outra tela (Financeiro, Metas, etc.) ou clicando nele de novo
+  // já estando aqui. loadData() sem forceRefresh usa o cache local pra
+  // exibir na hora e só busca de novo se os dados estiverem desatualizados,
+  // então chamar sempre é seguro e mantém a tela com as informações atuais.
+  dashboardStarted = true;
+  loadData();
   document.body.classList.remove('side-open'); // fecha menu mobile após navegar
   if(window.innerWidth > 900) collapseSidebar(); // recolhe automaticamente (desktop)
 }
