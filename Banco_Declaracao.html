@@ -1262,6 +1262,12 @@ async function fetchData(forceRefresh, silent){
       state.rows = cached.data;
       populateFilters(true);
       render();
+      // Precisa fechar o loader de tela cheia e mostrar o dashboard aqui —
+      // esse retorno antecipado (dados do cache) não passava mais pelo
+      // setLoading(false) lá embaixo, então a tela ficava travada para
+      // sempre em "Conectando…" a partir do segundo carregamento (quando
+      // já existia cache local).
+      setLoading(false);
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $("lastSync").textContent = "Última atualização: " + cached.ts + (stale ? " (Atualização Disponível — atualizando…)" : "");
       if (stale) fetchData(true, true); // em segundo plano
