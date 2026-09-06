@@ -1618,10 +1618,18 @@ function resumoRenderFiltrados() {
     if (listPerfEl) listPerfEl.innerHTML = '';
   } else if (emptyEl && listPerfEl) {
     emptyEl.style.display = 'none';
+    const RESUMO_PERF_ORDEM = ['anisio', 'bady', 'damha', 'belvedere', 'muffato', 'havan'];
     const dados = lojasPerf.map(l => {
       const entradas = entradasPorLoja[l] || 0, saidas = saidasPorLoja[l] || 0;
       return { loja: l, entradas, saidas, saldo: entradas - saidas };
-    }).sort((a, b) => b.entradas - a.entradas);
+    }).sort((a, b) => {
+      const ia = RESUMO_PERF_ORDEM.indexOf(resumoNorm(a.loja));
+      const ib = RESUMO_PERF_ORDEM.indexOf(resumoNorm(b.loja));
+      if (ia === -1 && ib === -1) return b.entradas - a.entradas;
+      if (ia === -1) return 1;
+      if (ib === -1) return -1;
+      return ia - ib;
+    });
     const maxVal = Math.max(1, ...dados.map(d => Math.max(d.entradas, d.saidas)));
     listPerfEl.innerHTML = dados.map((d, i) => `
       <div class="perf-loja-card">
