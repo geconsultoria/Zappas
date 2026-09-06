@@ -87,10 +87,10 @@ body {
 .side-footer .side-link span { display:none; }
 /* Rail recolhida (padrão): ícones do rodapé lado a lado, sem rótulo/status */
 .sidebar.collapsed:not(.peek) .side-footer {
-  display:flex; flex-direction:row; flex-wrap:wrap; align-items:center; justify-content:center;
-  gap:6px; padding:12px 6px 14px;
+  display:flex; flex-direction:row; flex-wrap:nowrap; align-items:center; justify-content:center;
+  gap:4px; padding:12px 4px 14px;
 }
-.sidebar.collapsed:not(.peek) .side-footer .side-link { width:auto; padding:9px; border-radius:8px; }
+.sidebar.collapsed:not(.peek) .side-footer .side-link { width:auto; padding:6px; border-radius:8px; flex-shrink:0; }
 .sidebar.collapsed:not(.peek) .side-footer .side-status { display:none; }
 .side-status { font-size:10.5px; line-height:1.4; padding:6px 11px 0; color:rgba(255,255,255,.55); }
 .sidebar.collapsed .side-status { display:none; }
