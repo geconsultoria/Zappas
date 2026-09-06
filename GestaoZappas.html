@@ -1307,12 +1307,17 @@ async function carregarResumoGeral() {
       const cAno = resumoFindCol(headers, ['ano', 'year']);
       const cMes = resumoFindCol(headers, ['mes', 'meses', 'month']);
       const cMeta = resumoFindCol(headers, ['meta', 'meta_mensal', 'valor_meta', 'target']);
+      // Se a planilha de metas tiver uma coluna de loja (metas cadastradas por loja), guarda
+      // qual loja é cada linha — assim, ao filtrar por uma loja específica em Indicadores Gerais,
+      // o card "Meta x Realizado" mostra a meta daquela loja, não a soma de todas.
+      const cLoja = resumoFindCol(headers, ['loja', 'filial', 'unidade', 'loja_key']);
       if (cMeta) rows.forEach(r => {
         const ano = cAno ? resumoParseAno(r[cAno]) : null;
         const mes = cMes ? resumoParseMes(r[cMes]) : null;
         const valor = resumoParseNum(r[cMeta]);
+        const loja = cLoja ? String(r[cLoja] || '').trim().toUpperCase() : null;
         if (ano != null && mes != null) {
-          metaRows.push({ ano, mes, valor });
+          metaRows.push({ ano, mes, valor, loja });
           anosDisponiveis.add(ano);
         }
       });
@@ -1502,9 +1507,11 @@ function resumoRenderFiltrados() {
   const loja = selLoja && selLoja.value ? selLoja.value : null;
 
   const bate = r => (!ano || r.ano === ano) && (!mes || r.mes === mes) && (!loja || r.loja === loja);
-  // metaRows não tem a dimensão "loja" (é sempre uma meta consolidada de todas as lojas juntas),
-  // então o filtro de meta ignora o seletor de loja em vez de zerar o valor quando uma loja é escolhida.
-  const bateMeta = r => (!ano || r.ano === ano) && (!mes || r.mes === mes);
+  // Nem toda fonte de metas tem a dimensão "loja" — quando não tem (ou é um cache antigo salvo
+  // antes dessa coluna existir), a meta é sempre a consolidada de todas as lojas juntas, e o
+  // filtro de meta ignora o seletor de loja em vez de zerar o valor quando uma loja é escolhida.
+  const metaTemLoja = (metaRows || []).some(r => r.loja);
+  const bateMeta = metaTemLoja ? bate : (r => (!ano || r.ano === ano) && (!mes || r.mes === mes));
 
   const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
   const setSub = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
@@ -1540,7 +1547,7 @@ function resumoRenderFiltrados() {
   const pctMeta = totalMetaF > 0 ? (totalFatF / totalMetaF) * 100 : null;
   setVal('kpi-meta-pct', pctMeta != null ? resumoFmtPct(pctMeta) : '—');
   setSub('kpi-meta-foot', totalMetaF > 0
-    ? resumoFmtBRL(totalFatF) + ' de ' + resumoFmtBRL(totalMetaF) + (loja ? ' · meta de todas as lojas' : '')
+    ? resumoFmtBRL(totalFatF) + ' de ' + resumoFmtBRL(totalMetaF) + (loja && !metaTemLoja ? ' · meta de todas as lojas' : '')
     : 'sem meta cadastrada');
 
   // ── Indicadores Principais (DFC) — mesma fórmula do DRE_Gerencial.html ──
