@@ -441,6 +441,8 @@ a.side-brand:hover { opacity:.85; }
 .kpi-val.xs { font-size: 26px; }
 .kpi-foot { font-size: 10.5px; color: var(--ink-4); margin-top: auto; padding-top: 8px; text-align: right; }
 .kpi-foot b { color: var(--ink-3); font-weight: 600; }
+.kpi-quebras-pct { font-size: 15px; font-weight: 800; color: var(--rust-mid); line-height: 1.25; }
+.kpi-quebras-pct:empty { display: none; }
 
 /* ╔═══════════════════════════════════════╗
    ║  CHART CARDS                         ║
@@ -988,7 +990,10 @@ a.side-brand:hover { opacity:.85; }
           <div class="kpi-lbl">Quebras</div>
         </div>
         <div class="kpi-val" id="kv-quebras">—</div>
-        <div class="kpi-foot" id="kv-quebras-foot">Total de perdas no período</div>
+        <div class="kpi-foot" id="kv-quebras-foot">
+          <div class="kpi-quebras-pct" id="kv-quebras-pct"></div>
+          <div id="kv-quebras-desc">Total de perdas no período</div>
+        </div>
       </div>
     </div>
   </div>
@@ -1578,14 +1583,21 @@ async function loadQuebrasMap() {
 // vazio/zerado, usando o diagnóstico coletado em loadQuebrasMap().
 function updateQuebrasStatusUI() {
   const footEl = $('kv-quebras-foot');
+  const pctEl  = $('kv-quebras-pct');
+  const descEl = $('kv-quebras-desc');
   const subEl  = $('cc-quebras-sub');
-  if (!footEl || !subEl) return;
+  if (!footEl || !pctEl || !descEl || !subEl) return;
   const s = quebrasStatus;
   const semNenhumDado = Object.keys(quebrasMap).length === 0;
   if (!semNenhumDado) {
-    const pct = lastFatTotal > 0 ? fPct(lastQuebrasTotal / lastFatTotal * 100) : '—';
-    footEl.textContent = 'Total de perdas no período · ' + pct + ' do faturamento';
+    // % com vírgula e 2 casas (padrão BR), em destaque acima do texto.
+    const pct = lastFatTotal > 0
+      ? (lastQuebrasTotal / lastFatTotal * 100).toFixed(2).replace('.', ',') + '%'
+      : '—';
+    pctEl.textContent = pct + ' do faturamento';
+    descEl.textContent = 'Total de perdas no período';
     footEl.style.color = '';
+    pctEl.style.color = '';
     subEl.textContent = 'Total de perdas por mês e ano · AH% e AV%';
     return;
   }
@@ -1599,7 +1611,8 @@ function updateQuebrasStatusUI() {
   } else {
     motivo = 'nenhum dado retornado — veja o console (F12) para detalhes, prefixo [Quebras]';
   }
-  footEl.textContent = '⚠ Quebras indisponível: ' + motivo;
+  pctEl.textContent = '';
+  descEl.textContent = '⚠ Quebras indisponível: ' + motivo;
   footEl.style.color = 'var(--rust-mid)';
   subEl.textContent = '⚠ Sem dados: ' + motivo;
 }
