@@ -239,7 +239,7 @@ a{ color:inherit; }
 /* =====================================================================
    KPI GRID
 ===================================================================== */
-.kpi-grid{ display:grid; grid-template-columns:repeat(4,1fr); gap:16px; margin-top:22px; }
+.kpi-grid{ display:grid; grid-template-columns:repeat(2,minmax(0,320px)); gap:16px; margin-top:22px; }
 .kpi-card{
   background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
   padding:20px 20px 18px; box-shadow:var(--shadow-card); display:flex; flex-direction:column; gap:6px;
@@ -1079,21 +1079,16 @@ function renderKPIs(k){
     : '<span class="kpi-sub ' + (k.variacao >= 0 ? "pos" : "neg") + '">' +
         (k.variacao >= 0 ? "▲ " : "▼ ") + Math.abs(k.variacao).toFixed(1) + "% vs mês anterior</span>";
 
+  // "Média semanal" e "Loja em destaque" foram removidos a pedido — esta
+  // tela é só para gerar o PDF de declaração de faturamento pro banco, e
+  // o detalhamento por semana/loja já existe no menu Comercial.
   return (
     '<div class="kpi-card"><span class="kpi-eyebrow">Faturamento do mês</span>' +
     '<span class="kpi-value">' + fmtMoneyFull(k.mesTotal) + '</span>' + varBlock + '</div>' +
 
     '<div class="kpi-card"><span class="kpi-eyebrow">Faturamento do ano</span>' +
     '<span class="kpi-value">' + fmtMoneyFull(k.anoTotal) + '</span>' +
-    '<span class="kpi-sub">Acumulado em ' + k.mesesComDados + (k.mesesComDados === 1 ? " mês" : " meses") + '</span></div>' +
-
-    '<div class="kpi-card"><span class="kpi-eyebrow">Média semanal</span>' +
-    '<span class="kpi-value">' + fmtMoneyFull(k.mediaSemanal) + '</span>' +
-    '<span class="kpi-sub">' + k.numSemanas + (k.numSemanas === 1 ? " semana lançada" : " semanas lançadas") + '</span></div>' +
-
-    '<div class="kpi-card"><span class="kpi-eyebrow">Loja em destaque</span>' +
-    '<span class="kpi-value kpi-value-sm">' + escapeHtml(k.topLoja.label) + '</span>' +
-    '<span class="kpi-sub">' + fmtMoneyFull(k.topLoja.value) + ' no período</span></div>'
+    '<span class="kpi-sub">Acumulado em ' + k.mesesComDados + (k.mesesComDados === 1 ? " mês" : " meses") + '</span></div>'
   );
 }
 
@@ -1126,29 +1121,20 @@ function render(){
   const anoTotal = yearRows.reduce(function(s,r){ return s + r.total; }, 0);
   const mesesComDados = new Set(yearRows.map(function(r){ return r.mesIndex; })).size;
 
-  const weekMap = new Map();
-  monthRows.forEach(function(r){
-    const k = String(r.semana || "-");
-    if (!weekMap.has(k)) weekMap.set(k, { semana:r.semana, semana2:r.semana2, total:0 });
-    weekMap.get(k).total += r.total;
-  });
-  const weekRows = Array.from(weekMap.values()).sort(function(a,b){ return (parseInt(a.semana)||0) - (parseInt(b.semana)||0); });
-  const numSemanas = weekRows.length;
-  const mediaSemanal = numSemanas ? mesTotal / numSemanas : 0;
-
+  // "Ranking de lojas" (painel abaixo do gráfico) continua precisando do
+  // total por loja no mês — só o KPI "Loja em destaque" foi removido.
   const lojaMap = new Map();
   state.rows.filter(function(r){ return r.ano === f.ano && r.mesIndex === f.mes && matchFilter(r, f.canal); }).forEach(function(r){
     if (!lojaMap.has(r.lojaKey)) lojaMap.set(r.lojaKey, { key:r.lojaKey, label:storeLabel(r.lojaKey), value:0 });
     lojaMap.get(r.lojaKey).value += r.total;
   });
   const ranking = Array.from(lojaMap.values()).sort(function(a,b){ return b.value - a.value; });
-  const topLoja = ranking.length ? ranking[0] : { label:"—", value:0 };
 
   const monthAgg = new Array(12).fill(0);
   yearRows.forEach(function(r){ if (r.mesIndex != null) monthAgg[r.mesIndex] += r.total; });
   const monthItems = monthAgg.map(function(v, i){ return { label:MESES_ABBR[i], value:v }; });
 
-  $("kpiGrid").innerHTML = renderKPIs({ mesTotal:mesTotal, variacao:variacao, anoTotal:anoTotal, mesesComDados:mesesComDados, mediaSemanal:mediaSemanal, numSemanas:numSemanas, topLoja:topLoja });
+  $("kpiGrid").innerHTML = renderKPIs({ mesTotal:mesTotal, variacao:variacao, anoTotal:anoTotal, mesesComDados:mesesComDados });
 
   $("monthlyChart").innerHTML = svgBars(monthItems, { highlightIndex:f.mes });
 
@@ -1242,6 +1228,17 @@ function updateMesOptions(reset){
 /* ---------------------------------------------------------------------
    CARREGAMENTO DE DADOS
 --------------------------------------------------------------------- */
+// Atualiza o texto do loader de tela cheia (1º carregamento) com o
+// progresso real da busca — antes ficava travado em "Conectando…" a
+// busca inteira, o que fazia a espera (já naturalmente mais longa aqui,
+// porque esta tela lê o CSV bruto venda a venda, não o resumo já
+// agregado usado nas outras páginas) parecer ainda mais demorada, sem
+// nenhum sinal de que algo estava de fato acontecendo.
+function setLdTxt(msg){
+  var el = $("ld-txt");
+  if (el) el.textContent = msg;
+}
+
 function showUpdateOverlay(){
   const ov = $('update-overlay'), icon = $('update-card-icon'), sub = $('update-card-sub');
   if(!ov) return;
@@ -1308,10 +1305,13 @@ async function fetchData(forceRefresh, silent){
     // IMPORTANTE: esta tela ainda lê o CSV bruto (venda a venda) de cada
     // loja — as outras telas do painel (Faturamento x Lucro, Elaboração
     // de Metas etc.) migraram para um endpoint "?loja=resumo" já
-    // agregado por mês, bem mais rápido, mas esse resumo não traz
-    // SEMANA/SEMANA2 (usados aqui em "Média semanal"), então não dá pra
-    // trocar sem perder esse KPI. Por isso o carregamento aqui é mesmo
-    // mais pesado que nas outras telas.
+    // agregado por mês, bem mais rápido. Os KPIs "Média semanal" e "Loja
+    // em destaque" que dependiam de dado bruto (SEMANA/SEMANA2 e total
+    // por loja) já foram removidos daqui, então em princípio dá pra
+    // migrar esta tela pro mesmo endpoint agregado também — só não foi
+    // feito ainda porque não temos confirmado aqui o formato exato desse
+    // endpoint (nomes de coluna, parâmetro certo). Assim que isso for
+    // confirmado, dá pra trocar e cortar bastante o tempo de carregamento.
     //
     // O timeout antigo (20s) valia para TODAS as 6 lojas juntas — em vez
     // de por requisição — e abortava o carregamento inteiro (e mostrava
@@ -1333,6 +1333,7 @@ async function fetchData(forceRefresh, silent){
     var BATCH = 3;
     for (var i = 0; i < CSV_URLS.length; i += BATCH) {
       var grupo = CSV_URLS.slice(i, i + BATCH);
+      setLdTxt('Carregando lojas ' + (i+1) + '–' + Math.min(i+BATCH, CSV_URLS.length) + ' de ' + CSV_URLS.length + '…');
       await Promise.all(grupo.map(async function(url, j){
         var idx = i + j;
         var nomeLoja = STORE_LABELS[idx] || ("loja " + (idx+1));
@@ -1361,6 +1362,7 @@ async function fetchData(forceRefresh, silent){
       throw new Error("Tempo limite excedido (3min). Verifique sua conexão e tente novamente.");
     }
 
+    setLdTxt('Processando dados…');
     console.log('[Banco_Declaracao] Linhas brutas lidas:', raw.length);
     if (raw.length) console.log('[Banco_Declaracao] Colunas encontradas:', Object.keys(raw[0]));
     const rows = cleanRows(raw);

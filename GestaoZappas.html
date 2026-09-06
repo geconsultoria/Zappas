@@ -1812,6 +1812,15 @@ AuthGuard.requireScreen('home', function(){
   });
 });
 
+// Faltava esta declaração — sem ela, a primeira leitura de lastOpenMenu
+// (dentro de expandSidebar()/mouseenter, antes de collapseSidebar() ter
+// rodado alguma vez) lançava "lastOpenMenu is not defined" e interrompia
+// o clique no meio, sem chegar a abrir o submenu. Por isso o menu só
+// abria no SEGUNDO clique (o primeiro clique só expandia a barra lateral
+// e travava no erro; o segundo clique já não passava mais por esse
+// trecho, então funcionava normalmente).
+let lastOpenMenu = null;
+
 function expandSidebar(){
   const sidebar = document.getElementById('sidebar');
   if(!sidebar.classList.contains('collapsed')) return;
