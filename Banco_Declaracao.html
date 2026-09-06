@@ -648,8 +648,6 @@ a.side-brand:hover { opacity:.85; }
 
     <div id="dashboardContent" style="display:none;">
 
-      <section class="kpi-grid" id="kpiGrid"></section>
-
       <section class="charts-row">
         <div class="panel">
           <div class="panel-header">
@@ -697,11 +695,18 @@ window.addEventListener('pageshow', function(e){
 // Apps Script publicado como Web App: lê o arquivo certo no Drive
 // e devolve o CSV, evitando bloqueio de "consultas automatizadas" do Google.
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
-// Cada CSV já traz sua própria coluna LOJA preenchida corretamente,
-// então basta buscar todos e juntar as linhas num único conjunto.
 const STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
-const STORE_LABELS = ["Anísio", "Bady", "Belvedere", "Damha"];
-const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+// Migrado do CSV bruto (venda a venda, 6 arquivos) para o mesmo resumo
+// mensal já agregado (loja x ano x mes x canal) que Faturamento x Lucro
+// usa — 1 requisição pequena em vez de 6 pesadas. Só foi possível depois
+// de remover os KPIs "Média Semanal" e "Loja em Destaque" (que dependiam
+// da coluna SEMANA, que não existe no resumo).
+// Atenção: o resumo NÃO tem a coluna VS, então a regra "Distribuição só
+// entra se VS=false" não é aplicada aqui — mas essa tela já filtra por
+// padrão só os canais Loja/Delivery (ver state.filters mais abaixo), e
+// Distribuição não entra neste relatório, então isso não afeta o valor
+// enviado ao banco.
+const RESUMO_URL = `${APPS_SCRIPT_URL}?loja=resumo`;
 /* ===================================================================== */
 
 /* ---------------------------------------------------------------------
@@ -1071,28 +1076,6 @@ function renderRanking(items, selectedLoja){
 }
 
 /* ---------------------------------------------------------------------
-   KPIs
---------------------------------------------------------------------- */
-function renderKPIs(k){
-  const varBlock = k.variacao === null
-    ? '<span class="kpi-sub">Sem mês anterior para comparar</span>'
-    : '<span class="kpi-sub ' + (k.variacao >= 0 ? "pos" : "neg") + '">' +
-        (k.variacao >= 0 ? "▲ " : "▼ ") + Math.abs(k.variacao).toFixed(1) + "% vs mês anterior</span>";
-
-  // "Média semanal" e "Loja em destaque" foram removidos a pedido — esta
-  // tela é só para gerar o PDF de declaração de faturamento pro banco, e
-  // o detalhamento por semana/loja já existe no menu Comercial.
-  return (
-    '<div class="kpi-card"><span class="kpi-eyebrow">Faturamento do mês</span>' +
-    '<span class="kpi-value">' + fmtMoneyFull(k.mesTotal) + '</span>' + varBlock + '</div>' +
-
-    '<div class="kpi-card"><span class="kpi-eyebrow">Faturamento do ano</span>' +
-    '<span class="kpi-value">' + fmtMoneyFull(k.anoTotal) + '</span>' +
-    '<span class="kpi-sub">Acumulado em ' + k.mesesComDados + (k.mesesComDados === 1 ? " mês" : " meses") + '</span></div>'
-  );
-}
-
-/* ---------------------------------------------------------------------
    RENDERIZAÇÃO PRINCIPAL
 --------------------------------------------------------------------- */
 function matchFilter(row, val){
@@ -1107,34 +1090,28 @@ function render(){
 
   const inScope = function(r, val){ return r.ano === f.ano && r.mesIndex === f.mes && matchFilter(r, val); };
 
+  // Os 4 KPIs (Faturamento do mês/ano, Média Semanal, Loja em Destaque)
+  // foram todos removidos a pedido — esta tela é só para gerar o PDF de
+  // declaração de faturamento pro banco, e esse detalhamento já existe
+  // no menu Comercial. monthRows continua sendo usado só pra saber se
+  // há dado no período (habilita/desabilita o botão de imprimir).
   const monthRows = state.rows.filter(function(r){ return inScope(r, f.canal); });
-  const mesTotal = monthRows.reduce(function(s,r){ return s + r.total; }, 0);
-
-  let prevMes = f.mes - 1, prevAno = f.ano;
-  if (prevMes < 0) { prevMes = 11; prevAno = f.ano - 1; }
-  const prevTotal = state.rows
-    .filter(function(r){ return r.ano === prevAno && r.mesIndex === prevMes && matchFilter(r, f.canal); })
-    .reduce(function(s,r){ return s + r.total; }, 0);
-  const variacao = prevTotal > 0 ? ((mesTotal - prevTotal) / prevTotal * 100) : null;
-
-  const yearRows = state.rows.filter(function(r){ return r.ano === f.ano && matchFilter(r, f.canal); });
-  const anoTotal = yearRows.reduce(function(s,r){ return s + r.total; }, 0);
-  const mesesComDados = new Set(yearRows.map(function(r){ return r.mesIndex; })).size;
 
   // "Ranking de lojas" (painel abaixo do gráfico) continua precisando do
-  // total por loja no mês — só o KPI "Loja em destaque" foi removido.
+  // total por loja no mês.
   const lojaMap = new Map();
-  state.rows.filter(function(r){ return r.ano === f.ano && r.mesIndex === f.mes && matchFilter(r, f.canal); }).forEach(function(r){
+  monthRows.forEach(function(r){
     if (!lojaMap.has(r.lojaKey)) lojaMap.set(r.lojaKey, { key:r.lojaKey, label:storeLabel(r.lojaKey), value:0 });
     lojaMap.get(r.lojaKey).value += r.total;
   });
   const ranking = Array.from(lojaMap.values()).sort(function(a,b){ return b.value - a.value; });
 
+  // "Comparativo mensal" (gráfico) continua precisando do total do ano
+  // inteiro, mês a mês.
+  const yearRows = state.rows.filter(function(r){ return r.ano === f.ano && matchFilter(r, f.canal); });
   const monthAgg = new Array(12).fill(0);
   yearRows.forEach(function(r){ if (r.mesIndex != null) monthAgg[r.mesIndex] += r.total; });
   const monthItems = monthAgg.map(function(v, i){ return { label:MESES_ABBR[i], value:v }; });
-
-  $("kpiGrid").innerHTML = renderKPIs({ mesTotal:mesTotal, variacao:variacao, anoTotal:anoTotal, mesesComDados:mesesComDados });
 
   $("monthlyChart").innerHTML = svgBars(monthItems, { highlightIndex:f.mes });
 
@@ -1295,71 +1272,33 @@ async function fetchData(forceRefresh, silent){
   setLoading(true);
   hideError();
 
-  if (!CSV_URLS || !CSV_URLS.length) {
+  if (!RESUMO_URL) {
     setLoading(false);
-    showError('Configure a constante CSV_FILE_IDS no código com os IDs dos arquivos do Google Drive.');
+    showError('Configure a constante APPS_SCRIPT_URL no código.');
     return;
   }
 
   try {
-    // IMPORTANTE: esta tela ainda lê o CSV bruto (venda a venda) de cada
-    // loja — as outras telas do painel (Faturamento x Lucro, Elaboração
-    // de Metas etc.) migraram para um endpoint "?loja=resumo" já
-    // agregado por mês, bem mais rápido. Os KPIs "Média semanal" e "Loja
-    // em destaque" que dependiam de dado bruto (SEMANA/SEMANA2 e total
-    // por loja) já foram removidos daqui, então em princípio dá pra
-    // migrar esta tela pro mesmo endpoint agregado também — só não foi
-    // feito ainda porque não temos confirmado aqui o formato exato desse
-    // endpoint (nomes de coluna, parâmetro certo). Assim que isso for
-    // confirmado, dá pra trocar e cortar bastante o tempo de carregamento.
-    //
-    // O timeout antigo (20s) valia para TODAS as 6 lojas juntas — em vez
-    // de por requisição — e abortava o carregamento inteiro (e mostrava
-    // erro) sempre que a soma das 6 respostas passava de 20s, o que em
-    // planilhas com mais histórico é fácil de acontecer. Cada loja agora
-    // tem seu próprio timeout de 30s, e o processo todo só é abortado se
-    // passar de 3 minutos — o carregamento fica mais lento sempre que a
-    // planilha realmente demora, mas não é mais interrompido cedo demais
-    // com uma tela de erro.
-    const overallController = new AbortController();
-    const overallTimeoutId = setTimeout(function(){ overallController.abort(); }, 180000);
-
+    // Agora lê o resumo mensal já agregado (1 arquivo pequeno, loja x ano
+    // x mes x canal) em vez dos 6 CSVs brutos venda a venda — mesma fonte
+    // que Faturamento x Lucro já usa. Isso só foi possível depois de
+    // remover os KPIs "Média Semanal" e "Loja em Destaque" (que
+    // precisavam da coluna SEMANA, que não existe no resumo).
+    setLdTxt('Buscando resumo mensal…');
+    const controller = new AbortController();
+    const timeoutId = setTimeout(function(){ controller.abort(); }, 30000);
     let raw = [];
-    const lojasComFalha = [];
-    // Busca 3 lojas por vez (em vez de 2) — reduz de 3 para 2 rodadas
-    // sequenciais, ainda sem disparar as 6 de uma vez no Apps Script.
-    // Uma loja com problema não derruba a página inteira: as demais
-    // continuam sendo mostradas normalmente.
-    var BATCH = 3;
-    for (var i = 0; i < CSV_URLS.length; i += BATCH) {
-      var grupo = CSV_URLS.slice(i, i + BATCH);
-      setLdTxt('Carregando lojas ' + (i+1) + '–' + Math.min(i+BATCH, CSV_URLS.length) + ' de ' + CSV_URLS.length + '…');
-      await Promise.all(grupo.map(async function(url, j){
-        var idx = i + j;
-        var nomeLoja = STORE_LABELS[idx] || ("loja " + (idx+1));
-        var perStoreController = new AbortController();
-        var onOverallAbort = function(){ perStoreController.abort(); };
-        overallController.signal.addEventListener('abort', onOverallAbort);
-        var perStoreTimeoutId = setTimeout(function(){ perStoreController.abort(); }, 30000);
-        try {
-          var res = await fetch(url, { cache:"no-store", signal:perStoreController.signal });
-          if (!res.ok) throw new Error("HTTP " + res.status);
-          var text = await res.text();
-          if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
-          raw = raw.concat(parseCSV(text));
-        } catch (errLoja) {
-          var motivo = errLoja && errLoja.name === "AbortError" ? "tempo limite excedido" : errLoja.message;
-          console.warn("Loja indisponível (" + nomeLoja + "):", motivo);
-          lojasComFalha.push(nomeLoja);
-        } finally {
-          clearTimeout(perStoreTimeoutId);
-          overallController.signal.removeEventListener('abort', onOverallAbort);
-        }
-      }));
-    }
-    clearTimeout(overallTimeoutId);
-    if (overallController.signal.aborted && !raw.length) {
-      throw new Error("Tempo limite excedido (3min). Verifique sua conexão e tente novamente.");
+    try {
+      var res = await fetch(RESUMO_URL, { cache:"no-store", signal:controller.signal });
+      if (!res.ok) throw new Error("HTTP " + res.status);
+      var text = await res.text();
+      if (text.charCodeAt(0) === 0xFEFF) text = text.slice(1);
+      raw = parseCSV(text);
+    } catch (errResumo) {
+      var motivo = errResumo && errResumo.name === "AbortError" ? "tempo limite excedido (30s)" : errResumo.message;
+      throw new Error("Falha ao buscar o resumo mensal: " + motivo);
+    } finally {
+      clearTimeout(timeoutId);
     }
 
     setLdTxt('Processando dados…');
@@ -1373,8 +1312,7 @@ async function fetchData(forceRefresh, silent){
     populateFilters(true);
     render();
     const tsDate = new Date();
-    const ts = tsDate.toLocaleDateString("pt-BR") + " " + tsDate.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"}) +
-      (lojasComFalha.length ? " ⚠️ Sem dados de: " + lojasComFalha.join(", ") : "");
+    const ts = tsDate.toLocaleDateString("pt-BR") + " " + tsDate.toLocaleTimeString("pt-BR", {hour:"2-digit", minute:"2-digit"});
     $("lastSync").textContent = "Última atualização: " + ts;
     saveCache(rows, ts, tsDate.getTime());
     if ($("dashboardContent").style.display === "block") hideUpdateOverlay(false, '✓ Dados atualizados.');
