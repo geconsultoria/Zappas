@@ -256,6 +256,18 @@ body {
 .kpi-list-item span:last-child { color: var(--ink-3); white-space:nowrap; }
 .resumo-note { font-size:10.5px; color: var(--ink-4); margin-top:2px; }
 
+/* Badge "Atualizando dados…" — indicador único e sempre visível enquanto
+   o Resumo Geral está buscando/recalculando, pra nunca dar a impressão
+   de que a tela ficou parada sem atualizar. */
+.resumo-loading-badge {
+  align-items:center; gap:6px;
+  font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase;
+  color: var(--gold); background: rgba(200,150,26,.12);
+  border:1px solid rgba(200,150,26,.3); border-radius:20px;
+  padding:4px 10px; white-space:nowrap;
+}
+.resumo-loading-badge svg { width:12px; height:12px; flex-shrink:0; animation: spin .8s linear infinite; }
+
 .kpi-grid-4 { grid-template-columns: repeat(4,1fr); }
 @media (max-width: 900px){ .kpi-grid-4{ grid-template-columns:1fr 1fr; } }
 @media (max-width: 620px){ .kpi-grid-4{ grid-template-columns:1fr; } }
@@ -498,7 +510,13 @@ body {
   <div class="home-inner">
     <div class="resumo-head">
       <div class="resumo-title">Indicadores gerais</div>
-      <div class="resumo-period" id="resumo-period">carregando…</div>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="resumo-loading-badge" id="resumo-loading-badge" style="display:inline-flex">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+          Atualizando dados…
+        </span>
+        <div class="resumo-period" id="resumo-period">carregando…</div>
+      </div>
     </div>
 
     <div class="ig-kpi-grid">
@@ -1077,13 +1095,88 @@ async function resumoFetchCSV(url) {
   return res.text();
 }
 
+// ── Cache local (IndexedDB) do Resumo Geral ──
+// A home busca ~30 planilhas (6 lojas × Faturamento/Contas a Pagar/
+// Recebidos/De-Para + Plano de Contas + Metas) toda vez que é aberta, o
+// que é sempre lento. Igual já é feito em Análise Comercial: guarda o
+// último resultado calculado e, ao abrir de novo, mostra ele na hora
+// (sem esperar nenhuma rede) enquanto busca os dados atuais por trás —
+// a tela se atualiza sozinha assim que eles chegarem.
+const RESUMO_DB_NAME  = 'zappas_resumo_cache_db';
+const RESUMO_DB_STORE = 'cache';
+const RESUMO_DB_KEY   = 'resumo_geral';
+function resumoOpenDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open(RESUMO_DB_NAME, 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore(RESUMO_DB_STORE); };
+    req.onsuccess = () => resolve(req.result);
+    req.onerror  = () => reject(req.error);
+  });
+}
+async function resumoSaveCache(payload) {
+  try {
+    const db = await resumoOpenDB();
+    await new Promise((resolve, reject) => {
+      const tx = db.transaction(RESUMO_DB_STORE, 'readwrite');
+      tx.objectStore(RESUMO_DB_STORE).put({ ...payload, ts: Date.now() }, RESUMO_DB_KEY);
+      tx.oncomplete = resolve; tx.onerror = () => reject(tx.error);
+    });
+  } catch (e) { /* sem cache disponível — sem problema, só não tem atalho na próxima visita */ }
+}
+async function resumoLoadCache() {
+  try {
+    const db = await resumoOpenDB();
+    return await new Promise((resolve, reject) => {
+      const tx = db.transaction(RESUMO_DB_STORE, 'readonly');
+      const req = tx.objectStore(RESUMO_DB_STORE).get(RESUMO_DB_KEY);
+      req.onsuccess = () => resolve(req.result || null);
+      req.onerror  = () => reject(req.error);
+    });
+  } catch (e) { return null; }
+}
+
+// Indicador único e sempre visível de "buscando dados novos" — antes só
+// aparecia quando "Atualização Geral" era disparada automaticamente na
+// primeira abertura da sessão; nas visitas seguintes a home carregava
+// sem nenhum aviso, dando a impressão de que às vezes não atualizava.
+function resumoSetLoading(isLoading) {
+  const badge = document.getElementById('resumo-loading-badge');
+  if (badge) badge.style.display = isLoading ? 'inline-flex' : 'none';
+}
+
 async function carregarResumoGeral() {
   const hoje = new Date();
   const anoAtual = hoje.getFullYear();
   const mesAtual = hoje.getMonth() + 1;
   const MES_NOME = ['', 'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro'];
   const periodoEl = document.getElementById('resumo-period');
-  if (periodoEl) periodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
+
+  // Mostra o último resumo salvo (se houver) imediatamente, antes mesmo
+  // de sair buscando nas planilhas — é isso que faz a home parecer
+  // instantânea numa segunda visita, em vez de ficar com os cartões em
+  // branco/"skeleton" por vários segundos.
+  const cached = await resumoLoadCache();
+  if (cached && cached.fatRows && cached.fatRows.length) {
+    try {
+      resumoInicializarFiltros({
+        fatRows: cached.fatRows, cmvRows: cached.cmvRows, recebidosRows: cached.recebidosRows,
+        ctasPagarRows: cached.ctasPagarRows, resumoDebugRecebidos: cached.resumoDebugRecebidos,
+        anosDisponiveis: new Set(cached.anosDisponiveis), anoAtual, mesAtual, MES_NOME
+      });
+      resumoInicializarGraficos({
+        fatRows: cached.fatRows, cmvRows: cached.cmvRows, metaRows: cached.metaRows,
+        anosDisponiveis: new Set(cached.anosDisponiveis), anoAtual
+      });
+    } catch (e) { console.warn('[Resumo Geral] Falha ao aplicar cache local:', e); }
+  } else if (periodoEl) {
+    periodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
+  }
+
+  // A partir daqui busca os dados de verdade nas planilhas — o cache
+  // acima é só um atalho visual, os números exibidos nunca ficam presos
+  // nele; assim que a busca abaixo terminar, a tela é recalculada e o
+  // cache é regravado com o resultado atual.
+  resumoSetLoading(true);
 
   // A busca de dados foi reorganizada pra rodar em paralelo (todas as chamadas que não dependem
   // umas das outras saem ao mesmo tempo), em vez de uma etapa esperar a outra terminar — isso reduz
@@ -1284,6 +1377,11 @@ async function carregarResumoGeral() {
     if (evoEmpty) { evoEmpty.hidden = false; evoEmpty.textContent = 'Erro ao montar o gráfico: ' + (e && e.message || e); }
     if (metaEmpty) { metaEmpty.hidden = false; metaEmpty.textContent = 'Erro ao montar o gráfico: ' + (e && e.message || e); }
   }
+
+  resumoSetLoading(false);
+  // Guarda o resultado desta busca pra próxima abertura da home mostrar
+  // na hora (ver cache no início da função).
+  resumoSaveCache({ fatRows, cmvRows, recebidosRows, ctasPagarRows, metaRows, resumoDebugRecebidos, anosDisponiveis: [...anosDisponiveis] });
 }
 
 // ---------------------------------------------------------------------------
@@ -1669,15 +1767,20 @@ function resumoRenderGraficos(ano, tentativa) {
 
 const SESSION_AUTO_KEY = 'zappas_auto_update_session';
 AuthGuard.requireScreen('home', function(){
-  if (!sessionStorage.getItem(SESSION_AUTO_KEY)) {
-    sessionStorage.setItem(SESSION_AUTO_KEY, '1');
-    window.addEventListener('DOMContentLoaded', () => {
-      gerarResumoMensal();
-    });
-  }
+  const isPrimeiraVezNaSessao = !sessionStorage.getItem(SESSION_AUTO_KEY);
+  if (isPrimeiraVezNaSessao) sessionStorage.setItem(SESSION_AUTO_KEY, '1');
+
+  // "Atualização Geral" automática (1ª vez na sessão) só dispara DEPOIS
+  // que a home termina de carregar — antes as duas saíam ao mesmo tempo
+  // e disputavam a mesma cota de execuções do Apps Script (a home já
+  // sozinha faz ~30 buscas em paralelo), o que deixava as duas mais
+  // lentas e era a principal causa da demora na primeira abertura.
   carregarResumoGeral().catch(() => {
+    resumoSetLoading(false);
     const periodoEl = document.getElementById('resumo-period');
     if (periodoEl) periodoEl.textContent = 'não foi possível carregar';
+  }).finally(() => {
+    if (isPrimeiraVezNaSessao) gerarResumoMensal();
   });
 });
 
