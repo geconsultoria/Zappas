@@ -1220,6 +1220,9 @@ async function carregarResumoGeral() {
 
   // ── Faturamento (todas as lojas, ?loja=<k> — não usa ?loja=resumo pra bater com as outras telas) ──
   // Guarda TODAS as linhas (não só o mês atual) pra alimentar o gráfico de Evolução Mensal também.
+  // Considera só os canais Loja e Delivery (mesmo padrão do Faturamento_Lucro.html/Banco_Declaracao.html),
+  // deixando de fora Distribuição e qualquer outro canal.
+  const RESUMO_CANAIS_FAT = ['loja', 'delivery'];
   let totalFat = 0;
   const fatRows = [];
   const anosDisponiveis = new Set();
@@ -1231,9 +1234,11 @@ async function carregarResumoGeral() {
       const cAno = resumoFindCol(headers, ['ano', 'year']);
       const cMes = resumoFindCol(headers, ['mes', 'month', 'periodo']);
       const cVenda = resumoFindCol(headers, ['total_venda', 'totalvenda', 'venda', 'vendas', 'faturamento', 'receita', 'total']);
+      const cCanal = resumoFindCol(headers, ['canais', 'canal', 'channel', 'canal_venda', 'canal_distribuicao', 'categoria']);
       if (!cVenda) return;
       const loja = RESUMO_STORE_KEYS[idx].toUpperCase();
       rows.forEach(r => {
+        if (cCanal && !RESUMO_CANAIS_FAT.includes(resumoNorm(r[cCanal]))) return;
         const ano = cAno ? resumoParseAno(r[cAno]) : anoAtual;
         const mes = cMes ? resumoParseMes(r[cMes]) : mesAtual;
         const valor = resumoParseNum(r[cVenda]);
