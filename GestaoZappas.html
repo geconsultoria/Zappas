@@ -948,6 +948,20 @@ function resumoNorm(s) {
   return String(s).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
     .toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '');
 }
+// Casa o nome de loja de uma planilha (que pode vir com grafia levemente diferente — acento,
+// espaço, ou até faltando uma letra, ex. "BELVEDER" em vez de "BELVEDERE") com uma das chaves
+// conhecidas em RESUMO_STORE_KEYS, usando comparação por prefixo em vez de igualdade exata.
+function resumoMatchLojaKey(raw) {
+  const n = resumoNorm(raw);
+  if (!n) return null;
+  let best = null;
+  RESUMO_STORE_KEYS.forEach(k => {
+    if (best) return;
+    const kn = resumoNorm(k);
+    if (n === kn || kn.startsWith(n) || n.startsWith(kn)) best = k.toUpperCase();
+  });
+  return best || String(raw || '').trim().toUpperCase() || null;
+}
 function resumoFindCol(headers, candidates) {
   for (const c of candidates) { const n = resumoNorm(c); if (headers.includes(n)) return n; }
   for (const c of candidates) { const n = resumoNorm(c); const found = headers.find(h => h.startsWith(n) || n.startsWith(h)); if (found) return found; }
@@ -1315,7 +1329,11 @@ async function carregarResumoGeral() {
         const ano = cAno ? resumoParseAno(r[cAno]) : null;
         const mes = cMes ? resumoParseMes(r[cMes]) : null;
         const valor = resumoParseNum(r[cMeta]);
-        const loja = cLoja ? String(r[cLoja] || '').trim().toUpperCase() : null;
+        // Não usa o texto da planilha de metas direto — o nome da loja lá às vezes vem grafado
+        // diferente da chave padrão (o mesmo problema do "BELVEDER" sem E encontrado no Contas a
+        // Pagar/Recebidos), então tenta casar com uma das lojas conhecidas (RESUMO_STORE_KEYS)
+        // por prefixo antes de desistir e usar o texto bruto.
+        const loja = cLoja ? resumoMatchLojaKey(r[cLoja]) : null;
         if (ano != null && mes != null) {
           metaRows.push({ ano, mes, valor, loja });
           anosDisponiveis.add(ano);
