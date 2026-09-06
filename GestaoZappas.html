@@ -658,6 +658,17 @@ const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
 function avisarOutrasPaginasZappas() {
   try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
 }
+// Mesma lógica usada em Análise Comercial: só considera "tem dado mais
+// novo" se alguém rodou "Atualização Geral" depois do cache atual ter
+// sido salvo. Sem isso, toda vez que a home reabre (ex.: voltando de
+// outra tela pelo link "Painel de Gestão") ela repetiria as ~30 buscas
+// de planilha de novo, mesmo o cache já sendo o dado mais recente que existe.
+function existeAtualizacaoMaisRecenteZappas(cacheTs) {
+  try {
+    const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
+    return g > (cacheTs || 0);
+  } catch(e) { return false; }
+}
 
 async function gerarResumoMensal() {
   const btn    = document.getElementById('btn-gerar-resumo');
@@ -1160,7 +1171,8 @@ async function carregarResumoGeral() {
   // instantânea numa segunda visita, em vez de ficar com os cartões em
   // branco/"skeleton" por vários segundos.
   const cached = await resumoLoadCache();
-  if (cached && cached.fatRows && cached.fatRows.length) {
+  const cacheAplicado = !!(cached && cached.fatRows && cached.fatRows.length);
+  if (cacheAplicado) {
     try {
       resumoInicializarFiltros({
         fatRows: cached.fatRows, cmvRows: cached.cmvRows, recebidosRows: cached.recebidosRows,
@@ -1175,6 +1187,18 @@ async function carregarResumoGeral() {
   } else if (periodoEl) {
     periodoEl.textContent = MES_NOME[mesAtual] + '/' + anoAtual;
   }
+
+  // Só vale a pena repetir as ~30 buscas de planilha se: não tinha cache
+  // nenhum, o cache já está velho (>12h — evita ficar preso pra sempre
+  // caso ninguém clique em "Atualização Geral"), ou existe um aviso de
+  // dado mais novo (alguém rodou "Atualização Geral" depois do cache
+  // atual ter sido salvo). Fora isso, o cache mostrado acima já É o dado
+  // mais recente que existe — repetir a busca só deixaria a navegação
+  // entre telas mais lenta sem trazer nada de novo.
+  const CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+  const cacheEnvelhecido = cacheAplicado && (Date.now() - (cached.ts || 0) > CACHE_MAX_AGE_MS);
+  const precisaAtualizar = !cacheAplicado || cacheEnvelhecido || existeAtualizacaoMaisRecenteZappas(cached ? cached.ts : 0);
+  if (!precisaAtualizar) return;
 
   // A partir daqui busca os dados de verdade nas planilhas — o cache
   // acima é só um atalho visual, os números exibidos nunca ficam presos
