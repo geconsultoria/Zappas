@@ -294,7 +294,7 @@ body {
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 .ig-fselect option { color:#0f1923; }
 
-.ig-kpi-grid { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:14px; margin-bottom:24px; }
+.ig-kpi-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(200px,1fr)); gap:14px; margin-bottom:24px; }
 @media (max-width: 900px){ .ig-kpi-grid{ grid-template-columns:1fr 1fr; } }
 @media (max-width: 480px){ .ig-kpi-grid{ grid-template-columns:1fr; } }
 .ig-kpi-card { position:relative; background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:16px 18px; box-shadow: var(--sh); overflow:hidden; transition:box-shadow .2s, transform .2s; }
@@ -310,6 +310,8 @@ body {
 .ig-kpi-card.orange .ig-kpi-icon { background:#fff1e6; } .ig-kpi-card.orange .ig-kpi-icon svg { fill:#f97316; }
 .ig-kpi-card.green .ig-kpi-icon { background:#e6f7f0; } .ig-kpi-card.green .ig-kpi-icon svg { fill:#0ea472; }
 .ig-kpi-card.indigo .ig-kpi-icon { background:#f5f3ff; } .ig-kpi-card.indigo .ig-kpi-icon svg { fill:#8b5cf6; }
+.ig-kpi-card.teal::before { background:#0e7490; }
+.ig-kpi-card.teal .ig-kpi-icon { background:#e0f2fe; } .ig-kpi-card.teal .ig-kpi-icon svg { fill:#0e7490; }
 .ig-kpi-icon svg { width:18px; height:18px; }
 .ig-kpi-label { font-size:11px; font-weight:600; color: var(--ink-3); text-transform:uppercase; letter-spacing:.6px; }
 .ig-kpi-value { font-family: var(--font-body); font-size:22px; font-weight:700; letter-spacing:-0.8px; line-height:1; text-align:center; width:100%; margin-bottom:4px; color: var(--ink); }
@@ -541,6 +543,14 @@ body {
         </div>
         <div class="ig-kpi-value skel" id="kpi-margem">—</div>
         <div class="ig-kpi-sub" id="kpi-margem-foot"></div>
+      </div>
+      <div class="ig-kpi-card teal">
+        <div class="ig-kpi-header">
+          <div class="ig-kpi-icon"><svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.42 0-8-3.58-8-8s3.58-8 8-8 8 3.58 8 8-3.58 8-8 8zm1-13h-2v6l5.25 3.15.75-1.23-4-2.42V7z"/></svg></div>
+          <div class="ig-kpi-label">Meta x Realizado</div>
+        </div>
+        <div class="ig-kpi-value skel" id="kpi-meta-pct">—</div>
+        <div class="ig-kpi-sub" id="kpi-meta-foot"></div>
       </div>
     </div>
 
@@ -1184,7 +1194,7 @@ async function carregarResumoGeral() {
     try {
       resumoInicializarFiltros({
         fatRows: cached.fatRows, cmvRows: cached.cmvRows, recebidosRows: cached.recebidosRows,
-        ctasPagarRows: cached.ctasPagarRows, resumoDebugRecebidos: cached.resumoDebugRecebidos,
+        ctasPagarRows: cached.ctasPagarRows, metaRows: cached.metaRows, resumoDebugRecebidos: cached.resumoDebugRecebidos,
         anosDisponiveis: new Set(cached.anosDisponiveis), anoAtual, mesAtual, MES_NOME
       });
       resumoInicializarGraficos({
@@ -1405,7 +1415,7 @@ async function carregarResumoGeral() {
   // Os três são recalculados juntos, reagindo aos filtros de Ano/Mês/Loja — ver resumoRenderFiltrados().
   // Cada bloco roda em try/catch isolado: um erro num deles não pode impedir os outros de aparecer.
   try {
-    resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+    resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, metaRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
   } catch (e) { console.error('[Resumo Geral] Falha em Indicadores Gerais/DFC/Performance por Loja:', e); }
 
   // ── Evolução mensal (gráficos + filtro de ano) ──
@@ -1483,7 +1493,7 @@ function resumoInicializarFiltros(state) {
 
 function resumoRenderFiltrados() {
   if (!resumoFiltroState) return;
-  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, resumoDebugRecebidos, MES_NOME } = resumoFiltroState;
+  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, metaRows, resumoDebugRecebidos, MES_NOME } = resumoFiltroState;
   const selAno = document.getElementById('ig-f-ano');
   const selMes = document.getElementById('ig-f-mes');
   const selLoja = document.getElementById('ig-f-loja');
@@ -1492,6 +1502,9 @@ function resumoRenderFiltrados() {
   const loja = selLoja && selLoja.value ? selLoja.value : null;
 
   const bate = r => (!ano || r.ano === ano) && (!mes || r.mes === mes) && (!loja || r.loja === loja);
+  // metaRows não tem a dimensão "loja" (é sempre uma meta consolidada de todas as lojas juntas),
+  // então o filtro de meta ignora o seletor de loja em vez de zerar o valor quando uma loja é escolhida.
+  const bateMeta = r => (!ano || r.ano === ano) && (!mes || r.mes === mes);
 
   const setVal = (id, text) => { const el = document.getElementById(id); if (el) { el.textContent = text; el.classList.remove('skel'); } };
   const setSub = (id, text) => { const el = document.getElementById(id); if (el) el.textContent = text; };
@@ -1521,6 +1534,14 @@ function resumoRenderFiltrados() {
 
   setVal('kpi-margem', resumoFmtPct(margemF));
   setSub('kpi-margem-foot', margemF >= 30 ? '✓ acima do esperado' : margemF >= 15 ? '→ dentro do esperado' : '↓ abaixo do esperado');
+
+  // ── Meta x Realizado ──
+  const totalMetaF = (metaRows || []).filter(bateMeta).reduce((a, r) => a + r.valor, 0);
+  const pctMeta = totalMetaF > 0 ? (totalFatF / totalMetaF) * 100 : null;
+  setVal('kpi-meta-pct', pctMeta != null ? resumoFmtPct(pctMeta) : '—');
+  setSub('kpi-meta-foot', totalMetaF > 0
+    ? resumoFmtBRL(totalFatF) + ' de ' + resumoFmtBRL(totalMetaF) + (loja ? ' · meta de todas as lojas' : '')
+    : 'sem meta cadastrada');
 
   // ── Indicadores Principais (DFC) — mesma fórmula do DRE_Gerencial.html ──
   const recF = recebidosRows.filter(bate);
