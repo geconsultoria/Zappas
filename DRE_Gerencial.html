@@ -114,11 +114,10 @@ body {
 .site-header {
   background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
   color: #fff;
-  height: 60px;
-  display: flex; align-items: center;
-  padding: 0 28px;
+  min-height: 60px;
+  display: flex; align-items: center; flex-wrap: wrap;
+  padding: 10px 28px; gap: 16px;
   position: sticky; top: 0; z-index: 200;
-  gap: 0;
   box-shadow: 0 2px 16px rgba(0,0,0,.25);
 }
 
@@ -126,6 +125,27 @@ body {
   display: flex; align-items: center; gap: 12px;
   flex-shrink: 0;
 }
+
+/* Filtros (Ano/Mês/Loja) — mesmo "cartão" translúcido usado nas demais
+   telas, embutido direto no header escuro em vez da barra clara abaixo. */
+.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius: var(--radius-lg); padding:8px 14px; margin:0 auto; }
+.ig-fgroup { display:flex; align-items:center; gap:7px; }
+.ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); white-space:nowrap; }
+.ig-fselect {
+  font-family: var(--font-body); font-size:12.5px; font-weight:500; color:#fff;
+  background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.28); border-radius: var(--radius);
+  padding: 7px 26px 7px 11px; appearance:none; cursor:pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position: right 9px center; min-width:120px;
+}
+.ig-fselect:focus { outline:none; border-color: var(--gold); }
+.ig-fselect option { color:#0f1923; }
+.ig-btn-clear {
+  font-family: var(--font-body); font-size: 11px; font-weight: 600; color: rgba(255,255,255,.8);
+  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.28); border-radius: var(--radius-sm);
+  padding: 6px 12px; cursor: pointer; letter-spacing: .04em; text-transform: uppercase; transition: var(--transition);
+}
+.ig-btn-clear:hover { background: rgba(255,255,255,.18); color:#fff; }
 .logo-mark {
   width: 32px; height: 32px;
   background: var(--gold);
@@ -173,7 +193,7 @@ body {
 
 .header-right {
   display: flex; align-items: center; gap: 10px;
-  margin-left: auto;
+  flex-shrink: 0;
 }
 .last-update {
   font-size: 11px;
@@ -198,62 +218,6 @@ body {
 .btn-refresh:hover { background: rgba(255,255,255,.18); border-color: rgba(255,255,255,.3); }
 .btn-refresh svg { width: 13px; height: 13px; }
 .btn-refresh.spin svg { animation: spin .7s linear infinite; }
-
-/* ══════════════════════════════════════════════════════
-   FILTER BAR
-══════════════════════════════════════════════════════ */
-.filter-bar {
-  background: var(--surface);
-  border-bottom: 1px solid var(--border);
-  padding: 10px 28px;
-  display: flex; align-items: center; gap: 10px;
-  flex-wrap: wrap;
-  position: sticky;
-  top: 60px;
-  z-index: 190;
-  box-shadow: 0 2px 8px rgba(0,0,0,.05);
-}
-.filter-label-text {
-  font-size: 10px; font-weight: 700;
-  letter-spacing: .1em; text-transform: uppercase;
-  color: var(--ink-4);
-  margin-right: 4px;
-}
-.filter-select {
-  font-family: var(--font-body);
-  font-size: 12px; font-weight: 500;
-  color: var(--ink-2);
-  background: var(--bg);
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 6px 28px 6px 10px;
-  cursor: pointer;
-  appearance: none;
-  -webkit-appearance: none;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23A8A89C' stroke-width='1.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
-  background-repeat: no-repeat;
-  background-position: right 9px center;
-  min-width: 140px;
-  transition: var(--transition);
-}
-.filter-select:focus { outline: none; border-color: var(--navy-light); box-shadow: 0 0 0 3px var(--navy-pale); }
-
-.filter-sep { width: 1px; height: 20px; background: var(--border); }
-
-.btn-clear {
-  font-family: var(--font-body);
-  font-size: 11px; font-weight: 600;
-  color: var(--ink-3);
-  background: transparent;
-  border: 1.5px solid var(--border);
-  border-radius: var(--radius-sm);
-  padding: 6px 12px;
-  cursor: pointer;
-  letter-spacing: .04em;
-  text-transform: uppercase;
-  transition: var(--transition);
-}
-.btn-clear:hover { border-color: var(--navy-light); color: var(--navy-mid); }
 
 /* ══════════════════════════════════════════════════════
    LAYOUT
@@ -775,8 +739,7 @@ tr.is-open .expand-hint { display: none; }
   .main { padding: 16px; }
   .kpi-grid { grid-template-columns: 1fr 1fr; }
   .charts-row.c2 { grid-template-columns: 1fr; }
-  .site-header { padding: 0 16px; }
-  .filter-bar { padding: 8px 16px; }
+  .site-header { padding: 10px 16px; }
 }
 @media (max-width: 480px) {
   .kpi-grid { grid-template-columns: 1fr; }
@@ -1200,7 +1163,7 @@ a.side-brand:hover { opacity:.85; }
 </div>
 
 <!-- HEADER -->
-<header class="site-header">
+<header class="site-header filter-bar">
   <div class="header-logo">
     <div class="logo-mark">
       <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -1215,6 +1178,14 @@ a.side-brand:hover { opacity:.85; }
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
+
+  <div class="ig-filter-bar">
+    <div class="ig-fgroup"><span class="ig-flabel">Ano</span><select class="ig-fselect" id="fAno" onchange="applyFilters()"><option value="">Todos os Anos</option></select></div>
+    <div class="ig-fgroup"><span class="ig-flabel">Mês</span><select class="ig-fselect" id="fMes" onchange="applyFilters()"><option value="">Todos os Meses</option></select></div>
+    <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="fLoja" onchange="applyFilters()"><option value="">Todas as Lojas</option></select></div>
+    <button class="ig-btn-clear" onclick="clearFilters()">Limpar</button>
+  </div>
+
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
@@ -1226,16 +1197,6 @@ a.side-brand:hover { opacity:.85; }
     </button>
   </div>
 </header>
-
-<!-- FILTERS -->
-<div class="filter-bar">
-  <span class="filter-label-text">Filtros</span>
-  <select class="filter-select" id="fAno"  onchange="applyFilters()"><option value="">Todos os Anos</option></select>
-  <select class="filter-select" id="fMes"  onchange="applyFilters()"><option value="">Todos os Meses</option></select>
-  <select class="filter-select" id="fLoja" onchange="applyFilters()"><option value="">Todas as Lojas</option></select>
-  <div class="filter-sep"></div>
-  <button class="btn-clear" onclick="clearFilters()">Limpar</button>
-</div>
 
 <!-- Clone flutuante do cabeçalho da tabela DRE (usado pelo botão "Fixar Cabeçalho") -->
 <div class="dre-header-clone" id="dreHeaderClone">
