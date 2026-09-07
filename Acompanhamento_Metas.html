@@ -151,7 +151,7 @@ a.side-brand:hover { opacity:.85; }
   body.side-open .sidebar { transform: translateX(0); }
   body.side-open .side-overlay { display:block; }
   .hdr { left: 0 !important; width: 100% !important; }
-  .main { margin-left: 0 !important; }
+  .main, .meta-strip { margin-left: 0 !important; }
 }
 
 /* ─── HEADER ─── */
@@ -185,7 +185,7 @@ a.side-brand:hover { opacity:.85; }
 /* Filtros (Ano/Mês/Loja/Canal/Meta) — mesmo "cartão" translúcido usado
    nas demais telas, embutido direto no header escuro em vez de uma
    segunda barra clara abaixo dele. */
-.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius: var(--r-lg); padding:8px 14px; margin:0 auto; }
+.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius: var(--r-lg, 16px); padding:8px 14px; margin:0 auto; }
 .ig-fgroup { display:flex; align-items:center; gap:7px; }
 .ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); white-space:nowrap; }
 .ig-fselect {
@@ -400,22 +400,29 @@ a.side-brand:hover { opacity:.85; }
 .canal-item-label { font-size: 12px; font-weight: 500; color: var(--ink); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .canal-item.checked .canal-item-label { color: var(--blue); font-weight: 600; }
 
-/* Meta input (translúcido, embutido no header escuro) */
+/* Faixa "Meta mensal" — abaixo do header, ao lado da loja selecionada */
+.meta-strip {
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  margin-left: var(--side-w-collapsed);
+  padding: 10px 28px 0;
+  transition: margin-left .25s ease;
+}
+.meta-strip-loja { font-size: 11.5px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; color: var(--muted); }
 .meta-wrap {
   display: flex; align-items: center; gap: 10px;
-  background: rgba(255,255,255,.08);
-  border: 1.5px solid rgba(255,255,255,.28);
+  background: var(--surface);
+  border: 1.5px solid var(--border);
   border-radius: var(--r-sm);
   padding: 5px 12px;
 }
-.meta-label { font-size: 11px; font-weight: 600; color: rgba(255,255,255,.75); white-space: nowrap; }
+.meta-label { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .meta-input {
   border: none; background: transparent;
   font-family: 'IBM Plex Mono', monospace;
-  font-size: 13px; font-weight: 600; color: #fff;
+  font-size: 13px; font-weight: 600; color: var(--ink);
   width: 130px; outline: none;
 }
-.meta-input::placeholder { color: rgba(255,255,255,.5); font-weight: 400; }
+.meta-input::placeholder { color: var(--muted); font-weight: 400; }
 
 /* ─── MAIN LAYOUT ─── */
 .main { padding: 22px 28px 56px; max-width: 1800px; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
@@ -752,6 +759,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 @media (max-width: 960px) {
   .hdr   { padding: 10px 14px; left: 0 !important; width: 100% !important; }
   .main  { padding: 16px 14px 40px; margin-left: 0 !important; }
+  .meta-strip { padding: 10px 14px 0; margin-left: 0 !important; }
   .ind-row, .kpi-row { grid-template-columns: repeat(2,1fr); }
   .charts-2 { grid-template-columns: 1fr; }
   .hdr-sub, .upd-label, .upd-val { display: none; }
@@ -943,13 +951,6 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
         </div>
       </div>
     </div>
-    <div class="meta-wrap">
-      <span class="meta-label">Meta mensal R$</span>
-      <input class="meta-input" type="text" id="inputMeta"
-        placeholder="Ex: 450.000"
-        title="Valor carregado automaticamente da Elaboração de Metas. Você pode editar manualmente."
-        oninput="document.getElementById('inputMeta').dataset.userEdited='1'; applyFilters()">
-    </div>
   </div>
 
   <div class="hdr-right">
@@ -1005,6 +1006,18 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
       <div class="d">Realizado embaixo da Meta Diária</div>
     </button>
     <button class="rd-modelpick-cancel" onclick="rdModelPickCancel()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ════ META MENSAL — ao lado da loja selecionada ════ -->
+<div class="meta-strip">
+  <span class="meta-strip-loja" id="metaStripLoja">Todas as lojas</span>
+  <div class="meta-wrap">
+    <span class="meta-label">Meta mensal R$</span>
+    <input class="meta-input" type="text" id="inputMeta"
+      placeholder="Ex: 450.000"
+      title="Valor carregado automaticamente da Elaboração de Metas. Você pode editar manualmente."
+      oninput="document.getElementById('inputMeta').dataset.userEdited='1'; applyFilters()">
   </div>
 </div>
 
@@ -2020,6 +2033,9 @@ function applyFilters() {
   const anoSel = parseInt(document.getElementById('f-ano').value) || new Date().getFullYear();
   const lojaSel = document.getElementById('f-loja').value || null;
   const inputMeta = document.getElementById('inputMeta');
+
+  const metaStripLoja = document.getElementById('metaStripLoja');
+  if (metaStripLoja) metaStripLoja.textContent = lojaSel || 'Todas as lojas';
 
   if (!inputMeta.dataset.userEdited) {
     let savedMeta;
