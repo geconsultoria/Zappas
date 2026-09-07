@@ -65,10 +65,11 @@ a{ color:inherit; }
   color:#fff;
 }
 .topbar-inner{
-  max-width:100%; margin:0 auto; padding:22px 22px;
-  display:flex; align-items:center; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  max-width:100%; margin:0 auto; padding:16px 22px;
+  display:flex; align-items:center; gap:18px; flex-wrap:wrap;
 }
-.brand{ display:flex; align-items:center; gap:14px; }
+.brand{ display:flex; align-items:center; gap:14px; flex-shrink:0; }
+.topbar-right{ display:flex; align-items:center; gap:12px; flex-shrink:0; }
 .brand-mark{
   width:46px; height:46px; flex:none; border-radius:50%;
   background:radial-gradient(circle at 32% 28%, #2A3F5C, var(--ink) 72%);
@@ -99,30 +100,29 @@ a{ color:inherit; }
   100%{ box-shadow:0 0 0 0 rgba(95,211,160,0); }
 }
 
-/* ---------- Filter bar ---------- */
-.filterbar{
-  background:var(--card); border:1px solid var(--line); border-radius:var(--radius-lg);
-  box-shadow:var(--shadow-card);
-  margin-top:-26px; padding:18px 22px;
-  display:flex; align-items:flex-end; gap:16px; flex-wrap:wrap; position:relative; z-index:2;
+/* ---------- Filter bar (mesmo "cartão" translúcido embutido no
+   header escuro, usado nas demais telas do painel) ---------- */
+.ig-filter-bar{
+  display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18);
+  border-radius: var(--radius-lg); padding:8px 14px; margin:0 auto;
 }
-.field{ display:flex; flex-direction:column; gap:5px; }
-.field label{
-  font-size:10.5px; font-weight:700; letter-spacing:.09em; text-transform:uppercase; color:var(--slate);
-}
+.ig-fgroup{ display:flex; align-items:center; gap:7px; }
+.ig-flabel{ font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); white-space:nowrap; }
 .field select{
-  min-width:172px; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line);
-  background:#fff url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0L5 6L10 0Z" fill="%235B6B7C"/></svg>') no-repeat right 12px center;
-  appearance:none; -webkit-appearance:none; color:var(--ink); font-size:13.5px; cursor:pointer;
+  min-width:150px; padding:7px 26px 7px 11px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.08) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="10" height="6"><path d="M0 0L5 6L10 0Z" fill="%23ffffff"/></svg>') no-repeat right 9px center;
+  appearance:none; -webkit-appearance:none; color:#fff; font-size:12.5px; cursor:pointer;
 }
 .field select:focus-visible{ outline:2px solid var(--gold); outline-offset:1px; }
+.field select option{ color:var(--ink); }
 .c-dd{ position:relative; }
 .c-dd-btn{
-  min-width:172px; padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--line);
-  background:#fff; color:var(--ink); font-size:13.5px; cursor:pointer; text-align:left;
+  min-width:150px; padding:7px 26px 7px 11px; border-radius:var(--radius-sm); border:1px solid rgba(255,255,255,.28);
+  background:rgba(255,255,255,.08); color:#fff; font-size:12.5px; cursor:pointer; text-align:left;
   display:flex; align-items:center; justify-content:space-between; gap:8px; white-space:nowrap;
 }
-.c-dd-btn::after{ content:"▾"; font-size:10px; color:var(--slate); }
+.c-dd-btn::after{ content:"▾"; font-size:10px; color:#fff; }
 .c-dd-btn.open{ border-color:var(--gold); }
 .c-dd-btn.open::after{ content:"▴"; }
 .c-dd-menu{
@@ -137,7 +137,6 @@ a{ color:inherit; }
 }
 .c-dd-menu label:hover{ background:#FAF8F2; }
 .c-dd-menu input[type="checkbox"]{ accent-color:#D9B877; }
-.filterbar-actions{ display:flex; gap:10px; margin-left:auto; flex-wrap:wrap; }
 
 .btn{
   font-weight:600; font-size:13px; padding:10px 17px; border-radius:var(--radius-sm);
@@ -313,10 +312,8 @@ a{ color:inherit; }
 }
 @media (max-width:620px){
   .kpi-grid{ grid-template-columns:1fr; }
-  .filterbar{ flex-direction:column; align-items:stretch; }
-  .filterbar-actions{ margin-left:0; }
   .field select{ width:100%; }
-  .topbar-inner{ padding:18px; }
+  .topbar-inner{ padding:16px; }
   .wrap{ padding:0 14px 50px; }
 }
 
@@ -593,30 +590,30 @@ a.side-brand:hover { opacity:.85; }
           <span>Grupo Pratic · Conveniência &amp; Café</span>
         </div>
       </div>
-      <div class="sync-pill"><span class="sync-dot"></span><span id="lastSync">Conectando à planilha…</span></div>
-    </div>
-  </header>
 
-  <div class="wrap">
-
-    <div class="filterbar">
-      <div class="field">
-        <label for="filterAno">Ano</label>
-        <select id="filterAno"><option>—</option></select>
-      </div>
-      <div class="field">
-        <label>Canal</label>
-        <div class="c-dd" id="channelDD">
-          <button type="button" class="c-dd-btn" id="channelBtn">Carregando…</button>
-          <div class="c-dd-menu" id="channelMenu"></div>
+      <div class="ig-filter-bar">
+        <div class="ig-fgroup field">
+          <span class="ig-flabel">Ano</span>
+          <select id="filterAno"><option>—</option></select>
+        </div>
+        <div class="ig-fgroup">
+          <span class="ig-flabel">Canal</span>
+          <div class="c-dd" id="channelDD">
+            <button type="button" class="c-dd-btn" id="channelBtn">Carregando…</button>
+            <div class="c-dd-menu" id="channelMenu"></div>
+          </div>
         </div>
       </div>
 
-      <div class="filterbar-actions">
+      <div class="topbar-right">
+        <div class="sync-pill"><span class="sync-dot"></span><span id="lastSync">Conectando à planilha…</span></div>
         <button class="btn btn-line" id="btnRefresh" type="button" style="display:none" title="Removido — use 'Atualização Geral' na tela inicial">↻ Atualizar dados</button>
         <button class="btn btn-gold" id="btnPrint" type="button" disabled>🖶 Gerar relatório (PDF)</button>
       </div>
     </div>
+  </header>
+
+  <div class="wrap">
 
     <div class="scope-row">
       <div class="scope-label">Exibindo: <b id="scopeLabel">—</b></div>
