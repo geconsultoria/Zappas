@@ -256,18 +256,11 @@ a.side-brand:hover { opacity:.85; }
 }
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 .ig-fselect option { color:#0f1923; }
-.ig-fsearch {
-  font-family: var(--font-body); font-size: 12.5px; color: #fff;
-  background: rgba(255,255,255,.08); border: 1px solid rgba(255,255,255,.28); border-radius: var(--r);
-  padding: 7px 11px; min-width: 170px;
-}
-.ig-fsearch::placeholder { color: rgba(255,255,255,.55); }
-.ig-fsearch:focus { outline: none; border-color: var(--gold); }
 
 /* ╔═══════════════════════════════════════╗
    ║  MAIN CONTENT                        ║
    ╚═══════════════════════════════════════╝ */
-.content { padding: 20px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
+.content { padding: 10px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
 .content.hidden { display: none; }
 
 .sec { display: flex; align-items: center; gap: 12px; margin: 28px 0 14px; }
@@ -275,6 +268,14 @@ a.side-brand:hover { opacity:.85; }
 .sec-title { font-size: 9px; font-weight: 800; letter-spacing: .16em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
 .sec-line  { flex:1; height:1px; background: var(--border); }
 .sec-count { font-family: var(--font-mono); font-size: 10px; color: var(--ink-4); background: var(--bg-2); padding: 3px 8px; border-radius: 20px; white-space: nowrap; }
+.sec-search {
+  font-family: var(--font-body); font-size: 12px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 6px 12px;
+  min-width: 220px; flex-shrink: 0;
+}
+.sec-search::placeholder { color: var(--ink-4); }
+.sec-search:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-lt); }
 
 /* KPI CARDS */
 .kpi-row { display: grid; grid-template-columns: repeat(5,1fr); gap: 13px; margin-bottom: 14px; }
@@ -498,7 +499,6 @@ a.side-brand:hover { opacity:.85; }
         <option value="PAGO">Pago</option>
       </select>
     </div>
-    <div class="ig-fgroup"><span class="ig-flabel">Buscar</span><input class="ig-fsearch" id="f-busca" placeholder="Documento, categoria…"></div>
   </div>
 
   <div class="fb-right">
@@ -514,7 +514,7 @@ a.side-brand:hover { opacity:.85; }
 <div class="content hidden" id="content">
   <div class="err-banner" id="err-banner">⚠️ <span id="err-msg"></span></div>
 
-  <div class="sec"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
+  <div class="sec" style="margin-top:0"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
   <div class="kpi-row">
     <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total do Período</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> títulos</div></div>
     <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Pago</div><div class="kpi-val" id="kv-pago">—</div><div class="kpi-foot"><b id="kv-qtd-pago">0</b> títulos</div></div>
@@ -523,7 +523,7 @@ a.side-brand:hover { opacity:.85; }
     <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Ticket Médio</div><div class="kpi-val" id="kv-ticket">—</div><div class="kpi-foot">por título</div></div>
   </div>
 
-  <div class="sec"><span class="sec-title">Por Categoria</span><span class="sec-line"></span></div>
+  <div class="sec"><span class="sec-title">Por Categoria</span><span class="sec-line"></span><input class="sec-search" id="f-busca" placeholder="Buscar documento, categoria…"></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">

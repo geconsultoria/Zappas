@@ -254,6 +254,85 @@ a.side-brand:hover { opacity:.85; }
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 .ig-fselect option { color:#0f1923; }
 
+/* ── Canal multi-select ── */
+.canal-wrap { position: relative; }
+.canal-trigger {
+  font-family: var(--font-body);
+  font-size: 12.5px; font-weight: 500; color: #fff;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: var(--r);
+  padding: 7px 28px 7px 11px;
+  cursor: pointer; white-space: nowrap;
+  min-width: 140px; max-width: 220px;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .18s var(--ease);
+  user-select: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+.canal-trigger:hover,
+.canal-trigger.open { border-color: var(--blue-mid); background-color: var(--surface); color: var(--ink); }
+.canal-trigger.open { box-shadow: 0 0 0 3px var(--blue-lt); }
+.canal-trigger.has-sel { border-color: var(--amber-mid); color: var(--amber); background-color: var(--amber-lt); }
+.canal-trigger.has-sel.open { box-shadow: 0 0 0 3px var(--amber-lt); }
+
+.canal-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--amber-mid); color: #fff;
+  border-radius: 20px; font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  line-height: 1;
+}
+
+.canal-dropdown {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lg);
+  min-width: 200px; max-width: 280px;
+  overflow: hidden;
+}
+.canal-dropdown.open { display: block; }
+
+.canal-dd-head {
+  padding: 9px 12px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surf-2);
+}
+.canal-dd-title { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); }
+.canal-dd-actions { display: flex; gap: 8px; }
+.canal-dd-btn {
+  font-size: 9.5px; font-weight: 700; color: var(--blue-mid);
+  background: none; border: none; cursor: pointer; padding: 0;
+  letter-spacing: .03em; text-decoration: underline; text-underline-offset: 2px;
+}
+.canal-dd-btn:hover { color: var(--blue); }
+
+.canal-dd-list {
+  max-height: 220px; overflow-y: auto;
+  padding: 6px 0;
+}
+.canal-dd-list::-webkit-scrollbar { width: 4px; }
+.canal-dd-list::-webkit-scrollbar-track { background: transparent; }
+.canal-dd-list::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+
+.canal-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 13px; cursor: pointer;
+  transition: background .12s;
+}
+.canal-item:hover { background: var(--bg); }
+.canal-item input[type=checkbox] {
+  width: 14px; height: 14px; flex-shrink: 0;
+  accent-color: var(--amber-mid); cursor: pointer;
+}
+.canal-item-label { font-size: 12px; font-weight: 500; color: var(--ink-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.canal-item.checked .canal-item-label { color: var(--amber); font-weight: 600; }
+
 .fb-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
 
 .btn-refresh {
@@ -787,6 +866,25 @@ a.side-brand:hover { opacity:.85; }
       <span class="ig-flabel">Loja</span>
       <select class="ig-fselect" id="f-loja"><option value="">Todas</option></select>
     </div>
+    <div class="ig-fgroup">
+      <span class="ig-flabel">Canal</span>
+      <div class="canal-wrap" id="canal-wrap">
+        <div class="canal-trigger" id="canal-trigger" onclick="toggleCanalDropdown(event)">
+          <span id="canal-trigger-txt">Todos</span>
+          <span class="canal-badge" id="canal-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="canal-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Canais de Distribuição</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllCanais()">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllCanais()">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="canal-dd-list"></div>
+        </div>
+      </div>
+    </div>
   </div>
 
   <div class="fb-right">
@@ -1088,8 +1186,11 @@ function ahBadge2(v) {
   return `<span class="ah-badge ah-neg">▼ ${fPct2(Math.abs(v))}</span>`;
 }
 
+// Estado dos canais selecionados (Set vazio = todos)
+let selectedCanais = new Set();
+
 function getF() {
-  return { loja: $('f-loja').value };
+  return { loja: $('f-loja').value, canais: selectedCanais };
 }
 
 function populateFilters(data) {
@@ -1097,7 +1198,129 @@ function populateFilters(data) {
   const cur = $('f-loja').value;
   $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l => `<option value="${l}">${l==='BELVEDER'?'BELVEDERE':l}</option>`).join('');
   if(lojas.includes(cur)) $('f-loja').value = cur;
+
+  const canais = [...new Set(data.map(r => r.canal))].filter(Boolean).sort();
+  populateCanalDropdown(canais);
 }
+
+/* ── Canal Dropdown ─────────────────────────────────── */
+let _allCanais = [];
+
+// Canais pré-selecionados ao iniciar (case-insensitive)
+const DEFAULT_CANAIS = ['loja', 'delivery'];
+
+function populateCanalDropdown(canais) {
+  _allCanais = canais;
+
+  // Na primeira carga (selectedCanais vazio), pré-seleciona Loja e Delivery.
+  // Se isso cobrir TODOS os canais existentes, equivale a "Todos" — nesse
+  // caso é importante realmente tratar como Todos (Set vazio), e não como
+  // filtro explícito, pelo mesmo motivo já usado na Análise Comercial.
+  if (selectedCanais.size === 0) {
+    canais.forEach(canal => {
+      if (DEFAULT_CANAIS.includes(canal.toLowerCase())) {
+        selectedCanais.add(canal);
+      }
+    });
+    if (selectedCanais.size === canais.length) selectedCanais.clear();
+  }
+
+  const list = $('canal-dd-list');
+  list.innerHTML = '';
+  canais.forEach(canal => {
+    const isChecked = selectedCanais.size === 0 ? true : selectedCanais.has(canal);
+    const item = document.createElement('label');
+    item.className = 'canal-item' + (isChecked ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${canal}" ${isChecked?'checked':''} onchange="onCanalChange(this)">
+      <span class="canal-item-label" title="${canal}">${canal}</span>`;
+    list.appendChild(item);
+  });
+  updateCanalTrigger();
+}
+
+function onCanalChange(cb) {
+  const canal = cb.value;
+  if (cb.checked) {
+    selectedCanais.add(canal);
+  } else {
+    selectedCanais.delete(canal);
+  }
+  if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
+  cb.closest('.canal-item').classList.toggle('checked', cb.checked && selectedCanais.size > 0);
+  updateCanalTrigger();
+  renderSemanal2();
+}
+
+function selectAllCanais() {
+  selectedCanais.clear();
+  $('canal-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateCanalTrigger();
+  renderSemanal2();
+}
+
+function clearAllCanais() {
+  selectedCanais.clear();
+  $('canal-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateCanalTrigger();
+  renderSemanal2();
+}
+
+function updateCanalTrigger() {
+  const n      = selectedCanais.size;
+  const badge  = $('canal-badge');
+  const txt    = $('canal-trigger-txt');
+  const trigger= $('canal-trigger');
+
+  if (n === 0) {
+    const all = _allCanais || [];
+    const defaultCount = all.filter(c => DEFAULT_CANAIS.includes(c.toLowerCase())).length;
+    if (defaultCount > 0 && defaultCount === all.length) {
+      txt.textContent = defaultCount === 1 ? all[0] : `${defaultCount} canais`;
+      badge.textContent = defaultCount;
+      badge.style.display = 'inline-flex';
+      trigger.classList.add('has-sel');
+    } else {
+      txt.textContent = 'Todos';
+      badge.style.display = 'none';
+      trigger.classList.remove('has-sel');
+    }
+  } else if (n === 1) {
+    const [v] = selectedCanais;
+    txt.textContent = v.length > 14 ? v.slice(0,13)+'…' : v;
+    badge.style.display = 'none';
+    trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} canais`;
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+    trigger.classList.add('has-sel');
+  }
+}
+
+function toggleCanalDropdown(e) {
+  e.stopPropagation();
+  const dd      = $('canal-dropdown');
+  const trigger = $('canal-trigger');
+  const isOpen  = dd.classList.toggle('open');
+  trigger.classList.toggle('open', isOpen);
+}
+
+// Fechar ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('#canal-wrap')) {
+    const dd = document.getElementById('canal-dropdown');
+    const tr = document.getElementById('canal-trigger');
+    if (dd) dd.classList.remove('open');
+    if (tr) tr.classList.remove('open');
+  }
+});
 
 // Popula os filtros Ano e Mês da grade diária com os valores que
 // realmente existem nos dados. Mantém a seleção atual se continuar
@@ -1206,7 +1429,7 @@ function renderGradeDiaria() {
 ═══════════════════════════════════════════════════════ */
 function renderSemanal2() {
   const f = getF();
-  const baseDataS = rawData.filter(r=>(!f.loja||r.loja===f.loja));
+  const baseDataS = rawData.filter(r=>(!f.loja||r.loja===f.loja) && (f.canais.size===0||f.canais.has(r.canal)));
   const anos = [...new Set(baseDataS.map(r=>r.ano))].filter(Boolean).sort();
 
   if(!anos.length) {
