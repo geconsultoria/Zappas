@@ -208,7 +208,7 @@ a.side-brand:hover { opacity:.85; }
    ╚═══════════════════════════════════════╝ */
 .filter-bar {
   position: sticky; top: 0; z-index: 100;
-  margin-left: var(--side-w);
+  margin-left: var(--side-w-collapsed);
   background: linear-gradient(90deg, #16283F 0%, #2C4E78 100%);
   border-bottom: 1px solid rgba(255,255,255,.08);
   box-shadow: 0 2px 20px rgba(0,0,0,.15);
@@ -267,7 +267,7 @@ a.side-brand:hover { opacity:.85; }
 /* ╔═══════════════════════════════════════╗
    ║  MAIN CONTENT                        ║
    ╚═══════════════════════════════════════╝ */
-.content { padding: 20px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w); transition: margin-left .25s ease; }
+.content { padding: 20px 28px 64px; max-width: 1600px; margin: 0 auto; margin-left: var(--side-w-collapsed); transition: margin-left .25s ease; }
 .content.hidden { display: none; }
 
 .sec { display: flex; align-items: center; gap: 12px; margin: 28px 0 14px; }
@@ -384,12 +384,12 @@ a.side-brand:hover { opacity:.85; }
   <div class="ld-txt" id="ld-txt">Conectando…</div>
 </div>
 
-<button class="side-toggle" id="side-toggle" onclick="document.body.classList.toggle('side-open')">
+<button class="side-toggle" id="side-toggle">
   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
 </button>
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
 
-<aside class="sidebar" id="sidebar">
+<aside class="sidebar collapsed" id="sidebar">
   <a class="side-brand" href="GestaoZappas.html" title="Voltar ao Painel de Gestão">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
     <div class="side-brand-text"><div class="t">Dashboards</div><div class="s">Painel de Gestão</div></div>
@@ -1010,14 +1010,82 @@ function renderTabela(data){
 /* ══════════════════════════════════════════════════════════════
    SIDEBAR (hover/collapse) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-document.querySelectorAll('.side-item > .side-link').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const item = btn.closest('.side-item');
-    const wasOpen = item.classList.contains('open');
-    document.querySelectorAll('.side-item.open').forEach(i => i.classList.remove('open'));
-    if(!wasOpen) item.classList.add('open');
+let lastOpenMenu = 'financeiro';
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
   });
-});
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(sidebar.classList.contains('collapsed')){
+        sidebar.classList.remove('peek');
+        expandSidebar();
+        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+        item.classList.add('open');
+        return;
+      }
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(window.innerWidth <= 900){
+        document.body.classList.toggle('side-open');
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        }
+      } else {
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        } else {
+          collapseSidebar();
+        }
+      }
+    });
+  }
+})();
 
 /* ══════════════════════════════════════════════════════════════
    INIT
