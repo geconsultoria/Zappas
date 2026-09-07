@@ -1324,7 +1324,9 @@ document.addEventListener('click', e => {
 
 // Popula os filtros Ano e Mês da grade diária com os valores que
 // realmente existem nos dados. Mantém a seleção atual se continuar
-// válida; senão, seleciona o ano/mês mais recente disponível.
+// válida; senão, prioriza o ano/mês atual (calendário) se houver dados
+// nele — só cai para o mais recente disponível se o mês atual ainda
+// não tiver nenhum lançamento.
 function populateFiltroMesGrade(data) {
   const selAno = $('f-ano-grade');
   const selMes = $('f-mes-grade');
@@ -1341,8 +1343,12 @@ function populateFiltroMesGrade(data) {
   selMes.innerHTML = '<option value="">Todos</option>' +
     MONTHS.map((nome,i) => `<option value="${i+1}">${nome}</option>`).join('');
 
-  selAno.value = anos.includes(curAno) ? curAno : (anos.length ? anos[anos.length-1] : '');
-  selMes.value = mesesNums.includes(curMes) ? curMes : (mesesNums.length ? mesesNums[mesesNums.length-1] : '');
+  const hoje = new Date();
+  const anoAtual = String(hoje.getFullYear());
+  const mesAtual = String(hoje.getMonth() + 1);
+
+  selAno.value = anos.includes(curAno) ? curAno : (anos.includes(anoAtual) ? anoAtual : (anos.length ? anos[anos.length-1] : ''));
+  selMes.value = mesesNums.includes(curMes) ? curMes : (mesesNums.includes(mesAtual) ? mesAtual : (mesesNums.length ? mesesNums[mesesNums.length-1] : ''));
 }
 
 /* ═══════════════════════════════════════════════════════
