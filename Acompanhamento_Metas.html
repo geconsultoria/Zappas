@@ -2767,7 +2767,7 @@ function buildCardHTMLv1(r) {
     </table>
     <div class="rd-sec-title">META MENSAL</div>
     <table class="rd-tbl">
-      <tr><td class="rd-sub-hd">META</td><td class="rd-sub-hd">REALIZADO</td><td class="rd-sub-hd">DIFERENÇA</td><td class="rd-sub-hd">% DA META</td></tr>
+      <tr><th>META</th><th>REALIZADO</th><th>DIFERENÇA</th><th>% DA META</th></tr>
       <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
   </div>`;
@@ -2810,7 +2810,7 @@ function buildCardHTMLv2(r) {
     </table>
     <div class="rd-sec-title">META MENSAL</div>
     <table class="rd-tbl">
-      <tr><td class="rd-sub-hd">META</td><td class="rd-sub-hd">REALIZADO</td><td class="rd-sub-hd">DIFERENÇA</td><td class="rd-sub-hd">% DA META</td></tr>
+      <tr><th>META</th><th>REALIZADO</th><th>DIFERENÇA</th><th>% DA META</th></tr>
       <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
   </div>`;
