@@ -2709,7 +2709,7 @@ function buildCardHTMLv1(r) {
     <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
     <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
     <table class="rd-tbl">
-      <tr><th colspan="3">META DIÁRIA</th><th colspan="3" class="hi">REALIZADO</th></tr>
+      <tr><th colspan="3">META DIÁRIA</th><th colspan="3" class="hi">REALIZADO DIÁRIA</th></tr>
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.metaDiaTotal)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="6"></td></tr>
@@ -2719,10 +2719,10 @@ function buildCardHTMLv1(r) {
     </table>
     <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
     <table class="rd-tbl">
-      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
+      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS - MÊS</th><th>% BAIXAS</th></tr>
       <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
-      <tr><th>MÉDIA PESSOAS/DIA ${r.anoAnt}</th><th>MÉDIA PESSOAS/DIA ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
+      <tr><th>MÉDIA PESSOAS ${r.anoAnt}</th><th>MÉDIA PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
   </div>`;
@@ -2743,7 +2743,7 @@ function buildCardHTMLv2(r) {
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.metaDiaTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
-      <tr><th colspan="3" class="hi">REALIZADO</th></tr>
+      <tr><th colspan="3" class="hi">REALIZADO DIÁRIA</th></tr>
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
@@ -2757,10 +2757,10 @@ function buildCardHTMLv2(r) {
     </table>
     <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
     <table class="rd-tbl">
-      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS</th><th>% BAIXAS</th></tr>
+      <tr><th>TKM · MÊS</th><th>% ANO ANTERIOR</th><th>BAIXAS TOTAIS - MÊS</th><th>% BAIXAS</th></tr>
       <tr><td>${R(r.tktA)}</td><td class="${pctClass(r.pctTktAA)}">${pctTxt(r.pctTktAA)}</td><td>${R0(r.qA)}</td><td class="${pctClass(r.pctBaixas!==null?-r.pctBaixas:null)}">${pctTxt(r.pctBaixas)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
-      <tr><th>MÉDIA PESSOAS/DIA ${r.anoAnt}</th><th>MÉDIA PESSOAS/DIA ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
+      <tr><th>MÉDIA PESSOAS ${r.anoAnt}</th><th>MÉDIA PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
   </div>`;
@@ -2834,7 +2834,7 @@ function textoResumoLoja(r) {
   linhas.push('');
   linhas.push(`*Meta Diária*`);
   linhas.push(`${r.lojaLabel} Loja: ${R(r.metaDiaLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.metaDiaDel)}  |  Total: ${R(r.metaDiaTotal)}`);
-  linhas.push(`*Realizado*`);
+  linhas.push(`*Realizado Diária*`);
   linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}  |  Total: ${R(r.realTotal)}`);
   linhas.push('');
   linhas.push(`*% Meta Acum x Venda Mês*`);
@@ -2844,8 +2844,8 @@ function textoResumoLoja(r) {
   linhas.push('');
   linhas.push(`*${r.lojaLabel} LOJA*`);
   linhas.push(`TKM Mês: ${R(r.tktA)} (${pctTxt(r.pctTktAA)} vs AA)`);
-  linhas.push(`Baixas totais: ${R0(r.qA)} (${pctTxt(r.pctBaixas)})`);
-  linhas.push(`Média Pessoas/Dia ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);
+  linhas.push(`Baixas totais - Mês: ${R0(r.qA)} (${pctTxt(r.pctBaixas)})`);
+  linhas.push(`Média Pessoas ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);
   return linhas.join('\n');
 }
 
