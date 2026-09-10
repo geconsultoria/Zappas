@@ -2910,11 +2910,21 @@ async function enviarResumoDiarioImagem(btnEl) {
   document.body.appendChild(clone);
 
   try {
-    const canvas = await html2canvas(clone, {
+    // html2canvas às vezes trava sem nunca resolver nem rejeitar (ex.:
+    // bloqueio de rede/proxy ao tentar buscar a fonte do Google Fonts pra
+    // embutir no PNG). Sem isso, o botão ficava preso pra sempre em
+    // "Gerando imagem…". Damos 20s e, se estourar, avisamos o usuário e
+    // liberamos o botão em vez de travar a tela.
+    const geracao = html2canvas(clone, {
       backgroundColor: '#F4F1EA',
       scale: 2,
       useCORS: true,
+      imageTimeout: 15000,
     });
+    const timeoutGeracao = new Promise((_, reject) =>
+      setTimeout(() => reject(new Error('TIMEOUT_GERACAO')), 20000)
+    );
+    const canvas = await Promise.race([geracao, timeoutGeracao]);
 
     const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
     if (!blob) throw new Error('Falha ao gerar o PNG.');
@@ -2956,11 +2966,15 @@ async function enviarResumoDiarioImagem(btnEl) {
   } catch(e) {
     if (e.name !== 'AbortError') { // usuário cancelou o compartilhamento — não é erro
       console.error('Erro ao gerar/enviar imagem:', e);
-      alert('Não foi possível gerar a imagem: ' + e.message);
+      if (e.message === 'TIMEOUT_GERACAO') {
+        alert('A geração da imagem demorou demais e foi cancelada (pode ser bloqueio de rede ao carregar a fonte). Tente novamente ou use "Copiar como texto".');
+      } else {
+        alert('Não foi possível gerar a imagem: ' + e.message);
+      }
     }
     btnEl.textContent = old;
   } finally {
-    document.body.removeChild(clone);
+    if (clone.parentNode) document.body.removeChild(clone);
     btnEl.disabled = false;
     setTimeout(() => { btnEl.textContent = old; }, 2200);
   }
