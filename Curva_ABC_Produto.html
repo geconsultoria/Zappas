@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Contas a Pagar</title>
+<title>Curva ABC Produto</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 
 <style>
@@ -242,8 +242,8 @@ a.side-brand:hover { opacity:.85; }
 .fb-ts { font-family: var(--font-mono); font-size: 10px; color: rgba(255,255,255,.5); white-space: nowrap; }
 .fb-ts span { color: rgba(255,255,255,.85); font-weight: 500; }
 
-/* Filtros (Ano/Mês/Loja/Status/Busca) — mesmo "cartão" translúcido usado
-   nas demais telas, embutido direto na barra escura do topo. */
+/* Filtros (Ano/Mês/Loja/Grupo/Classe/Busca) — mesmo "cartão" translúcido
+   usado nas demais telas, embutido direto na barra escura do topo. */
 .ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius: var(--r-lg); padding:8px 14px; margin:0 auto; }
 .ig-fgroup { display:flex; align-items:center; gap:7px; }
 .ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); white-space:nowrap; }
@@ -341,13 +341,13 @@ a.side-brand:hover { opacity:.85; }
 .ct-dvalue { font-size: 12.5px; color: var(--ink); font-weight: 600; white-space: normal; overflow-wrap: break-word; }
 .ct-dvalue.num { font-family: var(--font-num); }
 
-/* Status badges */
+/* Classe ABC badges */
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
-.badge-pago    { background: var(--olive-lt); color: var(--olive); }
-.badge-pendente{ background: var(--blue-lt);  color: var(--blue); }
-.badge-vencido { background: var(--rust-lt);  color: var(--rust-mid); }
+.badge-a { background: var(--olive-lt); color: var(--olive); }
+.badge-b { background: var(--blue-lt);  color: var(--blue); }
+.badge-c { background: var(--rust-lt);  color: var(--rust-mid); }
 
-/* Category bars */
+/* Group / bar rows */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
 .cat-name { width: 220px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat-bar-bg { flex: 1; height: 8px; background: var(--bg-2); border-radius: 6px; overflow: hidden; }
@@ -399,8 +399,8 @@ a.side-brand:hover { opacity:.85; }
 
 <div id="loader">
   <div class="ld-logo">
-    <div class="ld-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
-    <div><div class="ld-name">Contas a Pagar</div><div class="ld-sub">Grupo Pratic</div></div>
+    <div class="ld-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V10m6 9V4m6 15v-6"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 19h18"/></svg></div>
+    <div><div class="ld-name">Curva ABC Produto</div><div class="ld-sub">Grupo Pratic</div></div>
   </div>
   <div class="ld-track"><div class="ld-fill"></div></div>
   <div class="ld-txt" id="ld-txt">Conectando…</div>
@@ -417,7 +417,7 @@ a.side-brand:hover { opacity:.85; }
     <div class="side-brand-text"><div class="t">Dashboards</div><div class="s">Painel de Gestão</div></div>
   </a>
   <nav class="side-nav">
-    <div class="side-item" data-menu="comercial">
+    <div class="side-item active open" data-menu="comercial">
       <button class="side-link" type="button" data-label="Comercial">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
         <span>Comercial</span>
@@ -436,14 +436,14 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           Faturamento Detalhado
         </a>
-        <a href="Curva_ABC_Produto.html">
+        <a href="Curva_ABC_Produto.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V10m6 9V4m6 15v-6"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 19h18"/></svg>
           Curva ABC Produto
         </a>
       </div>
     </div>
 
-    <div class="side-item active open" data-menu="financeiro">
+    <div class="side-item" data-menu="financeiro">
       <button class="side-link" type="button" data-label="Financeiro">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
         <span>Financeiro</span>
@@ -454,7 +454,7 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           DFC Fluxo de Caixa
         </a>
-        <a href="Contas_a_Pagar.html" class="active">
+        <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
           Contas a Pagar
         </a>
@@ -508,20 +508,21 @@ a.side-brand:hover { opacity:.85; }
 <!-- FILTER BAR -->
 <div class="filter-bar" id="filter-bar">
   <div class="fb-brand">
-    <div class="fb-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg></div>
-    <div><div class="fb-title">Contas a Pagar</div><div class="fb-sub">Gestão financeira</div></div>
+    <div class="fb-mark"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V10m6 9V4m6 15v-6"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 19h18"/></svg></div>
+    <div><div class="fb-title">Curva ABC Produto</div><div class="fb-sub">Análise comercial</div></div>
   </div>
 
   <div class="ig-filter-bar">
     <div class="ig-fgroup"><span class="ig-flabel">Ano</span><select class="ig-fselect" id="f-ano"></select></div>
     <div class="ig-fgroup"><span class="ig-flabel">Mês</span><select class="ig-fselect" id="f-mes"><option value="">Todos</option></select></div>
     <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="f-loja"><option value="">Todas</option></select></div>
-    <div class="ig-fgroup"><span class="ig-flabel">Status</span>
-      <select class="ig-fselect" id="f-status">
-        <option value="">Todos</option>
-        <option value="PENDENTE">Pendente</option>
-        <option value="VENCIDO">Vencido</option>
-        <option value="PAGO">Pago</option>
+    <div class="ig-fgroup"><span class="ig-flabel">Grupo</span><select class="ig-fselect" id="f-grupo"><option value="">Todos</option></select></div>
+    <div class="ig-fgroup"><span class="ig-flabel">Classe</span>
+      <select class="ig-fselect" id="f-classe">
+        <option value="">Todas</option>
+        <option value="A">A</option>
+        <option value="B">B</option>
+        <option value="C">C</option>
       </select>
     </div>
   </div>
@@ -541,33 +542,33 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="sec" style="margin-top:0"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
   <div class="kpi-row">
-    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total do Período</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Pago</div><div class="kpi-val" id="kv-pago">—</div><div class="kpi-foot"><b id="kv-qtd-pago">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Pendente</div><div class="kpi-val" id="kv-pendente">—</div><div class="kpi-foot"><b id="kv-qtd-pendente">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Vencido</div><div class="kpi-val" id="kv-vencido">—</div><div class="kpi-foot"><b id="kv-qtd-vencido">0</b> títulos</div></div>
-    <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Ticket Médio</div><div class="kpi-val" id="kv-ticket">—</div><div class="kpi-foot">por título</div></div>
+    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total Vendido</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> produtos ativos</div></div>
+    <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Curva A</div><div class="kpi-val" id="kv-curvaa">—</div><div class="kpi-foot"><b id="kv-qtd-a">0</b> produtos · <span id="kv-pct-a">0%</span> do total</div></div>
+    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Curva B</div><div class="kpi-val" id="kv-curvab">—</div><div class="kpi-foot"><b id="kv-qtd-b">0</b> produtos · <span id="kv-pct-b">0%</span> do total</div></div>
+    <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Curva C</div><div class="kpi-val" id="kv-curvac">—</div><div class="kpi-foot"><b id="kv-qtd-c">0</b> produtos · <span id="kv-pct-c">0%</span> do total</div></div>
+    <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Ticket Médio por Produto</div><div class="kpi-val" id="kv-ticket">—</div><div class="kpi-foot">valor total / produtos ativos</div></div>
   </div>
 
-  <div class="sec"><span class="sec-title">Por Categoria</span><span class="sec-line"></span><input class="sec-search" id="f-busca" placeholder="Buscar documento, categoria…"></div>
+  <div class="sec"><span class="sec-title">Por Grupo</span><span class="sec-line"></span><input class="sec-search" id="f-busca" placeholder="Buscar produto, código, grupo…"></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg></div>
-        <div><div class="title">Gasto por Categoria (Grupo)</div><div class="sub">Somatório do período filtrado, via Plano de Contas</div></div>
+        <div><div class="title">Vendas por Grupo de Produto</div><div class="sub">Somatório do período filtrado</div></div>
       </div>
     </div>
-    <div id="cat-list"></div>
+    <div id="grp-list"></div>
   </div>
 
-  <div class="sec"><span class="sec-title">Títulos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
+  <div class="sec"><span class="sec-title">Produtos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
-        <div><div class="title">Lista de Títulos</div><div class="sub">Ordenado por data de vencimento</div></div>
+        <div><div class="title">Curva ABC de Produtos</div><div class="sub">Ordenado por valor vendido (maior para menor)</div></div>
       </div>
     </div>
-    <div class="comp-scroll"><table class="comp-table" id="ct-titulos"><thead id="cth-titulos"></thead><tbody id="ctb-titulos"></tbody></table></div>
+    <div class="comp-scroll"><table class="comp-table" id="ct-produtos"><thead id="cth-produtos"></thead><tbody id="ctb-produtos"></tbody></table></div>
   </div>
 </div>
 
@@ -576,9 +577,15 @@ a.side-brand:hover { opacity:.85; }
    CONFIGURAÇÃO
 ══════════════════════════════════════════════════════════════ */
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
-const CTASPAGAR_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
-const CTASPAGAR_URLS = CTASPAGAR_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
-const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
+// Mesma lista de lojas usada em Análise Comercial / Contas a Pagar.
+const CURVAABC_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+// ATENÇÃO: assumindo o parâmetro tipo=curvaabc no Apps Script (mesmo padrão de
+// tipo=ctaspagar, tipo=recebidos, tipo=planocontas já usados nas outras telas).
+// Ajuste aqui caso o endpoint real use outro nome.
+const CURVAABC_URLS = CURVAABC_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=curvaabc&loja=${k}`);
+
+/* Limites padrão da Curva ABC (percentual acumulado do valor vendido) */
+const LIMITE_A = 80, LIMITE_B = 95;
 
 /* ── Evita "tela congelada" ao usar o botão Voltar do navegador ── */
 window.addEventListener('pageshow', function(e){ if (e.persisted) window.location.reload(); });
@@ -602,9 +609,10 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 
 function fBRL(v){ return (v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
 function fN(v){ return (v||0).toLocaleString('pt-BR'); }
+function fPct(v){ return (v||0).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
 
 function findCol(headers, ...names){
-  const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
+  const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
   const wanted = names.map(norm);
   return headers.findIndex(h => wanted.includes(norm(h)));
 }
@@ -668,99 +676,65 @@ async function fetchCSV(url){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PLANO DE CONTAS (de-para) + CONTAS A PAGAR
+   CURVA ABC — leitura do CSV de produtos vendidos
+   Colunas esperadas: data, codbarra, nome, grupo, nomegrupo,
+   custofinal, qtd, total, loja
 ══════════════════════════════════════════════════════════════ */
-async function fetchPlanoContas(){
-  const text = await fetchCSV(PLANO_CONTAS_URL);
+function parseCurvaABC(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const map = new Map();
-  if(!lines.length) return map;
+  const rows = [];
+  if(!lines.length) return rows;
   const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iCodPL = findCol(headers,'cod_pl','codpl');
-  const iConta = findCol(headers,'conta_pl','contapl');
-  const iCodGrp= findCol(headers,'cod_grupo','codgrupo');
-  const iGrupo = findCol(headers,'grupo');
-  const iSub   = findCol(headers,'sub_grupo','subgrupo');
-  if(iCodPL<0) throw new Error('Plano de Contas: coluna Cod_PL não encontrada.');
-  for(let i=1;i<lines.length;i++){
-    const line=lines[i].trim(); if(!line) continue;
-    const c = splitLine(line,sep);
-    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
-    const codRaw = g(iCodPL); if(!codRaw) continue;
-    const entry = { conta_pl:g(iConta), cod_grupo:g(iCodGrp), grupo:g(iGrupo), sub_grupo:g(iSub) };
-    map.set(codRaw, entry);
-    const codNum = String(parseInt(codRaw.replace(/\D/g,''),10)||'');
-    if(codNum) map.set(codNum, entry);
-  }
-  return map;
-}
-
-// Lê um CSV de Contas a Pagar de UMA loja e devolve TODAS as linhas
-// (pagas e pendentes) — diferente do DRE, que só usa as pagas.
-function parseContasPagarCompleto(text, planoMap, lojaFallback){
-  const sep = detectSepExt(text);
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const rows = []; const naoMapeados = new Set();
-  if(!lines.length) return { rows, naoMapeados };
-  const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iLoja   = findCol(headers,'loja');
-  const iCodCtr = findCol(headers,'codcentro');
-  const iValor  = findCol(headers,'vparcela');
-  const iVenc   = findCol(headers,'dtvencimento');
-  const iPgto   = findCol(headers,'dtpagamento');
-  const iPaga   = findCol(headers,'paga');
-  const iForma  = findCol(headers,'nforma');
-  const iDoc    = findCol(headers,'ndoc');
-  const iFav    = findCol(headers,'codfavorecido');
-  const iFavNome= findCol(headers,'nfavorecido','nomefavorecido','favorecidonome','fornecedor','nomefornecedor');
+  const iData    = findCol(headers,'data');
+  const iCodBarra= findCol(headers,'codbarra','codigobarras','codbarras');
+  const iNome    = findCol(headers,'nome','produto','nomeproduto');
+  const iGrupo   = findCol(headers,'grupo','codgrupo');
+  const iNomeGrp = findCol(headers,'nomegrupo','grupodescricao','descricaogrupo');
+  const iCusto   = findCol(headers,'custofinal','custo','custounitario');
+  const iQtd     = findCol(headers,'qtd','quantidade');
+  const iTotal   = findCol(headers,'total','valortotal','valor');
+  const iLoja    = findCol(headers,'loja');
 
   const missing=[];
-  if(iCodCtr<0) missing.push('codcentro');
-  if(iValor<0)  missing.push('vparcela');
-  if(iVenc<0)   missing.push('dtvencimento');
-  if(missing.length) throw new Error('Contas a Pagar — colunas não encontradas: '+missing.join(', '));
+  if(iNome<0)  missing.push('nome');
+  if(iQtd<0)   missing.push('qtd');
+  if(iTotal<0) missing.push('total');
+  if(missing.length) throw new Error('Curva ABC — colunas não encontradas: '+missing.join(', '));
 
   for(let i=1;i<lines.length;i++){
     const line=lines[i].trim(); if(!line) continue;
     const c = splitLine(line,sep);
     const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
-    const dtVencStr = g(iVenc);
-    const venc = parseDataBR(dtVencStr);
-    if(!venc) continue;
+    const dtStr = iData>=0 ? g(iData) : '';
+    const dt = parseDataBR(dtStr);
 
-    const valor = parseNum(g(iValor));
-    if(!valor) continue;
+    const qtd = parseNum(g(iQtd));
+    const total = parseNum(g(iTotal));
+    if(!qtd && !total) continue;
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
-    const codCentroRaw = g(iCodCtr);
-    const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10)||'');
-    const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
-    if(!info || !info.grupo){ naoMapeados.add(codCentroRaw || '(vazio)'); continue; }
     if(!loja) continue;
 
-    const pagaFlag = (iPaga>=0 ? g(iPaga) : '').toUpperCase();
-    const dtPgtoStr = iPgto>=0 ? g(iPgto) : '';
-
     rows.push({
-      loja, ano: venc.ano, mes: venc.mes, dia: venc.dia, vencTs: venc.ts,
-      dtVenc: dtVencStr, dtPagto: dtPgtoStr,
-      valor, paga: pagaFlag === 'S',
-      forma: iForma>=0 ? g(iForma) : '',
-      doc: iDoc>=0 ? g(iDoc) : '',
-      favorecido: iFav>=0 ? g(iFav) : '',
-      fornecedor: iFavNome>=0 ? g(iFavNome) : (iFav>=0 ? g(iFav) : ''),
-      grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl,
+      loja,
+      ano: dt ? dt.ano : null, mes: dt ? dt.mes : null, dataTs: dt ? dt.ts : null, dtVenda: dtStr,
+      codbarra: iCodBarra>=0 ? g(iCodBarra) : '',
+      nome: g(iNome) || '(sem nome)',
+      grupo: iGrupo>=0 ? g(iGrupo) : '',
+      nomegrupo: (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO',
+      custofinal: iCusto>=0 ? parseNum(g(iCusto)) : 0,
+      qtd, total,
     });
   }
-  return { rows, naoMapeados };
+  return rows;
 }
 
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='contasAPagar_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v1';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -800,31 +774,20 @@ let rawData = [];
    LOAD
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
-  document.getElementById('ld-txt') && (document.getElementById('ld-txt').textContent = 'Carregando plano de contas…');
-  let planoMap = new Map();
-  try { planoMap = await fetchPlanoContas(); }
-  catch(e){ console.warn('Plano de Contas não carregado:', e.message); }
-
   let rows = [];
-  const naoMapeadosGeral = new Set();
   const BATCH = 2;
-  for(let i=0;i<CTASPAGAR_URLS.length;i+=BATCH){
-    const grupo = CTASPAGAR_URLS.slice(i, i+BATCH);
+  for(let i=0;i<CURVAABC_URLS.length;i+=BATCH){
+    const grupo = CURVAABC_URLS.slice(i, i+BATCH);
     const lbl = document.getElementById('ld-txt');
-    if(lbl) lbl.textContent = 'Carregando despesas ('+Math.min(i+BATCH,CTASPAGAR_URLS.length)+'/'+CTASPAGAR_URLS.length+')…';
+    if(lbl) lbl.textContent = 'Carregando produtos ('+Math.min(i+BATCH,CURVAABC_URLS.length)+'/'+CURVAABC_URLS.length+')…';
     await Promise.all(grupo.map(async (url,j) => {
       const idx = i+j;
-      const lojaKey = CTASPAGAR_STORE_KEYS[idx];
+      const lojaKey = CURVAABC_STORE_KEYS[idx];
       try{
         const text = await fetchCSV(url);
-        const { rows: r, naoMapeados } = parseContasPagarCompleto(text, planoMap, lojaKey.toUpperCase());
-        rows = rows.concat(r);
-        naoMapeados.forEach(c=>naoMapeadosGeral.add(c));
-      }catch(e){ console.warn('Contas a pagar indisponível ('+lojaKey+'):', e.message); }
+        rows = rows.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
+      }catch(e){ console.warn('Curva ABC indisponível ('+lojaKey+'):', e.message); }
     }));
-  }
-  if(naoMapeadosGeral.size){
-    console.warn('[Contas a Pagar] Códigos de centro sem correspondência no Plano de Contas:', [...naoMapeadosGeral].join(', '));
   }
   if(!rows.length) throw new Error('Nenhuma linha válida encontrada.');
   rawData = rows;
@@ -906,17 +869,19 @@ function lojaLabel(l){ return l==='BELVEDER' ? 'BELVEDERE' : l; }
 
 function populateFilters(){
   const anoAtual = new Date().getFullYear();
-  const anoMin = anoAtual - 15, anoMax = anoAtual + 5; // faixa plausível — filtra erro de digitação tipo "8023"
+  const anoMin = anoAtual - 15, anoMax = anoAtual + 5;
   const anos = [...new Set(rawData.map(r=>r.ano))].filter(a => a && a>=anoMin && a<=anoMax).sort((a,b)=>a-b);
   const lojas = [...new Set(rawData.map(r=>r.loja))].filter(Boolean).sort();
+  const grupos = [...new Set(rawData.map(r=>r.nomegrupo))].filter(Boolean).sort();
   const curAno = $('f-ano').value;
   const curLoja = $('f-loja').value;
+  const curGrupo = $('f-grupo').value;
 
   $('f-ano').innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option value="${a}">${a}</option>`).join('');
   if (anos.includes(+curAno)) {
     $('f-ano').value = curAno;
   } else if (anos.includes(anoAtual)) {
-    $('f-ano').value = anoAtual; // padrão: ano atual, quando existe título nele
+    $('f-ano').value = anoAtual;
   } else {
     $('f-ano').value = anos.length ? anos[anos.length-1] : '';
   }
@@ -925,77 +890,127 @@ function populateFilters(){
 
   $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l=>`<option value="${l}">${lojaLabel(l)}</option>`).join('');
   if(lojas.includes(curLoja)) $('f-loja').value = curLoja;
+
+  $('f-grupo').innerHTML = '<option value="">Todos</option>' + grupos.map(g=>`<option value="${g}">${g}</option>`).join('');
+  if(grupos.includes(curGrupo)) $('f-grupo').value = curGrupo;
 }
 
-function statusDe(row){
-  if(row.paga) return 'PAGO';
-  const hojeTs = new Date(new Date().getFullYear(), new Date().getMonth(), new Date().getDate()).getTime();
-  return row.vencTs < hojeTs ? 'VENCIDO' : 'PENDENTE';
-}
-
-function getFiltered(){
+/* Filtros que definem o universo usado para calcular a curva
+   (ano/mês/loja/grupo) — mudar qualquer um deles recalcula o
+   percentual acumulado do zero. */
+function getBaseFiltered(){
   const ano = $('f-ano').value ? +$('f-ano').value : null;
   const mes = $('f-mes').value ? +$('f-mes').value : null;
   const loja = $('f-loja').value || null;
-  const status = $('f-status').value || null;
-  const busca = $('f-busca').value.trim().toLowerCase();
+  const grupo = $('f-grupo').value || null;
 
   return rawData.filter(r => {
     if(ano && r.ano !== ano) return false;
     if(mes && r.mes !== mes) return false;
     if(loja && r.loja !== loja) return false;
-    if(status && statusDe(r) !== status) return false;
-    if(busca){
-      const alvo = (r.doc+' '+r.grupo+' '+r.subgrupo+' '+r.plano+' '+r.forma+' '+r.fornecedor).toLowerCase();
-      if(!alvo.includes(busca)) return false;
-    }
+    if(grupo && r.nomegrupo !== grupo) return false;
     return true;
   });
 }
 
-['f-ano','f-mes','f-loja','f-status'].forEach(id => $(id).addEventListener('change', applyFilters));
+/* Agrupa por Loja + Código de Barras (ou nome, se não houver código)
+   e devolve a lista já ordenada e classificada em A/B/C. */
+function calcularCurvaABC(rows){
+  const map = new Map();
+  rows.forEach(r => {
+    const key = r.loja + '|' + (r.codbarra || r.nome);
+    if(!map.has(key)){
+      map.set(key, {
+        loja: r.loja, codbarra: r.codbarra, nome: r.nome,
+        grupo: r.grupo, nomegrupo: r.nomegrupo,
+        qtd: 0, total: 0, custoTotal: 0,
+      });
+    }
+    const p = map.get(key);
+    p.qtd += r.qtd;
+    p.total += r.total;
+    p.custoTotal += (r.custofinal||0) * (r.qtd||0);
+  });
+
+  const lista = [...map.values()].sort((a,b)=>b.total-a.total);
+  const totalGeral = lista.reduce((s,p)=>s+p.total,0);
+  let acumulado = 0;
+  lista.forEach(p => {
+    p.custoUnit = p.qtd ? p.custoTotal/p.qtd : 0;
+    p.margem = p.total - p.custoTotal;
+    p.margemPct = p.total ? (p.margem/p.total*100) : 0;
+    p.pct = totalGeral ? (p.total/totalGeral*100) : 0;
+    acumulado += p.pct;
+    p.pctAcum = acumulado;
+    p.classe = p.pctAcum <= LIMITE_A ? 'A' : (p.pctAcum <= LIMITE_B ? 'B' : 'C');
+  });
+  return lista;
+}
+
+function getFiltrados(){
+  const busca = $('f-busca').value.trim().toLowerCase();
+  const classe = $('f-classe').value || null;
+
+  const base = getBaseFiltered();
+  const classificados = calcularCurvaABC(base);
+
+  const exibicao = classificados.filter(p => {
+    if(classe && p.classe !== classe) return false;
+    if(busca){
+      const alvo = (p.nome+' '+p.codbarra+' '+p.nomegrupo+' '+lojaLabel(p.loja)).toLowerCase();
+      if(!alvo.includes(busca)) return false;
+    }
+    return true;
+  });
+
+  return { base, classificados, exibicao };
+}
+
+['f-ano','f-mes','f-loja','f-grupo','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
 $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer); window._buscaTimer = setTimeout(applyFilters, 200); });
 
 /* ══════════════════════════════════════════════════════════════
    RENDER
 ══════════════════════════════════════════════════════════════ */
 function applyFilters(){
-  const data = getFiltered();
-  renderKPIs(data);
-  renderCategorias(data);
-  renderTabela(data);
+  const { base, classificados, exibicao } = getFiltrados();
+  renderKPIs(classificados);
+  renderGrupos(base);
+  renderTabela(exibicao);
 }
 
-function renderKPIs(data){
-  const total = data.reduce((s,r)=>s+r.valor,0);
-  const pago = data.filter(r=>statusDe(r)==='PAGO');
-  const pendente = data.filter(r=>statusDe(r)==='PENDENTE');
-  const vencido = data.filter(r=>statusDe(r)==='VENCIDO');
-  const vPago = pago.reduce((s,r)=>s+r.valor,0);
-  const vPendente = pendente.reduce((s,r)=>s+r.valor,0);
-  const vVencido = vencido.reduce((s,r)=>s+r.valor,0);
+function renderKPIs(classificados){
+  const total = classificados.reduce((s,p)=>s+p.total,0);
+  const a = classificados.filter(p=>p.classe==='A');
+  const b = classificados.filter(p=>p.classe==='B');
+  const c = classificados.filter(p=>p.classe==='C');
+  const vA = a.reduce((s,p)=>s+p.total,0);
+  const vB = b.reduce((s,p)=>s+p.total,0);
+  const vC = c.reduce((s,p)=>s+p.total,0);
 
   $('kv-total').textContent = fBRL(total);
-  $('kv-qtd').textContent = fN(data.length);
-  $('kv-pago').textContent = fBRL(vPago);
-  $('kv-qtd-pago').textContent = fN(pago.length);
-  $('kv-pendente').textContent = fBRL(vPendente);
-  $('kv-qtd-pendente').textContent = fN(pendente.length);
-  $('kv-vencido').textContent = fBRL(vVencido);
-  $('kv-qtd-vencido').textContent = fN(vencido.length);
-  $('kv-ticket').textContent = fBRL(data.length ? total/data.length : 0);
-  $('sec-count').textContent = fN(data.length) + ' registros';
+  $('kv-qtd').textContent = fN(classificados.length);
+  $('kv-curvaa').textContent = fBRL(vA);
+  $('kv-qtd-a').textContent = fN(a.length);
+  $('kv-pct-a').textContent = fPct(total?vA/total*100:0);
+  $('kv-curvab').textContent = fBRL(vB);
+  $('kv-qtd-b').textContent = fN(b.length);
+  $('kv-pct-b').textContent = fPct(total?vB/total*100:0);
+  $('kv-curvac').textContent = fBRL(vC);
+  $('kv-qtd-c').textContent = fN(c.length);
+  $('kv-pct-c').textContent = fPct(total?vC/total*100:0);
+  $('kv-ticket').textContent = fBRL(classificados.length ? total/classificados.length : 0);
 }
 
-function renderCategorias(data){
+function renderGrupos(base){
   const porGrupo = new Map();
-  data.forEach(r => {
-    const g = r.grupo || 'SEM CATEGORIA';
-    porGrupo.set(g, (porGrupo.get(g)||0) + r.valor);
+  base.forEach(r => {
+    const g = r.nomegrupo || 'SEM GRUPO';
+    porGrupo.set(g, (porGrupo.get(g)||0) + r.total);
   });
   const lista = [...porGrupo.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12);
   const max = lista.length ? lista[0][1] : 0;
-  const el = $('cat-list');
+  const el = $('grp-list');
   if(!lista.length){
     el.innerHTML = '<div class="nd" style="padding:30px;text-align:center;color:var(--ink-4)">Sem dados para o período selecionado</div>';
     return;
@@ -1006,54 +1021,61 @@ function renderCategorias(data){
       <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${max?(val/max*100):0}%"></div></div>
       <div class="cat-val">${fBRL(val)}</div>
     </div>`).join('');
+  $('sec-count').textContent = fN(base.length) + ' registros';
 }
 
-const CT_COLSPAN = 9;
+const CT_COLSPAN = 11;
 
 function renderTabela(data){
-  $('cth-titulos').innerHTML = `<tr>
-    <th></th><th>Loja</th><th>Vencimento</th><th>Título</th><th>Fornecedor</th><th>Plano de Contas</th><th>Pagamento</th><th class="num">Valor</th><th>Status</th>
+  $('cth-produtos').innerHTML = `<tr>
+    <th></th><th>Loja</th><th>Código</th><th>Produto</th><th>Grupo</th><th class="num">Qtd</th><th class="num">Custo Unit.</th><th class="num">Valor Total</th><th class="num">% Part.</th><th class="num">% Acum.</th><th>Classe</th>
   </tr>`;
   if(!data.length){
-    $('ctb-titulos').innerHTML = `<tr><td colspan="${CT_COLSPAN}" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>`;
+    $('ctb-produtos').innerHTML = `<tr><td colspan="${CT_COLSPAN}" class="nd">Nenhum produto encontrado para os filtros selecionados</td></tr>`;
     return;
   }
-  const ordenado = [...data].sort((a,b)=>a.vencTs-b.vencTs).slice(0, 500);
-  const badge = st => st==='PAGO' ? '<span class="badge badge-pago">Pago</span>'
-    : st==='VENCIDO' ? '<span class="badge badge-vencido">Vencido</span>'
-    : '<span class="badge badge-pendente">Pendente</span>';
+  const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
+    : cl==='B' ? '<span class="badge badge-b">B</span>'
+    : '<span class="badge badge-c">C</span>';
 
-  $('ctb-titulos').innerHTML = ordenado.map((r,i) => `
+  const limitado = data.slice(0, 500);
+
+  $('ctb-produtos').innerHTML = limitado.map((p,i) => `
     <tr class="ct-row-main" data-i="${i}">
-      <td class="ct-expand-cell"><button type="button" class="ct-expand-btn" aria-label="Ver mais informações do título" aria-expanded="false" onclick="toggleCtDetail(this)">
+      <td class="ct-expand-cell"><button type="button" class="ct-expand-btn" aria-label="Ver mais informações do produto" aria-expanded="false" onclick="toggleCtDetail(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
       </button></td>
-      <td>${lojaLabel(r.loja)}</td>
-      <td>${r.dtVenc}</td>
-      <td>${r.doc || '—'}</td>
-      <td>${r.fornecedor || '—'}</td>
-      <td>${r.plano || '—'}</td>
-      <td>${r.dtPagto || '—'}</td>
-      <td class="num">${fBRL(r.valor)}</td>
-      <td>${badge(statusDe(r))}</td>
+      <td>${lojaLabel(p.loja)}</td>
+      <td>${p.codbarra || '—'}</td>
+      <td>${p.nome}</td>
+      <td>${p.nomegrupo}</td>
+      <td class="num">${fN(p.qtd)}</td>
+      <td class="num">${fBRL(p.custoUnit)}</td>
+      <td class="num">${fBRL(p.total)}</td>
+      <td class="num">${fPct(p.pct)}</td>
+      <td class="num">${fPct(p.pctAcum)}</td>
+      <td>${badge(p.classe)}</td>
     </tr>
     <tr class="ct-detail" data-i="${i}">
       <td colspan="${CT_COLSPAN}">
         <div class="ct-detail-grid">
-          <div class="ct-detail-item"><span class="ct-dlabel">Loja</span><span class="ct-dvalue">${lojaLabel(r.loja)}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Fornecedor</span><span class="ct-dvalue">${r.fornecedor || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Documento</span><span class="ct-dvalue">${r.doc || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Categoria</span><span class="ct-dvalue">${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Plano de Contas</span><span class="ct-dvalue">${r.plano || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Forma de Pagamento</span><span class="ct-dvalue">${r.forma || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Vencimento</span><span class="ct-dvalue">${r.dtVenc || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Data de Pagamento</span><span class="ct-dvalue">${r.dtPagto || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Valor</span><span class="ct-dvalue num">${fBRL(r.valor)}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Status</span><span class="ct-dvalue">${badge(statusDe(r))}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Produto</span><span class="ct-dvalue">${p.nome}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Código de Barras</span><span class="ct-dvalue">${p.codbarra || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Grupo</span><span class="ct-dvalue">${p.nomegrupo}${p.grupo ? ' ('+p.grupo+')' : ''}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Loja</span><span class="ct-dvalue">${lojaLabel(p.loja)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Quantidade Vendida</span><span class="ct-dvalue num">${fN(p.qtd)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Custo Unitário</span><span class="ct-dvalue num">${fBRL(p.custoUnit)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Custo Total</span><span class="ct-dvalue num">${fBRL(p.custoTotal)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Valor Total</span><span class="ct-dvalue num">${fBRL(p.total)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Margem</span><span class="ct-dvalue num">${fBRL(p.margem)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Margem %</span><span class="ct-dvalue num">${fPct(p.margemPct)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">% Participação</span><span class="ct-dvalue num">${fPct(p.pct)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">% Acumulado</span><span class="ct-dvalue num">${fPct(p.pctAcum)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Classe</span><span class="ct-dvalue">${badge(p.classe)}</span></div>
         </div>
       </td>
     </tr>`).join('') +
-    (data.length > 500 ? `<tr><td colspan="${CT_COLSPAN}" class="nd">Mostrando os 500 títulos mais próximos do vencimento, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    (data.length > 500 ? `<tr><td colspan="${CT_COLSPAN}" class="nd">Mostrando os 500 produtos com maior valor vendido, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
 }
 
 function toggleCtDetail(btn){
@@ -1070,7 +1092,7 @@ function toggleCtDetail(btn){
 /* ══════════════════════════════════════════════════════════════
    SIDEBAR (hover/collapse) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-let lastOpenMenu = 'financeiro';
+let lastOpenMenu = 'comercial';
 function expandSidebar(){
   const sidebar = document.getElementById('sidebar');
   if(!sidebar.classList.contains('collapsed')) return;
@@ -1150,7 +1172,7 @@ function collapseSidebar(){
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-AuthGuard.requireScreen('contas_a_pagar', function(){ loadData(false); });
+AuthGuard.requireScreen('curva_abc_produto', function(){ loadData(false); });
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">
