@@ -23,7 +23,9 @@
  * NOVO: além do login com Google, esta versão adiciona uma segunda opção —
  * "Entrar com código por e-mail" — que usa as ações enviarCodigoLogin /
  * validarCodigoLogin do Code.gs (que envia um código de 6 dígitos via
- * GmailApp). As duas formas de login coexistem: o usuário escolhe.
+ * MailApp). As duas formas de login coexistem, mas o código por e-mail é a
+ * tela PADRÃO agora; o login com Google fica atrás de um link ("Fazer login
+ * com o Google") e só carrega o script do Google quando clicado.
  * ============================================================================
  */
 
@@ -188,11 +190,11 @@
     document.head.appendChild(style);
   }
 
-  // Modo do overlay: 'google' (padrão), 'otp-email' (pedir e-mail) ou
+  // Modo do overlay: 'otp-email' (pedir e-mail — PADRÃO), 'google' ou
   // 'otp-codigo' (digitar o código recebido).
   function showLoginOverlay(errorMsg, modo) {
     hideOverlay();
-    modo = modo || "google";
+    modo = modo || "otp-email";
     var wrap = document.createElement("div");
     wrap.id = "auth-guard-overlay";
 
@@ -213,7 +215,8 @@
         '<div class="ag-sub">Informe seu e-mail cadastrado. Vamos enviar um código de acesso para ele.</div>' +
         '<div class="ag-field"><input type="email" id="ag-otp-email" placeholder="seuemail@zappas.com.br" autocomplete="email"></div>' +
         '<button type="button" class="ag-btn" id="ag-enviar-codigo">Enviar código</button>' +
-        '<a class="ag-link ag-back-link" id="ag-voltar-google" href="javascript:void(0)">Voltar para login com Google</a>';
+        '<div class="ag-divider">ou</div>' +
+        '<button type="button" class="ag-link" id="ag-voltar-google">Fazer login com o Google</button>';
     } else if (modo === "otp-codigo") {
       innerHtml +=
         '<div class="ag-sub">Enviamos um código de 6 dígitos para <strong>' + (otpEmailPendente || "") + '</strong>. Confira sua caixa de entrada (e o spam) e digite o código abaixo.</div>' +
@@ -240,7 +243,7 @@
         inputEmail.focus();
       }
       var btnVoltarGoogle = document.getElementById("ag-voltar-google");
-      if (btnVoltarGoogle) btnVoltarGoogle.addEventListener("click", function () { showLoginOverlay(null, "google"); });
+      if (btnVoltarGoogle) btnVoltarGoogle.addEventListener("click", function () { mostrarLoginGoogle(); });
     } else if (modo === "otp-codigo") {
       var btnConfirmar = document.getElementById("ag-confirmar-codigo");
       var inputCodigo = document.getElementById("ag-otp-codigo");
@@ -315,9 +318,19 @@
     try { window.google.accounts.id.prompt(); } catch (e) {}
   }
 
+  // Login por código é o padrão agora, então só carregamos o script do
+  // Google (e mostramos o botão) quando a pessoa realmente pede — em vez de
+  // carregar isso tudo já na primeira tela, antes de saber se vai ser usado.
+  function mostrarLoginGoogle(errorMsg) {
+    loadGisScript(function () {
+      initGis();
+      showLoginOverlay(errorMsg, "google");
+    });
+  }
+
   function handleCredentialResponse(response) {
     var payload = decodeJwt(response.credential);
-    if (!payload) { showLoginOverlay("Não foi possível validar o login. Tente novamente."); return; }
+    if (!payload) { mostrarLoginGoogle("Não foi possível validar o login. Tente novamente."); return; }
 
     var email = String(payload.email || "").toLowerCase();
 
@@ -326,13 +339,13 @@
     // Isso permite cadastrar qualquer conta Google (inclusive Gmail pessoal)
     // direto na tela de Administração, sem precisar editar código.
     if (!payload.email_verified) {
-      showLoginOverlay("Não foi possível confirmar seu e-mail com o Google. Tente novamente.");
+      mostrarLoginGoogle("Não foi possível confirmar seu e-mail com o Google. Tente novamente.");
       return;
     }
 
     fetchUsuario(email).then(function (data) {
       if (!data || !data.encontrado || data.ativo === false) {
-        showLoginOverlay("Sua conta ainda não tem acesso liberado a este painel. Fale com um administrador.");
+        mostrarLoginGoogle("Sua conta ainda não tem acesso liberado a este painel. Fale com um administrador.");
         return;
       }
       session = {
@@ -351,7 +364,7 @@
       proceedAfterAuth();
     }).catch(function (err) {
       log("Erro ao buscar usuário:", err);
-      showLoginOverlay("Erro ao verificar sua conta. Tente novamente em instantes.");
+      mostrarLoginGoogle("Erro ao verificar sua conta. Tente novamente em instantes.");
     });
   }
 
@@ -497,11 +510,9 @@
       return;
     }
 
-    showLoginOverlay();
-    loadGisScript(function () {
-      initGis();
-      renderGoogleButton();
-    });
+    // Tela inicial agora é o login por código de e-mail; o script do Google
+    // só é carregado se a pessoa clicar em "Fazer login com o Google".
+    showLoginOverlay(null, "otp-email");
   }
 
   function logout() {
