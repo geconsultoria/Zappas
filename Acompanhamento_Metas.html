@@ -2935,16 +2935,11 @@ async function enviarResumoDiarioImagem(btnEl) {
     const nomeArquivo = `resumo-diario-${lojaTxt.toLowerCase().replace(/\s+/g,'-')}.png`;
     const file = new File([blob], nomeArquivo, { type: 'image/png' });
 
-    // O compartilhamento nativo (navigator.share) só funciona de verdade
-    // em celular. No computador ele exige que o clique do usuário esteja
-    // "fresco" — como a geração da imagem leva um tempinho, quando chega
-    // aqui essa permissão já expirou e o Chrome/Edge simplesmente não
-    // abre nada (nem erro, nem a tela de compartilhar), deixando a
-    // impressão de que travou. Por isso, no computador vamos direto pro
-    // caminho de baixar a imagem e abrir o WhatsApp Web, que é o que
-    // realmente funciona por lá.
-    const ehMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
-    if (ehMobile && navigator.canShare && navigator.canShare({ files: [file] })) {
+    // Compartilhamento nativo (abre a tela de escolher contato/app) —
+    // funciona tanto no celular quanto no Windows (Chrome/Edge usam a
+    // tela de compartilhar do próprio Windows, que já inclui o WhatsApp
+    // Desktop se estiver instalado).
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
       const compartilhar = navigator.share({
         files: [file],
         title: 'Resumo Diário',
