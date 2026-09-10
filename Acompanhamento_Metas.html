@@ -2668,6 +2668,19 @@ function computeResumoLoja(loja) {
   const pctBaixas = vA > 0 ? (qA / vA) * 100 : null;
   const pctPess = cAntDia > 0 ? ((cADia - cAntDia) / cAntDia) * 100 : null;
 
+  // META DO MÊS x REALIZADO = meta cheia do mês (não prorateada pelos dias
+  // já passados, ao contrário da "Meta Acum") vs. o que já foi vendido até
+  // o dia de referência — pra dar a visão de "quanto falta" pra bater a
+  // meta inteira do mês, com o valor em R$ (não só o percentual).
+  const metaMesTotal = metaMesLoja + metaMesDel;
+  const realizadoMesTotal = vLojaAcumDia + vDelAcumDia;
+  const diferMetaLoja = vLojaAcumDia - metaMesLoja;
+  const diferMetaDel  = vDelAcumDia  - metaMesDel;
+  const diferMetaTotal = realizadoMesTotal - metaMesTotal;
+  const pctAtingidoLoja  = metaMesLoja  > 0 ? (vLojaAcumDia      / metaMesLoja)  * 100 : null;
+  const pctAtingidoDel   = metaMesDel   > 0 ? (vDelAcumDia       / metaMesDel)   * 100 : null;
+  const pctAtingidoTotal = metaMesTotal > 0 ? (realizadoMesTotal / metaMesTotal) * 100 : null;
+
   return {
     loja, lojaLabel: (loja==='BELVEDER'?'BELVEDERE':loja), ano, mes, anoAnt, diaAnt,
     metaDiaLoja, metaDiaDel, metaDiaTotal: metaDiaLoja + metaDiaDel,
@@ -2676,6 +2689,10 @@ function computeResumoLoja(loja) {
     tktA, pctTktAA, qA, pctBaixas,
     cA: cADia, cAnt: cAntDia,
     pctPess, diferPess: cADia - cAntDia,
+    metaMesLoja, metaMesDel, metaMesTotal,
+    realizadoMesLoja: vLojaAcumDia, realizadoMesDel: vDelAcumDia, realizadoMesTotal,
+    diferMetaLoja, diferMetaDel, diferMetaTotal,
+    pctAtingidoLoja, pctAtingidoDel, pctAtingidoTotal,
   };
 }
 
@@ -2747,6 +2764,14 @@ function buildCardHTMLv1(r) {
       <tr><th>MÉDIA PESSOAS ${r.anoAnt}</th><th>MÉDIA PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
+    <table class="rd-tbl">
+      <tr><th colspan="4">META DO MÊS × REALIZADO ATÉ O MOMENTO</th></tr>
+      <tr><td class="rd-sub-hd"></td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td class="rd-sub-hd">Meta do Mês</td><td>${R(r.metaMesLoja)}</td><td>${R(r.metaMesDel)}</td><td>${R(r.metaMesTotal)}</td></tr>
+      <tr><td class="rd-sub-hd">Realizado</td><td>${R(r.realizadoMesLoja)}</td><td>${R(r.realizadoMesDel)}</td><td>${R(r.realizadoMesTotal)}</td></tr>
+      <tr><td class="rd-sub-hd">Diferença</td><td class="${pctClass(r.diferMetaLoja)}">${r.diferMetaLoja>=0?'+':''}${R(r.diferMetaLoja)}</td><td class="${pctClass(r.diferMetaDel)}">${r.diferMetaDel>=0?'+':''}${R(r.diferMetaDel)}</td><td class="${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R(r.diferMetaTotal)}</td></tr>
+      <tr><td class="rd-sub-hd">% da Meta</td><td class="${pctClass100(r.pctAtingidoLoja)}">${pctTxt(r.pctAtingidoLoja)}</td><td class="${pctClass100(r.pctAtingidoDel)}">${pctTxt(r.pctAtingidoDel)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
+    </table>
   </div>`;
 }
 
@@ -2784,6 +2809,14 @@ function buildCardHTMLv2(r) {
       <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
       <tr><th>MÉDIA PESSOAS ${r.anoAnt}</th><th>MÉDIA PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
+    </table>
+    <table class="rd-tbl">
+      <tr><th colspan="4">META DO MÊS × REALIZADO ATÉ O MOMENTO</th></tr>
+      <tr><td class="rd-sub-hd"></td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td class="rd-sub-hd">Meta do Mês</td><td>${R(r.metaMesLoja)}</td><td>${R(r.metaMesDel)}</td><td>${R(r.metaMesTotal)}</td></tr>
+      <tr><td class="rd-sub-hd">Realizado</td><td>${R(r.realizadoMesLoja)}</td><td>${R(r.realizadoMesDel)}</td><td>${R(r.realizadoMesTotal)}</td></tr>
+      <tr><td class="rd-sub-hd">Diferença</td><td class="${pctClass(r.diferMetaLoja)}">${r.diferMetaLoja>=0?'+':''}${R(r.diferMetaLoja)}</td><td class="${pctClass(r.diferMetaDel)}">${r.diferMetaDel>=0?'+':''}${R(r.diferMetaDel)}</td><td class="${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R(r.diferMetaTotal)}</td></tr>
+      <tr><td class="rd-sub-hd">% da Meta</td><td class="${pctClass100(r.pctAtingidoLoja)}">${pctTxt(r.pctAtingidoLoja)}</td><td class="${pctClass100(r.pctAtingidoDel)}">${pctTxt(r.pctAtingidoDel)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
   </div>`;
 }
@@ -2868,6 +2901,12 @@ function textoResumoLoja(r) {
   linhas.push(`TKM Mês: ${R(r.tktA)} (${pctTxt(r.pctTktAA)} vs AA)`);
   linhas.push(`Baixas totais - Mês: ${R0(r.qA)} (${pctTxt(r.pctBaixas)})`);
   linhas.push(`Média Pessoas ${r.anoAnt}: ${V0(r.cAnt)}  →  ${r.ano}: ${V0(r.cA)}  (${r.diferPess>=0?'+':''}${V0(r.diferPess)} · ${pctTxt(r.pctPess)})`);
+  linhas.push('');
+  linhas.push(`*Meta do Mês × Realizado até o momento*`);
+  linhas.push(`Meta: ${r.lojaLabel} Loja ${R(r.metaMesLoja)}  |  Delivery ${R(r.metaMesDel)}  |  Total ${R(r.metaMesTotal)}`);
+  linhas.push(`Realizado: ${r.lojaLabel} Loja ${R(r.realizadoMesLoja)}  |  Delivery ${R(r.realizadoMesDel)}  |  Total ${R(r.realizadoMesTotal)}`);
+  linhas.push(`Diferença: ${r.lojaLabel} Loja ${r.diferMetaLoja>=0?'+':''}${R(r.diferMetaLoja)}  |  Delivery ${r.diferMetaDel>=0?'+':''}${R(r.diferMetaDel)}  |  Total ${r.diferMetaTotal>=0?'+':''}${R(r.diferMetaTotal)}`);
+  linhas.push(`% da Meta: Loja ${pctTxt(r.pctAtingidoLoja)}  |  Delivery ${pctTxt(r.pctAtingidoDel)}  |  Total ${pctTxt(r.pctAtingidoTotal)}`);
   return linhas.join('\n');
 }
 
