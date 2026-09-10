@@ -1004,11 +1004,11 @@ function renderCategorias(data){
     </div>`).join('');
 }
 
-const CT_COLSPAN = 10;
+const CT_COLSPAN = 8;
 
 function renderTabela(data){
   $('cth-titulos').innerHTML = `<tr>
-    <th></th><th>Vencimento</th><th>Título</th><th>Fornecedor</th><th>Loja</th><th>Categoria</th><th>Forma</th><th>Pagamento</th><th class="num">Valor</th><th>Status</th>
+    <th></th><th>Vencimento</th><th>Título</th><th>Fornecedor</th><th>Plano de Contas</th><th>Pagamento</th><th class="num">Valor</th><th>Status</th>
   </tr>`;
   if(!data.length){
     $('ctb-titulos').innerHTML = `<tr><td colspan="${CT_COLSPAN}" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>`;
@@ -1027,9 +1027,7 @@ function renderTabela(data){
       <td>${r.dtVenc}</td>
       <td>${r.doc || '—'}</td>
       <td>${r.fornecedor || '—'}</td>
-      <td>${lojaLabel(r.loja)}</td>
-      <td>${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</td>
-      <td>${r.forma || '—'}</td>
+      <td>${r.plano || '—'}</td>
       <td>${r.dtPagto || '—'}</td>
       <td class="num">${fBRL(r.valor)}</td>
       <td>${badge(statusDe(r))}</td>
