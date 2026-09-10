@@ -2765,9 +2765,8 @@ function buildCardHTMLv1(r) {
       <tr><th>MÉDIA PESSOAS ${r.anoAnt}</th><th>MÉDIA PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
-    <div class="rd-sec-title">${r.lojaLabel} CONSOLIDADO</div>
+    <div class="rd-sec-title">META MENSAL</div>
     <table class="rd-tbl">
-      <tr><th colspan="4">META DO MÊS × REALIZADO ATÉ O MOMENTO</th></tr>
       <tr><td class="rd-sub-hd">META</td><td class="rd-sub-hd">REALIZADO</td><td class="rd-sub-hd">DIFERENÇA</td><td class="rd-sub-hd">% DA META</td></tr>
       <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
@@ -2809,9 +2808,8 @@ function buildCardHTMLv2(r) {
       <tr><th>MÉDIA PESSOAS ${r.anoAnt}</th><th>MÉDIA PESSOAS ${r.ano}</th><th>DIFERENÇA</th><th>%</th></tr>
       <tr><td>${V0(r.cAnt)}</td><td>${V0(r.cA)}</td><td class="${pctClass(r.diferPess)}">${r.diferPess>=0?'+':''}${V0(r.diferPess)}</td><td class="${pctClass(r.pctPess)}">${pctTxt(r.pctPess)}</td></tr>
     </table>
-    <div class="rd-sec-title">${r.lojaLabel} CONSOLIDADO</div>
+    <div class="rd-sec-title">META MENSAL</div>
     <table class="rd-tbl">
-      <tr><th colspan="4">META DO MÊS × REALIZADO ATÉ O MOMENTO</th></tr>
       <tr><td class="rd-sub-hd">META</td><td class="rd-sub-hd">REALIZADO</td><td class="rd-sub-hd">DIFERENÇA</td><td class="rd-sub-hd">% DA META</td></tr>
       <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
