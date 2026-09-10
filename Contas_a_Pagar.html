@@ -320,6 +320,27 @@ a.side-brand:hover { opacity:.85; }
 .comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
 .comp-table .nd { text-align: center; padding: 40px 20px; color: var(--ink-4); }
 
+/* Expand/collapse row detail */
+.comp-table td.ct-expand-cell { padding: 9px 4px 9px 12px; width: 28px; }
+.ct-expand-btn {
+  width: 22px; height: 22px; border-radius: 6px; border: none; background: transparent;
+  color: var(--ink-4); display: flex; align-items: center; justify-content: center;
+  cursor: pointer; transition: background .12s, color .12s;
+}
+.ct-expand-btn:hover { background: var(--blue-lt); color: var(--blue); }
+.ct-expand-btn svg { width: 13px; height: 13px; transition: transform .16s var(--ease); }
+.ct-expand-btn.open svg { transform: rotate(90deg); }
+.ct-expand-btn.open { color: var(--blue); }
+.comp-table tbody tr.ct-row-main.is-open td { background: var(--blue-xl); }
+.comp-table tbody tr.ct-detail { display: none; border-bottom: 1px solid #F0EDE5; }
+.comp-table tbody tr.ct-detail.open { display: table-row; }
+.comp-table tbody tr.ct-detail td { background: var(--surf-2); padding: 14px 18px 16px 40px; white-space: normal; }
+.ct-detail-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px 20px; }
+.ct-detail-item { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.ct-dlabel { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); }
+.ct-dvalue { font-size: 12.5px; color: var(--ink); font-weight: 600; white-space: normal; overflow-wrap: break-word; }
+.ct-dvalue.num { font-family: var(--font-num); }
+
 /* Status badges */
 .badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 20px; font-size: 10.5px; font-weight: 700; white-space: nowrap; }
 .badge-pago    { background: var(--olive-lt); color: var(--olive); }
@@ -688,6 +709,7 @@ function parseContasPagarCompleto(text, planoMap, lojaFallback){
   const iForma  = findCol(headers,'nforma');
   const iDoc    = findCol(headers,'ndoc');
   const iFav    = findCol(headers,'codfavorecido');
+  const iFavNome= findCol(headers,'nfavorecido','nomefavorecido','favorecidonome','fornecedor','nomefornecedor');
 
   const missing=[];
   if(iCodCtr<0) missing.push('codcentro');
@@ -724,6 +746,7 @@ function parseContasPagarCompleto(text, planoMap, lojaFallback){
       forma: iForma>=0 ? g(iForma) : '',
       doc: iDoc>=0 ? g(iDoc) : '',
       favorecido: iFav>=0 ? g(iFav) : '',
+      fornecedor: iFavNome>=0 ? g(iFavNome) : (iFav>=0 ? g(iFav) : ''),
       grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl,
     });
   }
@@ -919,7 +942,7 @@ function getFiltered(){
     if(loja && r.loja !== loja) return false;
     if(status && statusDe(r) !== status) return false;
     if(busca){
-      const alvo = (r.doc+' '+r.grupo+' '+r.subgrupo+' '+r.plano+' '+r.forma).toLowerCase();
+      const alvo = (r.doc+' '+r.grupo+' '+r.subgrupo+' '+r.plano+' '+r.forma+' '+r.fornecedor).toLowerCase();
       if(!alvo.includes(busca)) return false;
     }
     return true;
@@ -981,12 +1004,14 @@ function renderCategorias(data){
     </div>`).join('');
 }
 
+const CT_COLSPAN = 10;
+
 function renderTabela(data){
   $('cth-titulos').innerHTML = `<tr>
-    <th>Vencimento</th><th>Loja</th><th>Documento</th><th>Categoria</th><th>Forma</th><th class="num">Valor</th><th>Status</th>
+    <th></th><th>Vencimento</th><th>Título</th><th>Fornecedor</th><th>Loja</th><th>Categoria</th><th>Forma</th><th>Pagamento</th><th class="num">Valor</th><th>Status</th>
   </tr>`;
   if(!data.length){
-    $('ctb-titulos').innerHTML = '<tr><td colspan="7" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>';
+    $('ctb-titulos').innerHTML = `<tr><td colspan="${CT_COLSPAN}" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>`;
     return;
   }
   const ordenado = [...data].sort((a,b)=>a.vencTs-b.vencTs).slice(0, 500);
@@ -994,17 +1019,49 @@ function renderTabela(data){
     : st==='VENCIDO' ? '<span class="badge badge-vencido">Vencido</span>'
     : '<span class="badge badge-pendente">Pendente</span>';
 
-  $('ctb-titulos').innerHTML = ordenado.map(r => `
-    <tr>
+  $('ctb-titulos').innerHTML = ordenado.map((r,i) => `
+    <tr class="ct-row-main" data-i="${i}">
+      <td class="ct-expand-cell"><button type="button" class="ct-expand-btn" aria-label="Ver mais informações do título" aria-expanded="false" onclick="toggleCtDetail(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
+      </button></td>
       <td>${r.dtVenc}</td>
-      <td>${lojaLabel(r.loja)}</td>
       <td>${r.doc || '—'}</td>
+      <td>${r.fornecedor || '—'}</td>
+      <td>${lojaLabel(r.loja)}</td>
       <td>${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</td>
       <td>${r.forma || '—'}</td>
+      <td>${r.dtPagto || '—'}</td>
       <td class="num">${fBRL(r.valor)}</td>
       <td>${badge(statusDe(r))}</td>
+    </tr>
+    <tr class="ct-detail" data-i="${i}">
+      <td colspan="${CT_COLSPAN}">
+        <div class="ct-detail-grid">
+          <div class="ct-detail-item"><span class="ct-dlabel">Fornecedor</span><span class="ct-dvalue">${r.fornecedor || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Documento</span><span class="ct-dvalue">${r.doc || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Categoria</span><span class="ct-dvalue">${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Plano de Contas</span><span class="ct-dvalue">${r.plano || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Loja</span><span class="ct-dvalue">${lojaLabel(r.loja)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Forma de Pagamento</span><span class="ct-dvalue">${r.forma || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Vencimento</span><span class="ct-dvalue">${r.dtVenc || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Data de Pagamento</span><span class="ct-dvalue">${r.dtPagto || '—'}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Valor</span><span class="ct-dvalue num">${fBRL(r.valor)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Status</span><span class="ct-dvalue">${badge(statusDe(r))}</span></div>
+        </div>
+      </td>
     </tr>`).join('') +
-    (data.length > 500 ? `<tr><td colspan="7" class="nd">Mostrando os 500 títulos mais próximos do vencimento, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    (data.length > 500 ? `<tr><td colspan="${CT_COLSPAN}" class="nd">Mostrando os 500 títulos mais próximos do vencimento, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+}
+
+function toggleCtDetail(btn){
+  const row = btn.closest('tr');
+  const detail = row.nextElementSibling;
+  if(!detail || !detail.classList.contains('ct-detail')) return;
+  const opening = !detail.classList.contains('open');
+  detail.classList.toggle('open', opening);
+  row.classList.toggle('is-open', opening);
+  btn.classList.toggle('open', opening);
+  btn.setAttribute('aria-expanded', opening ? 'true' : 'false');
 }
 
 /* ══════════════════════════════════════════════════════════════
