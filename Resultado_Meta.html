@@ -1437,9 +1437,16 @@ function sumField(ano, mes, loja, field) {
     .reduce((s, d) => s + (d[field] || 0), 0);
 }
 function getUltimoDiaComVenda(ano, mes, loja) {
+  // No mês corrente, não conta o dia de hoje (ainda em andamento) nem
+  // qualquer dia futuro — só o "maior dia com venda" até ontem. Isso evita
+  // que um lançamento isolado/errado num dia adiantado (ex.: dia 23 numa
+  // loja que só tem dado até o dia 10) infle o número de "Dias Vendidos".
+  const hoje = new Date();
+  const isMesAtual = (ano === hoje.getFullYear() && mes === hoje.getMonth() + 1);
+  const limiteDia = isMesAtual ? Math.max(hoje.getDate() - 1, 0) : 31;
   const dias = rawData
     .filter(d => d.ano === ano && d.mes === mes && d.loja === loja && canalMatch(d) &&
-      d.dia !== null && d.dia >= 1 && d.dia <= 31 && (d.venda || 0) > 0)
+      d.dia !== null && d.dia >= 1 && d.dia <= limiteDia && (d.venda || 0) > 0)
     .map(d => d.dia);
   return dias.length ? Math.max(...dias) : 0;
 }
