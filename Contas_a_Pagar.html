@@ -1008,7 +1008,7 @@ const CT_COLSPAN = 9;
 
 function renderTabela(data){
   $('cth-titulos').innerHTML = `<tr>
-    <th></th><th>Vencimento</th><th>Título</th><th>Loja</th><th>Fornecedor</th><th>Plano de Contas</th><th>Pagamento</th><th class="num">Valor</th><th>Status</th>
+    <th></th><th>Loja</th><th>Vencimento</th><th>Título</th><th>Fornecedor</th><th>Plano de Contas</th><th>Pagamento</th><th class="num">Valor</th><th>Status</th>
   </tr>`;
   if(!data.length){
     $('ctb-titulos').innerHTML = `<tr><td colspan="${CT_COLSPAN}" class="nd">Nenhum título encontrado para os filtros selecionados</td></tr>`;
@@ -1024,9 +1024,9 @@ function renderTabela(data){
       <td class="ct-expand-cell"><button type="button" class="ct-expand-btn" aria-label="Ver mais informações do título" aria-expanded="false" onclick="toggleCtDetail(this)">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
       </button></td>
+      <td>${lojaLabel(r.loja)}</td>
       <td>${r.dtVenc}</td>
       <td>${r.doc || '—'}</td>
-      <td>${lojaLabel(r.loja)}</td>
       <td>${r.fornecedor || '—'}</td>
       <td>${r.plano || '—'}</td>
       <td>${r.dtPagto || '—'}</td>
@@ -1036,11 +1036,11 @@ function renderTabela(data){
     <tr class="ct-detail" data-i="${i}">
       <td colspan="${CT_COLSPAN}">
         <div class="ct-detail-grid">
+          <div class="ct-detail-item"><span class="ct-dlabel">Loja</span><span class="ct-dvalue">${lojaLabel(r.loja)}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Fornecedor</span><span class="ct-dvalue">${r.fornecedor || '—'}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Documento</span><span class="ct-dvalue">${r.doc || '—'}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Categoria</span><span class="ct-dvalue">${r.grupo}${r.subgrupo ? ' · '+r.subgrupo : ''}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Plano de Contas</span><span class="ct-dvalue">${r.plano || '—'}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Loja</span><span class="ct-dvalue">${lojaLabel(r.loja)}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Forma de Pagamento</span><span class="ct-dvalue">${r.forma || '—'}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Vencimento</span><span class="ct-dvalue">${r.dtVenc || '—'}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Data de Pagamento</span><span class="ct-dvalue">${r.dtPagto || '—'}</span></div>
