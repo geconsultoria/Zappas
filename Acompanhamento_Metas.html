@@ -2031,7 +2031,7 @@ function applyFilters() {
   const inputMeta = document.getElementById('inputMeta');
 
   const metaStripLoja = document.getElementById('metaStripLoja');
-  if (metaStripLoja) metaStripLoja.textContent = lojaSel || 'Todas as lojas';
+  if (metaStripLoja) metaStripLoja.textContent = (lojaSel==='BELVEDER'?'BELVEDERE':lojaSel) || 'Todas as lojas';
 
   if (!inputMeta.dataset.userEdited) {
     let savedMeta;
@@ -2123,7 +2123,7 @@ function renderDashboard(f) {
   <div class="sh mb">
     <div class="sh-bar"></div>
     <div class="sh-title">Indicadores Acumulados — ${mesLbl} ${anoA}</div>
-    <div class="sh-sub">${loja || 'Todas as lojas'}</div>
+    <div class="sh-sub">${(loja==='BELVEDER'?'BELVEDERE':loja) || 'Todas as lojas'}</div>
   </div>
   <div class="ind-row" id="indRow"></div>
   <div class="kpi-row" id="kpiRow"></div>
@@ -2533,9 +2533,15 @@ function getMetaCanal(loja, mes, ano, canalNome) {
 
   if (rFallback > 0) {
     const DELIVERY_PCT_STORES = ['ANISIO', 'DAMHA'];
-    const pct = (alvo === 'DELIVERY' && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.03
-              : (alvo === 'LOJA'      && DELIVERY_PCT_STORES.includes(lojaUpper)) ? 0.97
-              : 1;
+    // Lojas que não vendem por Delivery (sem nenhuma linha de venda com
+    // canal DELIVERY na base) não devem repetir o valor total da Loja
+    // aqui — senão "Meta Diária Delivery" fica igual à "Meta Diária Loja"
+    // e o Total sai dobrado. Nesses casos, Delivery = 0.
+    const temVendaDelivery = rawData.some(d => d.loja === lojaUpper && String(d.canal || '').toUpperCase() === 'DELIVERY');
+    const pct = DELIVERY_PCT_STORES.includes(lojaUpper)
+      ? (alvo === 'DELIVERY' ? 0.03 : (alvo === 'LOJA' ? 0.97 : 1))
+      : (alvo === 'DELIVERY' && !temVendaDelivery) ? 0
+      : 1;
     const v = Math.round(rFallback * pct);
     console.log('[META-RESULT]', loja, '|', canalNome, '=', v, '(fallback canal vazio, pct=' + pct + ')');
     return v;
