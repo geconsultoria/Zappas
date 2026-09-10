@@ -2610,9 +2610,14 @@ function computeResumoLoja(loja) {
 
   const pctMetaLoja = vLojaAcumDiaAA > 0 ? ((metaAcumLoja / vLojaAcumDiaAA) - 1) * 100 : null;
   const pctMetaDel  = vDelAcumDiaAA  > 0 ? ((metaAcumDel  / vDelAcumDiaAA)  - 1) * 100 : null;
+  // Consolidado (Loja + Delivery) = mesma fórmula, só que somando loja e
+  // delivery ANTES de dividir — não é a soma dos dois percentuais prontos.
+  const vAcumDiaAATotal = vLojaAcumDiaAA + vDelAcumDiaAA;
+  const pctMetaTotal = vAcumDiaAATotal > 0 ? (((metaAcumLoja + metaAcumDel) / vAcumDiaAATotal) - 1) * 100 : null;
 
   const pctVsAntLoja = vLojaAcumDiaAA > 0 ? ((vLojaAcumDia / vLojaAcumDiaAA) - 1) * 100 : null;
   const pctVsAntDel  = vDelAcumDiaAA  > 0 ? ((vDelAcumDia  / vDelAcumDiaAA)  - 1) * 100 : null;
+  const pctVsAntTotal = vAcumDiaAATotal > 0 ? (((vLojaAcumDia + vDelAcumDia) / vAcumDiaAATotal) - 1) * 100 : null;
 
   // TKM, Baixas e Pessoas/Dia agora usam o mesmo corte no "dia anterior"
   // (diaAnt) que o resto do cartão — em vez de somar todos os dias que
@@ -2645,7 +2650,7 @@ function computeResumoLoja(loja) {
     loja, lojaLabel: (loja==='BELVEDER'?'BELVEDERE':loja), ano, mes, anoAnt, diaAnt,
     metaDiaLoja, metaDiaDel, metaDiaTotal: metaDiaLoja + metaDiaDel,
     realLoja, realDel, realTotal: realLoja + realDel,
-    pctMetaLoja, pctMetaDel, pctVsAntLoja, pctVsAntDel,
+    pctMetaLoja, pctMetaDel, pctMetaTotal, pctVsAntLoja, pctVsAntDel, pctVsAntTotal,
     tktA, pctTktAA, qA, pctBaixas,
     cA: cADia, cAnt: cAntDia,
     pctPess, diferPess: cADia - cAntDia,
@@ -2708,9 +2713,9 @@ function buildCardHTMLv1(r) {
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.metaDiaTotal)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="6"></td></tr>
-      <tr><th colspan="2">META ACUM x VENDA MÊS</th><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
-      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
-      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
+      <tr><th colspan="3">META ACUM x VENDA MÊS</th><th colspan="3" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctMetaTotal)}">${pctTxt(r.pctMetaTotal)}</td><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td><td class="${pctClass(r.pctVsAntTotal)}">${pctTxt(r.pctVsAntTotal)}</td></tr>
     </table>
     <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
     <table class="rd-tbl">
@@ -2742,13 +2747,13 @@ function buildCardHTMLv2(r) {
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
-      <tr><th colspan="2">META ACUM x VENDA MÊS</th></tr>
-      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
-      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td></tr>
-      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
-      <tr><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
-      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
-      <tr><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
+      <tr><th colspan="3">META ACUM x VENDA MÊS</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctMetaTotal)}">${pctTxt(r.pctMetaTotal)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
+      <tr><th colspan="3" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td><td class="${pctClass(r.pctVsAntTotal)}">${pctTxt(r.pctVsAntTotal)}</td></tr>
     </table>
     <div class="rd-sec-title">${r.lojaLabel} LOJA</div>
     <table class="rd-tbl">
@@ -2833,9 +2838,9 @@ function textoResumoLoja(r) {
   linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}  |  Total: ${R(r.realTotal)}`);
   linhas.push('');
   linhas.push(`*% Meta Acum x Venda Mês*`);
-  linhas.push(`Loja: ${pctTxt(r.pctMetaLoja)}  |  Delivery: ${pctTxt(r.pctMetaDel)}`);
+  linhas.push(`Loja: ${pctTxt(r.pctMetaLoja)}  |  Delivery: ${pctTxt(r.pctMetaDel)}  |  Total: ${pctTxt(r.pctMetaTotal)}`);
   linhas.push(`*% Venda Acum x Ano Anterior*`);
-  linhas.push(`Loja: ${pctTxt(r.pctVsAntLoja)}  |  Delivery: ${pctTxt(r.pctVsAntDel)}`);
+  linhas.push(`Loja: ${pctTxt(r.pctVsAntLoja)}  |  Delivery: ${pctTxt(r.pctVsAntDel)}  |  Total: ${pctTxt(r.pctVsAntTotal)}`);
   linhas.push('');
   linhas.push(`*${r.lojaLabel} LOJA*`);
   linhas.push(`TKM Mês: ${R(r.tktA)} (${pctTxt(r.pctTktAA)} vs AA)`);
