@@ -2614,16 +2614,24 @@ function computeResumoLoja(loja) {
   const pctVsAntLoja = vLojaAcumDiaAA > 0 ? ((vLojaAcumDia / vLojaAcumDiaAA) - 1) * 100 : null;
   const pctVsAntDel  = vDelAcumDiaAA  > 0 ? ((vDelAcumDia  / vDelAcumDiaAA)  - 1) * 100 : null;
 
-  const vA = query(ano, mes, loja, 'venda');
-  const cA = query(ano, mes, loja, 'cupons');
-  const qA = query(ano, mes, loja, 'quebras');
-  const vAnt = query(anoAnt, mes, loja, 'venda');
-  const cAnt = query(anoAnt, mes, loja, 'cupons');
+  // TKM, Baixas e Pessoas/Dia agora usam o mesmo corte no "dia anterior"
+  // (diaAnt) que o resto do cartão — em vez de somar todos os dias que
+  // por acaso já estiverem na planilha pro mês, o que podia incluir um
+  // dia a mais/a menos e desalinhar esse bloco do restante do card.
+  const vA = diaAnt ? queryAteDia(ano, mes, loja, diaAnt, 'venda') : 0;
+  const cA = diaAnt ? queryAteDia(ano, mes, loja, diaAnt, 'cupons') : 0;
+  const vAnt = diaAnt ? queryAteDia(anoAnt, mes, loja, diaAnt, 'venda') : 0;
+  const cAnt = diaAnt ? queryAteDia(anoAnt, mes, loja, diaAnt, 'cupons') : 0;
+  const qA = diaAnt
+    ? (hasDailyQuebrasData(ano, mes, loja)
+        ? Array.from({length: diaAnt}, (_, i) => getQuebrasDia(ano, mes, i + 1, loja)).reduce((s, v) => s + v, 0)
+        : getQuebrasTotal(ano, mes, loja) * (diaAnt / dias))
+    : 0;
 
-  const diasComDadosA = rawData.filter(d => d.ano===ano && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=31).map(d=>d.dia);
-  const diasComDadosAnt = rawData.filter(d => d.ano===anoAnt && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=31).map(d=>d.dia);
-  const numDiasA = [...new Set(diasComDadosA)].length || dias;
-  const numDiasAnt = [...new Set(diasComDadosAnt)].length || dias;
+  const diasComDadosA = diaAnt ? rawData.filter(d => d.ano===ano && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=diaAnt).map(d=>d.dia) : [];
+  const diasComDadosAnt = diaAnt ? rawData.filter(d => d.ano===anoAnt && d.mes===mes && d.loja===loja && d.dia!==null && d.dia>=1 && d.dia<=diaAnt).map(d=>d.dia) : [];
+  const numDiasA = [...new Set(diasComDadosA)].length || diaAnt || dias;
+  const numDiasAnt = [...new Set(diasComDadosAnt)].length || diaAnt || dias;
   const cADia = numDiasA > 0 ? cA / numDiasA : 0;
   const cAntDia = numDiasAnt > 0 ? cAnt / numDiasAnt : 0;
 
@@ -2635,7 +2643,8 @@ function computeResumoLoja(loja) {
 
   return {
     loja, lojaLabel: (loja==='BELVEDER'?'BELVEDERE':loja), ano, mes, anoAnt, diaAnt,
-    metaDiaLoja, metaDiaDel, realLoja, realDel,
+    metaDiaLoja, metaDiaDel, metaDiaTotal: metaDiaLoja + metaDiaDel,
+    realLoja, realDel, realTotal: realLoja + realDel,
     pctMetaLoja, pctMetaDel, pctVsAntLoja, pctVsAntDel,
     tktA, pctTktAA, qA, pctBaixas,
     cA: cADia, cAnt: cAntDia,
@@ -2695,10 +2704,10 @@ function buildCardHTMLv1(r) {
     <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
     <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
     <table class="rd-tbl">
-      <tr><th colspan="2">META DIÁRIA</th><th colspan="2" class="hi">REALIZADO</th></tr>
-      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
-      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td></tr>
-      <tr class="rd-tbl-spacer"><td colspan="4"></td></tr>
+      <tr><th colspan="3">META DIÁRIA</th><th colspan="3" class="hi">REALIZADO</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.metaDiaTotal)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="6"></td></tr>
       <tr><th colspan="2">META ACUM x VENDA MÊS</th><th colspan="2" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
       <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td></tr>
@@ -2725,14 +2734,14 @@ function buildCardHTMLv2(r) {
     <div class="rd-card-title">${r.lojaLabel} CONSOLIDADO</div>
     <div class="rd-card-sub"><span class="lbl">DIA ANTERIOR</span><span class="val">${dataAntTxt}</span></div>
     <table class="rd-tbl">
-      <tr><th colspan="2">META DIÁRIA</th></tr>
-      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
-      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td></tr>
-      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
-      <tr><th colspan="2" class="hi">REALIZADO</th></tr>
-      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
-      <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td></tr>
-      <tr class="rd-tbl-spacer"><td colspan="2"></td></tr>
+      <tr><th colspan="3">META DIÁRIA</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.metaDiaTotal)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
+      <tr><th colspan="3" class="hi">REALIZADO</th></tr>
+      <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
+      <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
+      <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
       <tr><th colspan="2">META ACUM x VENDA MÊS</th></tr>
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td></tr>
       <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td></tr>
@@ -2819,9 +2828,9 @@ function textoResumoLoja(r) {
   linhas.push(`Dia anterior: ${dataAntTxt}`);
   linhas.push('');
   linhas.push(`*Meta Diária*`);
-  linhas.push(`${r.lojaLabel} Loja: ${R(r.metaDiaLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.metaDiaDel)}`);
+  linhas.push(`${r.lojaLabel} Loja: ${R(r.metaDiaLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.metaDiaDel)}  |  Total: ${R(r.metaDiaTotal)}`);
   linhas.push(`*Realizado*`);
-  linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}`);
+  linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}  |  Total: ${R(r.realTotal)}`);
   linhas.push('');
   linhas.push(`*% Meta Acum x Venda Mês*`);
   linhas.push(`Loja: ${pctTxt(r.pctMetaLoja)}  |  Delivery: ${pctTxt(r.pctMetaDel)}`);
