@@ -19,6 +19,11 @@
  *   - GOOGLE_CLIENT_ID: Client ID OAuth criado no Google Cloud Console.
  *   - AUTH_APPS_SCRIPT_URL: URL /exec do Apps Script criado a partir de Code.gs.
  *   - AUTH_TOKEN: precisa ser IGUAL ao AUTH_TOKEN configurado em Code.gs.
+ *
+ * NOVO: além do login com Google, esta versão adiciona uma segunda opção —
+ * "Entrar com código por e-mail" — que usa as ações enviarCodigoLogin /
+ * validarCodigoLogin do Code.gs (que envia um código de 6 dígitos via
+ * GmailApp). As duas formas de login coexistem: o usuário escolhe.
  * ============================================================================
  */
 
@@ -33,6 +38,11 @@
   // pelo cadastro em Administração (qualquer conta Google, inclusive Gmail
   // pessoal, funciona desde que esteja cadastrada e ativa por lá).
   var SESSION_KEY = "zappas_session";
+
+  // Duração da sessão criada via código de e-mail (o login Google usa o
+  // "exp" que já vem no próprio token do Google; aqui definimos nós mesmos,
+  // já que não existe token do Google nesse fluxo).
+  var OTP_SESSION_SEGUNDOS = 12 * 60 * 60; // 12 horas
 
   // Mapa telaKey -> {label, href} usado no link "Administração" injetado no
   // rodapé do menu e nas mensagens de acesso negado.
@@ -56,6 +66,7 @@
   var gisReady = false;
   var pendingScreenKey = null;
   var pendingCallback = null;
+  var otpEmailPendente = null; // e-mail que já pediu código e está aguardando digitar
 
   // ── Utilidades ───────────────────────────────────────────────────────────
 
@@ -122,6 +133,17 @@
     } catch (e) {}
   }
 
+  // Helper genérico para chamar ações de escrita/fluxo no Apps Script
+  // (mesmo padrão do postAuthAction usado em Administracao.html).
+  function postAuthAction(body) {
+    body.token = AUTH_TOKEN;
+    return fetch(AUTH_APPS_SCRIPT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(body)
+    }).then(function (r) { return r.json(); });
+  }
+
   // ── UI: overlay de login ───────────────────────────────────────────────
 
   function injectStyles() {
@@ -139,6 +161,22 @@
       "#auth-guard-overlay .ag-sub{font-size:13px;color:#787868;margin-bottom:22px;line-height:1.5;}" +
       "#auth-guard-overlay .ag-gsi{display:flex;justify-content:center;min-height:44px;}" +
       "#auth-guard-overlay .ag-err{margin-top:14px;font-size:12.5px;color:#B4483A;}" +
+      "#auth-guard-overlay .ag-ok{margin-top:14px;font-size:12.5px;color:#3E8F63;}" +
+      "#auth-guard-overlay .ag-divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#AEADA0;font-size:11px;text-transform:uppercase;letter-spacing:.05em;}" +
+      "#auth-guard-overlay .ag-divider::before,#auth-guard-overlay .ag-divider::after{content:'';flex:1;height:1px;background:#E8E6DE;}" +
+      "#auth-guard-overlay .ag-link{background:none;border:none;color:#1B3D6E;font-family:'Epilogue',system-ui,sans-serif;font-size:12.5px;" +
+      "font-weight:600;cursor:pointer;text-decoration:underline;padding:4px;}" +
+      "#auth-guard-overlay .ag-link:hover{color:#2C4E78;}" +
+      "#auth-guard-overlay .ag-field{margin-bottom:12px;text-align:left;}" +
+      "#auth-guard-overlay .ag-field input{width:100%;padding:10px 12px;border:1px solid #D8D5CC;border-radius:10px;" +
+      "font-family:'Epilogue',system-ui,sans-serif;font-size:14px;background:#F7F6F2;text-align:center;letter-spacing:.02em;}" +
+      "#auth-guard-overlay .ag-field input:focus{outline:none;border-color:#2C4E78;box-shadow:0 0 0 3px #E4ECF6;}" +
+      "#auth-guard-overlay .ag-field input[type=tel]{letter-spacing:.5em;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;}" +
+      "#auth-guard-overlay .ag-btn{width:100%;background:#1B3D6E;color:#fff;border:none;border-radius:10px;padding:11px 15px;" +
+      "font-family:'Epilogue',system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;}" +
+      "#auth-guard-overlay .ag-btn:hover{background:#2C4E78;}" +
+      "#auth-guard-overlay .ag-btn:disabled{opacity:.6;cursor:default;}" +
+      "#auth-guard-overlay .ag-back-link{display:block;margin-top:14px;}" +
       "#auth-guard-denied{position:fixed;inset:0;z-index:99998;display:flex;align-items:center;justify-content:center;background:#F7F6F2;}" +
       "#auth-guard-denied .ag-card{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;max-width:380px;}" +
       "#auth-guard-denied .ag-icon{width:64px;height:64px;border-radius:16px;background:#E39184;display:flex;align-items:center;justify-content:center;}" +
@@ -150,21 +188,72 @@
     document.head.appendChild(style);
   }
 
-  function showLoginOverlay(errorMsg) {
+  // Modo do overlay: 'google' (padrão), 'otp-email' (pedir e-mail) ou
+  // 'otp-codigo' (digitar o código recebido).
+  function showLoginOverlay(errorMsg, modo) {
     hideOverlay();
+    modo = modo || "google";
     var wrap = document.createElement("div");
     wrap.id = "auth-guard-overlay";
-    wrap.innerHTML =
+
+    var innerHtml =
       '<div class="ag-card">' +
       '<div class="ag-icon"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">' +
       '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>' +
-      '<div class="ag-title">Painel de Gestão</div>' +
-      '<div class="ag-sub">Entre com a conta Google cadastrada para você acessar este painel.</div>' +
-      '<div class="ag-gsi" id="ag-gsi-btn"></div>' +
-      (errorMsg ? '<div class="ag-err">' + errorMsg + "</div>" : "") +
-      "</div>";
+      '<div class="ag-title">Painel de Gestão</div>';
+
+    if (modo === "google") {
+      innerHtml +=
+        '<div class="ag-sub">Entre com a conta Google cadastrada para você acessar este painel.</div>' +
+        '<div class="ag-gsi" id="ag-gsi-btn"></div>' +
+        '<div class="ag-divider">ou</div>' +
+        '<button type="button" class="ag-link" id="ag-ir-otp">Entrar com código enviado por e-mail</button>';
+    } else if (modo === "otp-email") {
+      innerHtml +=
+        '<div class="ag-sub">Informe seu e-mail cadastrado. Vamos enviar um código de acesso para ele.</div>' +
+        '<div class="ag-field"><input type="email" id="ag-otp-email" placeholder="seuemail@zappas.com.br" autocomplete="email"></div>' +
+        '<button type="button" class="ag-btn" id="ag-enviar-codigo">Enviar código</button>' +
+        '<a class="ag-link ag-back-link" id="ag-voltar-google" href="javascript:void(0)">Voltar para login com Google</a>';
+    } else if (modo === "otp-codigo") {
+      innerHtml +=
+        '<div class="ag-sub">Enviamos um código de 6 dígitos para <strong>' + (otpEmailPendente || "") + '</strong>. Confira sua caixa de entrada (e o spam) e digite o código abaixo.</div>' +
+        '<div class="ag-field"><input type="tel" inputmode="numeric" maxlength="6" id="ag-otp-codigo" placeholder="000000" autocomplete="one-time-code"></div>' +
+        '<button type="button" class="ag-btn" id="ag-confirmar-codigo">Confirmar código</button>' +
+        '<button type="button" class="ag-link" id="ag-reenviar-codigo" style="margin-top:10px;">Reenviar código</button>' +
+        '<a class="ag-link ag-back-link" id="ag-voltar-email" href="javascript:void(0)">Usar outro e-mail</a>';
+    }
+
+    innerHtml += (errorMsg ? '<div class="ag-err">' + errorMsg + "</div>" : "") + "</div>";
+    wrap.innerHTML = innerHtml;
     document.body.appendChild(wrap);
-    renderGoogleButton();
+
+    if (modo === "google") {
+      renderGoogleButton();
+      var btnIrOtp = document.getElementById("ag-ir-otp");
+      if (btnIrOtp) btnIrOtp.addEventListener("click", function () { showLoginOverlay(null, "otp-email"); });
+    } else if (modo === "otp-email") {
+      var btnEnviar = document.getElementById("ag-enviar-codigo");
+      var inputEmail = document.getElementById("ag-otp-email");
+      if (btnEnviar) btnEnviar.addEventListener("click", function () { solicitarCodigoOtp(inputEmail.value); });
+      if (inputEmail) {
+        inputEmail.addEventListener("keydown", function (e) { if (e.key === "Enter") solicitarCodigoOtp(inputEmail.value); });
+        inputEmail.focus();
+      }
+      var btnVoltarGoogle = document.getElementById("ag-voltar-google");
+      if (btnVoltarGoogle) btnVoltarGoogle.addEventListener("click", function () { showLoginOverlay(null, "google"); });
+    } else if (modo === "otp-codigo") {
+      var btnConfirmar = document.getElementById("ag-confirmar-codigo");
+      var inputCodigo = document.getElementById("ag-otp-codigo");
+      if (btnConfirmar) btnConfirmar.addEventListener("click", function () { confirmarCodigoOtp(inputCodigo.value); });
+      if (inputCodigo) {
+        inputCodigo.addEventListener("keydown", function (e) { if (e.key === "Enter") confirmarCodigoOtp(inputCodigo.value); });
+        inputCodigo.focus();
+      }
+      var btnReenviar = document.getElementById("ag-reenviar-codigo");
+      if (btnReenviar) btnReenviar.addEventListener("click", function () { solicitarCodigoOtp(otpEmailPendente, true); });
+      var btnVoltarEmail = document.getElementById("ag-voltar-email");
+      if (btnVoltarEmail) btnVoltarEmail.addEventListener("click", function () { showLoginOverlay(null, "otp-email"); });
+    }
   }
 
   function showDeniedOverlay(telaKey) {
@@ -263,6 +352,72 @@
     }).catch(function (err) {
       log("Erro ao buscar usuário:", err);
       showLoginOverlay("Erro ao verificar sua conta. Tente novamente em instantes.");
+    });
+  }
+
+  // ── Login por código de e-mail (OTP) ───────────────────────────────────
+
+  function solicitarCodigoOtp(emailDigitado, reenvio) {
+    var email = String(emailDigitado || "").trim().toLowerCase();
+    if (!email || email.indexOf("@") === -1 || email.indexOf(".") === -1) {
+      showLoginOverlay("Informe um e-mail válido.", "otp-email");
+      return;
+    }
+
+    var btn = document.getElementById(reenvio ? "ag-reenviar-codigo" : "ag-enviar-codigo");
+    if (btn) btn.disabled = true;
+
+    postAuthAction({ action: "enviarCodigoLogin", email: email }).then(function (res) {
+      if (btn) btn.disabled = false;
+      if (res && res.erro) {
+        showLoginOverlay(res.erro, reenvio ? "otp-codigo" : "otp-email");
+        return;
+      }
+      otpEmailPendente = email;
+      // Mensagem sempre genérica: o backend não informa se o e-mail existe
+      // ou não no cadastro (ver comentário em enviarCodigoLogin no Code.gs).
+      showLoginOverlay(null, "otp-codigo");
+    }).catch(function () {
+      if (btn) btn.disabled = false;
+      showLoginOverlay("Erro ao enviar o código. Tente novamente.", reenvio ? "otp-codigo" : "otp-email");
+    });
+  }
+
+  function confirmarCodigoOtp(codigoDigitado) {
+    var codigo = String(codigoDigitado || "").trim();
+    if (!otpEmailPendente) { showLoginOverlay(null, "otp-email"); return; }
+    if (!codigo) {
+      showLoginOverlay("Informe o código recebido por e-mail.", "otp-codigo");
+      return;
+    }
+
+    var btn = document.getElementById("ag-confirmar-codigo");
+    if (btn) btn.disabled = true;
+
+    postAuthAction({ action: "validarCodigoLogin", email: otpEmailPendente, codigo: codigo }).then(function (data) {
+      if (btn) btn.disabled = false;
+      if (!data || data.erro || !data.encontrado || data.ativo === false) {
+        showLoginOverlay((data && data.erro) || "Não foi possível confirmar o código.", "otp-codigo");
+        return;
+      }
+      session = {
+        email: data.email,
+        name: data.nome || data.email,
+        picture: "",
+        exp: Math.floor(Date.now() / 1000) + OTP_SESSION_SEGUNDOS,
+        role: data.role,
+        loja: data.loja || "",
+        permissoes: data.permissoes || {},
+        fetchedAt: Date.now()
+      };
+      otpEmailPendente = null;
+      saveSessionToStorage(session);
+      hideOverlay();
+      injectAdminLink();
+      proceedAfterAuth();
+    }).catch(function () {
+      if (btn) btn.disabled = false;
+      showLoginOverlay("Erro ao confirmar o código. Tente novamente.", "otp-codigo");
     });
   }
 
