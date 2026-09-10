@@ -2589,13 +2589,15 @@ function computeResumoLoja(loja) {
   const metaDiaLoja = metaMesLoja > 0 ? metaMesLoja / dias : 0;
   const metaDiaDel  = metaMesDel  > 0 ? metaMesDel  / dias : 0;
 
-  // REALIZADO = venda acumulada do mês até a data de referência (o dia
-  // anterior ao dia atual), não só o valor daquele dia isolado — pra
-  // bater com o mesmo conceito de "Realizado" usado no resto do painel.
+  const realLoja = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const realDel  = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+
+  // META ACUM x VENDA MÊS = Venda Realizada Acumulada até o dia de
+  // referência ÷ Meta Acumulada até esse mesmo dia (meta do mês
+  // proporcional aos dias já passados) — não a meta do mês inteiro,
+  // pra não distorcer o resultado nos primeiros dias do mês.
   const vLojaAcumDia = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
   const vDelAcumDia  = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
-  const realLoja = vLojaAcumDia;
-  const realDel  = vDelAcumDia;
   const metaAcumLoja = (metaMesLoja > 0 && diaAnt) ? metaMesLoja * (diaAnt / dias) : 0;
   const metaAcumDel  = (metaMesDel  > 0 && diaAnt) ? metaMesDel  * (diaAnt / dias) : 0;
 
