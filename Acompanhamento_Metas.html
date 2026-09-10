@@ -2533,14 +2533,18 @@ function getMetaCanal(loja, mes, ano, canalNome) {
 
   if (rFallback > 0) {
     const DELIVERY_PCT_STORES = ['ANISIO', 'DAMHA'];
-    // Lojas que não vendem por Delivery (sem nenhuma linha de venda com
-    // canal DELIVERY na base) não devem repetir o valor total da Loja
-    // aqui — senão "Meta Diária Delivery" fica igual à "Meta Diária Loja"
-    // e o Total sai dobrado. Nesses casos, Delivery = 0.
+    // BELVEDER não tem controle próprio de Delivery — a pedido, qualquer
+    // venda de Delivery entra como Loja, então a meta de Delivery é 0
+    // (não duplica o total da Loja).
+    const SEM_DELIVERY_PROPRIO = ['BELVEDER'];
+    // Demais lojas que não vendem por Delivery (sem nenhuma linha de venda
+    // com canal DELIVERY na base) também não devem repetir o valor total
+    // da Loja aqui — senão "Meta Diária Delivery" fica igual à "Meta
+    // Diária Loja" e o Total sai dobrado. Nesses casos, Delivery = 0.
     const temVendaDelivery = rawData.some(d => d.loja === lojaUpper && String(d.canal || '').toUpperCase() === 'DELIVERY');
     const pct = DELIVERY_PCT_STORES.includes(lojaUpper)
       ? (alvo === 'DELIVERY' ? 0.03 : (alvo === 'LOJA' ? 0.97 : 1))
-      : (alvo === 'DELIVERY' && !temVendaDelivery) ? 0
+      : (alvo === 'DELIVERY' && (SEM_DELIVERY_PROPRIO.includes(lojaUpper) || !temVendaDelivery)) ? 0
       : 1;
     const v = Math.round(rFallback * pct);
     console.log('[META-RESULT]', loja, '|', canalNome, '=', v, '(fallback canal vazio, pct=' + pct + ')');
@@ -2590,20 +2594,30 @@ function computeResumoLoja(loja) {
   const anoAnt = ano - 1;
   const dias = daysInMonth(ano, mes);
 
+  // BELVEDER não tem controle próprio de Delivery — qualquer venda
+  // lançada como Delivery nessa loja entra no total da Loja (a pedido),
+  // e a meta de Delivery fica zerada em vez de duplicar a meta da Loja.
+  const FUNDE_DELIVERY_NA_LOJA = ['BELVEDER'];
+  const fundeDelivery = FUNDE_DELIVERY_NA_LOJA.includes(loja.toUpperCase());
+
   const metaMesLoja = getMetaCanal(loja, mes, ano, 'LOJA');
-  const metaMesDel  = getMetaCanal(loja, mes, ano, 'DELIVERY');
+  const metaMesDel  = fundeDelivery ? 0 : getMetaCanal(loja, mes, ano, 'DELIVERY');
   const metaDiaLoja = metaMesLoja > 0 ? metaMesLoja / dias : 0;
   const metaDiaDel  = metaMesDel  > 0 ? metaMesDel  / dias : 0;
 
-  const realLoja = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
-  const realDel  = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const realLojaBase = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const realDelBase  = diaAnt ? dayQueryCanal(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const realLoja = fundeDelivery ? realLojaBase + realDelBase : realLojaBase;
+  const realDel  = fundeDelivery ? 0 : realDelBase;
 
   // META ACUM x VENDA MÊS = Venda Realizada Acumulada até o dia de
   // referência ÷ Meta Acumulada até esse mesmo dia (meta do mês
   // proporcional aos dias já passados) — não a meta do mês inteiro,
   // pra não distorcer o resultado nos primeiros dias do mês.
-  const vLojaAcumDia = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
-  const vDelAcumDia  = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const vLojaAcumDiaBase = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const vDelAcumDiaBase  = diaAnt ? queryCanalAteDia(ano, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const vLojaAcumDia = fundeDelivery ? vLojaAcumDiaBase + vDelAcumDiaBase : vLojaAcumDiaBase;
+  const vDelAcumDia  = fundeDelivery ? 0 : vDelAcumDiaBase;
   const metaAcumLoja = (metaMesLoja > 0 && diaAnt) ? metaMesLoja * (diaAnt / dias) : 0;
   const metaAcumDel  = (metaMesDel  > 0 && diaAnt) ? metaMesDel  * (diaAnt / dias) : 0;
 
@@ -2611,8 +2625,10 @@ function computeResumoLoja(loja) {
   // que no lugar da "Meta Acum." usa a venda acumulada do ANO ANTERIOR
   // até esse mesmo dia/mês (a coluna "Acum. AA" da grade Abertura Diária)
   // — muda só o ano (2026 → 2025), mês e dia de referência são os mesmos.
-  const vLojaAcumDiaAA = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
-  const vDelAcumDiaAA  = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const vLojaAcumDiaAABase = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'LOJA', 'venda') : 0;
+  const vDelAcumDiaAABase  = diaAnt ? queryCanalAteDia(anoAnt, mes, loja, diaAnt, 'DELIVERY', 'venda') : 0;
+  const vLojaAcumDiaAA = fundeDelivery ? vLojaAcumDiaAABase + vDelAcumDiaAABase : vLojaAcumDiaAABase;
+  const vDelAcumDiaAA  = fundeDelivery ? 0 : vDelAcumDiaAABase;
 
   const pctMetaLoja = vLojaAcumDiaAA > 0 ? ((metaAcumLoja / vLojaAcumDiaAA) - 1) * 100 : null;
   const pctMetaDel  = vDelAcumDiaAA  > 0 ? ((metaAcumDel  / vDelAcumDiaAA)  - 1) * 100 : null;
@@ -2677,7 +2693,7 @@ function abrirResumoDiario() {
     lojas = lojas.filter(l => aliases.includes(l));
   }
   const sel = document.getElementById('rdLojaSelect');
-  sel.innerHTML = lojas.map(l => `<option value="${l}">${l}</option>`).join('');
+  sel.innerHTML = lojas.map(l => `<option value="${l}">${l==='BELVEDER'?'BELVEDERE':l}</option>`).join('');
   const fLoja = document.getElementById('f-loja').value;
   if (fLoja && lojas.includes(fLoja)) sel.value = fLoja;
   if (restrictedLoja) {
