@@ -326,6 +326,23 @@ a.side-brand:hover { opacity:.85; }
 .cc-subhead-group { display: flex; align-items: center; gap: 9px; }
 .cc-subhead-lbl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
 
+/* Cabeçalho do card em 2 linhas: título+legenda na primeira linha,
+   seletores (toggles) na segunda — assim a legenda A/B/C sempre fica
+   colada no título, mesmo com muitos seletores. */
+.comp-card-head.cc-head-2row { flex-direction: column; align-items: stretch; row-gap: 12px; }
+.cc-head-row1 { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* Botão de inverter direção da ordenação (asc/desc) */
+.sort-dir-btn {
+  width: 28px; height: 28px; border-radius: 7px; flex-shrink: 0;
+  border: 1px solid var(--border); background: var(--surface); color: var(--ink-3);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  transition: background .15s ease, color .15s ease, border-color .15s ease;
+}
+.sort-dir-btn:hover { background: var(--blue-lt); color: var(--blue); border-color: var(--blue-lt); }
+.sort-dir-btn svg { width: 14px; height: 14px; transition: transform .18s var(--ease); }
+.sort-dir-btn.asc svg { transform: rotate(180deg); }
+
 .comp-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto; }
 .comp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .comp-table thead th {
@@ -369,6 +386,13 @@ a.side-brand:hover { opacity:.85; }
 .badge-a { background: var(--olive-lt); color: var(--olive); }
 .badge-b { background: var(--blue-lt);  color: var(--blue); }
 .badge-c { background: var(--rust-lt);  color: var(--rust-mid); }
+
+/* Top 10 por Loja — cada célula empilha nome do produto + código/valor */
+#ct-top10 td { white-space: normal; vertical-align: top; min-width: 150px; }
+#ct-top10 th { white-space: normal; }
+.top10-rank { font-family: var(--font-num); font-weight: 800; color: var(--ink-4); font-size: 13px; vertical-align: middle !important; }
+.top10-prod { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.3; }
+.top10-meta { font-size: 10.5px; color: var(--ink-4); margin-top: 2px; font-family: var(--font-num); }
 
 /* Group / bar rows */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -587,12 +611,30 @@ a.side-brand:hover { opacity:.85; }
     <div class="comp-scroll"><table class="comp-table" id="ct-grupos"><thead id="cth-grupos"></thead><tbody id="ctb-grupos"></tbody></table></div>
   </div>
 
-  <div class="sec"><span class="sec-title">Produtos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
+  <div class="sec"><span class="sec-title">Top 10 por Loja</span><span class="sec-line"></span></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
-        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
-        <div><div class="title" id="produtos-title">Curva ABC de Produtos</div><div class="sub" id="produtos-sub">Ordenado por valor vendido</div></div>
+        <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div>
+        <div><div class="title">Top 10 Produtos por Loja</div><div class="sub" id="top10-sub">Ranking próprio por loja · Valor</div></div>
+      </div>
+    </div>
+    <div class="comp-scroll"><table class="comp-table" id="ct-top10"><thead id="cth-top10"></thead><tbody id="ctb-top10"></tbody></table></div>
+  </div>
+
+  <div class="sec"><span class="sec-title">Produtos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
+  <div class="comp-card">
+    <div class="comp-card-head cc-head-blue cc-head-2row">
+      <div class="cc-head-row1">
+        <div class="cc-head-left">
+          <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
+          <div><div class="title" id="produtos-title">Curva ABC de Produtos</div><div class="sub" id="produtos-sub">Ordenado por valor vendido</div></div>
+        </div>
+        <div class="cc-legend">
+          <div class="cc-legend-row"><span class="badge badge-a">A</span><span class="cc-legend-txt">até 80%</span></div>
+          <div class="cc-legend-row"><span class="badge badge-b">B</span><span class="cc-legend-txt">80% a 95%</span></div>
+          <div class="cc-legend-row"><span class="badge badge-c">C</span><span class="cc-legend-txt">95% a 100%</span></div>
+        </div>
       </div>
       <div class="cc-toggles">
         <div class="cc-mode-toggle" role="tablist" aria-label="Critério da Curva ABC">
@@ -620,11 +662,17 @@ a.side-brand:hover { opacity:.85; }
             <button type="button" class="cc-mode-btn" data-mensalmode="pct" onclick="setMensalDisplayMode('pct')">% do Mês</button>
           </div>
         </div>
-      </div>
-      <div class="cc-legend">
-        <div class="cc-legend-row"><span class="badge badge-a">A</span><span class="cc-legend-txt">até 80%</span></div>
-        <div class="cc-legend-row"><span class="badge badge-b">B</span><span class="cc-legend-txt">80% a 95%</span></div>
-        <div class="cc-legend-row"><span class="badge badge-c">C</span><span class="cc-legend-txt">95% a 100%</span></div>
+        <div class="cc-subhead-group">
+          <span class="cc-subhead-lbl">Classificar por</span>
+          <div class="cc-mode-toggle" role="tablist" aria-label="Campo de classificação/ordenação">
+            <button type="button" class="cc-mode-btn active" data-sortfield="total" onclick="setSortField('total')">Total</button>
+            <button type="button" class="cc-mode-btn" data-sortfield="pct" onclick="setSortField('pct')">% Part.</button>
+            <button type="button" class="cc-mode-btn" data-sortfield="pctAcum" onclick="setSortField('pctAcum')">% Acum.</button>
+          </div>
+          <button type="button" class="sort-dir-btn" id="btn-sort-dir" onclick="toggleSortDir()" title="Inverter ordem (decrescente/crescente)" aria-label="Inverter ordem">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m0 0l-5-5m5 5l5-5"/></svg>
+          </button>
+        </div>
       </div>
     </div>
     <div class="comp-scroll"><table class="comp-table" id="ct-produtos"><thead id="cth-produtos"></thead><tbody id="ctb-produtos"></tbody></table></div>
@@ -983,6 +1031,13 @@ let metricMode = 'valor';
    'mensal' (uma coluna por mês, só disponível com o filtro Mês = Todos). */
 let viewMode = 'resumo';
 
+/* Campo/direção usados para ORDENAR a exibição da tabela de Produtos.
+   Importante: isso só reordena as linhas mostradas — não recalcula a
+   classificação A/B/C, que continua sempre baseada no ranking original
+   (maior valor/qtd/lucro primeiro), como manda a metodologia da Curva ABC. */
+let sortField = 'total'; // 'total' | 'pct' | 'pctAcum'
+let sortDir = 'desc';    // 'desc' | 'asc'
+
 const MONTHS_ABBR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 /* Agrupa por Loja + Código de Barras (ou nome, se não houver código) e
@@ -1072,6 +1127,38 @@ function metricaAtiva(){
   return curvaMode === 'lucro' ? 'lucro' : metricMode;
 }
 
+/* Valor "Total" de um produto na métrica ativa (R$, Qtd ou Lucro) —
+   usado tanto pela opção de classificação "Total" quanto internamente. */
+function valorTotalPara(p, metric){
+  if(metric === 'qtd')   return p.qtd;
+  if(metric === 'lucro') return p.margem;
+  return p.total;
+}
+
+/* Reordena a lista já filtrada conforme sortField/sortDir, sem alterar
+   as classes A/B/C (calculadas antes, no ranking original). */
+function ordenarExibicao(lista, metric){
+  const { pct: pctF, pctAcum: pctAcumF } = pctFieldsFor(metric);
+  const campoFn = sortField === 'pct' ? (p => p[pctF])
+    : sortField === 'pctAcum' ? (p => p[pctAcumF])
+    : (p => valorTotalPara(p, metric));
+  return [...lista].sort((a,b) => sortDir === 'asc' ? campoFn(a)-campoFn(b) : campoFn(b)-campoFn(a));
+}
+
+function setSortField(field){
+  if(sortField === field) return;
+  sortField = field;
+  document.querySelectorAll('[data-sortfield]').forEach(b => b.classList.toggle('active', b.getAttribute('data-sortfield') === field));
+  atualizarSubtitulo();
+  applyFilters();
+}
+function toggleSortDir(){
+  sortDir = sortDir === 'desc' ? 'asc' : 'desc';
+  $('btn-sort-dir').classList.toggle('asc', sortDir === 'asc');
+  atualizarSubtitulo();
+  applyFilters();
+}
+
 function getFiltrados(){
   const busca = $('f-busca').value.trim().toLowerCase();
   const classe = $('f-classe').value || null;
@@ -1082,7 +1169,7 @@ function getFiltrados(){
   const lista = metric === 'lucro' ? calc.porLucro : (metric === 'qtd' ? calc.porQtd : calc.porValor);
   const { classe: classeField } = pctFieldsFor(metric);
 
-  const exibicao = lista.filter(p => {
+  const filtrada = lista.filter(p => {
     if(classe && p[classeField] !== classe) return false;
     if(busca){
       const alvo = (p.nome+' '+p.codbarra+' '+p.nomegrupo+' '+lojaLabel(p.loja)).toLowerCase();
@@ -1091,6 +1178,8 @@ function getFiltrados(){
     return true;
   });
 
+  const exibicao = ordenarExibicao(filtrada, metric);
+
   return { base, calc, metric, exibicao };
 }
 
@@ -1098,7 +1187,9 @@ function getFiltrados(){
 function atualizarSubtitulo(){
   const metric = metricaAtiva();
   const metricTxt = metric === 'qtd' ? 'quantidade vendida' : (metric === 'lucro' ? 'lucro' : 'valor vendido');
-  let texto = 'Ordenado por ' + metricTxt;
+  const sortTxt = sortField === 'pct' ? '% Part.' : (sortField === 'pctAcum' ? '% Acum.' : 'Total');
+  const dirTxt = sortDir === 'asc' ? 'crescente' : 'decrescente';
+  let texto = 'Classificado por ' + metricTxt + ' · ordenado por ' + sortTxt + ' (' + dirTxt + ')';
   if(viewMode === 'mensal') texto += ' · comparação mês a mês';
   $('produtos-sub').textContent = texto;
 }
@@ -1174,6 +1265,7 @@ function applyFilters(){
   renderKPIs(calc.porValor);
   $('sec-count').textContent = fN(base.length) + ' registros';
   renderGrupoLojaMatrix(getBaseFiltradoSemLoja());
+  renderTop10PorLoja(getBaseFiltradoSemLoja(), metric);
   // Passa a lista de PRODUTOS já agregados (com a quebra mensal em .porMes),
   // não as linhas cruas — a Visão Mensal precisa dos totais por produto/mês.
   renderTabela(exibicao, calc.porValor, metric);
@@ -1288,6 +1380,75 @@ function renderGrupoLojaMatrix(rows){
   }).join('');
 }
 
+/* ══════════════════════════════════════════════════════════════
+   TOP 10 PRODUTOS POR LOJA
+   Um ranking independente por loja (cada coluna tem seu próprio Top 10,
+   não é o mesmo produto repetido) — ajuda a ver o que mais vende em
+   cada unidade. Sempre as 6 lojas, igual à matriz Grupo × Loja, mesmo
+   que o filtro Loja do topo esteja restringindo a uma só. Acompanha a
+   métrica ativa da Curva ABC (Valor / Qtd / Lucro). */
+function calcularTop10PorLoja(rows, metric){
+  const porLoja = {};
+  CURVAABC_STORE_KEYS.forEach(k => porLoja[k] = new Map());
+
+  rows.forEach(r => {
+    const key = lojaKeyDe(r.loja);
+    if(!key) return;
+    const map = porLoja[key];
+    const k2 = r.codbarra || r.nome;
+    if(!map.has(k2)){
+      map.set(k2, { codbarra: r.codbarra, nome: r.nome, qtd: 0, total: 0, custoTotal: 0 });
+    }
+    const p = map.get(k2);
+    p.qtd += r.qtd;
+    p.total += r.total;
+    p.custoTotal += (r.custofinal||0) * (r.qtd||0);
+  });
+
+  const valorFn = p => metric === 'qtd' ? p.qtd : (metric === 'lucro' ? (p.total - p.custoTotal) : p.total);
+
+  const resultado = {};
+  CURVAABC_STORE_KEYS.forEach(k => {
+    resultado[k] = [...porLoja[k].values()]
+      .filter(p => valorFn(p) > 0)
+      .sort((a,b) => valorFn(b) - valorFn(a))
+      .slice(0, 10);
+  });
+  return resultado;
+}
+
+function renderTop10PorLoja(rows, metric){
+  const metricLabel = metric === 'qtd' ? 'Qtd' : (metric === 'lucro' ? 'Lucro' : 'Valor');
+  const valorFn = p => metric === 'qtd' ? p.qtd : (metric === 'lucro' ? (p.total - p.custoTotal) : p.total);
+  const fmtValor = v => metric === 'qtd' ? fN(v) + ' un.' : fBRL(v);
+
+  const dados = calcularTop10PorLoja(rows, metric);
+  $('top10-sub').textContent = 'Ranking próprio por loja · ' + metricLabel;
+
+  const thLojas = LOJA_COLS.map(c => `<th>${c.label}</th>`).join('');
+  $('cth-top10').innerHTML = `<tr><th class="num" style="width:30px">#</th>${thLojas}</tr>`;
+
+  const temAlgumDado = LOJA_COLS.some(c => dados[c.key].length);
+  if(!temAlgumDado){
+    $('ctb-top10').innerHTML = `<tr><td colspan="${LOJA_COLS.length+1}" class="nd">Sem dados para o período selecionado</td></tr>`;
+    return;
+  }
+
+  let linhas = '';
+  for(let i=0;i<10;i++){
+    const tds = LOJA_COLS.map(c => {
+      const p = dados[c.key][i];
+      if(!p) return '<td>—</td>';
+      return `<td>
+        <div class="top10-prod">${p.nome}</div>
+        <div class="top10-meta">${p.codbarra || 's/ código'} · ${fmtValor(valorFn(p))}</div>
+      </td>`;
+    }).join('');
+    linhas += `<tr><td class="num top10-rank">${i+1}</td>${tds}</tr>`;
+  }
+  $('ctb-top10').innerHTML = linhas;
+}
+
 const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
   : cl==='B' ? '<span class="badge badge-b">B</span>'
   : '<span class="badge badge-c">C</span>';
@@ -1383,7 +1544,6 @@ function renderTabelaResumo(data, metric){
 function renderTabelaMensal(data, produtos, metric){
   const { pct: pctF, pctAcum: pctAcumF, classe: classeF } = pctFieldsFor(metric);
   const metricLabel = metric === 'qtd' ? 'Qtd' : (metric === 'lucro' ? 'Lucro' : 'Valor');
-  const colspan = 4 + 12 + 4; // expand+Loja+Código+Produto + 12 meses + Total+%Part+%Acum+Classe
 
   // Total de todos os produtos em cada mês, na métrica ativa — é a base do
   // % de participação de cada mês (reseta a cada mês). Usa a lista já
@@ -1392,8 +1552,13 @@ function renderTabelaMensal(data, produtos, metric){
   for(let m=1;m<=12;m++){
     totaisMes[m] = produtos.reduce((s,p)=> s + valorMetricMes(p,m,metric), 0);
   }
+  // Só exibe colunas dos meses que realmente têm valor no período filtrado.
+  const mesesComDados = [];
+  for(let m=1;m<=12;m++){ if(totaisMes[m]) mesesComDados.push(m); }
 
-  const mesesTh = MONTHS_ABBR.map(m=>`<th class="num">${m}</th>`).join('');
+  const colspan = 4 + mesesComDados.length + 4; // expand+Loja+Código+Produto + meses + Total+%Part+%Acum+Classe
+
+  const mesesTh = mesesComDados.map(m=>`<th class="num">${MONTHS_ABBR[m-1]}</th>`).join('');
   $('cth-produtos').innerHTML = `<tr>
     <th></th><th>Loja</th><th>Código</th><th>Produto</th>${mesesTh}<th class="num">Total</th><th class="num">% Part.</th><th class="num">% Acum.</th><th>Classe</th>
   </tr>`;
@@ -1410,16 +1575,16 @@ function renderTabelaMensal(data, produtos, metric){
     p.__i = i;
     const pct = p[pctF], pctAcum = p[pctAcumF], classe = p[classeF];
     const mesesTd = [];
-    for(let m=1;m<=12;m++){
+    mesesComDados.forEach(m => {
       const v = valorMetricMes(p,m,metric);
-      if(!v){ mesesTd.push('<td class="num">—</td>'); continue; }
+      if(!v){ mesesTd.push('<td class="num">—</td>'); return; }
       if(mensalDisplayMode === 'pct'){
         const tot = totaisMes[m];
         mesesTd.push(`<td class="num">${fPct(tot ? v/tot*100 : 0)}</td>`);
       } else {
         mesesTd.push(`<td class="num">${metric==='qtd' ? fN(v) : fBRL(v)}</td>`);
       }
-    }
+    });
 
     return `
     <tr class="ct-row-main" data-i="${i}">
