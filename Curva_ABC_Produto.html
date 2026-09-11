@@ -213,25 +213,25 @@ a.side-brand:hover { opacity:.85; }
   border-bottom: 1px solid rgba(255,255,255,.08);
   box-shadow: 0 2px 20px rgba(0,0,0,.15);
   min-height: var(--bar-h);
-  display: flex; align-items: center; flex-wrap: wrap;
-  padding: 10px 28px; gap: 16px;
+  display: flex; align-items: center; flex-wrap: nowrap;
+  padding: 10px 20px; gap: 12px;
   transition: box-shadow .25s, margin-left .25s ease;
 }
 
-.fb-brand { display: flex; align-items: center; gap: 10px; padding-right: 24px; border-right: 1px solid rgba(255,255,255,.15); margin-right: 24px; flex-shrink: 0; }
+.fb-brand { display: flex; align-items: center; gap: 10px; padding-right: 16px; border-right: 1px solid rgba(255,255,255,.15); margin-right: 0; flex-shrink: 0; }
 .fb-mark { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
 .fb-mark svg { width: 16px; height: 16px; color: #fff; }
 .fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
 .fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
 
-.fb-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
+.fb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; padding-left: 12px; }
 .btn-refresh {
   display: flex; align-items: center; gap: 6px;
   background: var(--blue); color: #fff;
   border: none; border-radius: var(--r);
-  padding: 8px 14px; font-family: var(--font-body);
-  font-size: 11px; font-weight: 700;
-  letter-spacing: .06em; text-transform: uppercase;
+  padding: 7px 12px; font-family: var(--font-body);
+  font-size: 10.5px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
   cursor: pointer; white-space: nowrap;
   transition: all .2s var(--ease);
 }
@@ -243,16 +243,27 @@ a.side-brand:hover { opacity:.85; }
 .fb-ts span { color: rgba(255,255,255,.85); font-weight: 500; }
 
 /* Filtros (Ano/Mês/Loja/Grupo/Classe/Busca) — mesmo "cartão" translúcido
-   usado nas demais telas, embutido direto na barra escura do topo. */
-.ig-filter-bar { display:flex; align-items:center; gap:10px; flex-wrap:wrap; background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); border-radius: var(--r-lg); padding:8px 14px; margin:0 auto; }
-.ig-fgroup { display:flex; align-items:center; gap:7px; }
+   usado nas demais telas, embutido direto na barra escura do topo.
+   Fica sempre na mesma linha que a marca e o bloco "Última atualização /
+   Atualizar": não quebra (nowrap) e, se não couber, rola horizontalmente
+   dentro do próprio cartão em vez de empurrar o resto pra linha de baixo. */
+.ig-filter-bar {
+  display:flex; align-items:center; gap:8px; flex-wrap:nowrap;
+  background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18);
+  border-radius: var(--r-lg); padding:7px 12px;
+  flex: 1 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  scrollbar-width: thin;
+}
+.ig-filter-bar::-webkit-scrollbar { height: 5px; }
+.ig-filter-bar::-webkit-scrollbar-thumb { background: rgba(255,255,255,.25); border-radius: 4px; }
+.ig-fgroup { display:flex; align-items:center; gap:6px; flex-shrink: 0; }
 .ig-flabel { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: rgba(255,255,255,.65); white-space:nowrap; }
 .ig-fselect {
   font-family: var(--font-body); font-size:12.5px; font-weight:500; color:#fff;
   background: rgba(255,255,255,.08); border:1px solid rgba(255,255,255,.28); border-radius: var(--r);
-  padding: 7px 26px 7px 11px; appearance:none; cursor:pointer;
+  padding: 6px 24px 6px 10px; appearance:none; cursor:pointer;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
-  background-repeat:no-repeat; background-position: right 9px center; min-width:110px;
+  background-repeat:no-repeat; background-position: right 8px center; min-width:92px;
 }
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 .ig-fselect option { color:#0f1923; }
@@ -266,9 +277,9 @@ a.side-brand:hover { opacity:.85; }
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.28);
   border-radius: var(--r);
-  padding: 7px 28px 7px 11px;
+  padding: 6px 26px 6px 10px;
   cursor: pointer; white-space: nowrap;
-  min-width: 110px; max-width: 220px;
+  min-width: 92px; max-width: 220px; flex-shrink: 0;
   display: flex; align-items: center; gap: 6px;
   transition: all .18s var(--ease);
   user-select: none;
@@ -376,10 +387,12 @@ a.side-brand:hover { opacity:.85; }
 .comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
 .comp-card-head { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .cc-head-blue { background: var(--blue-xl); }
+.cc-head-amber { background: var(--amber-lt); }
 .cc-head-left { display: flex; align-items: center; gap: 12px; }
 .cc-icon { width: 34px; height: 34px; border-radius: var(--r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
 .cc-icon svg { width: 17px; height: 17px; }
 .cc-icon-blue { background: var(--blue-lt); color: var(--blue); }
+.cc-icon-amber { background: #F5DFA8; color: var(--amber); }
 .cc-head-left .title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); }
 .cc-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
 /* Legenda das classes — empilhada (uma por linha) pra ocupar pouca largura */
@@ -750,6 +763,17 @@ a.side-brand:hover { opacity:.85; }
     <div class="comp-scroll"><table class="comp-table" id="ct-top10"><thead id="cth-top10"></thead><tbody id="ctb-top10"></tbody></table></div>
   </div>
 
+  <div class="sec"><span class="sec-title">Produtos sem Custo</span><span class="sec-line"></span><span class="sec-count" id="sec-count-semcusto">0 produtos</span></div>
+  <div class="comp-card">
+    <div class="comp-card-head cc-head-amber">
+      <div class="cc-head-left">
+        <div class="cc-icon cc-icon-amber"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
+        <div><div class="title">Produtos sem Custo Cadastrado (Margem 100%)</div><div class="sub">Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto</div></div>
+      </div>
+    </div>
+    <div class="comp-scroll"><table class="comp-table" id="ct-semcusto"><thead id="cth-semcusto"></thead><tbody id="ctb-semcusto"></tbody></table></div>
+  </div>
+
   <div class="sec"><span class="sec-title">Produtos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue cc-head-2row">
@@ -915,6 +939,14 @@ async function fetchCSV(url){
    Colunas esperadas: data, codbarra, nome, grupo, nomegrupo,
    custofinal, qtd, total, loja
 ══════════════════════════════════════════════════════════════ */
+/* Grupos que não são produtos de venda de fato (despesas internas,
+   transferências entre lojas etc.) — ficam de fora da Curva ABC inteira,
+   de todas as tabelas, KPIs e gráficos. Comparação sem acento/maiúscula. */
+const GRUPOS_EXCLUIDOS = ['despesa com alimentacao', 'transferencias internas'];
+function normTxt(s){
+  return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim();
+}
+
 function parseCurvaABC(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
@@ -952,13 +984,16 @@ function parseCurvaABC(text, lojaFallback){
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
 
+    const nomegrupo = (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO';
+    if(GRUPOS_EXCLUIDOS.includes(normTxt(nomegrupo))) continue;
+
     rows.push({
       loja,
       ano: dt ? dt.ano : null, mes: dt ? dt.mes : null, dataTs: dt ? dt.ts : null, dtVenda: dtStr,
       codbarra: iCodBarra>=0 ? g(iCodBarra) : '',
       nome: g(iNome) || '(sem nome)',
       grupo: iGrupo>=0 ? g(iGrupo) : '',
-      nomegrupo: (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO',
+      nomegrupo,
       custofinal: iCusto>=0 ? parseNum(g(iCusto)) : 0,
       qtd, total,
     });
@@ -1480,6 +1515,7 @@ function applyFilters(){
   $('sec-count').textContent = fN(base.length) + ' registros';
   renderGrupoLojaMatrix(getBaseFiltradoSemLoja());
   renderTop10PorLoja(getBaseFiltradoSemLoja());
+  renderProdutosSemCusto(base);
   // Passa a lista de PRODUTOS já agregados (com a quebra mensal em .porMes),
   // não as linhas cruas — a Visão Mensal precisa dos totais por produto/mês.
   renderTabela(exibicao, calc.porValor, metric);
@@ -1692,6 +1728,60 @@ function renderTop10PorLoja(rows){
   }
   $('ctb-top10').innerHTML = linhas;
   $('ct-top10').classList.toggle('show-details', top10Details);
+}
+
+/* ══════════════════════════════════════════════════════════════
+   PRODUTOS SEM CUSTO CADASTRADO (Margem 100%)
+   Agrupa por Loja + Produto dentro do período filtrado (Ano/Mês/Loja/
+   Grupo) e lista quem vendeu (total > 0) mas nunca teve custofinal
+   lançado (custoTotal = 0) — nesses casos a margem sai igual ao valor
+   vendido (100%), o que normalmente é sinal de cadastro incompleto,
+   não de lucro real. Não entra na Curva ABC "de verdade" (não tem
+   classe A/B/C), é só uma lista de conferência.
+══════════════════════════════════════════════════════════════ */
+function calcularProdutosSemCusto(rows){
+  const map = new Map();
+  rows.forEach(r => {
+    const key = r.loja + '|' + (r.codbarra || r.nome);
+    if(!map.has(key)){
+      map.set(key, { loja: r.loja, codbarra: r.codbarra, nome: r.nome, nomegrupo: r.nomegrupo, qtd: 0, total: 0, custoTotal: 0 });
+    }
+    const p = map.get(key);
+    p.qtd += r.qtd;
+    p.total += r.total;
+    p.custoTotal += (r.custofinal||0) * (r.qtd||0);
+  });
+  return [...map.values()]
+    .filter(p => p.total > 0 && p.custoTotal === 0)
+    .sort((a,b) => b.total - a.total);
+}
+
+function renderProdutosSemCusto(rows){
+  const lista = calcularProdutosSemCusto(rows);
+  $('sec-count-semcusto').textContent = fN(lista.length) + ' produto' + (lista.length===1?'':'s');
+
+  $('cth-semcusto').innerHTML = `<tr>
+    <th>Loja</th><th>Código</th><th>Produto</th><th>Grupo</th><th class="num">Qtd</th><th class="num">Valor Total</th><th class="num">Custo</th><th class="num">Margem</th>
+  </tr>`;
+
+  if(!lista.length){
+    $('ctb-semcusto').innerHTML = `<tr><td colspan="8" class="nd">Nenhum produto sem custo encontrado para os filtros selecionados</td></tr>`;
+    return;
+  }
+
+  const limitado = lista.slice(0, 500);
+  $('ctb-semcusto').innerHTML = limitado.map(p => `
+    <tr>
+      <td>${lojaLabel(p.loja)}</td>
+      <td>${p.codbarra || '—'}</td>
+      <td>${p.nome}</td>
+      <td>${p.nomegrupo}</td>
+      <td class="num">${fN(p.qtd)}</td>
+      <td class="num">${fBRL(p.total)}</td>
+      <td class="num">${fBRL(0)}</td>
+      <td class="num">${fPct(100)}</td>
+    </tr>`).join('') +
+    (lista.length > 500 ? `<tr><td colspan="8" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
 }
 
 const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
