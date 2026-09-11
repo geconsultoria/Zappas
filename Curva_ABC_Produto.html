@@ -303,7 +303,7 @@ a.side-brand:hover { opacity:.85; }
 .cc-head-left .title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); }
 .cc-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
 /* Legenda das classes — empilhada (uma por linha) pra ocupar pouca largura */
-.cc-legend { margin-left: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex-shrink: 0; }
+.cc-legend { margin-left: auto; display: flex; flex-direction: row; align-items: center; gap: 14px; flex-wrap: wrap; flex-shrink: 0; }
 .cc-legend-row { display: flex; align-items: center; gap: 6px; }
 .cc-legend-txt { font-size: 11px; color: var(--ink-4); white-space: nowrap; }
 
@@ -592,7 +592,7 @@ a.side-brand:hover { opacity:.85; }
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
-        <div><div class="title" id="produtos-title">Curva ABC de Produtos</div><div class="sub" id="produtos-sub">Ordenado por valor vendido (maior para menor)</div></div>
+        <div><div class="title" id="produtos-title">Curva ABC de Produtos</div><div class="sub" id="produtos-sub">Ordenado por valor vendido</div></div>
       </div>
       <div class="cc-toggles">
         <div class="cc-mode-toggle" role="tablist" aria-label="Critério da Curva ABC">
@@ -666,7 +666,7 @@ function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
 const $ = id => document.getElementById(id);
 const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
-function fBRL(v){ return (v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
+function fBRL(v){ return (v||0).toLocaleString('pt-BR', {minimumFractionDigits:2, maximumFractionDigits:2}); }
 function fN(v){ return (v||0).toLocaleString('pt-BR'); }
 function fPct(v){ return (v||0).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
 
@@ -1098,7 +1098,7 @@ function getFiltrados(){
 function atualizarSubtitulo(){
   const metric = metricaAtiva();
   const metricTxt = metric === 'qtd' ? 'quantidade vendida' : (metric === 'lucro' ? 'lucro' : 'valor vendido');
-  let texto = 'Ordenado por ' + metricTxt + ' (maior para menor)';
+  let texto = 'Ordenado por ' + metricTxt;
   if(viewMode === 'mensal') texto += ' · comparação mês a mês';
   $('produtos-sub').textContent = texto;
 }
