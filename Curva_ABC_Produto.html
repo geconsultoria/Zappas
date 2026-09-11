@@ -508,6 +508,8 @@ a.side-brand:hover { opacity:.85; }
 
 .div-cost-diff { background: #FBE0D6; color: var(--rust); font-weight: 700; border-radius: 4px; }
 .div-flag { display: inline-block; font-size: 9.5px; font-weight: 800; color: var(--amber); background: var(--amber-lt); border-radius: 4px; padding: 1px 5px; margin-left: 6px; letter-spacing: .02em; vertical-align: middle; }
+.cell-empty { color: var(--ink-4); font-style: italic; font-size: 11px; }
+.comp-table tfoot a, .comp-table .nd a { color: var(--blue-mid); font-weight: 700; text-decoration: underline; text-underline-offset: 2px; }
 
 /* Group / bar rows */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -1806,17 +1808,25 @@ function calcularProdutosMargemZero(rows){
 /* 'divergencia' → confronta o MESMO produto (código/nome) entre as lojas,
    dentro do período filtrado (Ano/Mês/Grupo — ignora o filtro de Loja,
    já que o objetivo é comparar loja com loja). Aponta quando o custo
-   unitário lançado é diferente de uma loja para outra (e sinaliza também
-   quando o valor unitário de venda diverge). */
+   unitário LANÇADO é diferente de uma loja para outra (e sinaliza também
+   quando o valor unitário de venda diverge).
+
+   Só entram lojas que efetivamente têm custo cadastrado (custoTotal > 0):
+   loja sem custo lançado é o caso "Sem Custo (100%)", já coberto pelo
+   outro modo — aqui não pode aparecer como se fosse "custo diferente".
+   Por isso é preciso pelo menos 2 lojas COM custo lançado, com valores
+   diferentes entre si, pra o produto entrar nesta lista. */
 function calcularDivergenciaCusto(rows){
   const centavos = v => Math.round(v * 100);
   const map = new Map();
   rows.forEach(r => {
+    const lojaKey = lojaKeyDe(r.loja);
+    if(!lojaKey) return;
     const key = r.codbarra || r.nome;
     if(!map.has(key)) map.set(key, { codbarra: r.codbarra, nome: r.nome, nomegrupo: r.nomegrupo, porLoja: new Map() });
     const p = map.get(key);
-    if(!p.porLoja.has(r.loja)) p.porLoja.set(r.loja, { qtd: 0, total: 0, custoTotal: 0 });
-    const l = p.porLoja.get(r.loja);
+    if(!p.porLoja.has(lojaKey)) p.porLoja.set(lojaKey, { qtd: 0, total: 0, custoTotal: 0 });
+    const l = p.porLoja.get(lojaKey);
     l.qtd += r.qtd;
     l.total += r.total;
     l.custoTotal += (r.custofinal||0) * (r.qtd||0);
@@ -1824,20 +1834,23 @@ function calcularDivergenciaCusto(rows){
 
   const out = [];
   map.forEach(p => {
-    const lojas = [...p.porLoja.entries()]
+    const todasLojas = [...p.porLoja.entries()]
       .filter(([,v]) => v.qtd > 0)
       .map(([loja,v]) => ({ loja, qtd: v.qtd, total: v.total, custoTotal: v.custoTotal,
         custoUnit: v.custoTotal / v.qtd, valorUnit: v.total / v.qtd }));
-    if(lojas.length < 2) return;
-    const custosDistintos = new Set(lojas.map(l => centavos(l.custoUnit)));
+    // Só lojas com custo efetivamente cadastrado entram na comparação de divergência
+    const comCusto = todasLojas.filter(l => l.custoTotal > 0);
+    if(comCusto.length < 2) return;
+    const custosDistintos = new Set(comCusto.map(l => centavos(l.custoUnit)));
     if(custosDistintos.size < 2) return;
-    const valoresDistintos = new Set(lojas.map(l => centavos(l.valorUnit)));
-    const custoMin = Math.min(...lojas.map(l => l.custoUnit));
+    const valoresDistintos = new Set(comCusto.map(l => centavos(l.valorUnit)));
+    const custoMin = Math.min(...comCusto.map(l => l.custoUnit));
     out.push({
-      codbarra: p.codbarra, nome: p.nome, nomegrupo: p.nomegrupo, lojas,
+      codbarra: p.codbarra, nome: p.nome, nomegrupo: p.nomegrupo, lojas: todasLojas,
+      lojasComCusto: new Set(comCusto.map(l => l.loja)),
       valorDivergente: valoresDistintos.size > 1,
       custoMin,
-      totalGeral: lojas.reduce((s,l) => s + l.total, 0)
+      totalGeral: todasLojas.reduce((s,l) => s + l.total, 0)
     });
   });
   return out.sort((a,b) => b.totalGeral - a.totalGeral);
@@ -1846,6 +1859,7 @@ function calcularDivergenciaCusto(rows){
 function setCustoAnaliseMode(mode){
   if(custoAnaliseMode === mode) return;
   custoAnaliseMode = mode;
+  semcustoMostrarTodos = false;
   document.querySelectorAll('#semcusto-mode-toggle .cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-custoanalise') === mode));
   renderConferenciaCusto(getBaseFiltered(), getBaseFiltradoSemLoja());
 }
@@ -1874,7 +1888,8 @@ function renderConferenciaCusto(rowsLoja, rowsSemLoja){
     return;
   }
 
-  const limitado = lista.slice(0, 500);
+  const limite = semcustoMostrarTodos ? lista.length : 500;
+  const limitado = lista.slice(0, limite);
   $('ctb-semcusto').innerHTML = limitado.map(p => `
     <tr>
       <td>${lojaLabel(p.loja)}</td>
@@ -1885,15 +1900,14 @@ function renderConferenciaCusto(rowsLoja, rowsSemLoja){
       <td class="num">${fBRL(p.total)}</td>
       <td class="num">${fBRL(modo100 ? 0 : p.custoTotal)}</td>
       <td class="num">${fPct(modo100 ? 100 : 0)}</td>
-    </tr>`).join('') +
-    (lista.length > 500 ? `<tr><td colspan="8" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    </tr>`).join('') + rodapeVerTodos(lista.length, limite, 8);
 }
 
 function renderDivergenciaCusto(rowsSemLoja){
   const lista = calcularDivergenciaCusto(rowsSemLoja);
 
   $('semcusto-title').textContent = 'Conferência';
-  $('semcusto-sub').textContent = 'Mesmo produto com custo unitário diferente de uma loja para outra — confira se o cadastro de custo está correto em todas as lojas';
+  $('semcusto-sub').textContent = 'Mesmo produto com custo unitário LANÇADO de forma diferente de uma loja para outra (loja sem custo cadastrado não entra aqui — veja em "Sem Custo (100%)") — confira se o cadastro está correto';
   $('sec-count-semcusto').textContent = fN(lista.length) + ' produto' + (lista.length===1?'':'s');
 
   const thLojas = TOP10_LOJA_COLS.map(c => `<th class="num">${c.label}</th>`).join('');
@@ -1904,11 +1918,13 @@ function renderDivergenciaCusto(rowsSemLoja){
     return;
   }
 
-  const limitado = lista.slice(0, 500);
+  const limite = semcustoMostrarTodos ? lista.length : 500;
+  const limitado = lista.slice(0, limite);
   $('ctb-semcusto').innerHTML = limitado.map(p => {
     const tds = TOP10_LOJA_COLS.map(c => {
       const l = p.lojas.find(x => x.loja === c.key);
-      if(!l) return `<td class="num nd">—</td>`;
+      if(!l) return `<td class="num cell-empty">—</td>`;
+      if(!p.lojasComCusto.has(c.key)) return `<td class="num cell-empty" title="Sem custo cadastrado nesta loja">s/ custo</td>`;
       const diverge = Math.round(l.custoUnit*100) !== Math.round(p.custoMin*100);
       return `<td class="num${diverge ? ' div-cost-diff' : ''}">${fBRL(l.custoUnit)}</td>`;
     }).join('');
@@ -1917,8 +1933,23 @@ function renderDivergenciaCusto(rowsSemLoja){
       <td>${p.nome}${p.valorDivergente ? ' <span class="div-flag" title="O valor de venda também é diferente entre lojas">Valor ↕</span>' : ''}</td>
       ${tds}
     </tr>`;
-  }).join('') +
-    (lista.length > 500 ? `<tr><td colspan="${2+TOP10_LOJA_COLS.length}" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+  }).join('') + rodapeVerTodos(lista.length, limite, 2+TOP10_LOJA_COLS.length);
+}
+
+/* Rodapé "Mostrando N de M" compartilhado pelas listas de Conferência de
+   Custo, com um link pra carregar a lista inteira sem precisar refinar
+   os filtros. */
+let semcustoMostrarTodos = false;
+function toggleSemcustoMostrarTodos(){
+  semcustoMostrarTodos = !semcustoMostrarTodos;
+  renderConferenciaCusto(getBaseFiltered(), getBaseFiltradoSemLoja());
+}
+function rodapeVerTodos(total, limite, colspan){
+  if(total <= 500 && !semcustoMostrarTodos) return '';
+  if(semcustoMostrarTodos){
+    return `<tr><td colspan="${colspan}" class="nd">Mostrando todos os ${fN(total)} produtos encontrados. <a href="#" onclick="toggleSemcustoMostrarTodos();return false;">Mostrar só os 500 principais</a></td></tr>`;
+  }
+  return `<tr><td colspan="${colspan}" class="nd">Mostrando os ${fN(limite)} produtos de maior valor, de ${fN(total)} encontrados. <a href="#" onclick="toggleSemcustoMostrarTodos();return false;">Ver todos</a></td></tr>`;
 }
 
 const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
