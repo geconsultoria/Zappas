@@ -294,7 +294,7 @@ a.side-brand:hover { opacity:.85; }
 
 /* CARD / TABLE */
 .comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
-.comp-card-head { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); }
+.comp-card-head { padding: 14px 18px; display: flex; align-items: center; gap: 12px; border-bottom: 1px solid var(--border); flex-wrap: wrap; }
 .cc-head-blue { background: var(--blue-xl); }
 .cc-head-left { display: flex; align-items: center; gap: 12px; }
 .cc-icon { width: 34px; height: 34px; border-radius: var(--r); display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
@@ -302,6 +302,20 @@ a.side-brand:hover { opacity:.85; }
 .cc-icon-blue { background: var(--blue-lt); color: var(--blue); }
 .cc-head-left .title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); }
 .cc-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+.cc-legend { margin-left: auto; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
+.cc-legend-txt { font-size: 11px; color: var(--ink-4); margin-right: 11px; white-space: nowrap; }
+.cc-legend-txt:last-child { margin-right: 0; }
+
+/* Seletor Curva por Produto / Curva por Lucro */
+.cc-mode-toggle { display: flex; gap: 3px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 3px; flex-shrink: 0; }
+.cc-mode-btn {
+  font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
+  color: var(--ink-3); background: transparent; border: none; border-radius: 7px;
+  padding: 6px 13px; cursor: pointer; white-space: nowrap;
+  transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.cc-mode-btn:hover { color: var(--ink); }
+.cc-mode-btn.active { background: var(--surface); color: var(--blue); box-shadow: var(--sh); }
 
 .comp-scroll { overflow-x: auto; max-height: 560px; overflow-y: auto; }
 .comp-table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
@@ -565,7 +579,16 @@ a.side-brand:hover { opacity:.85; }
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
-        <div><div class="title">Curva ABC de Produtos</div><div class="sub">Ordenado por valor vendido (maior para menor)</div></div>
+        <div><div class="title" id="produtos-title">Curva ABC de Produtos</div><div class="sub" id="produtos-sub">Ordenado por valor vendido (maior para menor)</div></div>
+      </div>
+      <div class="cc-mode-toggle" role="tablist" aria-label="Critério da Curva ABC">
+        <button type="button" class="cc-mode-btn active" data-mode="produto" onclick="setCurvaMode('produto')">Produto</button>
+        <button type="button" class="cc-mode-btn" data-mode="lucro" onclick="setCurvaMode('lucro')">Lucro por Produto</button>
+      </div>
+      <div class="cc-legend">
+        <span class="badge badge-a">A</span><span class="cc-legend-txt">até 80%</span>
+        <span class="badge badge-b">B</span><span class="cc-legend-txt">80% a 95%</span>
+        <span class="badge badge-c">C</span><span class="cc-legend-txt">95% a 100%</span>
       </div>
     </div>
     <div class="comp-scroll"><table class="comp-table" id="ct-produtos"><thead id="cth-produtos"></thead><tbody id="ctb-produtos"></tbody></table></div>
@@ -913,8 +936,14 @@ function getBaseFiltered(){
   });
 }
 
-/* Agrupa por Loja + Código de Barras (ou nome, se não houver código)
-   e devolve a lista já ordenada e classificada em A/B/C. */
+/* Modo de curva exibido na tabela de produtos:
+   'produto' = ranqueado por Valor Total vendido
+   'lucro'   = ranqueado por Lucro (Valor Total - Custo Total) */
+let curvaMode = 'produto';
+
+/* Agrupa por Loja + Código de Barras (ou nome, se não houver código) e
+   devolve as duas classificações A/B/C possíveis — por Valor Vendido e
+   por Lucro — já que cada uma ordena e acumula o percentual de um jeito. */
 function calcularCurvaABC(rows){
   const map = new Map();
   rows.forEach(r => {
@@ -932,19 +961,36 @@ function calcularCurvaABC(rows){
     p.custoTotal += (r.custofinal||0) * (r.qtd||0);
   });
 
-  const lista = [...map.values()].sort((a,b)=>b.total-a.total);
-  const totalGeral = lista.reduce((s,p)=>s+p.total,0);
-  let acumulado = 0;
-  lista.forEach(p => {
+  const base = [...map.values()];
+  base.forEach(p => {
     p.custoUnit = p.qtd ? p.custoTotal/p.qtd : 0;
     p.margem = p.total - p.custoTotal;
     p.margemPct = p.total ? (p.margem/p.total*100) : 0;
-    p.pct = totalGeral ? (p.total/totalGeral*100) : 0;
-    acumulado += p.pct;
-    p.pctAcum = acumulado;
-    p.classe = p.pctAcum <= LIMITE_A ? 'A' : (p.pctAcum <= LIMITE_B ? 'B' : 'C');
   });
-  return lista;
+
+  // Classificação por Valor Total vendido
+  const porValor = [...base].sort((a,b)=>b.total-a.total);
+  const totalValor = porValor.reduce((s,p)=>s+p.total,0);
+  let acumV = 0;
+  porValor.forEach(p => {
+    p.pctValor = totalValor ? (p.total/totalValor*100) : 0;
+    acumV += p.pctValor;
+    p.pctAcumValor = acumV;
+    p.classeValor = acumV <= LIMITE_A ? 'A' : (acumV <= LIMITE_B ? 'B' : 'C');
+  });
+
+  // Classificação por Lucro (Valor Total - Custo Total)
+  const porLucro = [...base].sort((a,b)=>b.margem-a.margem);
+  const totalLucro = porLucro.reduce((s,p)=>s+p.margem,0);
+  let acumL = 0;
+  porLucro.forEach(p => {
+    p.pctLucro = totalLucro ? (p.margem/totalLucro*100) : 0;
+    acumL += p.pctLucro;
+    p.pctAcumLucro = acumL;
+    p.classeLucro = acumL <= LIMITE_A ? 'A' : (acumL <= LIMITE_B ? 'B' : 'C');
+  });
+
+  return { porValor, porLucro, totalValor, totalLucro };
 }
 
 function getFiltrados(){
@@ -952,10 +998,12 @@ function getFiltrados(){
   const classe = $('f-classe').value || null;
 
   const base = getBaseFiltered();
-  const classificados = calcularCurvaABC(base);
+  const { porValor, porLucro, totalValor, totalLucro } = calcularCurvaABC(base);
+  const lista = curvaMode === 'lucro' ? porLucro : porValor;
 
-  const exibicao = classificados.filter(p => {
-    if(classe && p.classe !== classe) return false;
+  const exibicao = lista.filter(p => {
+    const cl = curvaMode === 'lucro' ? p.classeLucro : p.classeValor;
+    if(classe && cl !== classe) return false;
     if(busca){
       const alvo = (p.nome+' '+p.codbarra+' '+p.nomegrupo+' '+lojaLabel(p.loja)).toLowerCase();
       if(!alvo.includes(busca)) return false;
@@ -963,7 +1011,17 @@ function getFiltrados(){
     return true;
   });
 
-  return { base, classificados, exibicao };
+  return { base, porValor, porLucro, totalValor, totalLucro, exibicao };
+}
+
+function setCurvaMode(mode){
+  if(curvaMode === mode) return;
+  curvaMode = mode;
+  document.querySelectorAll('.cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-mode') === mode));
+  $('produtos-sub').textContent = mode === 'lucro'
+    ? 'Ordenado por lucro (maior para menor)'
+    : 'Ordenado por valor vendido (maior para menor)';
+  applyFilters();
 }
 
 ['f-ano','f-mes','f-loja','f-grupo','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
@@ -973,17 +1031,19 @@ $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer);
    RENDER
 ══════════════════════════════════════════════════════════════ */
 function applyFilters(){
-  const { base, classificados, exibicao } = getFiltrados();
-  renderKPIs(classificados);
+  const { base, porValor, exibicao } = getFiltrados();
+  renderKPIs(porValor);
   renderGrupos(base);
   renderTabela(exibicao);
 }
 
+/* O resumo (KPIs) sempre reflete a Curva por Valor Vendido — visão geral
+   do negócio — independente do modo escolhido na tabela abaixo. */
 function renderKPIs(classificados){
   const total = classificados.reduce((s,p)=>s+p.total,0);
-  const a = classificados.filter(p=>p.classe==='A');
-  const b = classificados.filter(p=>p.classe==='B');
-  const c = classificados.filter(p=>p.classe==='C');
+  const a = classificados.filter(p=>p.classeValor==='A');
+  const b = classificados.filter(p=>p.classeValor==='B');
+  const c = classificados.filter(p=>p.classeValor==='C');
   const vA = a.reduce((s,p)=>s+p.total,0);
   const vB = b.reduce((s,p)=>s+p.total,0);
   const vC = c.reduce((s,p)=>s+p.total,0);
@@ -1024,14 +1084,18 @@ function renderGrupos(base){
   $('sec-count').textContent = fN(base.length) + ' registros';
 }
 
-const CT_COLSPAN = 11;
-
 function renderTabela(data){
-  $('cth-produtos').innerHTML = `<tr>
-    <th></th><th>Loja</th><th>Código</th><th>Produto</th><th>Grupo</th><th class="num">Qtd</th><th class="num">Custo Unit.</th><th class="num">Valor Total</th><th class="num">% Part.</th><th class="num">% Acum.</th><th>Classe</th>
+  const modoLucro = curvaMode === 'lucro';
+  const colspan = modoLucro ? 12 : 10;
+
+  $('cth-produtos').innerHTML = modoLucro ? `<tr>
+    <th></th><th>Loja</th><th>Código</th><th>Produto</th><th>Grupo</th><th class="num">Qtd</th><th class="num">Valor Total</th><th class="num">Custo Total</th><th class="num">Lucro</th><th class="num">% Part.</th><th class="num">% Acum.</th><th>Classe</th>
+  </tr>` : `<tr>
+    <th></th><th>Loja</th><th>Código</th><th>Produto</th><th>Grupo</th><th class="num">Qtd</th><th class="num">Valor Total</th><th class="num">% Part.</th><th class="num">% Acum.</th><th>Classe</th>
   </tr>`;
+
   if(!data.length){
-    $('ctb-produtos').innerHTML = `<tr><td colspan="${CT_COLSPAN}" class="nd">Nenhum produto encontrado para os filtros selecionados</td></tr>`;
+    $('ctb-produtos').innerHTML = `<tr><td colspan="${colspan}" class="nd">Nenhum produto encontrado para os filtros selecionados</td></tr>`;
     return;
   }
   const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
@@ -1040,24 +1104,40 @@ function renderTabela(data){
 
   const limitado = data.slice(0, 500);
 
-  $('ctb-produtos').innerHTML = limitado.map((p,i) => `
-    <tr class="ct-row-main" data-i="${i}">
-      <td class="ct-expand-cell"><button type="button" class="ct-expand-btn" aria-label="Ver mais informações do produto" aria-expanded="false" onclick="toggleCtDetail(this)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
-      </button></td>
+  $('ctb-produtos').innerHTML = limitado.map((p,i) => {
+    const pct = modoLucro ? p.pctLucro : p.pctValor;
+    const pctAcum = modoLucro ? p.pctAcumLucro : p.pctAcumValor;
+    const classe = modoLucro ? p.classeLucro : p.classeValor;
+    const linha = modoLucro ? `
       <td>${lojaLabel(p.loja)}</td>
       <td>${p.codbarra || '—'}</td>
       <td>${p.nome}</td>
       <td>${p.nomegrupo}</td>
       <td class="num">${fN(p.qtd)}</td>
-      <td class="num">${fBRL(p.custoUnit)}</td>
       <td class="num">${fBRL(p.total)}</td>
-      <td class="num">${fPct(p.pct)}</td>
-      <td class="num">${fPct(p.pctAcum)}</td>
-      <td>${badge(p.classe)}</td>
+      <td class="num">${fBRL(p.custoTotal)}</td>
+      <td class="num">${fBRL(p.margem)}</td>
+      <td class="num">${fPct(pct)}</td>
+      <td class="num">${fPct(pctAcum)}</td>
+      <td>${badge(classe)}</td>` : `
+      <td>${lojaLabel(p.loja)}</td>
+      <td>${p.codbarra || '—'}</td>
+      <td>${p.nome}</td>
+      <td>${p.nomegrupo}</td>
+      <td class="num">${fN(p.qtd)}</td>
+      <td class="num">${fBRL(p.total)}</td>
+      <td class="num">${fPct(pct)}</td>
+      <td class="num">${fPct(pctAcum)}</td>
+      <td>${badge(classe)}</td>`;
+
+    return `
+    <tr class="ct-row-main" data-i="${i}">
+      <td class="ct-expand-cell"><button type="button" class="ct-expand-btn" aria-label="Ver mais informações do produto" aria-expanded="false" onclick="toggleCtDetail(this)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
+      </button></td>${linha}
     </tr>
     <tr class="ct-detail" data-i="${i}">
-      <td colspan="${CT_COLSPAN}">
+      <td colspan="${colspan}">
         <div class="ct-detail-grid">
           <div class="ct-detail-item"><span class="ct-dlabel">Produto</span><span class="ct-dvalue">${p.nome}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Código de Barras</span><span class="ct-dvalue">${p.codbarra || '—'}</span></div>
@@ -1067,15 +1147,16 @@ function renderTabela(data){
           <div class="ct-detail-item"><span class="ct-dlabel">Custo Unitário</span><span class="ct-dvalue num">${fBRL(p.custoUnit)}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Custo Total</span><span class="ct-dvalue num">${fBRL(p.custoTotal)}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Valor Total</span><span class="ct-dvalue num">${fBRL(p.total)}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Margem</span><span class="ct-dvalue num">${fBRL(p.margem)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Lucro</span><span class="ct-dvalue num">${fBRL(p.margem)}</span></div>
           <div class="ct-detail-item"><span class="ct-dlabel">Margem %</span><span class="ct-dvalue num">${fPct(p.margemPct)}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">% Participação</span><span class="ct-dvalue num">${fPct(p.pct)}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">% Acumulado</span><span class="ct-dvalue num">${fPct(p.pctAcum)}</span></div>
-          <div class="ct-detail-item"><span class="ct-dlabel">Classe</span><span class="ct-dvalue">${badge(p.classe)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">% Participação (${modoLucro?'Lucro':'Valor'})</span><span class="ct-dvalue num">${fPct(pct)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">% Acumulado (${modoLucro?'Lucro':'Valor'})</span><span class="ct-dvalue num">${fPct(pctAcum)}</span></div>
+          <div class="ct-detail-item"><span class="ct-dlabel">Classe</span><span class="ct-dvalue">${badge(classe)}</span></div>
         </div>
       </td>
-    </tr>`).join('') +
-    (data.length > 500 ? `<tr><td colspan="${CT_COLSPAN}" class="nd">Mostrando os 500 produtos com maior valor vendido, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    </tr>`;
+  }).join('') +
+    (data.length > 500 ? `<tr><td colspan="${colspan}" class="nd">Mostrando os 500 produtos ${modoLucro ? 'com maior lucro' : 'com maior valor vendido'}, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
 }
 
 function toggleCtDetail(btn){

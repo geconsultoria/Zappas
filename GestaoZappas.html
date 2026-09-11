@@ -421,6 +421,10 @@ body {
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           Faturamento Detalhado
         </a>
+        <a href="Curva_ABC_Produto.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 19V10m6 9V4m6 15v-6"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 19h18"/></svg>
+          Curva ABC Produto
+        </a>
       </div>
     </div>
 
@@ -770,11 +774,11 @@ async function gerarResumoMensal() {
 // ?tipo=depara, ?tipo=planocontas) — e o endpoint separado de Metas.
 const BACKUP_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const BACKUP_METAS_URL = 'https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec';
-// As 11 telas do painel, publicadas junto no mesmo endereço (GitHub
+// As 12 telas do painel, publicadas junto no mesmo endereço (GitHub
 // Pages) — buscadas por caminho relativo pra entrar no backup.
 const BACKUP_APP_FILES = [
   'GestaoZappas.html','Acompanhamento_Metas.html','Analise_Comercial.html',
-  'Banco_Declaracao.html','Contas_a_Pagar.html','DRE_Gerencial.html',
+  'Banco_Declaracao.html','Contas_a_Pagar.html','Curva_ABC_Produto.html','DRE_Gerencial.html',
   'Elaboracao_Metas.html','Faturamento_Detalhado.html','Faturamento_Lucro.html',
   'Reembolso.html','Ciclo_Financeiro.html'
 ];
