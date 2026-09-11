@@ -506,7 +506,7 @@ a.side-brand:hover { opacity:.85; }
 .top10-meta { display: none; font-size: 10.5px; color: var(--ink-4); margin-top: 2px; font-family: var(--font-num); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #ct-top10.show-details .top10-meta { display: block; }
 
-.div-cost-diff { background: var(--amber-lt); color: var(--amber); font-weight: 700; border-radius: 4px; }
+.div-cost-diff { background: #FBE0D6; color: var(--rust); font-weight: 700; border-radius: 4px; }
 .div-flag { display: inline-block; font-size: 9.5px; font-weight: 800; color: var(--amber); background: var(--amber-lt); border-radius: 4px; padding: 1px 5px; margin-left: 6px; letter-spacing: .02em; vertical-align: middle; }
 
 /* Group / bar rows */
@@ -1897,10 +1897,10 @@ function renderDivergenciaCusto(rowsSemLoja){
   $('sec-count-semcusto').textContent = fN(lista.length) + ' produto' + (lista.length===1?'':'s');
 
   const thLojas = TOP10_LOJA_COLS.map(c => `<th class="num">${c.label}</th>`).join('');
-  $('cth-semcusto').innerHTML = `<tr><th>Código</th><th>Produto</th><th>Grupo</th>${thLojas}</tr>`;
+  $('cth-semcusto').innerHTML = `<tr><th>Código</th><th>Produto</th>${thLojas}</tr>`;
 
   if(!lista.length){
-    $('ctb-semcusto').innerHTML = `<tr><td colspan="${3+TOP10_LOJA_COLS.length}" class="nd">Nenhuma divergência de custo entre lojas encontrada para os filtros selecionados</td></tr>`;
+    $('ctb-semcusto').innerHTML = `<tr><td colspan="${2+TOP10_LOJA_COLS.length}" class="nd">Nenhuma divergência de custo entre lojas encontrada para os filtros selecionados</td></tr>`;
     return;
   }
 
@@ -1915,11 +1915,10 @@ function renderDivergenciaCusto(rowsSemLoja){
     return `<tr>
       <td>${p.codbarra || '—'}</td>
       <td>${p.nome}${p.valorDivergente ? ' <span class="div-flag" title="O valor de venda também é diferente entre lojas">Valor ↕</span>' : ''}</td>
-      <td>${p.nomegrupo}</td>
       ${tds}
     </tr>`;
   }).join('') +
-    (lista.length > 500 ? `<tr><td colspan="${3+TOP10_LOJA_COLS.length}" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+    (lista.length > 500 ? `<tr><td colspan="${2+TOP10_LOJA_COLS.length}" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
 }
 
 const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
