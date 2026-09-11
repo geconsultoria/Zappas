@@ -308,11 +308,11 @@ a.side-brand:hover { opacity:.85; }
 .cc-legend-txt { font-size: 11px; color: var(--ink-4); white-space: nowrap; }
 
 /* Seletor Curva por Produto / Curva por Lucro */
-.cc-mode-toggle { display: flex; gap: 3px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 3px; flex-shrink: 0; }
+.cc-mode-toggle { display: flex; gap: 2px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 2px; flex-shrink: 0; }
 .cc-mode-btn {
-  font-family: var(--font-body); font-size: 11.5px; font-weight: 700; letter-spacing: .01em;
+  font-family: var(--font-body); font-size: 11px; font-weight: 700; letter-spacing: .01em;
   color: var(--ink-3); background: transparent; border: none; border-radius: 7px;
-  padding: 6px 13px; cursor: pointer; white-space: nowrap;
+  padding: 5px 10px; cursor: pointer; white-space: nowrap;
   transition: background .15s ease, color .15s ease, box-shadow .15s ease;
 }
 .cc-mode-btn:hover { color: var(--ink); }
@@ -321,10 +321,18 @@ a.side-brand:hover { opacity:.85; }
 .cc-mode-btn:disabled:hover { color: var(--ink-3); }
 .cc-mode-btn:disabled.active { color: var(--blue); }
 
-/* Grupo de seletores no cabeçalho: Produto/Lucro + Métrica + Visão, lado a lado */
-.cc-toggles { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
-.cc-subhead-group { display: flex; align-items: center; gap: 9px; }
-.cc-subhead-lbl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
+/* Grupo de seletores no cabeçalho: Produto/Lucro + Métrica + Visão, lado a lado.
+   Fica tudo numa única linha só — se não couber na largura do card, rola
+   horizontalmente (nowrap + overflow-x) em vez de quebrar pra 2 linhas. */
+.cc-toggles {
+  display: flex; align-items: center; gap: 12px; flex-wrap: nowrap;
+  overflow-x: auto; overflow-y: hidden; scrollbar-width: thin;
+  padding-bottom: 2px; min-width: 0;
+}
+.cc-toggles::-webkit-scrollbar { height: 5px; }
+.cc-toggles::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+.cc-subhead-group { display: flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.cc-subhead-lbl { font-size: 9.5px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
 
 /* Cabeçalho do card em 2 linhas: título+legenda na primeira linha,
    seletores (toggles) na segunda — assim a legenda A/B/C sempre fica
@@ -387,12 +395,18 @@ a.side-brand:hover { opacity:.85; }
 .badge-b { background: var(--blue-lt);  color: var(--blue); }
 .badge-c { background: var(--rust-lt);  color: var(--rust-mid); }
 
-/* Top 10 por Loja — cada célula empilha nome do produto + código/valor */
-#ct-top10 td { white-space: normal; vertical-align: top; min-width: 150px; }
+/* Top 10 por Loja — layout fixo: coluna # bem estreita, o espaço sobra
+   pras 6 colunas de loja. Descrição do produto numa linha só (corta com
+   reticências e mostra o nome completo no title/hover); Cód./Vlr só
+   aparecem no modo "Detalhado" (classe .show-details na tabela). */
+#ct-top10 { table-layout: fixed; }
+#ct-top10 th:first-child, #ct-top10 td:first-child { width: 26px; }
+#ct-top10 td { vertical-align: middle; }
 #ct-top10 th { white-space: normal; }
-.top10-rank { font-family: var(--font-num); font-weight: 800; color: var(--ink-4); font-size: 13px; vertical-align: middle !important; }
-.top10-prod { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.3; }
-.top10-meta { font-size: 10.5px; color: var(--ink-4); margin-top: 2px; font-family: var(--font-num); }
+.top10-rank { font-family: var(--font-num); font-weight: 800; color: var(--ink-4); font-size: 13px; text-align: center !important; }
+.top10-prod { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: default; }
+.top10-meta { display: none; font-size: 10.5px; color: var(--ink-4); margin-top: 2px; font-family: var(--font-num); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#ct-top10.show-details .top10-meta { display: block; }
 
 /* Group / bar rows */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -617,6 +631,22 @@ a.side-brand:hover { opacity:.85; }
       <div class="cc-head-left">
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.196-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.783-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z"/></svg></div>
         <div><div class="title">Top 10 Produtos por Loja</div><div class="sub" id="top10-sub">Ranking próprio por loja · Valor</div></div>
+      </div>
+      <div class="cc-toggles" style="margin-left:auto">
+        <div class="cc-subhead-group">
+          <span class="cc-subhead-lbl">Mostrar por</span>
+          <div class="cc-mode-toggle" id="top10-metric-toggle" role="tablist" aria-label="Métrica do Top 10 por Loja">
+            <button type="button" class="cc-mode-btn active" data-top10metric="valor" onclick="setTop10Metric('valor')">Valor</button>
+            <button type="button" class="cc-mode-btn" data-top10metric="qtd" onclick="setTop10Metric('qtd')">Quantidade</button>
+          </div>
+        </div>
+        <div class="cc-subhead-group">
+          <span class="cc-subhead-lbl">Exibição</span>
+          <div class="cc-mode-toggle" id="top10-details-toggle" role="tablist" aria-label="Nível de detalhe do Top 10 por Loja">
+            <button type="button" class="cc-mode-btn active" data-top10details="off" onclick="setTop10Details(false)">Resumido</button>
+            <button type="button" class="cc-mode-btn" data-top10details="on" onclick="setTop10Details(true)">Detalhado</button>
+          </div>
+        </div>
       </div>
     </div>
     <div class="comp-scroll"><table class="comp-table" id="ct-top10"><thead id="cth-top10"></thead><tbody id="ctb-top10"></tbody></table></div>
@@ -1265,7 +1295,7 @@ function applyFilters(){
   renderKPIs(calc.porValor);
   $('sec-count').textContent = fN(base.length) + ' registros';
   renderGrupoLojaMatrix(getBaseFiltradoSemLoja());
-  renderTop10PorLoja(getBaseFiltradoSemLoja(), metric);
+  renderTop10PorLoja(getBaseFiltradoSemLoja());
   // Passa a lista de PRODUTOS já agregados (com a quebra mensal em .porMes),
   // não as linhas cruas — a Visão Mensal precisa dos totais por produto/mês.
   renderTabela(exibicao, calc.porValor, metric);
@@ -1385,8 +1415,37 @@ function renderGrupoLojaMatrix(rows){
    Um ranking independente por loja (cada coluna tem seu próprio Top 10,
    não é o mesmo produto repetido) — ajuda a ver o que mais vende em
    cada unidade. Sempre as 6 lojas, igual à matriz Grupo × Loja, mesmo
-   que o filtro Loja do topo esteja restringindo a uma só. Acompanha a
-   métrica ativa da Curva ABC (Valor / Qtd / Lucro). */
+   que o filtro Loja do topo esteja restringindo a uma só.
+   Tem métrica própria (Valor/Quantidade) e um modo de exibição
+   Resumido (só a descrição do produto) / Detalhado (mostra também
+   Cód. e Vlr/Qtd), independentes dos seletores da tabela de Produtos. */
+let top10Metric = 'valor';   // 'valor' | 'qtd'
+let top10Details = false;    // false = Resumido, true = Detalhado
+
+// Ordem de exibição das colunas de loja pedida para este grid.
+const TOP10_LOJA_ORDER = ['anisio','bady','damha','belvedere','havan','muffato'];
+const TOP10_LOJA_COLS = TOP10_LOJA_ORDER
+  .map(k => LOJA_COLS.find(c => c.key === k))
+  .filter(Boolean);
+
+function setTop10Metric(metric){
+  if(top10Metric === metric) return;
+  top10Metric = metric;
+  document.querySelectorAll('#top10-metric-toggle .cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-top10metric') === metric));
+  renderTop10PorLoja(getBaseFiltradoSemLoja());
+}
+function setTop10Details(on){
+  if(top10Details === on) return;
+  top10Details = on;
+  document.querySelectorAll('#top10-details-toggle .cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-top10details') === (on ? 'on' : 'off')));
+  $('ct-top10').classList.toggle('show-details', on);
+}
+
+/* Escapa texto pra uso seguro dentro de atributo (title/tooltip). */
+function escAttr(s){
+  return String(s||'').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
 function calcularTop10PorLoja(rows, metric){
   const porLoja = {};
   CURVAABC_STORE_KEYS.forEach(k => porLoja[k] = new Map());
@@ -1405,7 +1464,7 @@ function calcularTop10PorLoja(rows, metric){
     p.custoTotal += (r.custofinal||0) * (r.qtd||0);
   });
 
-  const valorFn = p => metric === 'qtd' ? p.qtd : (metric === 'lucro' ? (p.total - p.custoTotal) : p.total);
+  const valorFn = p => metric === 'qtd' ? p.qtd : p.total;
 
   const resultado = {};
   CURVAABC_STORE_KEYS.forEach(k => {
@@ -1417,36 +1476,39 @@ function calcularTop10PorLoja(rows, metric){
   return resultado;
 }
 
-function renderTop10PorLoja(rows, metric){
-  const metricLabel = metric === 'qtd' ? 'Qtd' : (metric === 'lucro' ? 'Lucro' : 'Valor');
-  const valorFn = p => metric === 'qtd' ? p.qtd : (metric === 'lucro' ? (p.total - p.custoTotal) : p.total);
+function renderTop10PorLoja(rows){
+  const metric = top10Metric;
+  const metricLabel = metric === 'qtd' ? 'Quantidade' : 'Valor';
+  const siglaLabel = metric === 'qtd' ? 'Qtd' : 'Vlr';
+  const valorFn = p => metric === 'qtd' ? p.qtd : p.total;
   const fmtValor = v => metric === 'qtd' ? fN(v) + ' un.' : fBRL(v);
 
   const dados = calcularTop10PorLoja(rows, metric);
   $('top10-sub').textContent = 'Ranking próprio por loja · ' + metricLabel;
 
-  const thLojas = LOJA_COLS.map(c => `<th>${c.label}</th>`).join('');
-  $('cth-top10').innerHTML = `<tr><th class="num" style="width:30px">#</th>${thLojas}</tr>`;
+  const thLojas = TOP10_LOJA_COLS.map(c => `<th>${c.label}</th>`).join('');
+  $('cth-top10').innerHTML = `<tr><th class="num">#</th>${thLojas}</tr>`;
 
-  const temAlgumDado = LOJA_COLS.some(c => dados[c.key].length);
+  const temAlgumDado = TOP10_LOJA_COLS.some(c => dados[c.key].length);
   if(!temAlgumDado){
-    $('ctb-top10').innerHTML = `<tr><td colspan="${LOJA_COLS.length+1}" class="nd">Sem dados para o período selecionado</td></tr>`;
+    $('ctb-top10').innerHTML = `<tr><td colspan="${TOP10_LOJA_COLS.length+1}" class="nd">Sem dados para o período selecionado</td></tr>`;
     return;
   }
 
   let linhas = '';
   for(let i=0;i<10;i++){
-    const tds = LOJA_COLS.map(c => {
+    const tds = TOP10_LOJA_COLS.map(c => {
       const p = dados[c.key][i];
       if(!p) return '<td>—</td>';
       return `<td>
-        <div class="top10-prod">${p.nome}</div>
-        <div class="top10-meta">${p.codbarra || 's/ código'} · ${fmtValor(valorFn(p))}</div>
+        <div class="top10-prod" title="${escAttr(p.nome)}">${p.nome}</div>
+        <div class="top10-meta">Cód.: ${p.codbarra || 's/ código'} · ${siglaLabel}: ${fmtValor(valorFn(p))}</div>
       </td>`;
     }).join('');
     linhas += `<tr><td class="num top10-rank">${i+1}</td>${tds}</tr>`;
   }
   $('ctb-top10').innerHTML = linhas;
+  $('ct-top10').classList.toggle('show-details', top10Details);
 }
 
 const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
