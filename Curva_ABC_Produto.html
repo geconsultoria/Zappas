@@ -1907,7 +1907,7 @@ function renderDivergenciaCusto(rowsSemLoja){
   const lista = calcularDivergenciaCusto(rowsSemLoja);
 
   $('semcusto-title').textContent = 'Conferência';
-  $('semcusto-sub').textContent = 'Mesmo produto com custo unitário LANÇADO de forma diferente de uma loja para outra (loja sem custo cadastrado não entra aqui — veja em "Sem Custo (100%)") — confira se o cadastro está correto';
+  $('semcusto-sub').textContent = '';
   $('sec-count-semcusto').textContent = fN(lista.length) + ' produto' + (lista.length===1?'':'s');
 
   const thLojas = TOP10_LOJA_COLS.map(c => `<th class="num">${c.label}</th>`).join('');
@@ -1930,7 +1930,7 @@ function renderDivergenciaCusto(rowsSemLoja){
     }).join('');
     return `<tr>
       <td>${p.codbarra || '—'}</td>
-      <td>${p.nome}${p.valorDivergente ? ' <span class="div-flag" title="O valor de venda também é diferente entre lojas">Valor ↕</span>' : ''}</td>
+      <td>${p.nome}</td>
       ${tds}
     </tr>`;
   }).join('') + rodapeVerTodos(lista.length, limite, 2+TOP10_LOJA_COLS.length);
