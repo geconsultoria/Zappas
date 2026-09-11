@@ -763,17 +763,6 @@ a.side-brand:hover { opacity:.85; }
     <div class="comp-scroll"><table class="comp-table" id="ct-top10"><thead id="cth-top10"></thead><tbody id="ctb-top10"></tbody></table></div>
   </div>
 
-  <div class="sec"><span class="sec-title">Produtos sem Custo</span><span class="sec-line"></span><span class="sec-count" id="sec-count-semcusto">0 produtos</span></div>
-  <div class="comp-card">
-    <div class="comp-card-head cc-head-amber">
-      <div class="cc-head-left">
-        <div class="cc-icon cc-icon-amber"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg></div>
-        <div><div class="title">Produtos sem Custo Cadastrado (Margem 100%)</div><div class="sub">Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto</div></div>
-      </div>
-    </div>
-    <div class="comp-scroll"><table class="comp-table" id="ct-semcusto"><thead id="cth-semcusto"></thead><tbody id="ctb-semcusto"></tbody></table></div>
-  </div>
-
   <div class="sec"><span class="sec-title">Produtos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue cc-head-2row">
@@ -828,6 +817,28 @@ a.side-brand:hover { opacity:.85; }
       </div>
     </div>
     <div class="comp-scroll"><table class="comp-table" id="ct-produtos"><thead id="cth-produtos"></thead><tbody id="ctb-produtos"></tbody></table></div>
+  </div>
+
+  <div class="sec"><span class="sec-title">Conferência de Custo</span><span class="sec-line"></span><span class="sec-count" id="sec-count-semcusto">0 produtos</span></div>
+  <div class="comp-card">
+    <div class="comp-card-head cc-head-amber cc-head-2row">
+      <div class="cc-head-row1">
+        <div class="cc-head-left">
+          <div class="cc-icon cc-icon-amber"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg></div>
+          <div><div class="title" id="semcusto-title">Produtos sem Custo Cadastrado (Margem 100%)</div><div class="sub" id="semcusto-sub">Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto</div></div>
+        </div>
+      </div>
+      <div class="cc-toggles">
+        <div class="cc-subhead-group" id="semcusto-mode-toggle">
+          <span class="cc-subhead-lbl">Tipo de análise</span>
+          <div class="cc-mode-toggle" role="tablist" aria-label="Tipo de análise de custo">
+            <button type="button" class="cc-mode-btn active" data-custoanalise="semcusto" onclick="setCustoAnaliseMode('semcusto')">Sem Custo (100%)</button>
+            <button type="button" class="cc-mode-btn" data-custoanalise="margemzero" onclick="setCustoAnaliseMode('margemzero')">Custo = Venda (0%)</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="comp-scroll"><table class="comp-table" id="ct-semcusto"><thead id="cth-semcusto"></thead><tbody id="ctb-semcusto"></tbody></table></div>
   </div>
 </div>
 
@@ -1731,15 +1742,26 @@ function renderTop10PorLoja(rows){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PRODUTOS SEM CUSTO CADASTRADO (Margem 100%)
-   Agrupa por Loja + Produto dentro do período filtrado (Ano/Mês/Loja/
-   Grupo) e lista quem vendeu (total > 0) mas nunca teve custofinal
-   lançado (custoTotal = 0) — nesses casos a margem sai igual ao valor
-   vendido (100%), o que normalmente é sinal de cadastro incompleto,
-   não de lucro real. Não entra na Curva ABC "de verdade" (não tem
-   classe A/B/C), é só uma lista de conferência.
+   CONFERÊNCIA DE CUSTO — duas análises sobre o mesmo agrupamento
+   (Loja + Produto, dentro do período filtrado por Ano/Mês/Loja/Grupo):
+
+   'semcusto'   → vendeu (total > 0) mas nunca teve custofinal lançado
+                  (custoTotal = 0). A margem sai igual ao valor vendido
+                  (100%), o que normalmente é sinal de cadastro
+                  incompleto, não de lucro real.
+   'margemzero' → custo lançado é exatamente igual ao valor vendido
+                  (Custo = Venda, margem 0%). Pode ser uma venda
+                  legítima no preço de custo (promoção, queima de
+                  estoque) ou um erro de digitação do custo — vale
+                  conferir. Comparação arredondada em centavos pra
+                  evitar falso-negativo por ponto flutuante.
+
+   Nenhuma das duas entra na Curva ABC "de verdade" (não tem classe
+   A/B/C) — são só listas de conferência.
 ══════════════════════════════════════════════════════════════ */
-function calcularProdutosSemCusto(rows){
+let custoAnaliseMode = 'semcusto'; // 'semcusto' | 'margemzero'
+
+function agruparParaConferenciaCusto(rows){
   const map = new Map();
   rows.forEach(r => {
     const key = r.loja + '|' + (r.codbarra || r.nome);
@@ -1751,13 +1773,39 @@ function calcularProdutosSemCusto(rows){
     p.total += r.total;
     p.custoTotal += (r.custofinal||0) * (r.qtd||0);
   });
-  return [...map.values()]
+  return [...map.values()];
+}
+
+function calcularProdutosSemCusto(rows){
+  return agruparParaConferenciaCusto(rows)
     .filter(p => p.total > 0 && p.custoTotal === 0)
     .sort((a,b) => b.total - a.total);
 }
 
+function calcularProdutosMargemZero(rows){
+  const centavos = v => Math.round(v * 100);
+  return agruparParaConferenciaCusto(rows)
+    .filter(p => p.total > 0 && p.custoTotal > 0 && centavos(p.custoTotal) === centavos(p.total))
+    .sort((a,b) => b.total - a.total);
+}
+
+function setCustoAnaliseMode(mode){
+  if(custoAnaliseMode === mode) return;
+  custoAnaliseMode = mode;
+  document.querySelectorAll('#semcusto-mode-toggle .cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-custoanalise') === mode));
+  renderProdutosSemCusto(getBaseFiltered());
+}
+
 function renderProdutosSemCusto(rows){
-  const lista = calcularProdutosSemCusto(rows);
+  const modo100 = custoAnaliseMode === 'semcusto';
+  const lista = modo100 ? calcularProdutosSemCusto(rows) : calcularProdutosMargemZero(rows);
+
+  $('semcusto-title').textContent = modo100
+    ? 'Produtos sem Custo Cadastrado (Margem 100%)'
+    : 'Produtos com Custo = Venda (Margem 0%)';
+  $('semcusto-sub').textContent = modo100
+    ? 'Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto'
+    : 'Custo lançado igual ao valor vendido — pode ser uma venda legítima no preço de custo, ou um erro de digitação do custo. Vale conferir';
   $('sec-count-semcusto').textContent = fN(lista.length) + ' produto' + (lista.length===1?'':'s');
 
   $('cth-semcusto').innerHTML = `<tr>
@@ -1765,7 +1813,7 @@ function renderProdutosSemCusto(rows){
   </tr>`;
 
   if(!lista.length){
-    $('ctb-semcusto').innerHTML = `<tr><td colspan="8" class="nd">Nenhum produto sem custo encontrado para os filtros selecionados</td></tr>`;
+    $('ctb-semcusto').innerHTML = `<tr><td colspan="8" class="nd">${modo100 ? 'Nenhum produto sem custo' : 'Nenhum produto com custo igual ao valor vendido'} encontrado para os filtros selecionados</td></tr>`;
     return;
   }
 
@@ -1778,8 +1826,8 @@ function renderProdutosSemCusto(rows){
       <td>${p.nomegrupo}</td>
       <td class="num">${fN(p.qtd)}</td>
       <td class="num">${fBRL(p.total)}</td>
-      <td class="num">${fBRL(0)}</td>
-      <td class="num">${fPct(100)}</td>
+      <td class="num">${fBRL(modo100 ? 0 : p.custoTotal)}</td>
+      <td class="num">${fPct(modo100 ? 100 : 0)}</td>
     </tr>`).join('') +
     (lista.length > 500 ? `<tr><td colspan="8" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
 }
