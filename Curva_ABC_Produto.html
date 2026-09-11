@@ -226,7 +226,7 @@ a.side-brand:hover { opacity:.85; }
 
 .fb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; padding-left: 12px; }
 .btn-refresh {
-  display: flex; align-items: center; gap: 6px;
+  display: none; align-items: center; gap: 6px;
   background: var(--blue); color: #fff;
   border: none; border-radius: var(--r);
   padding: 7px 12px; font-family: var(--font-body);
@@ -248,10 +248,10 @@ a.side-brand:hover { opacity:.85; }
    Atualizar": não quebra (nowrap) e, se não couber, rola horizontalmente
    dentro do próprio cartão em vez de empurrar o resto pra linha de baixo. */
 .ig-filter-bar {
-  display:flex; align-items:center; gap:14px; flex-wrap:nowrap;
+  display:flex; align-items:center; gap:16px; flex-wrap:nowrap;
   background: rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18);
-  border-radius: var(--r-lg); padding:7px 12px;
-  flex: 0 1 auto; min-width: 0; overflow-x: auto; overflow-y: hidden;
+  border-radius: var(--r-lg); padding:8px 16px;
+  flex: 0 1 auto; min-width: 0; overflow-x: auto; overflow-y: visible;
   scrollbar-width: thin;
 }
 .ig-filter-bar::-webkit-scrollbar { height: 5px; }
@@ -268,10 +268,10 @@ a.side-brand:hover { opacity:.85; }
 }
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 .ig-fselect option { color:#0f1923; }
-#f-ano { width: 64px; }
-#f-loja { width: 82px; }
-#f-grupo { width: 130px; }
-#f-classe { width: 66px; }
+#f-ano { width: 68px; }
+#f-loja { width: 92px; }
+#f-grupo { width: 170px; }
+#f-classe { width: 80px; }
 
 /* ── Mês multi-select (mesmo padrão do filtro Canal da Análise Comercial) ── */
 .mes-wrap { position: relative; }
@@ -307,7 +307,7 @@ a.side-brand:hover { opacity:.85; }
 
 .mes-dropdown {
   display: none;
-  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  position: fixed; top: 0; left: 0; z-index: 400;
   background: var(--surface);
   border: 1px solid var(--border-2);
   border-radius: var(--r-lg);
@@ -1256,6 +1256,11 @@ function toggleMesDropdown(e){
   const trigger = $('mes-trigger');
   const isOpen = dd.classList.toggle('open');
   trigger.classList.toggle('open', isOpen);
+  if(isOpen){
+    const r = trigger.getBoundingClientRect();
+    dd.style.top = (r.bottom + 6) + 'px';
+    dd.style.left = r.left + 'px';
+  }
 }
 
 document.addEventListener('click', e => {
