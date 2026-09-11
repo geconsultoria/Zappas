@@ -88,6 +88,7 @@ body{font-family:var(--font-body);background:var(--bg);color:var(--ink);line-hei
 table{width:100%;border-collapse:collapse;font-size:12.5px;}
 thead th{text-align:left;font-size:10px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-4);
   background:var(--surf-2);padding:12px 16px;border-bottom:1px solid var(--border);white-space:nowrap;}
+thead th:last-child, tbody td:last-child{width:52px;}
 tbody td{padding:11px 16px;border-bottom:1px solid var(--border);color:var(--ink-2);vertical-align:middle;}
 tbody tr:last-child td{border-bottom:none;}
 tbody tr:hover{background:var(--surf-2);}
@@ -99,10 +100,10 @@ tbody tr:hover{background:var(--surf-2);}
 .badge.permitido{background:rgba(62,143,99,.13);color:var(--green);}
 .badge.negado{background:rgba(180,72,58,.12);color:var(--red);}
 .badge.admin_override{background:rgba(200,150,26,.15);color:var(--gold);}
-.row-actions{display:flex;align-items:center;gap:8px;}
-.icon-btn{display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--ink-4);padding:4px;border-radius:6px;line-height:0;}
+.row-actions{display:flex;align-items:center;justify-content:center;gap:8px;}
+.icon-btn{display:flex;align-items:center;justify-content:center;background:none;border:none;cursor:pointer;color:var(--ink-4);padding:4px;border-radius:6px;}
 .icon-btn:hover{color:var(--ink);background:var(--bg-2);}
-.icon-btn svg{width:15px;height:15px;}
+.icon-btn svg{width:15px;height:15px;display:block;}
 .empty{padding:40px;text-align:center;color:var(--ink-4);font-size:13px;}
 .mono{font-family:var(--font-mono);font-size:11.5px;color:var(--ink-3);}
 
