@@ -506,6 +506,9 @@ a.side-brand:hover { opacity:.85; }
 .top10-meta { display: none; font-size: 10.5px; color: var(--ink-4); margin-top: 2px; font-family: var(--font-num); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 #ct-top10.show-details .top10-meta { display: block; }
 
+.div-cost-diff { background: var(--amber-lt); color: var(--amber); font-weight: 700; border-radius: 4px; }
+.div-flag { display: inline-block; font-size: 9.5px; font-weight: 800; color: var(--amber); background: var(--amber-lt); border-radius: 4px; padding: 1px 5px; margin-left: 6px; letter-spacing: .02em; vertical-align: middle; }
+
 /* Group / bar rows */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
 .cat-name { width: 220px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -830,7 +833,7 @@ a.side-brand:hover { opacity:.85; }
       <div class="cc-head-row1">
         <div class="cc-head-left">
           <div class="cc-icon cc-icon-amber"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z"/></svg></div>
-          <div><div class="title" id="semcusto-title">Produtos sem Custo Cadastrado (Margem 100%)</div><div class="sub" id="semcusto-sub">Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto</div></div>
+          <div><div class="title" id="semcusto-title">Conferência</div><div class="sub" id="semcusto-sub">Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto</div></div>
         </div>
       </div>
       <div class="cc-toggles">
@@ -839,6 +842,7 @@ a.side-brand:hover { opacity:.85; }
           <div class="cc-mode-toggle" role="tablist" aria-label="Tipo de análise de custo">
             <button type="button" class="cc-mode-btn active" data-custoanalise="semcusto" onclick="setCustoAnaliseMode('semcusto')">Sem Custo (100%)</button>
             <button type="button" class="cc-mode-btn" data-custoanalise="margemzero" onclick="setCustoAnaliseMode('margemzero')">Custo = Venda (0%)</button>
+            <button type="button" class="cc-mode-btn" data-custoanalise="divergencia" onclick="setCustoAnaliseMode('divergencia')">Confrontar Custo entre Lojas</button>
           </div>
         </div>
       </div>
@@ -1536,7 +1540,7 @@ function applyFilters(){
   $('sec-count').textContent = fN(base.length) + ' registros';
   renderGrupoLojaMatrix(getBaseFiltradoSemLoja());
   renderTop10PorLoja(getBaseFiltradoSemLoja());
-  renderProdutosSemCusto(base);
+  renderConferenciaCusto(base, getBaseFiltradoSemLoja());
   // Passa a lista de PRODUTOS já agregados (com a quebra mensal em .porMes),
   // não as linhas cruas — a Visão Mensal precisa dos totais por produto/mês.
   renderTabela(exibicao, calc.porValor, metric);
@@ -1799,20 +1803,63 @@ function calcularProdutosMargemZero(rows){
     .sort((a,b) => b.total - a.total);
 }
 
+/* 'divergencia' → confronta o MESMO produto (código/nome) entre as lojas,
+   dentro do período filtrado (Ano/Mês/Grupo — ignora o filtro de Loja,
+   já que o objetivo é comparar loja com loja). Aponta quando o custo
+   unitário lançado é diferente de uma loja para outra (e sinaliza também
+   quando o valor unitário de venda diverge). */
+function calcularDivergenciaCusto(rows){
+  const centavos = v => Math.round(v * 100);
+  const map = new Map();
+  rows.forEach(r => {
+    const key = r.codbarra || r.nome;
+    if(!map.has(key)) map.set(key, { codbarra: r.codbarra, nome: r.nome, nomegrupo: r.nomegrupo, porLoja: new Map() });
+    const p = map.get(key);
+    if(!p.porLoja.has(r.loja)) p.porLoja.set(r.loja, { qtd: 0, total: 0, custoTotal: 0 });
+    const l = p.porLoja.get(r.loja);
+    l.qtd += r.qtd;
+    l.total += r.total;
+    l.custoTotal += (r.custofinal||0) * (r.qtd||0);
+  });
+
+  const out = [];
+  map.forEach(p => {
+    const lojas = [...p.porLoja.entries()]
+      .filter(([,v]) => v.qtd > 0)
+      .map(([loja,v]) => ({ loja, qtd: v.qtd, total: v.total, custoTotal: v.custoTotal,
+        custoUnit: v.custoTotal / v.qtd, valorUnit: v.total / v.qtd }));
+    if(lojas.length < 2) return;
+    const custosDistintos = new Set(lojas.map(l => centavos(l.custoUnit)));
+    if(custosDistintos.size < 2) return;
+    const valoresDistintos = new Set(lojas.map(l => centavos(l.valorUnit)));
+    const custoMin = Math.min(...lojas.map(l => l.custoUnit));
+    out.push({
+      codbarra: p.codbarra, nome: p.nome, nomegrupo: p.nomegrupo, lojas,
+      valorDivergente: valoresDistintos.size > 1,
+      custoMin,
+      totalGeral: lojas.reduce((s,l) => s + l.total, 0)
+    });
+  });
+  return out.sort((a,b) => b.totalGeral - a.totalGeral);
+}
+
 function setCustoAnaliseMode(mode){
   if(custoAnaliseMode === mode) return;
   custoAnaliseMode = mode;
   document.querySelectorAll('#semcusto-mode-toggle .cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-custoanalise') === mode));
-  renderProdutosSemCusto(getBaseFiltered());
+  renderConferenciaCusto(getBaseFiltered(), getBaseFiltradoSemLoja());
 }
 
-function renderProdutosSemCusto(rows){
-  const modo100 = custoAnaliseMode === 'semcusto';
-  const lista = modo100 ? calcularProdutosSemCusto(rows) : calcularProdutosMargemZero(rows);
+function renderConferenciaCusto(rowsLoja, rowsSemLoja){
+  if(custoAnaliseMode === 'divergencia'){
+    renderDivergenciaCusto(rowsSemLoja);
+    return;
+  }
 
-  $('semcusto-title').textContent = modo100
-    ? 'Produtos sem Custo Cadastrado (Margem 100%)'
-    : 'Produtos com Custo = Venda (Margem 0%)';
+  const modo100 = custoAnaliseMode === 'semcusto';
+  const lista = modo100 ? calcularProdutosSemCusto(rowsLoja) : calcularProdutosMargemZero(rowsLoja);
+
+  $('semcusto-title').textContent = 'Conferência';
   $('semcusto-sub').textContent = modo100
     ? 'Sem custo lançado no período — a margem aparece artificialmente em 100%, o que costuma indicar falta de cadastro do custo do produto'
     : 'Custo lançado igual ao valor vendido — pode ser uma venda legítima no preço de custo, ou um erro de digitação do custo. Vale conferir';
@@ -1840,6 +1887,39 @@ function renderProdutosSemCusto(rows){
       <td class="num">${fPct(modo100 ? 100 : 0)}</td>
     </tr>`).join('') +
     (lista.length > 500 ? `<tr><td colspan="8" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+}
+
+function renderDivergenciaCusto(rowsSemLoja){
+  const lista = calcularDivergenciaCusto(rowsSemLoja);
+
+  $('semcusto-title').textContent = 'Conferência';
+  $('semcusto-sub').textContent = 'Mesmo produto com custo unitário diferente de uma loja para outra — confira se o cadastro de custo está correto em todas as lojas';
+  $('sec-count-semcusto').textContent = fN(lista.length) + ' produto' + (lista.length===1?'':'s');
+
+  const thLojas = TOP10_LOJA_COLS.map(c => `<th class="num">${c.label}</th>`).join('');
+  $('cth-semcusto').innerHTML = `<tr><th>Código</th><th>Produto</th><th>Grupo</th>${thLojas}</tr>`;
+
+  if(!lista.length){
+    $('ctb-semcusto').innerHTML = `<tr><td colspan="${3+TOP10_LOJA_COLS.length}" class="nd">Nenhuma divergência de custo entre lojas encontrada para os filtros selecionados</td></tr>`;
+    return;
+  }
+
+  const limitado = lista.slice(0, 500);
+  $('ctb-semcusto').innerHTML = limitado.map(p => {
+    const tds = TOP10_LOJA_COLS.map(c => {
+      const l = p.lojas.find(x => x.loja === c.key);
+      if(!l) return `<td class="num nd">—</td>`;
+      const diverge = Math.round(l.custoUnit*100) !== Math.round(p.custoMin*100);
+      return `<td class="num${diverge ? ' div-cost-diff' : ''}">${fBRL(l.custoUnit)}</td>`;
+    }).join('');
+    return `<tr>
+      <td>${p.codbarra || '—'}</td>
+      <td>${p.nome}${p.valorDivergente ? ' <span class="div-flag" title="O valor de venda também é diferente entre lojas">Valor ↕</span>' : ''}</td>
+      <td>${p.nomegrupo}</td>
+      ${tds}
+    </tr>`;
+  }).join('') +
+    (lista.length > 500 ? `<tr><td colspan="${3+TOP10_LOJA_COLS.length}" class="nd">Mostrando os 500 produtos de maior valor, de ${fN(lista.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
 }
 
 const badge = cl => cl==='A' ? '<span class="badge badge-a">A</span>'
