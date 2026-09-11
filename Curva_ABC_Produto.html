@@ -302,9 +302,10 @@ a.side-brand:hover { opacity:.85; }
 .cc-icon-blue { background: var(--blue-lt); color: var(--blue); }
 .cc-head-left .title { font-family: var(--font-head); font-size: 15px; font-weight: 700; color: var(--ink); }
 .cc-head-left .sub   { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
-.cc-legend { margin-left: auto; display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.cc-legend-txt { font-size: 11px; color: var(--ink-4); margin-right: 11px; white-space: nowrap; }
-.cc-legend-txt:last-child { margin-right: 0; }
+/* Legenda das classes — empilhada (uma por linha) pra ocupar pouca largura */
+.cc-legend { margin-left: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 3px; flex-shrink: 0; }
+.cc-legend-row { display: flex; align-items: center; gap: 6px; }
+.cc-legend-txt { font-size: 11px; color: var(--ink-4); white-space: nowrap; }
 
 /* Seletor Curva por Produto / Curva por Lucro */
 .cc-mode-toggle { display: flex; gap: 3px; background: var(--bg-2); border: 1px solid var(--border); border-radius: var(--r); padding: 3px; flex-shrink: 0; }
@@ -320,8 +321,8 @@ a.side-brand:hover { opacity:.85; }
 .cc-mode-btn:disabled:hover { color: var(--ink-3); }
 .cc-mode-btn:disabled.active { color: var(--blue); }
 
-/* Barra secundária: Métrica (Valor/Qtd) e Visão (Resumo/Mensal) */
-.cc-subhead { display: flex; align-items: center; gap: 24px; flex-wrap: wrap; padding: 10px 18px; border-bottom: 1px solid var(--border); background: var(--surf-2); }
+/* Grupo de seletores no cabeçalho: Produto/Lucro + Métrica + Visão, lado a lado */
+.cc-toggles { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
 .cc-subhead-group { display: flex; align-items: center; gap: 9px; }
 .cc-subhead-lbl { font-size: 10px; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); white-space: nowrap; }
 
@@ -593,30 +594,37 @@ a.side-brand:hover { opacity:.85; }
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2"/></svg></div>
         <div><div class="title" id="produtos-title">Curva ABC de Produtos</div><div class="sub" id="produtos-sub">Ordenado por valor vendido (maior para menor)</div></div>
       </div>
-      <div class="cc-mode-toggle" role="tablist" aria-label="Critério da Curva ABC">
-        <button type="button" class="cc-mode-btn active" data-mode="produto" onclick="setCurvaMode('produto')">Produto</button>
-        <button type="button" class="cc-mode-btn" data-mode="lucro" onclick="setCurvaMode('lucro')">Lucro por Produto</button>
+      <div class="cc-toggles">
+        <div class="cc-mode-toggle" role="tablist" aria-label="Critério da Curva ABC">
+          <button type="button" class="cc-mode-btn active" data-mode="produto" onclick="setCurvaMode('produto')">Produto</button>
+          <button type="button" class="cc-mode-btn" data-mode="lucro" onclick="setCurvaMode('lucro')">Lucro por Produto</button>
+        </div>
+        <div class="cc-subhead-group" id="metric-toggle-wrap">
+          <span class="cc-subhead-lbl">Métrica</span>
+          <div class="cc-mode-toggle" role="tablist" aria-label="Métrica da Curva ABC">
+            <button type="button" class="cc-mode-btn active" data-metric="valor" onclick="setMetricMode('valor')">Valor</button>
+            <button type="button" class="cc-mode-btn" data-metric="qtd" onclick="setMetricMode('qtd')">Qtd</button>
+          </div>
+        </div>
+        <div class="cc-subhead-group">
+          <span class="cc-subhead-lbl">Visão</span>
+          <div class="cc-mode-toggle" role="tablist" aria-label="Visão da Curva ABC">
+            <button type="button" class="cc-mode-btn active" data-view="resumo" onclick="setViewMode('resumo')">Resumo</button>
+            <button type="button" class="cc-mode-btn" data-view="mensal" id="btn-view-mensal" onclick="setViewMode('mensal')" title="Disponível quando Mês = Todos">Mensal</button>
+          </div>
+        </div>
+        <div class="cc-subhead-group" id="mensal-mode-wrap" hidden>
+          <span class="cc-subhead-lbl">Colunas do Mês</span>
+          <div class="cc-mode-toggle" role="tablist" aria-label="Exibição das colunas de mês">
+            <button type="button" class="cc-mode-btn active" data-mensalmode="valor" onclick="setMensalDisplayMode('valor')">Valor</button>
+            <button type="button" class="cc-mode-btn" data-mensalmode="pct" onclick="setMensalDisplayMode('pct')">% do Mês</button>
+          </div>
+        </div>
       </div>
       <div class="cc-legend">
-        <span class="badge badge-a">A</span><span class="cc-legend-txt">até 80%</span>
-        <span class="badge badge-b">B</span><span class="cc-legend-txt">80% a 95%</span>
-        <span class="badge badge-c">C</span><span class="cc-legend-txt">95% a 100%</span>
-      </div>
-    </div>
-    <div class="cc-subhead">
-      <div class="cc-subhead-group" id="metric-toggle-wrap">
-        <span class="cc-subhead-lbl">Métrica</span>
-        <div class="cc-mode-toggle" role="tablist" aria-label="Métrica da Curva ABC">
-          <button type="button" class="cc-mode-btn active" data-metric="valor" onclick="setMetricMode('valor')">Valor</button>
-          <button type="button" class="cc-mode-btn" data-metric="qtd" onclick="setMetricMode('qtd')">Qtd</button>
-        </div>
-      </div>
-      <div class="cc-subhead-group">
-        <span class="cc-subhead-lbl">Visão</span>
-        <div class="cc-mode-toggle" role="tablist" aria-label="Visão da Curva ABC">
-          <button type="button" class="cc-mode-btn active" data-view="resumo" onclick="setViewMode('resumo')">Resumo</button>
-          <button type="button" class="cc-mode-btn" data-view="mensal" id="btn-view-mensal" onclick="setViewMode('mensal')" title="Disponível quando Mês = Todos">Mensal</button>
-        </div>
+        <div class="cc-legend-row"><span class="badge badge-a">A</span><span class="cc-legend-txt">até 80%</span></div>
+        <div class="cc-legend-row"><span class="badge badge-b">B</span><span class="cc-legend-txt">80% a 95%</span></div>
+        <div class="cc-legend-row"><span class="badge badge-c">C</span><span class="cc-legend-txt">95% a 100%</span></div>
       </div>
     </div>
     <div class="comp-scroll"><table class="comp-table" id="ct-produtos"><thead id="cth-produtos"></thead><tbody id="ctb-produtos"></tbody></table></div>
@@ -1107,6 +1115,7 @@ function atualizarDisponibilidadeMensal(){
     viewMode = 'resumo';
     document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === 'resumo'));
   }
+  $('mensal-mode-wrap').hidden = viewMode !== 'mensal';
 }
 
 function setCurvaMode(mode){
@@ -1135,7 +1144,21 @@ function setViewMode(view){
   if(viewMode === view) return;
   viewMode = view;
   document.querySelectorAll('[data-view]').forEach(b => b.classList.toggle('active', b.getAttribute('data-view') === view));
+  $('mensal-mode-wrap').hidden = view !== 'mensal';
   atualizarSubtitulo();
+  applyFilters();
+}
+
+/* Como as colunas de mês (Visão Mensal) exibem cada produto: 'valor' mostra
+   o número bruto na métrica ativa (R$ ou Qtd); 'pct' mostra quanto o
+   produto representou do total vendido naquele mês específico (a base
+   reseta a cada mês — não é a soma que fecha no % Acum. final). */
+let mensalDisplayMode = 'valor';
+
+function setMensalDisplayMode(mode){
+  if(mensalDisplayMode === mode) return;
+  mensalDisplayMode = mode;
+  document.querySelectorAll('#mensal-mode-wrap .cc-mode-btn').forEach(b => b.classList.toggle('active', b.getAttribute('data-mensalmode') === mode));
   applyFilters();
 }
 
@@ -1151,7 +1174,9 @@ function applyFilters(){
   renderKPIs(calc.porValor);
   $('sec-count').textContent = fN(base.length) + ' registros';
   renderGrupoLojaMatrix(getBaseFiltradoSemLoja());
-  renderTabela(exibicao, base, metric);
+  // Passa a lista de PRODUTOS já agregados (com a quebra mensal em .porMes),
+  // não as linhas cruas — a Visão Mensal precisa dos totais por produto/mês.
+  renderTabela(exibicao, calc.porValor, metric);
 }
 
 /* Mesmo filtro de Ano/Mês/Grupo do restante da tela, mas SEM aplicar o
@@ -1292,8 +1317,8 @@ function detalheProduto(p, colspan, pct, pctAcum, classe, metricLabel){
     </tr>`;
 }
 
-function renderTabela(data, base, metric){
-  if(viewMode === 'mensal') renderTabelaMensal(data, base, metric);
+function renderTabela(data, produtos, metric){
+  if(viewMode === 'mensal') renderTabelaMensal(data, produtos, metric);
   else renderTabelaResumo(data, metric);
 }
 
@@ -1355,16 +1380,17 @@ function renderTabelaResumo(data, metric){
 /* ── Visão Mensal: uma coluna por mês (% daquele mês), Grupo removido
    pra abrir espaço; Total/% Part./% Acum./Classe seguem o período inteiro,
    calculados à parte — não são a soma dos percentuais mensais. ── */
-function renderTabelaMensal(data, base, metric){
+function renderTabelaMensal(data, produtos, metric){
   const { pct: pctF, pctAcum: pctAcumF, classe: classeF } = pctFieldsFor(metric);
   const metricLabel = metric === 'qtd' ? 'Qtd' : (metric === 'lucro' ? 'Lucro' : 'Valor');
   const colspan = 4 + 12 + 4; // expand+Loja+Código+Produto + 12 meses + Total+%Part+%Acum+Classe
 
-  // Total de todos os produtos (base completa) em cada mês, na métrica ativa —
-  // é a base do % de participação de cada mês (reseta a cada mês).
+  // Total de todos os produtos em cada mês, na métrica ativa — é a base do
+  // % de participação de cada mês (reseta a cada mês). Usa a lista já
+  // agregada por produto (com .porMes), não as linhas cruas do CSV.
   const totaisMes = {};
   for(let m=1;m<=12;m++){
-    totaisMes[m] = base.reduce((s,p)=> s + valorMetricMes(p,m,metric), 0);
+    totaisMes[m] = produtos.reduce((s,p)=> s + valorMetricMes(p,m,metric), 0);
   }
 
   const mesesTh = MONTHS_ABBR.map(m=>`<th class="num">${m}</th>`).join('');
@@ -1386,8 +1412,13 @@ function renderTabelaMensal(data, base, metric){
     const mesesTd = [];
     for(let m=1;m<=12;m++){
       const v = valorMetricMes(p,m,metric);
-      const tot = totaisMes[m];
-      mesesTd.push(`<td class="num">${v ? fPct(tot ? v/tot*100 : 0) : '—'}</td>`);
+      if(!v){ mesesTd.push('<td class="num">—</td>'); continue; }
+      if(mensalDisplayMode === 'pct'){
+        const tot = totaisMes[m];
+        mesesTd.push(`<td class="num">${fPct(tot ? v/tot*100 : 0)}</td>`);
+      } else {
+        mesesTd.push(`<td class="num">${metric==='qtd' ? fN(v) : fBRL(v)}</td>`);
+      }
     }
 
     return `
