@@ -1319,6 +1319,12 @@ async function carregarResumoGeral() {
 
   // ── De-Para (todas as lojas) — usado pelos Recebidos pra classificar o tipo de recebimento ──
   const deparaMaps = {};
+  // De-Para "global": junta os códigos de todas as lojas num único mapa, pra servir de fallback
+  // quando o De-Para de uma loja específica vier vazio da planilha de origem (aba não preenchida
+  // ou com nome/coluna diferente pra aquela loja — ex.: Damha e Belvedere). Os códigos de pagamento
+  // costumam ser os mesmos em todas as lojas do mesmo sistema de PDV, então isso evita que a loja
+  // fique com Entradas zeradas por causa de uma aba vazia, sem precisar esperar a planilha ser corrigida.
+  let deparaMapGlobal = new Map();
   const pDePara = Promise.all(RESUMO_DEPARA_URLS.map(async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
@@ -1333,7 +1339,9 @@ async function carregarResumoGeral() {
       });
       deparaMaps[RESUMO_STORE_KEYS[idx]] = map;
     } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
-  }));
+  })).then(() => {
+    Object.values(deparaMaps).forEach(m => { m.forEach((v, k) => { if (!deparaMapGlobal.has(k)) deparaMapGlobal.set(k, v); }); });
+  });
 
   // ── Meta do mês (soma de todas as lojas/canais) ──
   // metaRows guarda a meta de TODOS os meses/anos (não só o atual) pra alimentar o gráfico de Evolução Mensal.
@@ -1376,7 +1384,12 @@ async function carregarResumoGeral() {
   const resumoDebugRecebidos = {};
   const pRecebidos = pDePara.then(() => Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
     const lojaKey = RESUMO_STORE_KEYS[idx];
-    const dbg = resumoDebugRecebidos[lojaKey.toUpperCase()] = { lidos: 0, semColuna: false, semDepara: 0, semCategoria: 0, semData: 0, incluidos: 0, deparaMapSize: (deparaMaps[lojaKey] || new Map()).size, erro: null };
+    const deparaMapProprio = deparaMaps[lojaKey] || new Map();
+    // Se o De-Para da própria loja veio vazio da planilha (aba não preenchida pra essa loja), usa o
+    // De-Para "global" (junção de todas as lojas) em vez de zerar as Entradas — ver comentário acima
+    // de deparaMapGlobal.
+    const usandoDeparaFallback = deparaMapProprio.size === 0 && deparaMapGlobal.size > 0;
+    const dbg = resumoDebugRecebidos[lojaKey.toUpperCase()] = { lidos: 0, semColuna: false, semDepara: 0, semCategoria: 0, semData: 0, incluidos: 0, deparaMapSize: deparaMapProprio.size, deparaFallback: usandoDeparaFallback, erro: null };
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
@@ -1387,7 +1400,7 @@ async function carregarResumoGeral() {
       const cDtEntrada = resumoFindCol(headers, ['dtentrada', 'dt_entrada', 'data_entrada']);
       dbg.lidos = rows.length;
       if (!cCodPgto || !cConta) { dbg.semColuna = true; return; }
-      const deparaMap = deparaMaps[lojaKey] || new Map();
+      const deparaMap = usandoDeparaFallback ? deparaMapGlobal : deparaMapProprio;
 
       rows.forEach(r => {
         const valor = resumoParseNum(r[cConta]); if (!valor) return;
@@ -1498,8 +1511,8 @@ function resumoDebugEntradasZero(d, resumoDebugRecebidos) {
   if (dbg.erro) motivo = 'erro ao buscar recebidos (' + dbg.erro + ')';
   else if (dbg.semColuna) motivo = 'planilha de recebidos sem coluna de código/valor reconhecida';
   else if (dbg.lidos === 0) motivo = 'planilha de recebidos veio vazia';
-  else if (dbg.deparaMapSize === 0) motivo = 'de-para de pagamentos vazio para esta loja';
-  else if (dbg.semDepara > 0 && dbg.semCategoria === 0 && dbg.incluidos === 0) motivo = dbg.semDepara + ' de ' + dbg.lidos + ' linhas sem código correspondente no de-para';
+  else if (dbg.deparaMapSize === 0 && !dbg.deparaFallback) motivo = 'de-para de pagamentos vazio para esta loja (e nenhuma outra loja tem de-para pra usar como substituto)';
+  else if (dbg.semDepara > 0 && dbg.semCategoria === 0 && dbg.incluidos === 0) motivo = dbg.semDepara + ' de ' + dbg.lidos + ' linhas sem código correspondente no de-para' + (dbg.deparaFallback ? ' (usando de-para de outra loja, pois o desta veio vazio)' : '');
   else if (dbg.semCategoria > 0 && dbg.incluidos === 0) motivo = dbg.semCategoria + ' de ' + dbg.lidos + ' linhas com categoria de pagamento fora de boleto/convênio/cartão/pix/dinheiro';
   else if (dbg.semData > 0 && dbg.incluidos === 0) motivo = dbg.semData + ' linhas elegíveis mas sem ano/mês reconhecido';
   else motivo = dbg.lidos + ' linhas lidas, 0 elegíveis no período/categoria';

@@ -2046,6 +2046,13 @@ async function carregarTudo(){
       deparaMaps[lojaKey] = new Map();
     }
   }));
+  // De-Para "global": junta os códigos de todas as lojas num único mapa, pra servir de fallback
+  // quando o De-Para de uma loja específica vier vazio da planilha de origem (aba não preenchida
+  // pra aquela loja — ex.: Damha e Belvedere). Os códigos de pagamento costumam ser os mesmos em
+  // todas as lojas do mesmo sistema de PDV, então isso evita que a loja fique com Receita
+  // Operacional/Entradas zeradas por causa de uma aba vazia.
+  const deparaMapGlobal = new Map();
+  Object.values(deparaMaps).forEach(m => { m.forEach((v, k) => { if (!deparaMapGlobal.has(k)) deparaMapGlobal.set(k, v); }); });
 
   // ══════════════════════════════════════════════════════
   // 2. Busca o plano de contas
@@ -2100,7 +2107,10 @@ async function carregarTudo(){
       const lojaKey = RECBIDOS_STORE_KEYS[idx];
       try {
         const text = await fetchCSV(url);
-        const lojaDepara = deparaMaps[lojaKey] || new Map();
+        const deparaProprio = deparaMaps[lojaKey] || new Map();
+        // Se o De-Para da própria loja veio vazio, usa o "global" (junção de todas as lojas) em vez
+        // de zerar a Receita Operacional dessa loja — ver comentário acima de deparaMapGlobal.
+        const lojaDepara = deparaProprio.size > 0 ? deparaProprio : deparaMapGlobal;
         const rows = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
         rowsRecebimentos = rowsRecebimentos.concat(rows);
       } catch(e) {
