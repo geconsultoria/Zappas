@@ -347,12 +347,28 @@ a.side-brand:hover { opacity:.85; }
 .badge-pendente{ background: var(--blue-lt);  color: var(--blue); }
 .badge-vencido { background: var(--rust-lt);  color: var(--rust-mid); }
 
-/* Category bars */
+/* Category bars (legacy, kept in case) */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
 .cat-name { width: 220px; flex-shrink: 0; font-size: 12px; font-weight: 600; color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cat-bar-bg { flex: 1; height: 8px; background: var(--bg-2); border-radius: 6px; overflow: hidden; }
 .cat-bar-fill { height: 100%; background: linear-gradient(90deg, var(--blue) 0%, var(--blue-mid) 100%); border-radius: 6px; }
 .cat-val { width: 110px; flex-shrink: 0; text-align: right; font-family: var(--font-num); font-size: 12.5px; font-weight: 700; color: var(--ink); }
+
+/* Category table (by store, with optional vertical-analysis column) */
+.comp-table td.cat-name-cell { font-weight: 600; color: var(--ink-2); }
+.comp-table td.av-col, .comp-table th.av-col { background: var(--surf-2); }
+.comp-table tbody tr.total-row td.av-col { background: var(--blue-lt); }
+.btn-av-toggle {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--surface); border: 1px solid var(--border-2);
+  color: var(--ink-3); border-radius: var(--r);
+  padding: 6px 12px; font-family: var(--font-body);
+  font-size: 11.5px; font-weight: 600;
+  cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  transition: all .15s var(--ease);
+}
+.btn-av-toggle:hover { border-color: var(--blue); color: var(--blue); background: var(--blue-xl); }
+.btn-av-toggle.active { background: var(--blue); border-color: var(--blue); color: #fff; }
 
 /* Loading / error banners inside content */
 .status-center { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 60px 20px; color: var(--ink-4); font-size: 13px; }
@@ -548,15 +564,22 @@ a.side-brand:hover { opacity:.85; }
     <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Ticket Médio</div><div class="kpi-val" id="kv-ticket">—</div><div class="kpi-foot">por título</div></div>
   </div>
 
-  <div class="sec"><span class="sec-title">Por Categoria</span><span class="sec-line"></span><input class="sec-search" id="f-busca" placeholder="Buscar documento, categoria…"></div>
+  <div class="sec">
+    <span class="sec-title">Por Categoria</span><span class="sec-line"></span>
+    <button type="button" class="btn-av-toggle active" id="btn-av-toggle" onclick="toggleAV()">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+      <span id="btn-av-toggle-txt">Ocultar A.V.%</span>
+    </button>
+    <input class="sec-search" id="f-busca" placeholder="Buscar documento, categoria…">
+  </div>
   <div class="comp-card">
     <div class="comp-card-head cc-head-blue">
       <div class="cc-head-left">
         <div class="cc-icon cc-icon-blue"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h7"/></svg></div>
-        <div><div class="title">Gasto por Categoria (Grupo)</div><div class="sub">Somatório do período filtrado, via Plano de Contas</div></div>
+        <div><div class="title">Gasto por Categoria (Grupo)</div><div class="sub">Somatório do período filtrado por loja, via Plano de Contas</div></div>
       </div>
     </div>
-    <div id="cat-list"></div>
+    <div class="comp-scroll"><table class="comp-table" id="ct-categorias"><thead id="cth-categorias"></thead><tbody id="cat-list"></tbody></table></div>
   </div>
 
   <div class="sec"><span class="sec-title">Títulos</span><span class="sec-line"></span><span class="sec-count" id="sec-count">0 registros</span></div>
@@ -602,6 +625,7 @@ const MONTHS = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','A
 
 function fBRL(v){ return (v||0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'}); }
 function fN(v){ return (v||0).toLocaleString('pt-BR'); }
+function fPct(v){ return (v||0).toLocaleString('pt-BR', {minimumFractionDigits:1, maximumFractionDigits:1}) + '%'; }
 
 function findCol(headers, ...names){
   const norm = h => String(h||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^a-z0-9]/g,'');
@@ -987,25 +1011,65 @@ function renderKPIs(data){
   $('sec-count').textContent = fN(data.length) + ' registros';
 }
 
+let showAV = true;
+let lastCategoriasData = [];
+
+function toggleAV(){
+  showAV = !showAV;
+  const btn = $('btn-av-toggle');
+  btn.classList.toggle('active', showAV);
+  $('btn-av-toggle-txt').textContent = showAV ? 'Ocultar A.V.%' : 'Mostrar A.V.%';
+  renderCategorias(lastCategoriasData);
+}
+
 function renderCategorias(data){
-  const porGrupo = new Map();
+  lastCategoriasData = data;
+
+  // Lojas presentes no recorte atual (mesmo critério do filtro de Loja)
+  const lojas = [...new Set(data.map(r=>r.loja))].filter(Boolean).sort();
+
+  // Soma por Grupo, com quebra por Loja
+  const porGrupo = new Map(); // grupo -> { total, porLoja: Map(loja->valor) }
   data.forEach(r => {
     const g = r.grupo || 'SEM CATEGORIA';
-    porGrupo.set(g, (porGrupo.get(g)||0) + r.valor);
+    if(!porGrupo.has(g)) porGrupo.set(g, { total:0, porLoja: new Map() });
+    const entry = porGrupo.get(g);
+    entry.total += r.valor;
+    entry.porLoja.set(r.loja, (entry.porLoja.get(r.loja)||0) + r.valor);
   });
-  const lista = [...porGrupo.entries()].sort((a,b)=>b[1]-a[1]).slice(0,12);
-  const max = lista.length ? lista[0][1] : 0;
+
+  const lista = [...porGrupo.entries()].sort((a,b)=>b[1].total-a[1].total).slice(0,12);
+  const grandTotal = lista.reduce((s,[,v])=>s+v.total, 0);
+
+  // Cabeçalho
+  $('cth-categorias').innerHTML = `<tr>
+    <th>Categoria</th>
+    ${lojas.map(l=>`<th class="num">${lojaLabel(l)}</th>`).join('')}
+    <th class="num">Total</th>
+    ${showAV ? '<th class="num av-col">A.V.%</th>' : ''}
+  </tr>`;
+
   const el = $('cat-list');
   if(!lista.length){
-    el.innerHTML = '<div class="nd" style="padding:30px;text-align:center;color:var(--ink-4)">Sem dados para o período selecionado</div>';
+    el.innerHTML = `<tr><td class="nd" colspan="${1+lojas.length+1+(showAV?1:0)}">Sem dados para o período selecionado</td></tr>`;
     return;
   }
-  el.innerHTML = lista.map(([nome,val]) => `
-    <div class="cat-row">
-      <div class="cat-name" title="${nome}">${nome}</div>
-      <div class="cat-bar-bg"><div class="cat-bar-fill" style="width:${max?(val/max*100):0}%"></div></div>
-      <div class="cat-val">${fBRL(val)}</div>
-    </div>`).join('');
+
+  const linhaAV = val => grandTotal ? (val/grandTotal*100) : 0;
+
+  el.innerHTML = lista.map(([nome,entry]) => `
+    <tr>
+      <td class="cat-name-cell" title="${nome}">${nome}</td>
+      ${lojas.map(l => `<td class="num">${entry.porLoja.get(l) ? fBRL(entry.porLoja.get(l)) : '—'}</td>`).join('')}
+      <td class="num">${fBRL(entry.total)}</td>
+      ${showAV ? `<td class="num av-col">${fPct(linhaAV(entry.total))}</td>` : ''}
+    </tr>`).join('') +
+    `<tr class="total-row">
+      <td>Total</td>
+      ${lojas.map(l => `<td class="num">${fBRL(lista.reduce((s,[,v])=>s+(v.porLoja.get(l)||0),0))}</td>`).join('')}
+      <td class="num">${fBRL(grandTotal)}</td>
+      ${showAV ? `<td class="num av-col">${fPct(grandTotal?100:0)}</td>` : ''}
+    </tr>`;
 }
 
 const CT_COLSPAN = 9;
