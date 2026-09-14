@@ -1114,16 +1114,16 @@ function collapseSidebar(){
     const btn = item.querySelector('.side-link');
     btn.addEventListener('click', ()=>{
       const sidebar = document.getElementById('sidebar');
-      if(sidebar.classList.contains('collapsed')){
-        sidebar.classList.remove('peek');
-        expandSidebar();
-        items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
-        item.classList.add('open');
-        return;
-      }
       const wasOpen = item.classList.contains('open');
       items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
       item.classList.toggle('open', !wasOpen);
+      // Enquanto a sidebar estiver só "espiando" (peek, por causa do
+      // hover), clicar num item apenas abre/fecha o submenu — não fixa
+      // a sidebar expandida. Assim, ao tirar o mouse de cima ela volta
+      // a recolher normalmente (o mouseleave cuida disso).
+      if(sidebar.classList.contains('collapsed')){
+        lastOpenMenu = item.classList.contains('open') ? item.getAttribute('data-menu') : lastOpenMenu;
+      }
     });
   });
 
