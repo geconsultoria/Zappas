@@ -1572,6 +1572,16 @@ function resumoDebugEntradasZero(d, resumoDebugRecebidos) {
   return `<div class="perf-loja-debug">Entradas zeradas: ${motivo}</div>`;
 }
 
+// Diagnóstico TEMPORÁRIO — mostra sempre (mesmo com Entradas > 0) os números por trás do cálculo,
+// pra investigar por que Damha/Belvedere não batem com o DFC mesmo com Entradas não-zeradas.
+// Remover depois que o motivo da diferença for confirmado.
+function resumoDebugSempre(d, resumoDebugRecebidos) {
+  if (!resumoDebugRecebidos) return '';
+  const dbg = resumoDebugRecebidos[d.loja];
+  if (!dbg) return '';
+  return `<div class="perf-loja-debug" style="color:#666">diag: lidos=${dbg.lidos} próprio=${dbg.deparaMapSize} fallback=${dbg.deparaFallback ? 'sim' : 'não'} incluidos=${dbg.incluidos} semDepara=${dbg.semDepara} semCategoria=${dbg.semCategoria} semData=${dbg.semData}</div>`;
+}
+
 const RESUMO_PALETTE = [
   '#1A3D6B', '#2E6AB0', '#0D4F35', '#1A7A52', '#7A5C00',
   '#C8A92A', '#7A1E1E', '#B85C00', '#3D1A6B', '#1A5A7A'
@@ -1741,6 +1751,7 @@ function resumoRenderFiltrados() {
           </div>
         </div>
         ${resumoDebugEntradasZero(d, resumoDebugRecebidos)}
+        ${resumoDebugSempre(d, resumoDebugRecebidos)}
       </div>
     `).join('');
   }
