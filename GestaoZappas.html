@@ -1340,7 +1340,14 @@ async function carregarResumoGeral() {
       deparaMaps[RESUMO_STORE_KEYS[idx]] = map;
     } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
   })).then(() => {
-    Object.values(deparaMaps).forEach(m => { m.forEach((v, k) => { if (!deparaMapGlobal.has(k)) deparaMapGlobal.set(k, v); }); });
+    // Percorre sempre na mesma ordem fixa (RESUMO_STORE_KEYS), nunca Object.values(deparaMaps) —
+    // a ordem de inserção nesse objeto depende de qual fetch por loja terminou primeiro (corrida
+    // assíncrona), o que fazia o de-para global sair diferente a cada carregamento (e diferente do
+    // DRE_Gerencial.html), gerando pequenas divergências de Entradas entre as duas telas.
+    RESUMO_STORE_KEYS.forEach(k => {
+      const m = deparaMaps[k];
+      if (m) m.forEach((v, cod) => { if (!deparaMapGlobal.has(cod)) deparaMapGlobal.set(cod, v); });
+    });
   });
 
   // ── Meta do mês (soma de todas as lojas/canais) ──

@@ -2052,7 +2052,14 @@ async function carregarTudo(){
   // todas as lojas do mesmo sistema de PDV, então isso evita que a loja fique com Receita
   // Operacional/Entradas zeradas por causa de uma aba vazia.
   const deparaMapGlobal = new Map();
-  Object.values(deparaMaps).forEach(m => { m.forEach((v, k) => { if (!deparaMapGlobal.has(k)) deparaMapGlobal.set(k, v); }); });
+  // Percorre sempre na mesma ordem fixa (RECBIDOS_STORE_KEYS), nunca Object.values(deparaMaps) —
+  // a ordem de inserção nesse objeto depende de qual fetch por loja terminou primeiro (corrida
+  // assíncrona), o que fazia o de-para global sair diferente a cada carregamento (e diferente do
+  // GestaoZappas.html), gerando pequenas divergências de Entradas entre as duas telas.
+  RECBIDOS_STORE_KEYS.forEach(lojaKey => {
+    const m = deparaMaps[lojaKey];
+    if (m) m.forEach((v, cod) => { if (!deparaMapGlobal.has(cod)) deparaMapGlobal.set(cod, v); });
+  });
 
   // ══════════════════════════════════════════════════════
   // 2. Busca o plano de contas
