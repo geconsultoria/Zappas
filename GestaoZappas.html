@@ -1453,16 +1453,21 @@ async function carregarResumoGeral() {
           const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
           grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
         }
+        // Código de centro de custo sem correspondência no Plano de Contas — o DRE_Gerencial.html
+        // descarta essas linhas (naoMapeados) em vez de contar como saída "sem categoria"; faz o
+        // mesmo aqui, senão o card "Performance por Loja" mostrava Saídas maiores que o DFC real.
+        if (!grupoInfo || !grupoInfo.grupo) return;
+
         // Usa sempre a loja da URL (não a coluna "loja" da planilha, que às vezes vem grafada
         // diferente — ex. "BELVEDER" sem E — e quebrava o cruzamento com os Recebidos).
         const loja = lojaFallback;
 
-        if (grupoInfo && grupoInfo.grupo && resumoIsGrupoCMV(grupoInfo.grupo)) {
+        if (resumoIsGrupoCMV(grupoInfo.grupo)) {
           cmvRows.push({ ano: pg.ano, mes: pg.mes, valor, loja });
         }
 
-        const slug = grupoInfo && grupoInfo.grupo ? resumoSlugFromGrupo(grupoInfo.grupo) : null;
-        const isJuros = grupoInfo ? (resumoIsJuros(grupoInfo.sub_grupo) || resumoIsJuros(grupoInfo.conta_pl)) : false;
+        const slug = resumoSlugFromGrupo(grupoInfo.grupo);
+        const isJuros = resumoIsJuros(grupoInfo.sub_grupo) || resumoIsJuros(grupoInfo.conta_pl);
         ctasPagarRows.push({ ano: pg.ano, mes: pg.mes, valor, loja, slug, isJuros });
         anosDisponiveis.add(pg.ano);
       });
