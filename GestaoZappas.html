@@ -1138,6 +1138,26 @@ function resumoFmtPct(v) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 }
 
+// Roda `fn` sobre `items` com no máximo `limit` chamadas em paralelo (em vez de todas de uma vez).
+// A home busca ~6 lojas por planilha (Faturamento/De-Para/Contas a Pagar/Recebidos) e, como cada
+// grupo saía inteiro em paralelo (Promise.all "cru"), o pico chegava a 10+ requisições simultâneas
+// pro mesmo Apps Script — isso deixava o backend sobrecarregado (limite de execuções concorrentes
+// do Google Apps Script) e fazia justamente as chamadas de De-Para de algumas lojas (ex.: Damha,
+// Belvedere) voltarem vazias sempre, de forma consistente, mesmo com nova tentativa. O DRE_Gerencial.html
+// já buscava Contas a Pagar/Recebidos em lotes de 2 por isso — aplica a mesma ideia aqui, de forma
+// genérica, pra todas as buscas por loja.
+async function resumoMapLimit(items, limit, fn) {
+  const results = new Array(items.length);
+  let idx = 0;
+  async function worker() {
+    while (idx < items.length) {
+      const i = idx++;
+      results[i] = await fn(items[i], i);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return results;
+}
 // Busca com timeout — sem isso, uma requisição travada (rede instável) prende o Promise.all
 // inteiro em vez de falhar rápido e cair no próximo passo.
 function resumoFetchComTimeout(url, opts, ms) {
@@ -1295,7 +1315,7 @@ async function carregarResumoGeral() {
   let totalFat = 0;
   const fatRows = [];
   const anosDisponiveis = new Set();
-  const pFaturamento = Promise.all(RESUMO_FAT_URLS.map(async (url, idx) => {
+  const pFaturamento = resumoMapLimit(RESUMO_FAT_URLS, 2, async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       if (!txt.trim()) return;
@@ -1317,7 +1337,7 @@ async function carregarResumoGeral() {
         if (ano === anoAtual && mes === mesAtual) totalFat += valor;
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
-  }));
+  });
 
   // ── Plano de Contas (Cod_PL → grupo/sub_grupo) — usado para CMV, DFC e "em aberto" ──
   const planoMap = new Map();
@@ -1346,7 +1366,7 @@ async function carregarResumoGeral() {
   // costumam ser os mesmos em todas as lojas do mesmo sistema de PDV, então isso evita que a loja
   // fique com Entradas zeradas por causa de uma aba vazia, sem precisar esperar a planilha ser corrigida.
   let deparaMapGlobal = new Map();
-  const pDePara = Promise.all(RESUMO_DEPARA_URLS.map(async (url, idx) => {
+  const pDePara = resumoMapLimit(RESUMO_DEPARA_URLS, 2, async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
@@ -1360,7 +1380,7 @@ async function carregarResumoGeral() {
       });
       deparaMaps[RESUMO_STORE_KEYS[idx]] = map;
     } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
-  })).then(() => {
+  }).then(() => {
     // Percorre sempre na mesma ordem fixa (RESUMO_STORE_KEYS), nunca Object.values(deparaMaps) —
     // a ordem de inserção nesse objeto depende de qual fetch por loja terminou primeiro (corrida
     // assíncrona), o que fazia o de-para global sair diferente a cada carregamento (e diferente do
@@ -1410,7 +1430,7 @@ async function carregarResumoGeral() {
   // um aviso no card "Performance por loja" quando uma loja fica com Entradas zeradas, em vez de
   // simplesmente sumir sem explicação.
   const resumoDebugRecebidos = {};
-  const pRecebidos = pDePara.then(() => Promise.all(RESUMO_RECBIDOS_URLS.map(async (url, idx) => {
+  const pRecebidos = pDePara.then(() => resumoMapLimit(RESUMO_RECBIDOS_URLS, 2, async (url, idx) => {
     const lojaKey = RESUMO_STORE_KEYS[idx];
     const deparaMapProprio = deparaMaps[lojaKey] || new Map();
     // Se o De-Para da própria loja veio vazio da planilha (aba não preenchida pra essa loja), usa o
@@ -1452,14 +1472,14 @@ async function carregarResumoGeral() {
         anosDisponiveis.add(ano);
       });
     } catch (e) { dbg.erro = String(e && e.message || e); /* loja indisponível — segue com as demais */ }
-  })));
+  }));
 
   // ── Contas a Pagar (todas as lojas) — CMV, DFC (todos os grupos), Performance por Loja ──
   // Depende do Plano de Contas (classificação de grupo), então só começa depois dele.
   // cmvRows / ctasPagarRows guardam TODOS os meses (não só o atual) pra alimentar os filtros e o gráfico de Evolução Mensal.
   const cmvRows = [];
   const ctasPagarRows = [];
-  const pCtasPagar = pPlanoContas.then(() => Promise.all(RESUMO_CTASPAGAR_URLS.map(async (url, idx) => {
+  const pCtasPagar = pPlanoContas.then(() => resumoMapLimit(RESUMO_CTASPAGAR_URLS, 2, async (url, idx) => {
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
@@ -1500,7 +1520,7 @@ async function carregarResumoGeral() {
         anosDisponiveis.add(pg.ano);
       });
     } catch (e) { /* loja indisponível — segue com as demais */ }
-  })));
+  }));
 
   await Promise.all([pFaturamento, pPlanoContas, pDePara, pMeta, pRecebidos, pCtasPagar]);
 
