@@ -1138,10 +1138,31 @@ function resumoFmtPct(v) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 }
 
+// Busca com timeout — sem isso, uma requisição travada (rede instável) prende o Promise.all
+// inteiro em vez de falhar rápido e cair no próximo passo.
+function resumoFetchComTimeout(url, opts, ms) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), ms || 20000);
+  return fetch(url, { ...opts, signal: controller.signal }).finally(() => clearTimeout(timeoutId));
+}
+// Busca do CSV com uma segunda tentativa via proxy de CORS (mesma estratégia já usada no
+// DRE_Gerencial.html) — sem isso, uma falha de rede passageira nessa única tentativa direta fazia
+// a loja parecer "sem de-para" (ou "sem recebidos") mesmo quando os dados existem normalmente na
+// planilha, o que explicava o De-Para de Damha/Belvedere às vezes vir vazio e às vezes não.
 async function resumoFetchCSV(url) {
-  const res = await fetch(url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now(), { cache: 'no-store' });
-  if (!res.ok) throw new Error('HTTP ' + res.status);
-  return res.text();
+  const bustedUrl = url + (url.includes('?') ? '&' : '?') + '_cb=' + Date.now();
+  const errs = [];
+  try {
+    const res = await resumoFetchComTimeout(bustedUrl, { cache: 'no-store' });
+    if (res.ok) { const t = await res.text(); if (t) return t; }
+    else errs.push('HTTP ' + res.status);
+  } catch (e) { errs.push('direct:' + (e && e.message || e)); }
+  try {
+    const res = await resumoFetchComTimeout('https://api.allorigins.win/get?url=' + encodeURIComponent(bustedUrl), { cache: 'no-store' });
+    if (res.ok) { const j = await res.json(); if (j && j.contents) return j.contents; }
+    else errs.push('allorigins-http:' + res.status);
+  } catch (e) { errs.push('allorigins:' + (e && e.message || e)); }
+  throw new Error('Falha ao carregar CSV. Detalhes: ' + errs.join(' | '));
 }
 
 // ── Cache local (IndexedDB) do Resumo Geral ──
