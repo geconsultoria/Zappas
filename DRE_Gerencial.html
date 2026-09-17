@@ -2581,7 +2581,10 @@ function renderConciliacao(){
     cur.qtd++; cur.valor += l.valor; cur.itens.push(l);
     agg.set(key, cur);
   });
-  const detalhe = [...agg.values()].sort((a,b)=>b.valor-a.valor);
+  // Ordena a lista pela coluna escolhida pelo usuário (clicando no
+  // cabeçalho da tabela — ver setReconSort/reconSortCol). Sem escolha
+  // nenhuma, mantém o padrão histórico: maior valor primeiro.
+  const detalhe = ordenarDetalheConciliacao([...agg.values()]);
 
   // Guarda os itens de cada grupo pra montar a lista de títulos individuais
   // só quando o usuário clicar em cima (evita montar tudo de antemão se o
@@ -2614,12 +2617,58 @@ function renderConciliacao(){
 
   wrapEl.innerHTML = `
     <table class="recon-table">
-      <thead><tr>
-        <th>Tipo</th><th>Loja</th><th>Código</th><th>Motivo</th>
-        <th class="num">Lançamentos</th><th class="num">Valor (R$)</th>
-      </tr></thead>
+      <thead><tr>${reconTh('tipo','Tipo')}${reconTh('loja','Loja')}${reconTh('codigo','Código')}${reconTh('motivo','Motivo')}${reconTh('qtd','Lançamentos',true)}${reconTh('valor','Valor (R$)',true)}</tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+}
+
+// ─── Ordenação do grid de Conciliação do De-Para ───
+// Coluna e direção atuais (null = padrão: maior valor primeiro).
+let reconSortCol = null;
+let reconSortDir = 1; // 1 = crescente, -1 = decrescente
+
+// Rótulo exibido pra cada linha na coluna "Tipo" — usado tanto pra
+// desenhar a pill quanto pra ordenar alfabeticamente por esse texto.
+function reconTipoLabel(it){
+  return it.status === 'info' ? 'Informativo' : (it.tipo === 'despesa' ? 'Despesa' : 'Receita');
+}
+
+function ordenarDetalheConciliacao(lista){
+  if(!reconSortCol) return lista.sort((a,b)=>b.valor-a.valor);
+  const dir = reconSortDir;
+  return lista.sort((a,b)=>{
+    let va, vb;
+    switch(reconSortCol){
+      case 'tipo':   va = reconTipoLabel(a); vb = reconTipoLabel(b); break;
+      case 'loja':   va = a.loja||'';        vb = b.loja||'';        break;
+      case 'codigo': va = a.codigo||'';      vb = b.codigo||'';      break;
+      case 'motivo': va = a.motivo||'';      vb = b.motivo||'';      break;
+      case 'qtd':    return (a.qtd - b.qtd) * dir;
+      case 'valor':  return (a.valor - b.valor) * dir;
+      default:       va = ''; vb = '';
+    }
+    return String(va).localeCompare(String(vb), 'pt-BR', {sensitivity:'base'}) * dir;
+  });
+}
+
+// Monta um <th> clicável com seta indicando a ordenação atual.
+function reconTh(col, label, numeric){
+  const ativo = reconSortCol === col;
+  const seta = ativo ? (reconSortDir === 1 ? ' ▲' : ' ▼') : '';
+  return `<th class="${numeric?'num':''}" style="cursor:pointer;user-select:none" onclick="setReconSort('${col}')" title="Ordenar por ${label}">${label}${seta}</th>`;
+}
+
+// Chamado ao clicar num cabeçalho do grid de conciliação: alterna a
+// direção se já estiver ordenando por essa coluna, senão começa em
+// ordem crescente (alfabética A→Z, ou menor→maior valor).
+function setReconSort(col){
+  if(reconSortCol === col){
+    reconSortDir = -reconSortDir;
+  } else {
+    reconSortCol = col;
+    reconSortDir = 1;
+  }
+  renderConciliacao();
 }
 
 // Guarda, por id de linha (rid), o grupo agregado renderizado por último em
