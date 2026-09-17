@@ -3244,8 +3244,14 @@ function refreshHeaderCloneContent(){
    logo abaixo do header + barra de filtros (que são sticky) */
 function updateHeaderClonePosition(){
   if(!fixHeaderEnabled) return;
-  const card=document.querySelector('.dre-card');
   const ds=document.querySelector('.dre-scroll');
+  // Importante: existe mais de um ".dre-card" na página (o card de
+  // Conciliação do De-Para vem antes do card do DFC no HTML), então
+  // document.querySelector('.dre-card') pegava sempre o card errado
+  // (o de cima) e a conta de "cabeçalho ainda visível" ficava incorreta,
+  // fazendo o clone nunca aparecer. Precisa ser o card que contém a
+  // própria tabela (ds.closest), não o primeiro da página.
+  const card=ds?ds.closest('.dre-card'):null;
   const thead=document.getElementById('dreThead');
   const filterBar=document.querySelector('.filter-bar');
   const clone=document.getElementById('dreHeaderClone');
