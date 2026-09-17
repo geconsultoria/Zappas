@@ -1437,14 +1437,26 @@ function onGrupoChange(cb){
   const grupo = cb.value;
   if(cb.checked) selectedGrupos.add(grupo);
   else selectedGrupos.delete(grupo);
-  // Se todos os grupos disponíveis acabaram marcados, equivale a "Todos" (Set vazio).
-  if(gruposDisponiveis.length && selectedGrupos.size === gruposDisponiveis.length) selectedGrupos.clear();
-  cb.closest('.grp-item').classList.toggle('checked', cb.checked && selectedGrupos.size > 0);
+  cb.closest('.grp-item').classList.toggle('checked', cb.checked);
   updateGrupoTrigger();
   applyFilters();
 }
 
+/* Botão "Todos": marca (seleciona) explicitamente todos os grupos
+   disponíveis, com feedback visual de todos os checkboxes marcados. */
 function selectAllGrupos(){
+  selectedGrupos = new Set(gruposDisponiveis);
+  $('grp-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = true;
+    cb.closest('.grp-item').classList.add('checked');
+  });
+  updateGrupoTrigger();
+  applyFilters();
+}
+
+/* Botão "Limpar": desmarca todos — equivalente a "Todos" para fins de
+   filtro (nenhuma restrição aplicada), mas com os checkboxes vazios. */
+function clearAllGrupos(){
   selectedGrupos.clear();
   $('grp-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
     cb.checked = false;
@@ -1454,17 +1466,14 @@ function selectAllGrupos(){
   applyFilters();
 }
 
-function clearAllGrupos(){
-  selectAllGrupos();
-}
-
 function updateGrupoTrigger(){
   const n = selectedGrupos.size;
+  const total = gruposDisponiveis.length;
   const badge = $('grp-badge');
   const txt = $('grp-trigger-txt');
   const trigger = $('grp-trigger');
 
-  if(n === 0){
+  if(n === 0 || (total && n === total)){
     txt.textContent = 'Todos';
     badge.style.display = 'none';
     trigger.classList.remove('has-sel');
