@@ -742,6 +742,23 @@ tr.is-open .expand-hint { display: none; }
 .recon-badge.warn { background: var(--amber-light);   color: var(--amber); }
 .recon-badge.bad  { background: var(--crimson-light); color: var(--crimson); }
 
+/* Botão de seta pra mostrar/ocultar o corpo do card (kpis + tabela de
+   detalhe) — fica oculto por padrão, só abre quando o usuário quiser
+   conferir a lista completa. */
+.recon-toggle-btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 30px; height: 30px; flex-shrink: 0;
+  background: var(--navy-pale); border: 1.5px solid #BDD2EA;
+  border-radius: 50%; cursor: pointer; color: var(--navy-mid);
+  transition: var(--transition);
+}
+.recon-toggle-btn:hover { background: var(--navy-light); border-color: var(--navy-light); color: #fff; }
+.recon-toggle-btn svg { width: 13px; height: 13px; transition: transform .22s ease; }
+.recon-toggle-btn.open svg { transform: rotate(180deg); }
+
+.recon-body { display: none; }
+.recon-body.open { display: block; }
+
 .recon-table-wrap { overflow-x: auto; }
 .recon-table { width: 100%; border-collapse: collapse; font-size: 12px; }
 .recon-table th {
@@ -1340,18 +1357,25 @@ a.side-brand:hover { opacity:.85; }
   <!-- CONCILIAÇÃO DO DE-PARA -->
   <div class="section-head"><span class="section-title">Conciliação do De-Para</span><div class="section-line"></div></div>
   <div class="dre-card" id="conciliacaoCard" style="margin-bottom:28px">
-    <div class="dre-card-header">
+    <div class="dre-card-header" style="cursor:pointer" onclick="toggleConciliacao()">
       <div>
         <div class="dre-card-title">Conferência de Classificação (De-Para)</div>
         <div class="dre-card-sub">Confere se todos os lançamentos de Contas a Pagar (De-Para → Plano de Contas) e de Recebidos (De-Para → Categoria) foram classificados antes de entrar no DFC.</div>
         <div class="dre-card-sub" id="reconSubtitle" style="margin-top:2px;font-weight:600"></div>
       </div>
-      <span class="recon-badge" id="reconBadge">—</span>
+      <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+        <span class="recon-badge" id="reconBadge">—</span>
+        <button class="recon-toggle-btn" id="reconToggleBtn" onclick="event.stopPropagation();toggleConciliacao()" title="Mostrar/ocultar detalhes da conciliação" aria-label="Mostrar/ocultar detalhes da conciliação">
+          <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 4l4 4 4-4"/></svg>
+        </button>
+      </div>
     </div>
-    <div style="padding:22px 24px 6px">
-      <div class="kpi-grid" id="reconKpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:6px"></div>
+    <div class="recon-body" id="reconBody">
+      <div style="padding:22px 24px 6px">
+        <div class="kpi-grid" id="reconKpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:6px"></div>
+      </div>
+      <div class="recon-table-wrap" id="reconDetalheWrap"></div>
     </div>
-    <div class="recon-table-wrap" id="reconDetalheWrap"></div>
   </div>
 
   <!-- DRE TABLE -->
@@ -2402,6 +2426,18 @@ function render(){
    então RESPEITA os mesmos filtros de Ano/Mês/Loja do resto do painel
    (fAno/fMes/fLoja) — troque o filtro e o painel recalcula.
 ══════════════════════════════════════════════════════════════ */
+// Mostra/oculta o corpo do card (kpis + tabela de detalhe). Fica oculto por
+// padrão — o selo de status já dá o resumo no cabeçalho — e só é montado
+// quando o usuário clica na seta pra conferir a lista completa.
+function toggleConciliacao(){
+  const body = document.getElementById('reconBody');
+  const btn = document.getElementById('reconToggleBtn');
+  if(!body) return;
+  const abrir = !body.classList.contains('open');
+  body.classList.toggle('open', abrir);
+  if(btn) btn.classList.toggle('open', abrir);
+}
+
 function renderConciliacao(){
   const badge = document.getElementById('reconBadge');
   const kpisEl = document.getElementById('reconKpis');
