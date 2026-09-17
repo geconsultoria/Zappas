@@ -2315,15 +2315,27 @@ async function loadData(forceRefresh, silent){
       const cached=await loadCacheDB();
       if(cached && cached.data && cached.data.length){
         raw=cached.data;
+        // Cache salvo por uma versão anterior da página não tem "recon" (painel de
+        // Conciliação do De-Para é novo) — força uma atualização em segundo plano
+        // pra preencher o painel, em vez de deixar tudo zerado até a próxima
+        // Atualização Geral.
+        const reconAusente = !cached.recon;
         if(cached.recon) reconciliacao=cached.recon;
         populateFilters();
         applyFilters();
-        renderConciliacao();
+        if(reconAusente){
+          // Não renderiza com stats zeradas (daria falso "100% classificado") —
+          // mostra "calculando" até a atualização em segundo plano terminar.
+          const badge=document.getElementById('reconBadge');
+          if(badge){ badge.className='recon-badge warn'; badge.textContent='Calculando conciliação…'; }
+        } else {
+          renderConciliacao();
+        }
         toggleFixHeader(true);
         document.getElementById('mainArea').style.display='block';
-        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
-        if(stale) loadData(true, true); // dado novo disponível: atualiza sozinho, em segundo plano, sem esconder a tela
+        if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
         return;
       }
     }
