@@ -1344,6 +1344,7 @@ a.side-brand:hover { opacity:.85; }
       <div>
         <div class="dre-card-title">Conferência de Classificação (De-Para)</div>
         <div class="dre-card-sub">Confere se todos os lançamentos de Contas a Pagar (De-Para → Plano de Contas) e de Recebidos (De-Para → Categoria) foram classificados antes de entrar no DFC.</div>
+        <div class="dre-card-sub" id="reconSubtitle" style="margin-top:2px;font-weight:600"></div>
       </div>
       <span class="recon-badge" id="reconBadge">—</span>
     </div>
@@ -1448,15 +1449,19 @@ const MES_FULL = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julh
 
 let raw = [], filtered = [];
 
-// Conciliação do De-Para: guarda, a cada carregamento, quantos lançamentos
-// de Despesas (Contas a Pagar) e Receitas (Recebidos) foram classificados
-// com sucesso pelo de-para/plano de contas, e o detalhe de tudo que ficou
-// sem classificar (usado no painel "Conciliação do De-Para").
-let reconciliacao = {
-  despesas: { totalLinhas:0, semData:0, naoMapeado:0, classificadas:0, valorNaoMapeado:0, valorClassificado:0 },
-  receitas: { totalLinhas:0, naoMapeado:0, categoriaNaoPermitida:0, semPeriodo:0, classificadas:0, valorNaoMapeado:0, valorCategoriaNaoPermitida:0, valorClassificado:0 },
-  detalhe: []
-};
+// Conciliação do De-Para: guarda, a cada carregamento, UMA LINHA POR
+// LANÇAMENTO analisado (Despesas/Contas a Pagar e Receitas/Recebidos), com
+// mes/ano/loja e o status da classificação. Isso permite recalcular o
+// painel "Conciliação do De-Para" já filtrado pelo Ano/Mês/Loja escolhidos
+// pelo usuário, do mesmo jeito que o resto do painel reage aos filtros.
+//   status: 'ok'    → classificado e já contabilizado no DFC
+//           'erro'  → NÃO classificado (código sem correspondência no de-para/plano de contas) — precisa correção
+//           'info'  → identificado, mas fora do DFC por desenho (categoria não permitida) ou sem período legível
+let reconciliacao = { linhas: [] };
+// true assim que "linhas" acima reflete o carregamento mais recente — evita
+// mostrar "0 / 100% classificado" (falso positivo) enquanto os dados ainda
+// não terminaram de carregar.
+let reconciliacaoPronta = false;
 let cMensal, cLoja, cGrupo, cSubgrupo;
 let avVisible = false;
 
@@ -1812,10 +1817,11 @@ function parseDtEntrada(s) {
 function parseRecebidosLoja(text, deparaMap, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  // naoMapeados: chave -> { count, valor, motivo }. stats: totais da conciliação de-para.
-  const naoMapeados = new Map();
-  const stats = { totalLinhas:0, naoMapeado:0, categoriaNaoPermitida:0, semPeriodo:0, classificadas:0, valorNaoMapeado:0, valorCategoriaNaoPermitida:0, valorSemPeriodo:0, valorClassificado:0 };
-  if(!lines.length) return { rows:[], naoMapeados, stats };
+  // "linhas": uma entrada por lançamento candidato (valor+código preenchidos),
+  // usada pelo painel "Conciliação do De-Para" — inclui mes/ano/loja pra dar
+  // pra filtrar o painel igual ao resto do dashboard (ver renderConciliacao).
+  const linhas = [];
+  if(!lines.length) return { rows:[], linhas };
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
@@ -1844,41 +1850,16 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     const codPgto = g(iCodPgto);
     if(!codPgto) continue;
 
-    stats.totalLinhas++;
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
 
-    let recebimento = deparaMap.get(String(codPgto).trim()) || '';
-    if(!recebimento){
-      const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
-      recebimento = deparaMap.get(codNum) || '';
-    }
-    if(!recebimento){
-      const cur = naoMapeados.get(codPgto) || { count:0, valor:0, motivo:'Código de pagamento não encontrado no De-Para' };
-      cur.count++; cur.valor += valor;
-      naoMapeados.set(codPgto, cur);
-      stats.naoMapeado++;
-      stats.valorNaoMapeado += valor;
-      continue;
-    }
-
-    // Filtra: só categorias permitidas (Boleto, Convenio Cliente, Cartão, PIX, Dinheiro)
-    const catNorm = normCat(recebimento);
-    const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
-    if(!permitida){
-      const key = codPgto+'|'+recebimento;
-      const cur = naoMapeados.get(key) || { count:0, valor:0, motivo:'Categoria "'+recebimento+'" existe no De-Para mas não é considerada no DFC (fora da lista de categorias permitidas)', info:true };
-      cur.count++; cur.valor += valor;
-      naoMapeados.set(key, cur);
-      stats.categoriaNaoPermitida++;
-      stats.valorCategoriaNaoPermitida += valor;
-      continue;
-    }
-
-    // Extrai mês e ano. Nunca "chuta" o ano atual quando não dá pra
-    // identificar o ano com segurança — isso jogava linhas de anos
-    // passados (ex.: 2025) pra dentro do ano corrente, sumindo do DFC.
-    // Usa a coluna "ano", depois tenta extrair do texto do mês, e por
-    // fim usa "dtentrada" (data completa) — só descarta a linha se
-    // nenhuma dessas fontes tiver o ano.
+    // Extrai mês e ano já aqui (independente da classificação), pra que
+    // mesmo um lançamento sem classificação tenha período — isso é o que
+    // permite o painel de conciliação respeitar os filtros de Ano/Mês.
+    // Nunca "chuta" o ano atual quando não dá pra identificar o ano com
+    // segurança — isso jogava linhas de anos passados (ex.: 2025) pra
+    // dentro do ano corrente, sumindo do DFC. Usa a coluna "ano", depois
+    // tenta extrair do texto do mês, e por fim usa "dtentrada" (data
+    // completa).
     const dt = iDtEntrada>=0 ? parseDtEntrada(g(iDtEntrada)) : null;
     let mes = null, ano = null;
     if(iMes>=0){
@@ -1889,23 +1870,38 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     if(iAno>=0 && !ano) ano = parseInt(g(iAno));
     if(!mes) mes = dt ? dt.mes : null;
     if(!ano) ano = dt ? dt.ano : null;
-    if(!ano || !mes){
-      // Categoria já identificada, mas sem mês/ano confiável — reportado à parte
-      // (não é falha do de-para em si, mas também não entra no DFC).
-      const key = codPgto+'|'+recebimento+'|semperiodo';
-      const cur = naoMapeados.get(key) || { count:0, valor:0, motivo:'Categoria "'+recebimento+'" classificada, mas sem mês/ano identificável no lançamento', info:true };
-      cur.count++; cur.valor += valor;
-      naoMapeados.set(key, cur);
-      stats.semPeriodo++;
-      stats.valorSemPeriodo += valor;
+
+    let recebimento = deparaMap.get(String(codPgto).trim()) || '';
+    if(!recebimento){
+      const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
+      recebimento = deparaMap.get(codNum) || '';
+    }
+    if(!recebimento){
+      linhas.push({ tipo:'receita', mes, ano, loja, valor, status:'erro',
+        codigo: codPgto, motivo:'Código de pagamento não encontrado no De-Para' });
       continue;
     }
 
-    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    // Filtra: só categorias permitidas (Boleto, Convenio Cliente, Cartão, PIX, Dinheiro)
+    const catNorm = normCat(recebimento);
+    const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
+    if(!permitida){
+      linhas.push({ tipo:'receita', mes, ano, loja, valor, status:'info',
+        codigo: codPgto, motivo:'Categoria "'+recebimento+'" existe no De-Para mas não é considerada no DFC (fora da lista de categorias permitidas)' });
+      continue;
+    }
+
+    if(!ano || !mes){
+      // Categoria já identificada, mas sem mês/ano confiável — reportado à parte
+      // (não é falha do de-para em si, mas também não entra no DFC).
+      linhas.push({ tipo:'receita', mes:null, ano:null, loja, valor, status:'info',
+        codigo: codPgto, motivo:'Categoria "'+recebimento+'" classificada, mas sem mês/ano identificável no lançamento' });
+      continue;
+    }
+
     if(!loja) continue;
 
-    stats.classificadas++;
-    stats.valorClassificado += valor;
+    linhas.push({ tipo:'receita', mes, ano, loja, valor, status:'ok' });
     rows.push({
       mes, ano, loja, valor,
       grupo: 'RECEITA OPERACIONAL',
@@ -1913,7 +1909,7 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       plano: padronizarDescricaoRecebimento(recebimento)
     });
   }
-  return { rows, naoMapeados, stats };
+  return { rows, linhas };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1981,10 +1977,10 @@ function parseContasPagar(text, planoMap, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   const rows = [];
-  const naoMapeados = new Map(); // codCentro -> { count, valor }
-  // stats da conciliação de-para: usados no painel "Conciliação do De-Para"
-  const stats = { totalLinhas:0, semData:0, naoMapeado:0, classificadas:0, valorNaoMapeado:0, valorClassificado:0 };
-  if(!lines.length) return { rows, naoMapeados, stats };
+  // "linhas": ver comentário equivalente em parseRecebidosLoja — usado pelo
+  // painel "Conciliação do De-Para".
+  const linhas = [];
+  if(!lines.length) return { rows, linhas };
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iLoja   = findCol(rawHeaders,'loja');
@@ -2014,29 +2010,22 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const valor = parseNum(g(iValor));
     if(!valor) continue;
 
-    stats.totalLinhas++;
-
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     const codCentroRaw = g(iCodCtr);
     const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10) || '');
     const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
 
     if(!info || !info.grupo){
-      const key = codCentroRaw || '(vazio)';
-      const cur = naoMapeados.get(key) || { count:0, valor:0 };
-      cur.count++; cur.valor += valor;
-      naoMapeados.set(key, cur);
-      stats.naoMapeado++;
-      stats.valorNaoMapeado += valor;
+      linhas.push({ tipo:'despesa', mes, ano, loja: loja||lojaFallback, valor, status:'erro',
+        codigo: codCentroRaw || '(vazio)', motivo:'Código de centro de custo (codcentro) não encontrado no Plano de Contas' });
       continue;
     }
     if(!loja) continue;
 
-    stats.classificadas++;
-    stats.valorClassificado += valor;
+    linhas.push({ tipo:'despesa', mes, ano, loja, valor, status:'ok' });
     rows.push({ mes, ano, loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo });
   }
-  return { rows, naoMapeados, stats };
+  return { rows, linhas };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2134,17 +2123,9 @@ function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
 /* ══════════════════════════════════════════════════════════════
    LOAD
 ══════════════════════════════════════════════════════════════ */
-// Soma campos numéricos de "src" dentro de "target" (usado para acumular as
-// stats de conciliação de cada loja num total geral).
-function acumularStats(target, src){
-  for(const k in src){ target[k] = (target[k]||0) + (src[k]||0); }
-}
-
 async function carregarTudo(){
   // Zera a conciliação do De-Para a cada carregamento
-  reconciliacao.despesas = { totalLinhas:0, semData:0, naoMapeado:0, classificadas:0, valorNaoMapeado:0, valorClassificado:0 };
-  reconciliacao.receitas = { totalLinhas:0, naoMapeado:0, categoriaNaoPermitida:0, semPeriodo:0, classificadas:0, valorNaoMapeado:0, valorCategoriaNaoPermitida:0, valorClassificado:0 };
-  reconciliacao.detalhe = [];
+  reconciliacao.linhas = [];
 
   // ══════════════════════════════════════════════════════
   // 1. Busca de-para por loja (em paralelo)
@@ -2202,17 +2183,10 @@ async function carregarTudo(){
       const lojaKey = CTASPAGAR_STORE_KEYS[idx];
       try {
         const text = await fetchCSV(url);
-        const { rows, naoMapeados, stats } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
+        const { rows, linhas } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
         rowsDespesas = rowsDespesas.concat(rows);
-        naoMapeados.forEach((v,cod) => {
-          naoMapeadosGeral.add(cod);
-          reconciliacao.detalhe.push({
-            tipo:'despesa', loja: lojaKey.toUpperCase(), codigo: cod,
-            motivo: 'Código de centro de custo (codcentro) não encontrado no Plano de Contas',
-            qtd: v.count, valor: v.valor, info:false
-          });
-        });
-        acumularStats(reconciliacao.despesas, stats);
+        linhas.forEach(l => { if(l.status==='erro') naoMapeadosGeral.add(l.codigo); });
+        reconciliacao.linhas.push(...linhas);
       } catch(e) {
         console.warn('Contas a pagar indisponível (' + lojaKey + '):', e.message);
       }
@@ -2241,15 +2215,9 @@ async function carregarTudo(){
         // Se o De-Para da própria loja veio vazio, usa o "global" (junção de todas as lojas) em vez
         // de zerar a Receita Operacional dessa loja — ver comentário acima de deparaMapGlobal.
         const lojaDepara = deparaProprio.size > 0 ? deparaProprio : deparaMapGlobal;
-        const { rows, naoMapeados, stats } = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
+        const { rows, linhas } = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
         rowsRecebimentos = rowsRecebimentos.concat(rows);
-        naoMapeados.forEach((v,key) => {
-          reconciliacao.detalhe.push({
-            tipo:'receita', loja: lojaKey.toUpperCase(), codigo: key.split('|')[0],
-            motivo: v.motivo, qtd: v.count, valor: v.valor, info: !!v.info
-          });
-        });
-        acumularStats(reconciliacao.receitas, stats);
+        reconciliacao.linhas.push(...linhas);
       } catch(e) {
         console.warn('Recebidos indisponível (' + lojaKey + '):', e.message);
       }
@@ -2266,9 +2234,9 @@ async function carregarTudo(){
 
   raw = [...rowsRecebimentos, ...rowsDespSemReceita];
   if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
+  reconciliacaoPronta = true;
   populateFilters();
-  applyFilters();
-  renderConciliacao();
+  applyFilters(); // aciona render() -> renderConciliacao(), já com os dados novos
   toggleFixHeader(true);
   document.getElementById('mainArea').style.display='block';
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
@@ -2315,22 +2283,17 @@ async function loadData(forceRefresh, silent){
       const cached=await loadCacheDB();
       if(cached && cached.data && cached.data.length){
         raw=cached.data;
-        // Cache salvo por uma versão anterior da página não tem "recon" (painel de
-        // Conciliação do De-Para é novo) — força uma atualização em segundo plano
-        // pra preencher o painel, em vez de deixar tudo zerado até a próxima
-        // Atualização Geral.
-        const reconAusente = !cached.recon;
-        if(cached.recon) reconciliacao=cached.recon;
-        populateFilters();
-        applyFilters();
-        if(reconAusente){
-          // Não renderiza com stats zeradas (daria falso "100% classificado") —
-          // mostra "calculando" até a atualização em segundo plano terminar.
-          const badge=document.getElementById('reconBadge');
-          if(badge){ badge.className='recon-badge warn'; badge.textContent='Calculando conciliação…'; }
-        } else {
-          renderConciliacao();
+        // Cache salvo por uma versão anterior da página não tem "recon.linhas"
+        // (painel de Conciliação do De-Para é novo) — força uma atualização em
+        // segundo plano pra preencher o painel, em vez de deixar tudo zerado
+        // até a próxima Atualização Geral.
+        const reconAusente = !(cached.recon && Array.isArray(cached.recon.linhas));
+        if(!reconAusente){
+          reconciliacao = cached.recon;
+          reconciliacaoPronta = true;
         }
+        populateFilters();
+        applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
         document.getElementById('mainArea').style.display='block';
         const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente;
@@ -2405,90 +2368,137 @@ function clearFilters(){
 /* ══════════════════════════════════════════════════════════════
    RENDER
 ══════════════════════════════════════════════════════════════ */
+// Roda cada função de renderização isolada das demais: se uma delas lançar
+// um erro (ex.: um elemento inesperado, dado incomum vindo do CSV), as
+// outras seções do painel continuam atualizando normalmente em vez de
+// pararem todas no meio — foi exatamente isso que deixava a "Conferência de
+// Classificação (De-Para)" parada depois de trocar o filtro: um erro em uma
+// função anterior (renderComparativoMensal) interrompia o restante de
+// render(), e renderConciliacao() (chamada por último) nunca era executada.
+function chamarSeguro(fn){
+  try { fn(); } catch(e){ console.error('[render] falha em '+(fn.name||'função anônima')+':', e); }
+}
+
 function render(){
-  renderKPIs();
-  renderCharts();
-  renderDRE();
-  renderLojas();
-  renderHeader();
-  renderMetas();
-  renderComparativoMensal();
-  renderBreakEven();
-  renderSimulador();
-  renderRecomendacoes();
+  chamarSeguro(renderKPIs);
+  chamarSeguro(renderCharts);
+  chamarSeguro(renderDRE);
+  chamarSeguro(renderLojas);
+  chamarSeguro(renderHeader);
+  chamarSeguro(renderMetas);
+  chamarSeguro(renderComparativoMensal);
+  chamarSeguro(renderBreakEven);
+  chamarSeguro(renderSimulador);
+  chamarSeguro(renderRecomendacoes);
+  chamarSeguro(renderConciliacao);
 }
 
 /* ══════════════════════════════════════════════════════════════
    CONCILIAÇÃO DO DE-PARA
-   Demonstrativo independente dos filtros de Ano/Mês/Loja: mostra, para
-   Despesas (Contas a Pagar) e Receitas (Recebidos), quantos lançamentos
-   entraram no DFC já classificados pelo de-para e quantos ficaram de
-   fora (código sem correspondência, categoria fora da lista permitida,
-   ou sem mês/ano identificável), para o usuário conferir e corrigir a
-   planilha de de-para/plano de contas quando necessário.
+   Mostra, para Despesas (Contas a Pagar) e Receitas (Recebidos), quantos
+   lançamentos entraram no DFC já classificados pelo de-para e quantos
+   ficaram de fora (código sem correspondência, categoria fora da lista
+   permitida, ou sem mês/ano identificável). Chamado dentro de render(),
+   então RESPEITA os mesmos filtros de Ano/Mês/Loja do resto do painel
+   (fAno/fMes/fLoja) — troque o filtro e o painel recalcula.
 ══════════════════════════════════════════════════════════════ */
 function renderConciliacao(){
   const badge = document.getElementById('reconBadge');
   const kpisEl = document.getElementById('reconKpis');
   const wrapEl = document.getElementById('reconDetalheWrap');
+  const subEl = document.getElementById('reconSubtitle');
   if(!badge || !kpisEl || !wrapEl) return;
 
-  const d = reconciliacao.despesas, r = reconciliacao.receitas;
+  // Ainda não terminou o primeiro carregamento completo: não mostra 0/100%
+  // (falso positivo) — só o estado "calculando".
+  if(!reconciliacaoPronta){
+    badge.className = 'recon-badge warn';
+    badge.textContent = 'Calculando conciliação…';
+    kpisEl.innerHTML = '';
+    wrapEl.innerHTML = `<div class="recon-empty">Aguardando o carregamento completo dos dados para calcular a conciliação do De-Para…</div>`;
+    return;
+  }
 
-  const totalLinhas       = d.totalLinhas + r.totalLinhas;
-  const totalClassificado = d.classificadas + r.classificadas;
-  // "Sem classificar": não achou correspondência no de-para/plano de contas,
-  // ou achou a categoria mas não deu pra identificar o período — ou seja,
-  // tudo que não é um filtro intencional de categoria fora do DFC.
-  const totalSemClass = d.naoMapeado + r.naoMapeado + r.semPeriodo;
-  const valorSemClass = d.valorNaoMapeado + r.valorNaoMapeado + (r.valorSemPeriodo||0);
-  const totalFiltrado = r.categoriaNaoPermitida; // informativo: categoria existe, mas fora do desenho do DFC
-  const valorFiltrado = r.valorCategoriaNaoPermitida||0;
-  const pctClass = totalLinhas ? (totalClassificado/totalLinhas*100) : 100;
+  const ano  = document.getElementById('fAno').value;
+  const mes  = document.getElementById('fMes').value;
+  const loja = document.getElementById('fLoja').value;
 
-  if(totalSemClass === 0){
+  if(subEl){
+    const partes=[];
+    partes.push(ano ? ano : 'Todos os anos');
+    partes.push(mes ? (MES_FULL[mes]||mes) : 'todos os meses');
+    partes.push(loja ? loja : 'todas as lojas');
+    subEl.textContent = 'Escopo atual: ' + partes.join(' · ') + ' — acompanha os filtros do painel.';
+  }
+
+  const linhas = reconciliacao.linhas.filter(l=>{
+    if(ano  && String(l.ano)!==ano)  return false;
+    if(mes  && String(l.mes)!==mes)  return false;
+    if(loja && l.loja!==loja)        return false;
+    return true;
+  });
+
+  const totalLinhas = linhas.length;
+  const ok    = linhas.filter(l=>l.status==='ok');
+  const erro  = linhas.filter(l=>l.status==='erro');
+  const info  = linhas.filter(l=>l.status==='info');
+  const valorErro = erro.reduce((s,l)=>s+l.valor,0);
+  const valorInfo = info.reduce((s,l)=>s+l.valor,0);
+  const pctClass = totalLinhas ? (ok.length/totalLinhas*100) : 100;
+  const dTotal = linhas.filter(l=>l.tipo==='despesa').length;
+  const rTotal = linhas.filter(l=>l.tipo==='receita').length;
+
+  if(erro.length === 0){
     badge.className = 'recon-badge ok';
     badge.textContent = '✓ 100% classificado';
   } else {
     badge.className = 'recon-badge ' + (pctClass < 97 ? 'bad' : 'warn');
-    badge.textContent = '⚠ ' + totalSemClass.toLocaleString('pt-BR') + ' lançamento(s) sem classificar';
+    badge.textContent = '⚠ ' + erro.length.toLocaleString('pt-BR') + ' lançamento(s) sem classificar';
   }
 
   kpisEl.innerHTML = `
     <div class="kpi-card navy">
       <div class="kpi-eyebrow"><span class="kpi-dot"></span>Lançamentos Analisados</div>
       <div class="kpi-value">${totalLinhas.toLocaleString('pt-BR')}</div>
-      <div class="kpi-sub">Despesas: <strong>${d.totalLinhas.toLocaleString('pt-BR')}</strong> · Receitas: <strong>${r.totalLinhas.toLocaleString('pt-BR')}</strong></div>
+      <div class="kpi-sub">Despesas: <strong>${dTotal.toLocaleString('pt-BR')}</strong> · Receitas: <strong>${rTotal.toLocaleString('pt-BR')}</strong></div>
     </div>
     <div class="kpi-card emerald">
       <div class="kpi-eyebrow"><span class="kpi-dot"></span>Classificados no DFC</div>
-      <div class="kpi-value positive">${totalClassificado.toLocaleString('pt-BR')}</div>
+      <div class="kpi-value positive">${ok.length.toLocaleString('pt-BR')}</div>
       <div class="kpi-sub"><strong>${pctClass.toFixed(1)}%</strong> do total analisado</div>
     </div>
     <div class="kpi-card crimson">
       <div class="kpi-eyebrow"><span class="kpi-dot"></span>Sem Classificar</div>
-      <div class="kpi-value ${totalSemClass?'negative':''}">${totalSemClass.toLocaleString('pt-BR')}</div>
-      <div class="kpi-sub">R$ ${fmtBRL(valorSemClass)}</div>
+      <div class="kpi-value ${erro.length?'negative':''}">${erro.length.toLocaleString('pt-BR')}</div>
+      <div class="kpi-sub">R$ ${fmtBRL(valorErro)}</div>
     </div>
     <div class="kpi-card gold">
-      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Categoria Filtrada do DFC</div>
-      <div class="kpi-value">${totalFiltrado.toLocaleString('pt-BR')}</div>
-      <div class="kpi-sub">R$ ${fmtBRL(valorFiltrado)} · informativo</div>
+      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Categoria/Período Filtrado</div>
+      <div class="kpi-value">${info.length.toLocaleString('pt-BR')}</div>
+      <div class="kpi-sub">R$ ${fmtBRL(valorInfo)} · informativo</div>
     </div>`;
 
-  // Detalhe: tudo que não entrou classificado no DFC, agrupado por
-  // tipo/loja/código — ordenado por valor (maiores primeiro), pra facilitar
-  // priorizar o que corrigir primeiro na planilha de de-para.
-  const detalhe = [...reconciliacao.detalhe].sort((a,b)=>b.valor-a.valor);
-
-  if(!detalhe.length){
-    wrapEl.innerHTML = `<div class="recon-empty"><strong>✓ Nenhuma pendência encontrada</strong>Todos os lançamentos de Despesas e Receitas foram classificados com sucesso pelo De-Para.</div>`;
+  // Detalhe: tudo que não entrou classificado no DFC no escopo atual,
+  // agrupado por tipo/loja/código/motivo — ordenado por valor (maiores
+  // primeiro), pra facilitar priorizar o que corrigir na planilha de de-para.
+  const pendentes = [...erro, ...info];
+  if(!pendentes.length){
+    wrapEl.innerHTML = `<div class="recon-empty"><strong>✓ Nenhuma pendência encontrada</strong>Todos os lançamentos do período/loja selecionados foram classificados com sucesso pelo De-Para.</div>`;
     return;
   }
 
+  const agg = new Map();
+  pendentes.forEach(l=>{
+    const key = l.tipo+'|'+l.loja+'|'+l.codigo+'|'+l.motivo;
+    const cur = agg.get(key) || { tipo:l.tipo, loja:l.loja, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0 };
+    cur.qtd++; cur.valor += l.valor;
+    agg.set(key, cur);
+  });
+  const detalhe = [...agg.values()].sort((a,b)=>b.valor-a.valor);
+
   const rowsHtml = detalhe.map(it => `
     <tr>
-      <td><span class="recon-pill ${it.info?'info':it.tipo}">${it.info?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
+      <td><span class="recon-pill ${it.status==='info'?'info':it.tipo}">${it.status==='info'?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
       <td>${it.loja||'—'}</td>
       <td>${it.codigo||'—'}</td>
       <td>${it.motivo}</td>
@@ -3261,6 +3271,21 @@ function renderMetas() {
    - Se não há filtro → usa o mês fechado mais recente nos dados vs o anterior
    Opera sempre sobre `raw` para não ser afetado pelos filtros de período.
 ══════════════════════════════════════════════════════════════ */
+// Mostra um aviso (ex.: "dados insuficientes") dentro da própria tabela do
+// comparativo mensal, SEM apagar o esqueleto da tabela (thead/tbody). Antes
+// isso era feito com "wrap.innerHTML = ..." em cima do container inteiro,
+// o que apagava permanentemente o <tbody id="compMensalBody"> — na próxima
+// vez que houvesse dados suficientes, a função tentava escrever nesse id e
+// ele não existia mais (efeito colateral: o restante do render() também
+// parava no meio, porque essa função é chamada antes de renderConciliacao
+// dentro de render()).
+function avisoComparativoMensal(msg){
+  const body = document.getElementById('compMensalBody');
+  const sub = document.getElementById('compMensalSub');
+  if (sub) sub.textContent = '—';
+  if (body) body.innerHTML = `<tr><td colspan="5" style="color:var(--ink-4);font-size:13px;padding:16px 0;text-align:center">${msg}</td></tr>`;
+}
+
 function renderComparativoMensal() {
   const wrap = document.getElementById('compMensalWrap');
   if (!wrap) return;
@@ -3291,10 +3316,8 @@ function renderComparativoMensal() {
 
   if (todasChaves.length < 2) {
     const fmtM = (k)=>{ const p=periodos[k]; return p?MES[p.mes]+'/'+p.ano:k; };
-    wrap.innerHTML = `<div style="color:var(--ink-4);font-size:13px;padding:16px 0">
-      ${todasChaves.length===0?'Nenhum mês fechado disponível para comparação.':
-        'Apenas 1 mês fechado ('+fmtM(todasChaves[0])+'). São necessários pelo menos 2.'}
-    </div>`;
+    avisoComparativoMensal(todasChaves.length===0?'Nenhum mês fechado disponível para comparação.':
+      'Apenas 1 mês fechado ('+fmtM(todasChaves[0])+'). São necessários pelo menos 2.');
     return;
   }
 
@@ -3312,9 +3335,7 @@ function renderComparativoMensal() {
     const anoAnt = mesSel === 1 ? anoSel - 1 : anoSel;
     const kAnt = String(anoAnt)+'-'+String(mesAnt).padStart(2,'0');
     if (!periodos[kSel] || !periodos[kAnt]) {
-      wrap.innerHTML = `<div style="color:var(--ink-4);font-size:13px;padding:16px 0">
-        Dados insuficientes para comparar ${MES[mesSel]||mesSel}/${anoSel} com o mês anterior.
-      </div>`;
+      avisoComparativoMensal(`Dados insuficientes para comparar ${MES[mesSel]||mesSel}/${anoSel} com o mês anterior.`);
       return;
     }
     uP = periodos[kSel];
@@ -3325,9 +3346,7 @@ function renderComparativoMensal() {
     const mesSel = parseInt(fMesVal);
     const chavesDoMes = todasChaves.filter(k => periodos[k].mes === mesSel);
     if (!chavesDoMes.length) {
-      wrap.innerHTML = `<div style="color:var(--ink-4);font-size:13px;padding:16px 0">
-        Nenhum dado fechado para ${MES[mesSel]||mesSel} disponível.
-      </div>`;
+      avisoComparativoMensal(`Nenhum dado fechado para ${MES[mesSel]||mesSel} disponível.`);
       return;
     }
     const kSel = chavesDoMes[chavesDoMes.length - 1]; /* mais recente */
@@ -3336,9 +3355,7 @@ function renderComparativoMensal() {
     const anoAnt = uP.mes === 1 ? uP.ano - 1 : uP.ano;
     const kAnt = String(anoAnt)+'-'+String(mesAnt).padStart(2,'0');
     if (!periodos[kAnt]) {
-      wrap.innerHTML = `<div style="color:var(--ink-4);font-size:13px;padding:16px 0">
-        Dados insuficientes para comparar ${MES[uP.mes]||uP.mes}/${uP.ano} com o mês anterior.
-      </div>`;
+      avisoComparativoMensal(`Dados insuficientes para comparar ${MES[uP.mes]||uP.mes}/${uP.ano} com o mês anterior.`);
       return;
     }
     aP = periodos[kAnt];
