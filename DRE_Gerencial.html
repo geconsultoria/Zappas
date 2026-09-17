@@ -3020,7 +3020,13 @@ function renderDRE(){
       <th>Total</th>
       ${avVisible?`<th class="av-header av-col">AV%</th>`:''}
     </tr>`;
-    if(fixHeaderEnabled){ refreshHeaderCloneContent(); updateHeaderClonePosition(); }
+    /* Não recalcula o clone aqui: nesse ponto o <tbody> ainda tem o
+       conteúdo do filtro ANTERIOR (ou está vazio), então as larguras
+       medidas ficariam erradas quando o número de colunas muda (ex.:
+       trocar de loja "todos os meses" muda quantos meses aparecem).
+       Isso é o que causava "Janeiro na coluna de Fevereiro" no
+       cabeçalho fixo. O recálculo certo acontece só depois que o
+       <tbody> novo também estiver montado — ver fim de renderDRE(). */
   }
   buildThead();
 
@@ -3167,6 +3173,13 @@ function renderDRE(){
   const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
   document.getElementById('dreSubtitle').textContent=
     `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir`;
+
+  /* Só agora o <thead> e o <tbody> novos estão os dois no DOM, então as
+     larguras de coluna medidas pra montar o clone do cabeçalho fixo
+     batem com as larguras reais da tabela (evita o desalinhamento
+     "Janeiro na coluna de Fevereiro" ao trocar loja/mês com o
+     cabeçalho fixado). */
+  if(fixHeaderEnabled){ refreshHeaderCloneContent(); updateHeaderClonePosition(); }
 }
 
 /* ── Toggle Análise Vertical ── */
