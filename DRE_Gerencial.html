@@ -2633,13 +2633,17 @@ function reconTipoLabel(it){
   return it.status === 'info' ? 'Informativo' : (it.tipo === 'despesa' ? 'Despesa' : 'Receita');
 }
 
+// Ordem fixa da coluna "Tipo" (não é alfabética): Informativo, depois
+// Despesa, depois Receita — agrupa cada tipo de forma consistente.
+const RECON_TIPO_ORDEM = { 'Informativo': 0, 'Despesa': 1, 'Receita': 2 };
+
 function ordenarDetalheConciliacao(lista){
   if(!reconSortCol) return lista.sort((a,b)=>b.valor-a.valor);
   const dir = reconSortDir;
   return lista.sort((a,b)=>{
     let va, vb;
     switch(reconSortCol){
-      case 'tipo':   va = reconTipoLabel(a); vb = reconTipoLabel(b); break;
+      case 'tipo':   return (RECON_TIPO_ORDEM[reconTipoLabel(a)] - RECON_TIPO_ORDEM[reconTipoLabel(b)]) * dir;
       case 'loja':   va = a.loja||'';        vb = b.loja||'';        break;
       case 'codigo': va = a.codigo||'';      vb = b.codigo||'';      break;
       case 'motivo': va = a.motivo||'';      vb = b.motivo||'';      break;
