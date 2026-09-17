@@ -780,6 +780,31 @@ tr.is-open .expand-hint { display: none; }
 .recon-empty { padding: 28px 20px; text-align: center; color: var(--ink-4); font-size: 12.5px; }
 .recon-empty strong { display:block; color: var(--emerald); font-size: 14px; margin-bottom: 4px; }
 
+/* Linha de grupo clicável (abre a lista de lançamentos/títulos individuais) */
+.recon-row { cursor: pointer; }
+.recon-row td:first-child { display:flex; align-items:center; gap:8px; }
+.recon-row .row-chevron svg { transition: transform .18s ease; }
+.recon-row .row-chevron.is-open svg { transform: rotate(90deg); }
+
+.recon-detail-row { display: none; }
+.recon-detail-row.open { display: table-row; }
+.recon-detail-row > td { background: var(--surface-tint); padding: 4px 12px 12px 34px !important; }
+
+.recon-subtable-wrap { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.recon-subtable { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.recon-subtable th {
+  position: sticky; top: 0;
+  padding: 6px 10px; text-align: left;
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--ink-4);
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.recon-subtable th.num, .recon-subtable td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-numeric); }
+.recon-subtable td { padding: 5px 10px; border-bottom: 1px solid #F0EDE6; color: var(--ink-2); }
+.recon-subtable tr:last-child td { border-bottom: none; }
+
 /* ══════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════ */
@@ -1856,6 +1881,9 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
   const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento');
   const iConta  = findCol(rawHeaders,'conta','valor','valor_conta','v_conta');
   const iDtEntrada = findCol(rawHeaders,'dtentrada','dt_entrada','data_entrada');
+  // Nome/descrição do pagamento (opcional) — usado só pra dar nome aos
+  // "títulos" individuais no detalhe do painel de conciliação.
+  const iNomePgto = findCol(rawHeaders,'nomepgto','nome_pgto','nome_pagamento','descricaopagamento','nome');
 
   if(iCodPgto<0) throw new Error('Recebidos — coluna codpgto não encontrada. Colunas: '+rawHeaders.join(', '));
   if(iConta<0) throw new Error('Recebidos — coluna conta (valor) não encontrada. Colunas: '+rawHeaders.join(', '));
@@ -1900,9 +1928,13 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
       recebimento = deparaMap.get(codNum) || '';
     }
+    const nomePgto = iNomePgto>=0 ? g(iNomePgto) : '';
+    const dataRaw = iDtEntrada>=0 ? g(iDtEntrada) : '';
+
     if(!recebimento){
       linhas.push({ tipo:'receita', mes, ano, loja, valor, status:'erro',
-        codigo: codPgto, motivo:'Código de pagamento não encontrado no De-Para' });
+        codigo: codPgto, motivo:'Código de pagamento não encontrado no De-Para',
+        titulo: nomePgto, dataRaw });
       continue;
     }
 
@@ -1911,7 +1943,8 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
     if(!permitida){
       linhas.push({ tipo:'receita', mes, ano, loja, valor, status:'info',
-        codigo: codPgto, motivo:'Categoria "'+recebimento+'" existe no De-Para mas não é considerada no DFC (fora da lista de categorias permitidas)' });
+        codigo: codPgto, motivo:'Categoria "'+recebimento+'" existe no De-Para mas não é considerada no DFC (fora da lista de categorias permitidas)',
+        titulo: nomePgto || recebimento, dataRaw });
       continue;
     }
 
@@ -1919,7 +1952,8 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       // Categoria já identificada, mas sem mês/ano confiável — reportado à parte
       // (não é falha do de-para em si, mas também não entra no DFC).
       linhas.push({ tipo:'receita', mes:null, ano:null, loja, valor, status:'info',
-        codigo: codPgto, motivo:'Categoria "'+recebimento+'" classificada, mas sem mês/ano identificável no lançamento' });
+        codigo: codPgto, motivo:'Categoria "'+recebimento+'" classificada, mas sem mês/ano identificável no lançamento',
+        titulo: nomePgto || recebimento, dataRaw });
       continue;
     }
 
@@ -2011,6 +2045,13 @@ function parseContasPagar(text, planoMap, lojaFallback){
   const iCodCtr = findCol(rawHeaders,'codcentro','cod_centro','codigo_centro');
   const iValor  = findCol(rawHeaders,'vparcela','valor_parcela');
   const iDtPgto = findCol(rawHeaders,'dtpagamento','data_pagamento');
+  // Colunas de identificação do lançamento (opcionais — usadas só para dar
+  // nome aos "títulos" individuais no detalhe do painel "Conciliação do
+  // De-Para"; se a planilha não tiver nenhuma dessas, cai no fallback
+  // "Lançamento de dd/mm/aaaa").
+  const iTitulo      = findCol(rawHeaders,'titulo','numtitulo','num_titulo','numerotitulo','numero_titulo','documento','numdoc','num_doc','nrdoc','nr_doc');
+  const iFornecedor  = findCol(rawHeaders,'fornecedor','nomefornecedor','nome_fornecedor','razaosocial','razao_social','credor','nomecredor');
+  const iHistorico   = findCol(rawHeaders,'historico','descricao','observacao','obs');
 
   const missing=[];
   if(iCodCtr<0) missing.push('codcentro');
@@ -2039,9 +2080,19 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10) || '');
     const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
 
+    // Monta um rótulo identificando o lançamento (pra listar os "títulos"
+    // individuais no detalhe do painel de conciliação) a partir de
+    // qualquer coluna de título/fornecedor/histórico disponível.
+    const titulo = [
+      iTitulo>=0 ? g(iTitulo) : '',
+      iFornecedor>=0 ? g(iFornecedor) : '',
+      iHistorico>=0 ? g(iHistorico) : ''
+    ].filter(Boolean).join(' — ');
+
     if(!info || !info.grupo){
       linhas.push({ tipo:'despesa', mes, ano, loja: loja||lojaFallback, valor, status:'erro',
-        codigo: codCentroRaw || '(vazio)', motivo:'Código de centro de custo (codcentro) não encontrado no Plano de Contas' });
+        codigo: codCentroRaw || '(vazio)', motivo:'Código de centro de custo (codcentro) não encontrado no Plano de Contas',
+        titulo, dataRaw: dtPgto });
       continue;
     }
     if(!loja) continue;
@@ -2526,21 +2577,40 @@ function renderConciliacao(){
   const agg = new Map();
   pendentes.forEach(l=>{
     const key = l.tipo+'|'+l.loja+'|'+l.codigo+'|'+l.motivo;
-    const cur = agg.get(key) || { tipo:l.tipo, loja:l.loja, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0 };
-    cur.qtd++; cur.valor += l.valor;
+    const cur = agg.get(key) || { tipo:l.tipo, loja:l.loja, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0, itens:[] };
+    cur.qtd++; cur.valor += l.valor; cur.itens.push(l);
     agg.set(key, cur);
   });
   const detalhe = [...agg.values()].sort((a,b)=>b.valor-a.valor);
 
-  const rowsHtml = detalhe.map(it => `
-    <tr>
-      <td><span class="recon-pill ${it.status==='info'?'info':it.tipo}">${it.status==='info'?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
+  // Guarda os itens de cada grupo pra montar a lista de títulos individuais
+  // só quando o usuário clicar em cima (evita montar tudo de antemão se o
+  // grupo tiver muitos lançamentos).
+  reconGruposAtuais = {};
+  const rowsHtml = detalhe.map((it,i) => {
+    const rid = 'r'+i;
+    reconGruposAtuais[rid] = it;
+    return `
+    <tr class="recon-row" onclick="toggleReconGrupo('${rid}')">
+      <td><span class="row-chevron" id="reconChev_${rid}"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>
+        <span class="recon-pill ${it.status==='info'?'info':it.tipo}">${it.status==='info'?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
       <td>${it.loja||'—'}</td>
       <td>${it.codigo||'—'}</td>
       <td>${it.motivo}</td>
       <td class="num">${it.qtd.toLocaleString('pt-BR')}</td>
       <td class="num">R$ ${fmtBRL(it.valor)}</td>
-    </tr>`).join('');
+    </tr>
+    <tr class="recon-detail-row" id="reconDet_${rid}">
+      <td colspan="6">
+        <div class="recon-subtable-wrap">
+          <table class="recon-subtable">
+            <thead><tr><th>Data</th><th>Título / Descrição</th><th class="num">Valor (R$)</th></tr></thead>
+            <tbody class="recon-subtable-body"></tbody>
+          </table>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
 
   wrapEl.innerHTML = `
     <table class="recon-table">
@@ -2550,6 +2620,37 @@ function renderConciliacao(){
       </tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+}
+
+// Guarda, por id de linha (rid), o grupo agregado renderizado por último em
+// renderConciliacao() — usado por toggleReconGrupo() pra montar a lista de
+// títulos individuais só na hora em que o usuário abre aquele grupo.
+let reconGruposAtuais = {};
+
+// Expande/recolhe, dentro do painel "Conciliação do De-Para", a lista dos
+// lançamentos individuais (títulos) que compõem um grupo agregado — ex.:
+// os 8 lançamentos por trás de "codcentro 11008 — R$ 60.464,15".
+function toggleReconGrupo(rid){
+  const detRow = document.getElementById('reconDet_'+rid);
+  const chev = document.getElementById('reconChev_'+rid);
+  if(!detRow) return;
+  const abrir = !detRow.classList.contains('open');
+  detRow.classList.toggle('open', abrir);
+  if(chev) chev.classList.toggle('is-open', abrir);
+
+  if(abrir && !detRow.dataset.built){
+    const grupo = reconGruposAtuais[rid];
+    const body = detRow.querySelector('.recon-subtable-body');
+    if(grupo && body){
+      const itensOrdenados = [...grupo.itens].sort((a,b)=>b.valor-a.valor);
+      body.innerHTML = itensOrdenados.map(it => {
+        const dataFmt = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
+        const tituloFmt = it.titulo ? it.titulo : '<span style="color:var(--ink-4)">(sem título/descrição na planilha de origem)</span>';
+        return `<tr><td>${dataFmt}</td><td>${tituloFmt}</td><td class="num">R$ ${fmtBRL(it.valor)}</td></tr>`;
+      }).join('');
+    }
+    detRow.dataset.built = '1';
+  }
 }
 
 function groupBy(arr,key){ return arr.reduce((a,r)=>{const k=r[key]??'N/A';a[k]=(a[k]||0)+r.valor;return a;},{}); }
