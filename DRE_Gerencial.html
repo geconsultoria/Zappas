@@ -729,6 +729,41 @@ tr.is-open .expand-hint { display: none; }
 .error-body span { font-size: 12px; color: var(--ink-2); line-height: 1.6; }
 
 /* ══════════════════════════════════════════════════════
+   CONCILIAÇÃO DO DE-PARA
+══════════════════════════════════════════════════════ */
+.recon-badge {
+  font-size: 11px; font-weight: 700;
+  padding: 6px 14px; border-radius: 20px;
+  letter-spacing: .04em; text-transform: uppercase;
+  white-space: nowrap; flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.recon-badge.ok   { background: var(--emerald-light); color: var(--emerald); }
+.recon-badge.warn { background: var(--amber-light);   color: var(--amber); }
+.recon-badge.bad  { background: var(--crimson-light); color: var(--crimson); }
+
+.recon-table-wrap { overflow-x: auto; }
+.recon-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.recon-table th {
+  padding: 8px 12px; text-align: left;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-4);
+  background: var(--surface-tint);
+  border-bottom: 2px solid var(--border);
+  white-space: nowrap;
+}
+.recon-table th.num, .recon-table td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-numeric); }
+.recon-table td { padding: 8px 12px; border-bottom: 1px solid #F0EDE6; color: var(--ink-2); vertical-align: top; }
+.recon-table tr:hover td { background: var(--bg-2); }
+.recon-pill { font-size: 9.5px; font-weight: 700; padding: 2px 8px; border-radius: 20px; letter-spacing: .04em; text-transform: uppercase; white-space: nowrap; }
+.recon-pill.despesa { background: var(--crimson-light); color: var(--crimson); }
+.recon-pill.receita { background: var(--navy-pale); color: var(--navy-mid); }
+.recon-pill.info    { background: var(--gold-pale); color: var(--amber); }
+.recon-empty { padding: 28px 20px; text-align: center; color: var(--ink-4); font-size: 12.5px; }
+.recon-empty strong { display:block; color: var(--emerald); font-size: 14px; margin-bottom: 4px; }
+
+/* ══════════════════════════════════════════════════════
    RESPONSIVE
 ══════════════════════════════════════════════════════ */
 @media (max-width: 1100px) {
@@ -1302,6 +1337,22 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </div>
 
+  <!-- CONCILIAÇÃO DO DE-PARA -->
+  <div class="section-head"><span class="section-title">Conciliação do De-Para</span><div class="section-line"></div></div>
+  <div class="dre-card" id="conciliacaoCard" style="margin-bottom:28px">
+    <div class="dre-card-header">
+      <div>
+        <div class="dre-card-title">Conferência de Classificação (De-Para)</div>
+        <div class="dre-card-sub">Confere se todos os lançamentos de Contas a Pagar (De-Para → Plano de Contas) e de Recebidos (De-Para → Categoria) foram classificados antes de entrar no DFC.</div>
+      </div>
+      <span class="recon-badge" id="reconBadge">—</span>
+    </div>
+    <div style="padding:22px 24px 6px">
+      <div class="kpi-grid" id="reconKpis" style="grid-template-columns:repeat(4,1fr);margin-bottom:6px"></div>
+    </div>
+    <div class="recon-table-wrap" id="reconDetalheWrap"></div>
+  </div>
+
   <!-- DRE TABLE -->
   <div class="section-head"><span class="section-title">DFC — Demonstração do Fluxo de Caixa</span><div class="section-line"></div></div>
   <div class="dre-card" style="margin-bottom:28px">
@@ -1396,6 +1447,16 @@ const MES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov
 const MES_FULL = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 let raw = [], filtered = [];
+
+// Conciliação do De-Para: guarda, a cada carregamento, quantos lançamentos
+// de Despesas (Contas a Pagar) e Receitas (Recebidos) foram classificados
+// com sucesso pelo de-para/plano de contas, e o detalhe de tudo que ficou
+// sem classificar (usado no painel "Conciliação do De-Para").
+let reconciliacao = {
+  despesas: { totalLinhas:0, semData:0, naoMapeado:0, classificadas:0, valorNaoMapeado:0, valorClassificado:0 },
+  receitas: { totalLinhas:0, naoMapeado:0, categoriaNaoPermitida:0, semPeriodo:0, classificadas:0, valorNaoMapeado:0, valorCategoriaNaoPermitida:0, valorClassificado:0 },
+  detalhe: []
+};
 let cMensal, cLoja, cGrupo, cSubgrupo;
 let avVisible = false;
 
@@ -1751,7 +1812,10 @@ function parseDtEntrada(s) {
 function parseRecebidosLoja(text, deparaMap, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  if(!lines.length) return [];
+  // naoMapeados: chave -> { count, valor, motivo }. stats: totais da conciliação de-para.
+  const naoMapeados = new Map();
+  const stats = { totalLinhas:0, naoMapeado:0, categoriaNaoPermitida:0, semPeriodo:0, classificadas:0, valorNaoMapeado:0, valorCategoriaNaoPermitida:0, valorSemPeriodo:0, valorClassificado:0 };
+  if(!lines.length) return { rows:[], naoMapeados, stats };
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
@@ -1780,17 +1844,34 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     const codPgto = g(iCodPgto);
     if(!codPgto) continue;
 
+    stats.totalLinhas++;
+
     let recebimento = deparaMap.get(String(codPgto).trim()) || '';
     if(!recebimento){
       const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
       recebimento = deparaMap.get(codNum) || '';
     }
-    if(!recebimento) continue;
+    if(!recebimento){
+      const cur = naoMapeados.get(codPgto) || { count:0, valor:0, motivo:'Código de pagamento não encontrado no De-Para' };
+      cur.count++; cur.valor += valor;
+      naoMapeados.set(codPgto, cur);
+      stats.naoMapeado++;
+      stats.valorNaoMapeado += valor;
+      continue;
+    }
 
     // Filtra: só categorias permitidas (Boleto, Convenio Cliente, Cartão, PIX, Dinheiro)
     const catNorm = normCat(recebimento);
     const permitida = CAT_PERMITIDAS.some(p => catNorm.includes(p));
-    if(!permitida) continue;
+    if(!permitida){
+      const key = codPgto+'|'+recebimento;
+      const cur = naoMapeados.get(key) || { count:0, valor:0, motivo:'Categoria "'+recebimento+'" existe no De-Para mas não é considerada no DFC (fora da lista de categorias permitidas)', info:true };
+      cur.count++; cur.valor += valor;
+      naoMapeados.set(key, cur);
+      stats.categoriaNaoPermitida++;
+      stats.valorCategoriaNaoPermitida += valor;
+      continue;
+    }
 
     // Extrai mês e ano. Nunca "chuta" o ano atual quando não dá pra
     // identificar o ano com segurança — isso jogava linhas de anos
@@ -1808,11 +1889,23 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     if(iAno>=0 && !ano) ano = parseInt(g(iAno));
     if(!mes) mes = dt ? dt.mes : null;
     if(!ano) ano = dt ? dt.ano : null;
-    if(!ano || !mes) continue; // sem mês/ano confiável, não dá pra classificar por período
+    if(!ano || !mes){
+      // Categoria já identificada, mas sem mês/ano confiável — reportado à parte
+      // (não é falha do de-para em si, mas também não entra no DFC).
+      const key = codPgto+'|'+recebimento+'|semperiodo';
+      const cur = naoMapeados.get(key) || { count:0, valor:0, motivo:'Categoria "'+recebimento+'" classificada, mas sem mês/ano identificável no lançamento', info:true };
+      cur.count++; cur.valor += valor;
+      naoMapeados.set(key, cur);
+      stats.semPeriodo++;
+      stats.valorSemPeriodo += valor;
+      continue;
+    }
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
 
+    stats.classificadas++;
+    stats.valorClassificado += valor;
     rows.push({
       mes, ano, loja, valor,
       grupo: 'RECEITA OPERACIONAL',
@@ -1820,7 +1913,7 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
       plano: padronizarDescricaoRecebimento(recebimento)
     });
   }
-  return rows;
+  return { rows, naoMapeados, stats };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1888,8 +1981,10 @@ function parseContasPagar(text, planoMap, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   const rows = [];
-  const naoMapeados = new Set();
-  if(!lines.length) return { rows, naoMapeados };
+  const naoMapeados = new Map(); // codCentro -> { count, valor }
+  // stats da conciliação de-para: usados no painel "Conciliação do De-Para"
+  const stats = { totalLinhas:0, semData:0, naoMapeado:0, classificadas:0, valorNaoMapeado:0, valorClassificado:0 };
+  if(!lines.length) return { rows, naoMapeados, stats };
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iLoja   = findCol(rawHeaders,'loja');
@@ -1910,7 +2005,7 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
     const dtPgto = g(iDtPgto);
-    if(!dtPgto) continue; // regime de caixa: sem pagamento, não entra no DRE
+    if(!dtPgto) continue; // regime de caixa: sem pagamento, não entra no DRE (não conta como "não classificado")
 
     const mes = parseMes(dtPgto);
     const ano = parseAno(dtPgto);
@@ -1919,20 +2014,29 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const valor = parseNum(g(iValor));
     if(!valor) continue;
 
+    stats.totalLinhas++;
+
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     const codCentroRaw = g(iCodCtr);
     const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10) || '');
     const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
 
     if(!info || !info.grupo){
-      naoMapeados.add(codCentroRaw || '(vazio)');
+      const key = codCentroRaw || '(vazio)';
+      const cur = naoMapeados.get(key) || { count:0, valor:0 };
+      cur.count++; cur.valor += valor;
+      naoMapeados.set(key, cur);
+      stats.naoMapeado++;
+      stats.valorNaoMapeado += valor;
       continue;
     }
     if(!loja) continue;
 
+    stats.classificadas++;
+    stats.valorClassificado += valor;
     rows.push({ mes, ano, loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo });
   }
-  return { rows, naoMapeados };
+  return { rows, naoMapeados, stats };
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -1993,12 +2097,12 @@ function openDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-async function saveCache(data,ts,rawTs){
+async function saveCache(data,ts,rawTs,recon){
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -2030,7 +2134,18 @@ function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
 /* ══════════════════════════════════════════════════════════════
    LOAD
 ══════════════════════════════════════════════════════════════ */
+// Soma campos numéricos de "src" dentro de "target" (usado para acumular as
+// stats de conciliação de cada loja num total geral).
+function acumularStats(target, src){
+  for(const k in src){ target[k] = (target[k]||0) + (src[k]||0); }
+}
+
 async function carregarTudo(){
+  // Zera a conciliação do De-Para a cada carregamento
+  reconciliacao.despesas = { totalLinhas:0, semData:0, naoMapeado:0, classificadas:0, valorNaoMapeado:0, valorClassificado:0 };
+  reconciliacao.receitas = { totalLinhas:0, naoMapeado:0, categoriaNaoPermitida:0, semPeriodo:0, classificadas:0, valorNaoMapeado:0, valorCategoriaNaoPermitida:0, valorClassificado:0 };
+  reconciliacao.detalhe = [];
+
   // ══════════════════════════════════════════════════════
   // 1. Busca de-para por loja (em paralelo)
   // ══════════════════════════════════════════════════════
@@ -2087,9 +2202,17 @@ async function carregarTudo(){
       const lojaKey = CTASPAGAR_STORE_KEYS[idx];
       try {
         const text = await fetchCSV(url);
-        const { rows, naoMapeados } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
+        const { rows, naoMapeados, stats } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
         rowsDespesas = rowsDespesas.concat(rows);
-        naoMapeados.forEach(c => naoMapeadosGeral.add(c));
+        naoMapeados.forEach((v,cod) => {
+          naoMapeadosGeral.add(cod);
+          reconciliacao.detalhe.push({
+            tipo:'despesa', loja: lojaKey.toUpperCase(), codigo: cod,
+            motivo: 'Código de centro de custo (codcentro) não encontrado no Plano de Contas',
+            qtd: v.count, valor: v.valor, info:false
+          });
+        });
+        acumularStats(reconciliacao.despesas, stats);
       } catch(e) {
         console.warn('Contas a pagar indisponível (' + lojaKey + '):', e.message);
       }
@@ -2118,8 +2241,15 @@ async function carregarTudo(){
         // Se o De-Para da própria loja veio vazio, usa o "global" (junção de todas as lojas) em vez
         // de zerar a Receita Operacional dessa loja — ver comentário acima de deparaMapGlobal.
         const lojaDepara = deparaProprio.size > 0 ? deparaProprio : deparaMapGlobal;
-        const rows = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
+        const { rows, naoMapeados, stats } = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
         rowsRecebimentos = rowsRecebimentos.concat(rows);
+        naoMapeados.forEach((v,key) => {
+          reconciliacao.detalhe.push({
+            tipo:'receita', loja: lojaKey.toUpperCase(), codigo: key.split('|')[0],
+            motivo: v.motivo, qtd: v.count, valor: v.valor, info: !!v.info
+          });
+        });
+        acumularStats(reconciliacao.receitas, stats);
       } catch(e) {
         console.warn('Recebidos indisponível (' + lojaKey + '):', e.message);
       }
@@ -2138,11 +2268,12 @@ async function carregarTudo(){
   if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
   populateFilters();
   applyFilters();
+  renderConciliacao();
   toggleFixHeader(true);
   document.getElementById('mainArea').style.display='block';
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
-  saveCache(raw, ts, Date.now());
+  saveCache(raw, ts, Date.now(), reconciliacao);
 }
 
 function showUpdateOverlay(){
@@ -2184,8 +2315,10 @@ async function loadData(forceRefresh, silent){
       const cached=await loadCacheDB();
       if(cached && cached.data && cached.data.length){
         raw=cached.data;
+        if(cached.recon) reconciliacao=cached.recon;
         populateFilters();
         applyFilters();
+        renderConciliacao();
         toggleFixHeader(true);
         document.getElementById('mainArea').style.display='block';
         const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
@@ -2271,6 +2404,94 @@ function render(){
   renderBreakEven();
   renderSimulador();
   renderRecomendacoes();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CONCILIAÇÃO DO DE-PARA
+   Demonstrativo independente dos filtros de Ano/Mês/Loja: mostra, para
+   Despesas (Contas a Pagar) e Receitas (Recebidos), quantos lançamentos
+   entraram no DFC já classificados pelo de-para e quantos ficaram de
+   fora (código sem correspondência, categoria fora da lista permitida,
+   ou sem mês/ano identificável), para o usuário conferir e corrigir a
+   planilha de de-para/plano de contas quando necessário.
+══════════════════════════════════════════════════════════════ */
+function renderConciliacao(){
+  const badge = document.getElementById('reconBadge');
+  const kpisEl = document.getElementById('reconKpis');
+  const wrapEl = document.getElementById('reconDetalheWrap');
+  if(!badge || !kpisEl || !wrapEl) return;
+
+  const d = reconciliacao.despesas, r = reconciliacao.receitas;
+
+  const totalLinhas       = d.totalLinhas + r.totalLinhas;
+  const totalClassificado = d.classificadas + r.classificadas;
+  // "Sem classificar": não achou correspondência no de-para/plano de contas,
+  // ou achou a categoria mas não deu pra identificar o período — ou seja,
+  // tudo que não é um filtro intencional de categoria fora do DFC.
+  const totalSemClass = d.naoMapeado + r.naoMapeado + r.semPeriodo;
+  const valorSemClass = d.valorNaoMapeado + r.valorNaoMapeado + (r.valorSemPeriodo||0);
+  const totalFiltrado = r.categoriaNaoPermitida; // informativo: categoria existe, mas fora do desenho do DFC
+  const valorFiltrado = r.valorCategoriaNaoPermitida||0;
+  const pctClass = totalLinhas ? (totalClassificado/totalLinhas*100) : 100;
+
+  if(totalSemClass === 0){
+    badge.className = 'recon-badge ok';
+    badge.textContent = '✓ 100% classificado';
+  } else {
+    badge.className = 'recon-badge ' + (pctClass < 97 ? 'bad' : 'warn');
+    badge.textContent = '⚠ ' + totalSemClass.toLocaleString('pt-BR') + ' lançamento(s) sem classificar';
+  }
+
+  kpisEl.innerHTML = `
+    <div class="kpi-card navy">
+      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Lançamentos Analisados</div>
+      <div class="kpi-value">${totalLinhas.toLocaleString('pt-BR')}</div>
+      <div class="kpi-sub">Despesas: <strong>${d.totalLinhas.toLocaleString('pt-BR')}</strong> · Receitas: <strong>${r.totalLinhas.toLocaleString('pt-BR')}</strong></div>
+    </div>
+    <div class="kpi-card emerald">
+      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Classificados no DFC</div>
+      <div class="kpi-value positive">${totalClassificado.toLocaleString('pt-BR')}</div>
+      <div class="kpi-sub"><strong>${pctClass.toFixed(1)}%</strong> do total analisado</div>
+    </div>
+    <div class="kpi-card crimson">
+      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Sem Classificar</div>
+      <div class="kpi-value ${totalSemClass?'negative':''}">${totalSemClass.toLocaleString('pt-BR')}</div>
+      <div class="kpi-sub">R$ ${fmtBRL(valorSemClass)}</div>
+    </div>
+    <div class="kpi-card gold">
+      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Categoria Filtrada do DFC</div>
+      <div class="kpi-value">${totalFiltrado.toLocaleString('pt-BR')}</div>
+      <div class="kpi-sub">R$ ${fmtBRL(valorFiltrado)} · informativo</div>
+    </div>`;
+
+  // Detalhe: tudo que não entrou classificado no DFC, agrupado por
+  // tipo/loja/código — ordenado por valor (maiores primeiro), pra facilitar
+  // priorizar o que corrigir primeiro na planilha de de-para.
+  const detalhe = [...reconciliacao.detalhe].sort((a,b)=>b.valor-a.valor);
+
+  if(!detalhe.length){
+    wrapEl.innerHTML = `<div class="recon-empty"><strong>✓ Nenhuma pendência encontrada</strong>Todos os lançamentos de Despesas e Receitas foram classificados com sucesso pelo De-Para.</div>`;
+    return;
+  }
+
+  const rowsHtml = detalhe.map(it => `
+    <tr>
+      <td><span class="recon-pill ${it.info?'info':it.tipo}">${it.info?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
+      <td>${it.loja||'—'}</td>
+      <td>${it.codigo||'—'}</td>
+      <td>${it.motivo}</td>
+      <td class="num">${it.qtd.toLocaleString('pt-BR')}</td>
+      <td class="num">R$ ${fmtBRL(it.valor)}</td>
+    </tr>`).join('');
+
+  wrapEl.innerHTML = `
+    <table class="recon-table">
+      <thead><tr>
+        <th>Tipo</th><th>Loja</th><th>Código</th><th>Motivo</th>
+        <th class="num">Lançamentos</th><th class="num">Valor (R$)</th>
+      </tr></thead>
+      <tbody>${rowsHtml}</tbody>
+    </table>`;
 }
 
 function groupBy(arr,key){ return arr.reduce((a,r)=>{const k=r[key]??'N/A';a[k]=(a[k]||0)+r.valor;return a;},{}); }
