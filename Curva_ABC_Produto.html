@@ -270,7 +270,6 @@ a.side-brand:hover { opacity:.85; }
 .ig-fselect option { color:#0f1923; }
 #f-ano { width: 68px; }
 #f-loja { width: 92px; }
-#f-grupo { width: 170px; }
 #f-classe { width: 80px; }
 
 /* ── Mês multi-select (mesmo padrão do filtro Canal da Análise Comercial) ── */
@@ -352,6 +351,97 @@ a.side-brand:hover { opacity:.85; }
 }
 .mes-item-label { font-size: 12px; font-weight: 500; color: var(--ink-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .mes-item.checked .mes-item-label { color: var(--amber); font-weight: 600; }
+
+/* ── Grupo multi-select (mesmo padrão do filtro Mês, com busca) ── */
+.grp-wrap { position: relative; }
+
+.grp-trigger {
+  font-family: var(--font-body);
+  font-size: 12.5px; font-weight: 500; color: #fff;
+  background: rgba(255,255,255,.08);
+  border: 1px solid rgba(255,255,255,.28);
+  border-radius: var(--r);
+  padding: 6px 26px 6px 10px;
+  cursor: pointer; white-space: nowrap;
+  min-width: 110px; max-width: 220px; flex-shrink: 0;
+  display: flex; align-items: center; gap: 6px;
+  transition: all .18s var(--ease);
+  user-select: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%23ffffff' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 9px center;
+}
+.grp-trigger:hover,
+.grp-trigger.open { border-color: var(--blue-mid); background-color: var(--surface); }
+.grp-trigger.open { box-shadow: 0 0 0 3px var(--blue-lt); }
+.grp-trigger.has-sel { border-color: var(--amber-mid); color: var(--amber); background-color: var(--amber-lt); }
+.grp-trigger.has-sel.open { box-shadow: 0 0 0 3px var(--amber-lt); }
+
+.grp-badge {
+  display: inline-flex; align-items: center; justify-content: center;
+  background: var(--amber-mid); color: #fff;
+  border-radius: 20px; font-size: 9px; font-weight: 800;
+  min-width: 16px; height: 16px; padding: 0 4px;
+  line-height: 1;
+}
+
+.grp-dropdown {
+  display: none;
+  position: fixed; top: 0; left: 0; z-index: 400;
+  background: var(--surface);
+  border: 1px solid var(--border-2);
+  border-radius: var(--r-lg);
+  box-shadow: var(--sh-lg);
+  min-width: 220px; max-width: 280px;
+  overflow: hidden;
+}
+.grp-dropdown.open { display: block; }
+
+.grp-dd-head {
+  padding: 9px 12px 7px;
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--surf-2);
+}
+.grp-dd-title { font-size: 9px; font-weight: 800; letter-spacing: .1em; text-transform: uppercase; color: var(--ink-4); }
+.grp-dd-actions { display: flex; gap: 8px; }
+.grp-dd-btn {
+  font-size: 9.5px; font-weight: 700; color: var(--blue-mid);
+  background: none; border: none; cursor: pointer; padding: 0;
+  letter-spacing: .03em; text-decoration: underline; text-underline-offset: 2px;
+}
+.grp-dd-btn:hover { color: var(--blue); }
+
+.grp-dd-search-wrap { padding: 7px 10px; border-bottom: 1px solid var(--border); }
+.grp-dd-search {
+  width: 100%; box-sizing: border-box;
+  font-family: var(--font-body); font-size: 12px; color: var(--ink);
+  background: var(--bg); border: 1px solid var(--border);
+  border-radius: var(--r); padding: 5px 9px;
+}
+.grp-dd-search::placeholder { color: var(--ink-4); }
+.grp-dd-search:focus { outline: none; border-color: var(--blue); box-shadow: 0 0 0 3px var(--blue-lt); }
+
+.grp-dd-list {
+  max-height: 260px; overflow-y: auto;
+  padding: 6px 0;
+}
+.grp-dd-list::-webkit-scrollbar { width: 4px; }
+.grp-dd-list::-webkit-scrollbar-track { background: transparent; }
+.grp-dd-list::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 4px; }
+
+.grp-item {
+  display: flex; align-items: center; gap: 9px;
+  padding: 7px 13px; cursor: pointer;
+  transition: background .12s;
+}
+.grp-item:hover { background: var(--bg); }
+.grp-item input[type=checkbox] {
+  width: 14px; height: 14px; flex-shrink: 0;
+  accent-color: var(--amber-mid); cursor: pointer;
+}
+.grp-item-label { font-size: 12px; font-weight: 500; color: var(--ink-2); flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.grp-item.checked .grp-item-label { color: var(--amber); font-weight: 600; }
+.grp-dd-empty { padding: 14px 13px; font-size: 11.5px; color: var(--ink-4); text-align: center; }
 
 /* ╔═══════════════════════════════════════╗
    ║  MAIN CONTENT                        ║
@@ -698,7 +788,28 @@ a.side-brand:hover { opacity:.85; }
       </div>
     </div>
     <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="f-loja"><option value="">Todas</option></select></div>
-    <div class="ig-fgroup"><span class="ig-flabel">Grupo</span><select class="ig-fselect" id="f-grupo"><option value="">Todos</option></select></div>
+    <div class="ig-fgroup">
+      <span class="ig-flabel">Grupo</span>
+      <div class="grp-wrap" id="grp-wrap">
+        <div class="grp-trigger" id="grp-trigger" onclick="toggleGrupoDropdown(event)">
+          <span id="grp-trigger-txt">Todos</span>
+          <span class="grp-badge" id="grp-badge" style="display:none"></span>
+        </div>
+        <div class="grp-dropdown" id="grp-dropdown">
+          <div class="grp-dd-head">
+            <span class="grp-dd-title">Grupos</span>
+            <div class="grp-dd-actions">
+              <button class="grp-dd-btn" type="button" onclick="selectAllGrupos()">Todos</button>
+              <button class="grp-dd-btn" type="button" onclick="clearAllGrupos()">Limpar</button>
+            </div>
+          </div>
+          <div class="grp-dd-search-wrap">
+            <input class="grp-dd-search" id="grp-dd-search" type="text" placeholder="Buscar grupo…" oninput="filterGrupoList(this.value)">
+          </div>
+          <div class="grp-dd-list" id="grp-dd-list"></div>
+        </div>
+      </div>
+    </div>
     <div class="ig-fgroup"><span class="ig-flabel">Classe</span>
       <select class="ig-fselect" id="f-classe">
         <option value="">Todas</option>
@@ -1167,7 +1278,6 @@ function populateFilters(){
   const grupos = [...new Set(rawData.map(r=>r.nomegrupo))].filter(Boolean).sort();
   const curAno = $('f-ano').value;
   const curLoja = $('f-loja').value;
-  const curGrupo = $('f-grupo').value;
 
   $('f-ano').innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option value="${a}">${a}</option>`).join('');
   if (anos.includes(+curAno)) {
@@ -1183,8 +1293,7 @@ function populateFilters(){
   $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l=>`<option value="${l}">${lojaLabel(l)}</option>`).join('');
   if(lojas.includes(curLoja)) $('f-loja').value = curLoja;
 
-  $('f-grupo').innerHTML = '<option value="">Todos</option>' + grupos.map(g=>`<option value="${g}">${g}</option>`).join('');
-  if(grupos.includes(curGrupo)) $('f-grupo').value = curGrupo;
+  populateGrupoDropdown(grupos);
 }
 
 /* ── Mês multi-select (mesmo padrão do filtro Canal da Análise Comercial) ──
@@ -1276,7 +1385,116 @@ document.addEventListener('click', e => {
     if(dd) dd.classList.remove('open');
     if(tr) tr.classList.remove('open');
   }
+  if(!e.target.closest('#grp-wrap')){
+    const dd = $('grp-dropdown');
+    const tr = $('grp-trigger');
+    if(dd) dd.classList.remove('open');
+    if(tr) tr.classList.remove('open');
+  }
 });
+
+/* ── Grupo multi-select (mesmo padrão do filtro Mês) ──
+   selectedGrupos: Set com os nomes de grupo marcados.
+   Set vazio = "Todos" (nenhum filtro de grupo aplicado). */
+let selectedGrupos = new Set();
+let gruposDisponiveis = [];
+
+function populateGrupoDropdown(grupos){
+  gruposDisponiveis = grupos;
+  // Mantém apenas seleções que ainda existem na lista atual de grupos.
+  selectedGrupos = new Set([...selectedGrupos].filter(g => grupos.includes(g)));
+  const search = $('grp-dd-search');
+  if(search) search.value = '';
+  renderGrupoList(grupos);
+  updateGrupoTrigger();
+}
+
+function renderGrupoList(grupos){
+  const list = $('grp-dd-list');
+  list.innerHTML = '';
+  if(!grupos.length){
+    list.innerHTML = '<div class="grp-dd-empty">Nenhum grupo encontrado</div>';
+    return;
+  }
+  grupos.forEach(g => {
+    const isChecked = selectedGrupos.has(g);
+    const item = document.createElement('label');
+    item.className = 'grp-item' + (isChecked ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${g.replace(/"/g,'&quot;')}" ${isChecked?'checked':''} onchange="onGrupoChange(this)">
+      <span class="grp-item-label">${g}</span>`;
+    list.appendChild(item);
+  });
+}
+
+function filterGrupoList(term){
+  const t = (term||'').toLowerCase().trim();
+  const filtered = t ? gruposDisponiveis.filter(g => g.toLowerCase().includes(t)) : gruposDisponiveis;
+  renderGrupoList(filtered);
+}
+
+function onGrupoChange(cb){
+  const grupo = cb.value;
+  if(cb.checked) selectedGrupos.add(grupo);
+  else selectedGrupos.delete(grupo);
+  // Se todos os grupos disponíveis acabaram marcados, equivale a "Todos" (Set vazio).
+  if(gruposDisponiveis.length && selectedGrupos.size === gruposDisponiveis.length) selectedGrupos.clear();
+  cb.closest('.grp-item').classList.toggle('checked', cb.checked && selectedGrupos.size > 0);
+  updateGrupoTrigger();
+  applyFilters();
+}
+
+function selectAllGrupos(){
+  selectedGrupos.clear();
+  $('grp-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = false;
+    cb.closest('.grp-item').classList.remove('checked');
+  });
+  updateGrupoTrigger();
+  applyFilters();
+}
+
+function clearAllGrupos(){
+  selectAllGrupos();
+}
+
+function updateGrupoTrigger(){
+  const n = selectedGrupos.size;
+  const badge = $('grp-badge');
+  const txt = $('grp-trigger-txt');
+  const trigger = $('grp-trigger');
+
+  if(n === 0){
+    txt.textContent = 'Todos';
+    badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else if(n === 1){
+    const [g] = selectedGrupos;
+    txt.textContent = g;
+    badge.style.display = 'none';
+    trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} grupos`;
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+    trigger.classList.add('has-sel');
+  }
+}
+
+function toggleGrupoDropdown(e){
+  e.stopPropagation();
+  const dd = $('grp-dropdown');
+  const trigger = $('grp-trigger');
+  const isOpen = dd.classList.toggle('open');
+  trigger.classList.toggle('open', isOpen);
+  if(isOpen){
+    const r = trigger.getBoundingClientRect();
+    dd.style.top = (r.bottom + 6) + 'px';
+    dd.style.left = r.left + 'px';
+    const search = $('grp-dd-search');
+    if(search) search.focus();
+  }
+}
 
 /* Filtros que definem o universo usado para calcular a curva
    (ano/mês/loja/grupo) — mudar qualquer um deles recalcula o
@@ -1284,13 +1502,12 @@ document.addEventListener('click', e => {
 function getBaseFiltered(){
   const ano = $('f-ano').value ? +$('f-ano').value : null;
   const loja = $('f-loja').value || null;
-  const grupo = $('f-grupo').value || null;
 
   return rawData.filter(r => {
     if(ano && r.ano !== ano) return false;
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return false;
     if(loja && r.loja !== loja) return false;
-    if(grupo && r.nomegrupo !== grupo) return false;
+    if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
     return true;
   });
 }
@@ -1529,7 +1746,7 @@ function setMensalDisplayMode(mode){
   applyFilters();
 }
 
-['f-ano','f-loja','f-grupo','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
+['f-ano','f-loja','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
 $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer); window._buscaTimer = setTimeout(applyFilters, 200); });
 
 /* ══════════════════════════════════════════════════════════════
@@ -1553,12 +1770,11 @@ function applyFilters(){
    independente do que estiver selecionado no filtro Loja do topo. */
 function getBaseFiltradoSemLoja(){
   const ano = $('f-ano').value ? +$('f-ano').value : null;
-  const grupo = $('f-grupo').value || null;
 
   return rawData.filter(r => {
     if(ano && r.ano !== ano) return false;
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return false;
-    if(grupo && r.nomegrupo !== grupo) return false;
+    if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
     return true;
   });
 }
