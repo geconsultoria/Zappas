@@ -2310,10 +2310,15 @@ async function carregarTudo(){
   raw = [...rowsRecebimentos, ...rowsDespSemReceita];
   if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
   reconciliacaoPronta = true;
+  // Precisa mostrar a área ANTES de popular/filtrar: com "display:none" a
+  // tabela tem largura zero, e o cabeçalho fixo mede as colunas com 0px
+  // (então "if(widths[i])" pula o ajuste de largura e cada coluna do clone
+  // fica com tamanho próprio, deslocado da tabela real — por isso o
+  // desalinhamento só no primeiro carregamento, sumindo ao trocar de filtro).
+  document.getElementById('mainArea').style.display='block';
   populateFilters();
   applyFilters(); // aciona render() -> renderConciliacao(), já com os dados novos
   toggleFixHeader(true);
-  document.getElementById('mainArea').style.display='block';
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
   saveCache(raw, ts, Date.now(), reconciliacao);
@@ -2367,10 +2372,13 @@ async function loadData(forceRefresh, silent){
           reconciliacao = cached.recon;
           reconciliacaoPronta = true;
         }
+        // Mesmo motivo do outro carregamento (ver comentário abaixo, em
+        // carregarTudo): mostrar antes de renderizar, senão a tabela mede
+        // largura zero e o cabeçalho fixo nasce desalinhado.
+        document.getElementById('mainArea').style.display='block';
         populateFilters();
         applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
-        document.getElementById('mainArea').style.display='block';
         const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
         if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
