@@ -1552,6 +1552,15 @@ const DEPARA_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=de
 // ══════════════════════════════════════════════════════════════
 const VENDAS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const VENDAS_URLS = VENDAS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?loja=${k}`);
+
+// ══════════════════════════════════════════════════════════════
+// NOVO: Curva ABC de Produtos (por loja) — usado como CMV (Produto) do
+// "DRE Gerencial": custo real lançado por produto vendido (custofinal ×
+// qtd), em vez do CMV (Compra) que vem do Contas a Pagar/Plano de Contas
+// (usado no DFC). Mesmo endpoint/padrão do Curva_ABC_Produto.html.
+// ══════════════════════════════════════════════════════════════
+const CURVAABC_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const CURVAABC_URLS = CURVAABC_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=curvaabc&loja=${k}`);
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -1570,6 +1579,11 @@ let raw = [], filtered = [];
 // Cada item: {loja, ano, mes, valor}. filteredVendas segue os mesmos
 // filtros Ano/Mês/Loja aplicados a "filtered" (ver applyFilters()).
 let vendasRaw = [], filteredVendas = [];
+
+// Custo do produto (Curva ABC) — CMV (Produto) do "DRE Gerencial".
+// Cada item: {loja, ano, mes, valor}. filteredCusto segue os mesmos
+// filtros Ano/Mês/Loja aplicados a "filtered" (ver applyFilters()).
+let custoProdutoRaw = [], filteredCusto = [];
 
 // Aba ativa da tabela DRE: 'dfc' (Fluxo de Caixa, como sempre foi),
 // 'gerencial' (mesma estrutura, mas Receita = faturamento da Análise
@@ -2252,18 +2266,79 @@ function parseVendas(text, lojaFallback){
     // Delivery ou Central — os mesmos usados pra montar o total da
     // Análise Comercial. Se a planilha não tiver coluna de canal, assume
     // que a linha já é só desses canais (comportamento anterior).
+    let canalMatch = '';
     if(iCanal>=0){
       const canal = normKey(g(iCanal));
       // match exato OU parcial (ex.: "loja fisica", "central de vendas")
       // pra não zerar tudo se o texto do canal na planilha vier com
       // palavras a mais em volta de loja/delivery/central.
-      const bate = CANAIS_FATURAMENTO.some(c => canal===c || canal.includes(c));
-      if(!bate) continue;
+      canalMatch = CANAIS_FATURAMENTO.find(c => canal===c || canal.includes(c)) || '';
+      if(!canalMatch) continue;
     }
+
+    rows.push({ mes, ano, loja, valor, canal: canalMatch });
+  }
+  return rows;
+}
+
+/* ══════════════════════════════════════════════════════════════
+   CURVA ABC DE PRODUTOS — CMV (Produto)
+   Custo real lançado por produto vendido (custofinal × qtd), somado por
+   loja/mês. Mesma fonte/colunas do Curva_ABC_Produto.html; aqui só
+   precisamos do custo total, não do detalhe por produto.
+══════════════════════════════════════════════════════════════ */
+function parseCurvaABC(text, lojaFallback){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = [];
+  if(!lines.length) return rows;
+
+  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iData  = findCol(rawHeaders,'data');
+  const iAno   = findCol(rawHeaders,'ano');
+  const iMes   = findCol(rawHeaders,'mes');
+  const iCusto = findCol(rawHeaders,'custofinal','custo','custounitario');
+  const iQtd   = findCol(rawHeaders,'qtd','quantidade');
+  const iLoja  = findCol(rawHeaders,'loja');
+  if(iCusto<0 || iQtd<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
+
+  for(let i=1;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+    const cells = splitLine(line,sep);
+    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
+
+    let ano = iAno>=0 ? parseInt(g(iAno),10) : null;
+    let mes = iMes>=0 ? (/^\d{1,2}$/.test(g(iMes)) ? parseInt(g(iMes),10) : parseMesAbr(g(iMes))) : null;
+    if((!ano || !mes) && iData>=0){
+      const dt = parseDataBRSimples(g(iData));
+      if(dt){ if(!ano) ano=dt.ano; if(!mes) mes=dt.mes; }
+    }
+    if(!ano || !mes) continue;
+
+    const qtd = parseNum(g(iQtd));
+    const custoUnit = parseNum(g(iCusto));
+    const valor = custoUnit * qtd;
+    if(!valor) continue;
+
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    if(!loja) continue;
 
     rows.push({ mes, ano, loja, valor });
   }
   return rows;
+}
+
+// Parser simples de data dd/mm/aaaa (ou aaaa-mm-dd) — usado só pelo Curva
+// ABC quando a planilha não tem colunas separadas de ano/mês.
+function parseDataBRSimples(s){
+  if(!s) return null;
+  s = String(s).trim();
+  let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
+  if(m) return { mes: parseInt(m[2],10), ano: parseInt(m[3],10) };
+  m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(m) return { mes: parseInt(m[2],10), ano: parseInt(m[1],10) };
+  return null;
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2324,12 +2399,12 @@ function openDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-async function saveCache(data,ts,rawTs,recon,vendas){
+async function saveCache(data,ts,rawTs,recon,vendas,custo){
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -2488,6 +2563,31 @@ async function carregarTudo(){
   }
   vendasRaw = rowsVendas;
 
+  // ══════════════════════════════════════════════════════
+  // 6. Busca Curva ABC de Produtos (por loja) — CMV (Produto) do
+  //    "DRE Gerencial" (não bloqueia o carregamento se falhar: o DFC
+  //    continua funcionando normalmente com o CMV (Compra) de sempre).
+  // ══════════════════════════════════════════════════════
+  document.getElementById('loaderMsg').textContent='Carregando custo de produtos…';
+  let rowsCusto = [];
+  const BATCH_CUSTO = 2;
+  for (let i = 0; i < CURVAABC_URLS.length; i += BATCH_CUSTO) {
+    const grupoUrls = CURVAABC_URLS.slice(i, i + BATCH_CUSTO);
+    document.getElementById('loaderMsg').textContent =
+      'Carregando custo de produtos (' + Math.min(i+BATCH_CUSTO, CURVAABC_URLS.length) + '/' + CURVAABC_URLS.length + ')…';
+    await Promise.all(grupoUrls.map(async (url, j) => {
+      const idx = i + j;
+      const lojaKey = CURVAABC_STORE_KEYS[idx];
+      try {
+        const text = await fetchCSV(url);
+        rowsCusto = rowsCusto.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
+      } catch(e) {
+        console.warn('Custo de produtos indisponível (' + lojaKey + '):', e.message);
+      }
+    }));
+  }
+  custoProdutoRaw = rowsCusto;
+
   document.getElementById('loaderMsg').textContent='Processando dados…';
 
   /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
@@ -2510,7 +2610,7 @@ async function carregarTudo(){
   toggleFixHeader(true);
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
-  saveCache(raw, ts, Date.now(), reconciliacao, vendasRaw);
+  saveCache(raw, ts, Date.now(), reconciliacao, vendasRaw, custoProdutoRaw);
 }
 
 function showUpdateOverlay(){
@@ -2566,6 +2666,10 @@ async function loadData(forceRefresh, silent){
         // segundo plano pra preencher a Receita dessa aba nova.
         const vendasAusente = !Array.isArray(cached.vendas);
         vendasRaw = cached.vendas || [];
+        // Cache salvo antes do CMV (Produto) existir não tem custo de
+        // produtos — mesmo raciocínio do vendasAusente acima.
+        const custoAusente = !Array.isArray(cached.custo);
+        custoProdutoRaw = cached.custo || [];
         // Mesmo motivo do outro carregamento (ver comentário abaixo, em
         // carregarTudo): mostrar antes de renderizar, senão a tabela mede
         // largura zero e o cabeçalho fixo nasce desalinhado.
@@ -2573,7 +2677,7 @@ async function loadData(forceRefresh, silent){
         populateFilters();
         applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
-        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente || vendasAusente;
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente || vendasAusente || custoAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
         if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
         return;
@@ -2717,6 +2821,12 @@ function applyFilters(){
     return true;
   });
   filteredVendas=vendasRaw.filter(r=>{
+    if(ano&&String(r.ano)!==ano) return false;
+    if(meses.length&&!meses.includes(Number(r.mes))) return false;
+    if(loja&&r.loja!==loja) return false;
+    return true;
+  });
+  filteredCusto=custoProdutoRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(loja&&r.loja!==loja) return false;
@@ -3272,13 +3382,35 @@ function renderDRE(){
     });
     return out;
   }
+  // Mesmo total acima, mas só de um canal (Loja/Delivery/Central) — usado
+  // pra abrir a linha "Receitas" do DRE Gerencial nesses 3 componentes.
+  function vendasCanalColVals(canal){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredVendas.forEach(v=>{
+      if(v.canal!==canal) return;
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
+  // CMV (Produto): custo real lançado por produto vendido (Curva ABC),
+  // usado como CMV do "DRE Gerencial" em vez do CMV (Compra) do Contas a
+  // Pagar/Plano de Contas (usado no DFC).
+  function custoColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredCusto.forEach(v=>{
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
 
   /* ── Calcular resultados ── */
   const rec = dreView==='gerencial' ? vendasColVals() : slugColVals('receita_operacional');
   const imp=slugColVals('impostos_vendas');
   const ded=slugColVals('deducoes_vendas');
   const recLiq={}; cols.forEach(c=>recLiq[c]=rec[c]-imp[c]-ded[c]);
-  const cmv=slugColVals('cmv');
+  const cmv = dreView==='gerencial' ? custoColVals() : slugColVals('cmv');
   const lucroBruto={}; cols.forEach(c=>lucroBruto[c]=recLiq[c]-cmv[c]);
   const despCom=slugColVals('despesas_comerciais');
   const despPes=slugColVals('despesas_pessoal');
@@ -3378,19 +3510,30 @@ function renderDRE(){
     }
 
     /* No DRE Gerencial, a Receita Operacional vem do faturamento da Análise
-       Comercial (Loja/Delivery/Central), que não tem a mesma quebra por
-       grupo/subgrupo/plano dos Recebimentos classificados (base do DFC).
-       Por isso, nessa view, mostra só uma linha-resumo (sem expandir) em
-       vez da árvore de "Recebimentos" (BOLETO, CARTÃO/PIX etc.) — que é
-       dado do DFC e não reflete o faturamento pedido. */
+       Comercial, que não tem a mesma quebra por grupo/subgrupo/plano dos
+       Recebimentos classificados (base do DFC) — não expande na árvore de
+       "Recebimentos" (BOLETO, CARTÃO/PIX etc.), que é dado do DFC. Em vez
+       disso, abre nos 3 canais que compõem o faturamento: Loja, Delivery
+       e Central. */
     if(slot.slug==='receita_operacional' && dreView==='gerencial'){
       const totBase=rowTotal(rec);
-      html+=`<tr class="row-group" style="cursor:default">
-        <td><span class="dre-sign">${slot.sign}</span>Receitas</td>
+      const gId=uid();
+      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+        <td>${CHEVRON}<span class="dre-sign">${slot.sign}</span>Receitas<span class="expand-hint">expandir</span></td>
         ${cols.map(c=>`<td>${cellVal(rec[c]||0)}</td>${avCell(rec[c]||0,rec[c]||0)}`).join('')}
         <td style="font-weight:700">${cellVal(totBase)}</td>
         ${avCell(totBase,totBase)}
       </tr>`;
+      [['loja','Loja'],['delivery','Delivery'],['central','Central']].forEach(([canalKey,canalLabel])=>{
+        const cVals=vendasCanalColVals(canalKey);
+        const cTot=rowTotal(cVals);
+        html+=`<tr class="row-item" data-parent="${gId}">
+          <td>${canalLabel}</td>
+          ${cols.map(c=>`<td>${cellVal(cVals[c]||0)}</td>${avCell(cVals[c]||0,rec[c]||0)}`).join('')}
+          <td>${cellVal(cTot)}</td>
+          ${avCell(cTot,totBase)}
+        </tr>`;
+      });
       return;
     }
 
@@ -3610,13 +3753,35 @@ function renderDREConsolidado(){
     });
     return out;
   }
+  // Mesmo total acima, mas só de um canal (Loja/Delivery/Central) — usado
+  // pra abrir a linha "Receitas" nesses 3 componentes + os 4 do DFC.
+  function vendasCanalColVals(canal){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredVendas.forEach(v=>{
+      if(v.canal!==canal) return;
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
+  // CMV (Produto) — custo real da Curva ABC, usado no lado "DRE Ger." da
+  // comparação (o lado DFC continua com o CMV (Compra), via slugColVals).
+  function custoColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredCusto.forEach(v=>{
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
   function rowTotal(vals){ return cols.reduce((s,c)=>s+(vals[c]||0),0); }
 
   const recDfc = slugColVals('receita_operacional');
   const recGer = vendasColVals();
   const imp    = slugColVals('impostos_vendas');
   const ded    = slugColVals('deducoes_vendas');
-  const cmv    = slugColVals('cmv');
+  const cmvDfc = slugColVals('cmv');
+  const cmvGer = custoColVals();
   const despCom= slugColVals('despesas_comerciais');
   const despPes= slugColVals('despesas_pessoal');
   const despAdm= slugColVals('despesas_administrativas');
@@ -3637,11 +3802,11 @@ function renderDREConsolidado(){
     }
   });
 
-  function calcResultados(recMap){
+  function calcResultados(recMap,cmvMap){
     const recLiq={}, lucroBruto={}, resOp={}, ebitda={}, resIr={}, resLiq={};
     cols.forEach(c=>{
       recLiq[c]=recMap[c]-imp[c]-ded[c];
-      lucroBruto[c]=recLiq[c]-cmv[c];
+      lucroBruto[c]=recLiq[c]-cmvMap[c];
       resOp[c]=lucroBruto[c]-despCom[c]-despPes[c]-despAdm[c]-despFin[c]-proLab[c];
       ebitda[c]=resOp[c]+(jurosPorCol[c]||0);
       resIr[c]=resOp[c]-distLuc[c]-irCsll[c];
@@ -3651,8 +3816,8 @@ function renderDREConsolidado(){
       '__resultado_op__':resOp,'__ebitda__':ebitda,
       '__res_ir__':resIr,'__res_liq__':resLiq };
   }
-  const resGer = calcResultados(recGer);
-  const resDfc = calcResultados(recDfc);
+  const resGer = calcResultados(recGer,cmvGer);
+  const resDfc = calcResultados(recDfc,cmvDfc);
 
   /* ── Layout: Conta + (Ger/DFC/Dif) por coluna + (Ger/DFC/Dif) do Total ── */
   const totalCols = () => 1 + cols.length*3 + 3;
@@ -3704,26 +3869,62 @@ function renderDREConsolidado(){
 
     /* Receita Operacional é especial: o faturamento (DRE Gerencial) não
        tem a mesma quebra por grupo/subgrupo/plano que o Recebido
-       classificado (DFC) — por isso mostra só uma linha-resumo em vez
-       de expandir por conta, diferente dos outros grupos. */
+       classificado (DFC) — são duas classificações diferentes da mesma
+       receita. Por isso a linha abre nos dois conjuntos, lado a lado:
+       os 3 canais do faturamento (Loja/Delivery/Central, só na coluna
+       Ger.) e as 4 categorias do Recebido classificado (BOLETO/CONVENIO
+       CLIENTE, CARTÃO/PIX, CONVENIO FUNCIONARIOS, DINHEIRO, só na coluna
+       DFC) — cada linha preenchida de um lado e zerada do outro. */
     if(slot.slug==='receita_operacional'){
-      html+=`<tr class="row-group" style="cursor:default">
-        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+      const gId=uid();
+      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+        <td>${CHEVRON}<span class="dre-sign">${slot.sign}</span>${slot.label}<span class="expand-hint">expandir</span></td>
         ${cols.map(c=>triple(recGer[c]||0,recDfc[c]||0,cellVal)).join('')}
         ${triple(rowTotal(recGer),rowTotal(recDfc),cellVal)}
       </tr>`;
+      [['loja','Loja'],['delivery','Delivery'],['central','Central']].forEach(([canalKey,canalLabel])=>{
+        const cVals=vendasCanalColVals(canalKey);
+        html+=`<tr class="row-item" data-parent="${gId}">
+          <td>${canalLabel}</td>
+          ${cols.map(c=>triple(cVals[c]||0,0,cellVal)).join('')}
+          ${triple(rowTotal(cVals),0,cellVal)}
+        </tr>`;
+      });
+      // Categorias do Recebido classificado (DFC) — agrega todos os
+      // grupos/subgrupos mapeados pra receita_operacional, por "plano"
+      // (é aí que fica o nome real da categoria: BOLETO/CONVENIO
+      // CLIENTE, CARTÃO/PIX etc.), sem depender do nome exato do grupo.
+      const planoValsDfc={};
+      (slugToGruposMap['receita_operacional']||[]).forEach(g=>{
+        Object.keys(tree[g]||{}).forEach(sub=>{
+          Object.keys((tree[g]||{})[sub]||{}).forEach(plano=>{
+            if(!planoValsDfc[plano]) planoValsDfc[plano]={};
+            cols.forEach(c=>{ planoValsDfc[plano][c]=(planoValsDfc[plano][c]||0)+((tree[g][sub][plano]||{})[c]||0); });
+          });
+        });
+      });
+      Object.keys(planoValsDfc).sort().forEach(plano=>{
+        const pVals=planoValsDfc[plano];
+        html+=`<tr class="row-item" data-parent="${gId}">
+          <td>${plano}</td>
+          ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
+          ${triple(0,rowTotal(pVals),cellVal)}
+        </tr>`;
+      });
       return;
     }
 
-    /* CMV: mesma ideia da Receita Operacional acima — em vez de expandir
-       os subgrupos reais (Matéria Prima, Revenda etc.), mostra uma
-       linha-resumo única "Custo Mercadoria Vendida" (Ger/DFC/Diferença),
-       igual ao que o DRE Gerencial já faz sozinho. */
+    /* CMV: no lado "DRE Ger." usa o custo do produto (Curva ABC); no
+       lado "DFC" usa o CMV apurado via Contas a Pagar + Plano de
+       Contas — igual ao DRE Gerencial sozinho, mas agora com Diferença
+       de verdade (as duas fontes já são diferentes, ao contrário dos
+       outros grupos de despesa que ainda aguardam a planilha por
+       vencimento). */
     if(slot.slug==='cmv'){
       html+=`<tr class="row-group" style="cursor:default">
         <td><span class="dre-sign">${slot.sign}</span>Custo Mercadoria Vendida</td>
-        ${cols.map(c=>triple(cmv[c]||0,cmv[c]||0,cellVal,true)).join('')}
-        ${triple(rowTotal(cmv),rowTotal(cmv),cellVal,true)}
+        ${cols.map(c=>triple(cmvGer[c]||0,cmvDfc[c]||0,cellVal,true)).join('')}
+        ${triple(rowTotal(cmvGer),rowTotal(cmvDfc),cellVal,true)}
       </tr>`;
       return;
     }
