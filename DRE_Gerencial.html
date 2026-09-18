@@ -532,12 +532,23 @@ body {
   border-left: 1px dashed var(--border) !important;
 }
 .av-header {
-  font-size: 9px !important;
+  font-size: 10px !important;
+  font-weight: 700 !important;
   color: var(--ink-4) !important;
-  letter-spacing: .06em !important;
-  font-style: italic;
-  text-transform: none !important;
+  letter-spacing: .07em !important;
+  text-transform: uppercase !important;
 }
+/* Cabeçalho de agrupamento (nome da loja/mês) no DRE x DFC, acima das
+   3 subcolunas DRE Ger./DFC/Dif. — mesmo padrão visual dos outros
+   cabeçalhos (negrito, mesmo tamanho), só centralizado por abranger 3
+   colunas. */
+.dre-th-groupname {
+  text-align: center !important;
+  border-bottom: 1px solid var(--border) !important;
+}
+/* Evita a 2ª linha do cabeçalho (DRE Ger./DFC/Dif.) sobrepor a 1ª
+   (nome da loja/mês) quando as duas ficam "position:sticky" juntas. */
+.dre-table thead tr:nth-child(2) th { top: 33px; }
 .av-pos { color: var(--emerald-mid) !important; font-weight: 600 !important; }
 .av-neg { color: var(--crimson) !important; font-weight: 600 !important; }
 .av-neutral { color: var(--ink-3) !important; }
@@ -1461,7 +1472,7 @@ a.side-brand:hover { opacity:.85; }
   <div class="dre-view-tabs" id="dreViewTabs">
     <button class="dre-view-tab is-active" data-view="dfc" onclick="setDreView('dfc')">DFC — Fluxo de Caixa</button>
     <button class="dre-view-tab" data-view="gerencial" onclick="setDreView('gerencial')">DRE Gerencial</button>
-    <button class="dre-view-tab" data-view="consolidado" onclick="setDreView('consolidado')">DRE Consolidado</button>
+    <button class="dre-view-tab" data-view="consolidado" onclick="setDreView('consolidado')">DRE x DFC</button>
   </div>
   <div class="dre-card" style="margin-bottom:28px">
     <div class="dre-card-header">
@@ -3519,7 +3530,14 @@ function renderDRE(){
       const totBase=rowTotal(rec);
       const gId=uid();
       html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
-        <td>${CHEVRON}<span class="dre-sign">${slot.sign}</span>Receitas<span class="expand-hint">expandir</span></td>
+        <td>${CHEVRON}<span class="dre-sign">${slot.sign}</span>Receita Operacional<span class="expand-hint">expandir</span></td>
+        ${cols.map(c=>`<td>${cellVal(rec[c]||0)}</td>${avCell(rec[c]||0,rec[c]||0)}`).join('')}
+        <td style="font-weight:700">${cellVal(totBase)}</td>
+        ${avCell(totBase,totBase)}
+      </tr>`;
+      const sId=uid();
+      html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+        <td>${CHEVRON}Faturamento<span class="expand-hint">expandir</span></td>
         ${cols.map(c=>`<td>${cellVal(rec[c]||0)}</td>${avCell(rec[c]||0,rec[c]||0)}`).join('')}
         <td style="font-weight:700">${cellVal(totBase)}</td>
         ${avCell(totBase,totBase)}
@@ -3527,7 +3545,7 @@ function renderDRE(){
       [['loja','Loja'],['delivery','Delivery'],['central','Central']].forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
         const cTot=rowTotal(cVals);
-        html+=`<tr class="row-item" data-parent="${gId}">
+        html+=`<tr class="row-item" data-parent="${sId}">
           <td>${canalLabel}</td>
           ${cols.map(c=>`<td>${cellVal(cVals[c]||0)}</td>${avCell(cVals[c]||0,rec[c]||0)}`).join('')}
           <td>${cellVal(cTot)}</td>
@@ -3673,7 +3691,7 @@ function setDreView(view){
   const titles = {
     dfc: 'DFC - Demonstração do Fluxo de Caixa',
     gerencial: 'DRE Gerencial',
-    consolidado: 'DRE Consolidado — DRE Gerencial × DFC',
+    consolidado: 'DRE Gerencial × DFC',
   };
   const titleEl = document.getElementById('dreCardTitle');
   if(titleEl) titleEl.textContent = titles[view] || titles.dfc;
@@ -3822,11 +3840,16 @@ function renderDREConsolidado(){
   /* ── Layout: Conta + (Ger/DFC/Dif) por coluna + (Ger/DFC/Dif) do Total ── */
   const totalCols = () => 1 + cols.length*3 + 3;
 
-  document.getElementById('dreThead').innerHTML = `<tr>
-    <th style="min-width:320px">Conta</th>
-    ${cols.map(c=>`<th>${colLabel(c)} · DRE Ger.</th><th class="av-header av-col">DFC</th><th class="av-header av-col">Dif.</th>`).join('')}
-    <th>Total · DRE Ger.</th><th class="av-header av-col">Total · DFC</th><th class="av-header av-col">Total · Dif.</th>
-  </tr>`;
+  document.getElementById('dreThead').innerHTML = `
+    <tr>
+      <th rowspan="2" style="min-width:320px">Conta</th>
+      ${cols.map(c=>`<th colspan="3" class="dre-th-groupname">${colLabel(c)}</th>`).join('')}
+      <th colspan="3" class="dre-th-groupname">Total</th>
+    </tr>
+    <tr>
+      ${cols.map(()=>`<th>DRE Ger.</th><th class="av-header av-col">DFC</th><th class="av-header av-col">Dif.</th>`).join('')}
+      <th>DRE Ger.</th><th class="av-header av-col">DFC</th><th class="av-header av-col">Dif.</th>
+    </tr>`;
 
   function cellVal(v){
     if(Math.abs(v)<0.005) return `<span class="val-zero">—</span>`;
@@ -3882,9 +3905,15 @@ function renderDREConsolidado(){
         ${cols.map(c=>triple(recGer[c]||0,recDfc[c]||0,cellVal)).join('')}
         ${triple(rowTotal(recGer),rowTotal(recDfc),cellVal)}
       </tr>`;
+      const sId=uid();
+      html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+        <td>${CHEVRON}Faturamento<span class="expand-hint">expandir</span></td>
+        ${cols.map(c=>triple(recGer[c]||0,0,cellVal)).join('')}
+        ${triple(rowTotal(recGer),0,cellVal)}
+      </tr>`;
       [['loja','Loja'],['delivery','Delivery'],['central','Central']].forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
-        html+=`<tr class="row-item" data-parent="${gId}">
+        html+=`<tr class="row-item" data-parent="${sId}">
           <td>${canalLabel}</td>
           ${cols.map(c=>triple(cVals[c]||0,0,cellVal)).join('')}
           ${triple(rowTotal(cVals),0,cellVal)}
