@@ -146,6 +146,34 @@ body {
   padding: 6px 12px; cursor: pointer; letter-spacing: .04em; text-transform: uppercase; transition: var(--transition);
 }
 .ig-btn-clear:hover { background: rgba(255,255,255,.18); color:#fff; }
+
+/* Mês: multi-select (dropdown com checkboxes, pra poder escolher vários
+   meses de uma vez pra comparação — ver toggleMesDropdown/toggleMes). */
+.ig-fmulti-wrap { position: relative; }
+.ig-fmulti-btn { text-align:left; }
+.ig-fmulti-panel {
+  display: none;
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 300;
+  min-width: 190px; max-height: 280px; overflow-y: auto;
+  background: var(--surface); border: 1px solid var(--border-strong);
+  border-radius: var(--radius); box-shadow: var(--shadow-lg);
+  padding: 6px;
+}
+.ig-fmulti-panel.is-open { display: block; }
+.ig-fmulti-actions { display:flex; gap:6px; padding:4px 6px 8px; border-bottom:1px solid var(--border); margin-bottom:4px; }
+.ig-fmulti-actions button {
+  font-family: var(--font-body); font-size: 10px; font-weight: 700; letter-spacing:.04em; text-transform:uppercase;
+  color: var(--navy-mid); background: var(--navy-pale); border: none; border-radius: var(--radius-sm);
+  padding: 4px 8px; cursor: pointer;
+}
+.ig-fmulti-actions button:hover { background: var(--navy-light); color: #fff; }
+.ig-fmulti-opt {
+  display:flex; align-items:center; gap:8px;
+  padding: 6px 8px; border-radius: var(--radius-sm); cursor: pointer;
+  font-family: var(--font-body); font-size: 12.5px; color: var(--ink-2);
+}
+.ig-fmulti-opt:hover { background: var(--bg-2); }
+.ig-fmulti-opt input { cursor:pointer; }
 .logo-mark {
   width: 32px; height: 32px;
   background: var(--gold);
@@ -1283,7 +1311,11 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="ig-filter-bar">
     <div class="ig-fgroup"><span class="ig-flabel">Ano</span><select class="ig-fselect" id="fAno" onchange="applyFilters()"><option value="">Todos os Anos</option></select></div>
-    <div class="ig-fgroup"><span class="ig-flabel">Mês</span><select class="ig-fselect" id="fMes" onchange="applyFilters()"><option value="">Todos os Meses</option></select></div>
+    <div class="ig-fgroup ig-fmulti-wrap" id="fMesWrap">
+      <span class="ig-flabel">Mês</span>
+      <button type="button" class="ig-fselect ig-fmulti-btn" id="fMesBtn" onclick="toggleMesDropdown(event)">Todos os Meses</button>
+      <div class="ig-fmulti-panel" id="fMesPanel" onclick="event.stopPropagation()"></div>
+    </div>
     <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="fLoja" onchange="applyFilters()"><option value="">Todas as Lojas</option></select></div>
     <button class="ig-btn-clear" onclick="clearFilters()">Limpar</button>
   </div>
@@ -1544,6 +1576,16 @@ let vendasRaw = [], filteredVendas = [];
 // Comercial) ou 'consolidado' (comparação DRE Gerencial x DFC lado a
 // lado, com a diferença). Ver setDreView()/renderDRE()/renderDREConsolidado().
 let dreView = 'dfc';
+
+// Filtro de Mês: agora multi-select (dropdown de checkboxes — ver
+// toggleMesDropdown/toggleMes/mesesLabel), pra dar pra escolher vários
+// meses específicos pra comparação, em vez de só "um mês" ou "todos".
+// Array vazio = "Todos os Meses" (mesmo comportamento de sempre).
+// Onde só fazia sentido UM mês por vez (Comparativo Mensal, aviso de
+// "mês aberto", período exibido no card de loja), usa-se
+// mesUnicoSelecionado() — que devolve '' quando 0 ou 2+ meses estão
+// marcados, preservando o comportamento antigo dessas áreas.
+let mesesSelecionados = [];
 
 // Conciliação do De-Para: guarda, a cada carregamento, UMA LINHA POR
 // LANÇAMENTO analisado (Despesas/Contas a Pagar e Receitas/Recebidos), com
@@ -2165,11 +2207,16 @@ function parseContasPagar(text, planoMap, lojaFallback){
   return { rows, linhas };
 }
 
+// Canais que compõem o Faturamento usado na Análise Comercial (segundo o
+// usuário): Loja, Delivery e Central. Outros canais que existam na
+// planilha (ex.: Distribuição) NÃO entram no faturamento do DRE Gerencial.
+const CANAIS_FATURAMENTO = ['loja','delivery','central'];
+
 // Faturamento (planilha de vendas da Análise Comercial) — usado como
 // Receita do "DRE Gerencial". Mesma fonte/colunas que Analise_Comercial.html
-// (ano, loja, mes, total = valor faturado; canal + vs para excluir
-// Distribuição com VS=verdadeiro, igual lá) — só que aqui a gente só
-// precisa do total por loja/ano/mês, não do detalhe por semana/canal.
+// (ano, loja, mes, total = valor faturado, canal) — só que aqui a gente só
+// precisa do total por loja/ano/mês, já restrito aos canais Loja/Delivery/
+// Central (ver CANAIS_FATURAMENTO acima), e não do detalhe por semana/canal.
 function parseVendas(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
@@ -2182,7 +2229,6 @@ function parseVendas(text, lojaFallback){
   const iMes   = findCol(rawHeaders,'mes');
   const iTotal = findCol(rawHeaders,'total');
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
-  const iVs    = findCol(rawHeaders,'vs');
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2202,11 +2248,14 @@ function parseVendas(text, lojaFallback){
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
 
-    // Mesma regra do Analise_Comercial.html: canal DISTRIBUICAO só entra
-    // quando VS = False (senão duplicaria com outro canal).
-    const canal = normKey(iCanal>=0 ? g(iCanal) : '');
-    const vs = /^(true|verdadeiro|1|sim)$/i.test(g(iVs));
-    if(canal==='distribuicao' && vs) continue;
+    // Só entra no faturamento do DRE Gerencial se o canal for Loja,
+    // Delivery ou Central — os mesmos usados pra montar o total da
+    // Análise Comercial. Se a planilha não tiver coluna de canal, assume
+    // que a linha já é só desses canais (comportamento anterior).
+    if(iCanal>=0){
+      const canal = normKey(g(iCanal));
+      if(!CANAIS_FATURAMENTO.includes(canal)) continue;
+    }
 
     rows.push({ mes, ano, loja, valor });
   }
@@ -2554,34 +2603,111 @@ async function loadData(forceRefresh, silent){
 ══════════════════════════════════════════════════════════════ */
 function uniq(arr, numeric){ return [...new Set(arr)].filter(x=>x!=null&&x!=='').sort(numeric?(a,b)=>a-b:void 0); }
 
+/* ── Mês: multi-select (dropdown com checkboxes) ── */
+// Meses que existem nos dados carregados — preenchido por populateFilters(),
+// usado pra desenhar as checkboxes do painel e validar mesesSelecionados.
+let mesesDisponiveis = [];
+
+// Rótulo mostrado no botão do filtro: "Todos os Meses" (nada marcado),
+// o nome do mês (só 1 marcado) ou "N meses selecionados" (vários).
+function mesesLabel(){
+  if(!mesesSelecionados.length) return 'Todos os Meses';
+  if(mesesSelecionados.length===1) return MES_FULL[mesesSelecionados[0]]||String(mesesSelecionados[0]);
+  return mesesSelecionados.length+' meses selecionados';
+}
+// Usado pelas áreas que só sabem lidar com UM mês por vez (Comparativo
+// Mensal, aviso de "mês em aberto", período do card de loja) — devolve
+// '' (equivalente a "sem filtro") quando 0 ou 2+ meses estão marcados,
+// e o mês como string quando exatamente 1 está marcado. Isso preserva
+// o comportamento antigo dessas áreas sem precisar reescrevê-las.
+function mesUnicoSelecionado(){
+  return mesesSelecionados.length===1 ? String(mesesSelecionados[0]) : '';
+}
+
+function renderMesPanel(){
+  const panel=document.getElementById('fMesPanel');
+  if(!panel) return;
+  const opts = mesesDisponiveis.map(m=>{
+    const checked = mesesSelecionados.includes(m) ? 'checked' : '';
+    return `<label class="ig-fmulti-opt"><input type="checkbox" value="${m}" ${checked} onchange="toggleMes(${m})">${MES_FULL[m]||m}</label>`;
+  }).join('');
+  panel.innerHTML = `
+    <div class="ig-fmulti-actions">
+      <button type="button" onclick="selecionarTodosMeses()">Todos</button>
+      <button type="button" onclick="limparMeses()">Limpar</button>
+    </div>
+    ${opts || '<div style="padding:6px 8px;font-size:12px;color:var(--ink-4)">Nenhum mês nos dados carregados.</div>'}`;
+  const btn=document.getElementById('fMesBtn');
+  if(btn) btn.textContent = mesesLabel();
+}
+
+function toggleMesDropdown(ev){
+  if(ev) ev.stopPropagation();
+  const panel=document.getElementById('fMesPanel');
+  if(!panel) return;
+  panel.classList.toggle('is-open');
+}
+// Fecha o painel ao clicar fora dele (o próprio painel já para a
+// propagação do clique — ver onclick no HTML — então isso só dispara
+// quando o clique foi realmente fora).
+document.addEventListener('click', ()=>{
+  const panel=document.getElementById('fMesPanel');
+  if(panel) panel.classList.remove('is-open');
+});
+
+function toggleMes(m){
+  const i = mesesSelecionados.indexOf(m);
+  if(i===-1) mesesSelecionados.push(m); else mesesSelecionados.splice(i,1);
+  mesesSelecionados.sort((a,b)=>a-b);
+  renderMesPanel();
+  applyFilters();
+}
+function selecionarTodosMeses(){
+  mesesSelecionados=[];
+  renderMesPanel();
+  applyFilters();
+}
+function limparMeses(){
+  mesesSelecionados=[];
+  renderMesPanel();
+  applyFilters();
+}
+
 function populateFilters(){
   const anos=uniq(raw.map(r=>r.ano),true), meses=uniq(raw.map(r=>r.mes),true), lojas=uniq(raw.map(r=>r.loja));
   const sel=(id,opts,fmt,placeholder)=>{ const el=document.getElementById(id); const cur=el.value; el.innerHTML=`<option value="">${placeholder}</option>`+opts.map(o=>`<option value="${o}">${fmt(o)}</option>`).join(''); if(opts.includes(Number(cur))||opts.includes(cur)) el.value=cur; };
   sel('fAno',anos,a=>String(a),'Todos os Anos');
-  sel('fMes',meses,m=>MES_FULL[m]||m,'Todos os Meses');
   sel('fLoja',lojas,l=>l,'Todas as Lojas');
+  mesesDisponiveis = meses;
+  // Remove da seleção qualquer mês que não exista mais nos dados atuais
+  // (ex.: trocou de fonte de dados) antes de redesenhar o painel.
+  mesesSelecionados = mesesSelecionados.filter(m=>meses.includes(m));
+  renderMesPanel();
 
   // Filtro padrão: Ano e Mês atuais (quando ainda não há seleção do usuário
   // e existem dados para o período atual).
   const hoje=new Date(), anoAtual=hoje.getFullYear(), mesAtual=hoje.getMonth()+1;
-  const fAnoEl=document.getElementById('fAno'), fMesEl=document.getElementById('fMes');
+  const fAnoEl=document.getElementById('fAno');
   if(!fAnoEl.value && anos.includes(anoAtual)) fAnoEl.value=String(anoAtual);
-  if(!fMesEl.value && meses.includes(mesAtual)) fMesEl.value=String(mesAtual);
+  if(!mesesSelecionados.length && meses.includes(mesAtual)){
+    mesesSelecionados=[mesAtual];
+    renderMesPanel();
+  }
 }
 
 function applyFilters(){
   const ano=document.getElementById('fAno').value;
-  const mes=document.getElementById('fMes').value;
+  const meses=mesesSelecionados; // [] = todos os meses
   const loja=document.getElementById('fLoja').value;
   filtered=raw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
-    if(mes&&String(r.mes)!==mes) return false;
+    if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(loja&&r.loja!==loja) return false;
     return true;
   });
   filteredVendas=vendasRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
-    if(mes&&String(r.mes)!==mes) return false;
+    if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(loja&&r.loja!==loja) return false;
     return true;
   });
@@ -2590,7 +2716,8 @@ function applyFilters(){
 
 function clearFilters(){
   document.getElementById('fAno').value='';
-  document.getElementById('fMes').value='';
+  mesesSelecionados=[];
+  renderMesPanel();
   document.getElementById('fLoja').value='';
   applyFilters();
 }
@@ -2662,20 +2789,20 @@ function renderConciliacao(){
   }
 
   const ano  = document.getElementById('fAno').value;
-  const mes  = document.getElementById('fMes').value;
+  const meses = mesesSelecionados; // [] = todos os meses
   const loja = document.getElementById('fLoja').value;
 
   if(subEl){
     const partes=[];
     partes.push(ano ? ano : 'Todos os anos');
-    partes.push(mes ? (MES_FULL[mes]||mes) : 'todos os meses');
+    partes.push(meses.length ? meses.map(m=>MES_FULL[m]||m).join(', ') : 'todos os meses');
     partes.push(loja ? loja : 'todas as lojas');
     subEl.textContent = 'Escopo atual: ' + partes.join(' · ') + ' — acompanha os filtros do painel.';
   }
 
   const linhas = reconciliacao.linhas.filter(l=>{
     if(ano  && String(l.ano)!==ano)  return false;
-    if(mes  && String(l.mes)!==mes)  return false;
+    if(meses.length && !meses.includes(Number(l.mes))) return false;
     if(loja && l.loja!==loja)        return false;
     return true;
   });
@@ -3078,12 +3205,13 @@ function renderDRE(){
 
   buildSlugMap();
 
-  /* ── Detecta modo: se há filtro de loja (sem filtro de mês) → colunas por mês ── */
+  /* ── Detecta modo: se há filtro de loja e não exatamente 1 mês marcado
+     (nenhum = todos, ou vários pra comparar) → colunas por mês ── */
   const fLojaAtiva = document.getElementById('fLoja').value;
-  const fMesAtivo  = document.getElementById('fMes').value;
-  const modoMensal = !!fLojaAtiva && !fMesAtivo;
+  const modoMensal = !!fLojaAtiva && mesesSelecionados.length !== 1;
 
-  /* Colunas dinâmicas: no modo mensal são os meses presentes; senão são as lojas */
+  /* Colunas dinâmicas: no modo mensal são os meses presentes (só os
+     selecionados, se algum estiver marcado); senão são as lojas */
   const lojas = uniq(filtered.map(r=>r.loja));
   const mesesPresentes = modoMensal
     ? uniq(filtered.map(r=>r.mes).filter(Boolean), true)   /* numérico ordenado */
@@ -3391,68 +3519,105 @@ function setDreView(view){
 function renderDREConsolidado(){
   buildSlugMap();
 
-  /* ── Árvore de despesas: total único (sem quebra por coluna) ── */
+  /* Mesma detecção de modo/colunas do DFC e do DRE Gerencial (loja
+     selecionada + "Todos os Meses" → uma coluna por mês; senão, uma
+     coluna por loja) — antes o Consolidado sempre colapsava tudo num
+     total único, por isso os meses não apareciam ao trocar o filtro
+     pra "Todos os Meses" como nas outras duas abas. Agora cada coluna
+     (loja ou mês) vem triplicada: DRE Gerencial | DFC | Diferença. */
+  const fLojaAtiva = document.getElementById('fLoja').value;
+  const modoMensal = !!fLojaAtiva && mesesSelecionados.length !== 1;
+  const lojas = uniq(filtered.map(r=>r.loja));
+  const mesesPresentes = modoMensal
+    ? uniq(filtered.map(r=>r.mes).filter(Boolean), true)
+    : [];
+  const cols = modoMensal ? mesesPresentes : lojas;
+  const colLabel = modoMensal ? m => MES[m] || String(m) : l => l;
+
+  /* ── Árvore de despesas, por coluna (basis-independent, ver comentário
+     no topo do arquivo sobre a planilha por vencimento ainda não existir) ── */
   const tree={}, grupoSum={}, subSum={};
   filtered.forEach(r=>{
     const g=r.grupo||'(sem grupo)';
     const s=r.subgrupo||'(sem subgrupo)';
     const p=r.plano||'(sem plano)';
+    const colKey = modoMensal ? r.mes : r.loja;
     if(!tree[g]) tree[g]={};
     if(!tree[g][s]) tree[g][s]={};
-    if(tree[g][s][p]===undefined) tree[g][s][p]=0;
-    if(grupoSum[g]===undefined) grupoSum[g]=0;
+    if(!tree[g][s][p]) tree[g][s][p]={};
+    if(!grupoSum[g]) grupoSum[g]={};
     const sk=g+'|'+s;
-    if(subSum[sk]===undefined) subSum[sk]=0;
-    tree[g][s][p]+=r.valor;
-    grupoSum[g]+=r.valor;
-    subSum[sk]+=r.valor;
+    if(!subSum[sk]) subSum[sk]={};
+    tree[g][s][p][colKey]=(tree[g][s][p][colKey]||0)+r.valor;
+    grupoSum[g][colKey]=(grupoSum[g][colKey]||0)+r.valor;
+    subSum[sk][colKey]=(subSum[sk][colKey]||0)+r.valor;
   });
-  function slugTotal(slug){
+
+  function slugColVals(slug){
     const grupos=slugToGruposMap[slug]||[];
-    return grupos.reduce((s,g)=>s+(grupoSum[g]||0),0);
+    const out={};
+    cols.forEach(c=>{ out[c]=grupos.reduce((s,g)=>s+(grupoSum[g]?.[c]||0),0); });
+    return out;
   }
+  function vendasColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredVendas.forEach(v=>{
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
+  function rowTotal(vals){ return cols.reduce((s,c)=>s+(vals[c]||0),0); }
 
-  const recDfcTotal = slugTotal('receita_operacional');
-  const recGerTotal = filteredVendas.reduce((s,v)=>s+v.valor,0);
-  const impTotal   = slugTotal('impostos_vendas');
-  const dedTotal   = slugTotal('deducoes_vendas');
-  const cmvTotal   = slugTotal('cmv');
-  const despComTotal = slugTotal('despesas_comerciais');
-  const despPesTotal = slugTotal('despesas_pessoal');
-  const despAdmTotal = slugTotal('despesas_administrativas');
-  const despFinTotal = slugTotal('despesas_financeiras');
-  const proLabTotal  = slugTotal('pro_labore');
-  const distLucTotal = slugTotal('distribuicao_lucro');
-  const irCsllTotal  = slugTotal('ir_csll');
-  const emprestTotal = slugTotal('emprestimos_financiamentos');
-  const investTotal  = slugTotal('investimento');
-  const parcelTotal  = slugTotal('parcelamento_impostos');
+  const recDfc = slugColVals('receita_operacional');
+  const recGer = vendasColVals();
+  const imp    = slugColVals('impostos_vendas');
+  const ded    = slugColVals('deducoes_vendas');
+  const cmv    = slugColVals('cmv');
+  const despCom= slugColVals('despesas_comerciais');
+  const despPes= slugColVals('despesas_pessoal');
+  const despAdm= slugColVals('despesas_administrativas');
+  const despFin= slugColVals('despesas_financeiras');
+  const proLab = slugColVals('pro_labore');
+  const distLuc= slugColVals('distribuicao_lucro');
+  const irCsll = slugColVals('ir_csll');
+  const emprest= slugColVals('emprestimos_financiamentos');
+  const invest = slugColVals('investimento');
+  const parcel = slugColVals('parcelamento_impostos');
 
-  let jurosTotal=0;
-  filtered.forEach(r=>{ if(isJuros(r.subgrupo)||isJuros(r.plano)) jurosTotal+=r.valor; });
+  const jurosPorCol={};
+  cols.forEach(c=>jurosPorCol[c]=0);
+  filtered.forEach(r=>{
+    if(isJuros(r.subgrupo)||isJuros(r.plano)){
+      const colKey = modoMensal ? r.mes : r.loja;
+      jurosPorCol[colKey]=(jurosPorCol[colKey]||0)+r.valor;
+    }
+  });
 
-  function calcResultados(recTotal){
-    const recLiq=recTotal-impTotal-dedTotal;
-    const lucroBruto=recLiq-cmvTotal;
-    const resOp=lucroBruto-despComTotal-despPesTotal-despAdmTotal-despFinTotal-proLabTotal;
-    const ebitda=resOp+jurosTotal;
-    const resIr=resOp-distLucTotal-irCsllTotal;
-    const resLiq=resIr-emprestTotal-investTotal-parcelTotal;
+  function calcResultados(recMap){
+    const recLiq={}, lucroBruto={}, resOp={}, ebitda={}, resIr={}, resLiq={};
+    cols.forEach(c=>{
+      recLiq[c]=recMap[c]-imp[c]-ded[c];
+      lucroBruto[c]=recLiq[c]-cmv[c];
+      resOp[c]=lucroBruto[c]-despCom[c]-despPes[c]-despAdm[c]-despFin[c]-proLab[c];
+      ebitda[c]=resOp[c]+(jurosPorCol[c]||0);
+      resIr[c]=resOp[c]-distLuc[c]-irCsll[c];
+      resLiq[c]=resIr[c]-emprest[c]-invest[c]-parcel[c];
+    });
     return { __rec_liq__:recLiq,'__lucro_bruto__':lucroBruto,
       '__resultado_op__':resOp,'__ebitda__':ebitda,
       '__res_ir__':resIr,'__res_liq__':resLiq };
   }
-  const resGer = calcResultados(recGerTotal);
-  const resDfc = calcResultados(recDfcTotal);
+  const resGer = calcResultados(recGer);
+  const resDfc = calcResultados(recDfc);
 
-  /* ── Layout ── */
-  const totalCols = () => 4; // Conta + DRE Gerencial + DFC + Diferença
+  /* ── Layout: Conta + (Ger/DFC/Dif) por coluna + (Ger/DFC/Dif) do Total ── */
+  const totalCols = () => 1 + cols.length*3 + 3;
 
   document.getElementById('dreThead').innerHTML = `<tr>
     <th style="min-width:320px">Conta</th>
-    <th>DRE Gerencial</th>
-    <th>DFC</th>
-    <th>Diferença</th>
+    ${cols.map(c=>`<th>${colLabel(c)} · DRE Ger.</th><th class="av-header av-col">DFC</th><th class="av-header av-col">Dif.</th>`).join('')}
+    <th>Total · DRE Ger.</th><th class="av-header av-col">Total · DFC</th><th class="av-header av-col">Total · Dif.</th>
   </tr>`;
 
   function cellVal(v){
@@ -3466,6 +3631,13 @@ function renderDREConsolidado(){
     if(Math.abs(v)<0.005) return `<span class="val-zero">—</span>`;
     return `<span class="${v<0?'val-neg':'val-pos'}">${v>0?'+':''}${fmtBRL(v)}</span>`;
   }
+  // Monta as 3 células (Ger/DFC/Dif) de uma coluna, com o mesmo formatador
+  // pros dois primeiros valores (cellVal pra contas normais, cellRes pra
+  // linhas de resultado) e cellDiff sempre pra terceira.
+  function triple(gerVal,dfcVal,fmt,boldGerDfc){
+    const st = boldGerDfc ? ' style="font-weight:700"' : '';
+    return `<td${st}>${fmt(gerVal)}</td><td class="av-col"${st}>${fmt(dfcVal)}</td><td class="av-col">${cellDiff(gerVal-dfcVal)}</td>`;
+  }
 
   let _uid=0;
   const uid=()=>'dre-'+(++_uid);
@@ -3478,12 +3650,11 @@ function renderDREConsolidado(){
       return;
     }
     if(slot.type==='resultado'){
-      const vGer=resGer[slot.slug]||0, vDfc=resDfc[slot.slug]||0;
+      const vGer=resGer[slot.slug]||{}, vDfc=resDfc[slot.slug]||{};
       html+=`<tr class="row-resultado ${slot.style||''}">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
-        <td>${cellRes(vGer)}</td>
-        <td>${cellRes(vDfc)}</td>
-        <td>${cellDiff(vGer-vDfc)}</td>
+        ${cols.map(c=>triple(vGer[c]||0,vDfc[c]||0,cellRes)).join('')}
+        ${triple(rowTotal(vGer),rowTotal(vDfc),cellRes)}
       </tr>`;
       return;
     }
@@ -3495,9 +3666,8 @@ function renderDREConsolidado(){
     if(slot.slug==='receita_operacional'){
       html+=`<tr class="row-group" style="cursor:default">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
-        <td>${cellVal(recGerTotal)}</td>
-        <td>${cellVal(recDfcTotal)}</td>
-        <td>${cellDiff(recGerTotal-recDfcTotal)}</td>
+        ${cols.map(c=>triple(recGer[c]||0,recDfc[c]||0,cellVal)).join('')}
+        ${triple(rowTotal(recGer),rowTotal(recDfc),cellVal)}
       </tr>`;
       return;
     }
@@ -3509,13 +3679,14 @@ function renderDREConsolidado(){
     if(!grupos.length){
       html+=`<tr class="row-group" style="opacity:.4">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
-        <td>—</td><td>—</td><td>—</td>
+        ${cols.map(()=>`<td>—</td><td class="av-col">—</td><td class="av-col">—</td>`).join('')}
+        <td>—</td><td class="av-col">—</td><td class="av-col">—</td>
       </tr>`;
       return;
     }
 
     grupos.forEach((grupoReal,gi)=>{
-      const gTot=grupoSum[grupoReal]||0;
+      const gVals=grupoSum[grupoReal]||{};
       const gId=uid();
       const labelCell=gi===0
         ?`${CHEVRON}<span class="dre-sign">${slot.sign}</span>${slot.label}<span class="expand-hint">expandir</span>`
@@ -3523,29 +3694,26 @@ function renderDREConsolidado(){
 
       html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
         <td>${labelCell}</td>
-        <td style="font-weight:700">${cellVal(gTot)}</td>
-        <td style="font-weight:700">${cellVal(gTot)}</td>
-        <td>${cellDiff(0)}</td>
+        ${cols.map(c=>triple(gVals[c]||0,gVals[c]||0,cellVal,true)).join('')}
+        ${triple(rowTotal(gVals),rowTotal(gVals),cellVal,true)}
       </tr>`;
 
       Object.keys(tree[grupoReal]).sort().forEach(sub=>{
         const sk=grupoReal+'|'+sub;
-        const sTot=subSum[sk]||0;
+        const sVals=subSum[sk]||{};
         const sId=uid();
         html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
           <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
-          <td style="font-weight:700">${cellVal(sTot)}</td>
-          <td style="font-weight:700">${cellVal(sTot)}</td>
-          <td>${cellDiff(0)}</td>
+          ${cols.map(c=>triple(sVals[c]||0,sVals[c]||0,cellVal,true)).join('')}
+          ${triple(rowTotal(sVals),rowTotal(sVals),cellVal,true)}
         </tr>`;
 
         Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
-          const pTot=tree[grupoReal][sub][plano]||0;
+          const pVals=tree[grupoReal][sub][plano]||{};
           html+=`<tr class="row-item" data-parent="${sId}">
             <td>${plano}</td>
-            <td>${cellVal(pTot)}</td>
-            <td>${cellVal(pTot)}</td>
-            <td>${cellDiff(0)}</td>
+            ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
+            ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
         });
       });
@@ -3561,31 +3729,28 @@ function renderDREConsolidado(){
       </td>
     </tr>`;
     unmapped.forEach(g=>{
-      const gTot=grupoSum[g]||0;
+      const gVals=grupoSum[g]||{};
       const gId=uid();
       html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
         <td>${CHEVRON}<span class="dre-sign">(-)</span>${g}<span class="expand-hint">expandir</span></td>
-        <td>${cellVal(gTot)}</td>
-        <td>${cellVal(gTot)}</td>
-        <td>${cellDiff(0)}</td>
+        ${cols.map(c=>triple(gVals[c]||0,gVals[c]||0,cellVal)).join('')}
+        ${triple(rowTotal(gVals),rowTotal(gVals),cellVal)}
       </tr>`;
       Object.keys(tree[g]).sort().forEach(sub=>{
         const sk=g+'|'+sub;
-        const sTot=subSum[sk]||0;
+        const sVals=subSum[sk]||{};
         const sId=uid();
         html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
           <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
-          <td style="font-weight:700">${cellVal(sTot)}</td>
-          <td style="font-weight:700">${cellVal(sTot)}</td>
-          <td>${cellDiff(0)}</td>
+          ${cols.map(c=>triple(sVals[c]||0,sVals[c]||0,cellVal,true)).join('')}
+          ${triple(rowTotal(sVals),rowTotal(sVals),cellVal,true)}
         </tr>`;
         Object.keys(tree[g][sub]).sort().forEach(plano=>{
-          const pTot=tree[g][sub][plano]||0;
+          const pVals=tree[g][sub][plano]||{};
           html+=`<tr class="row-item" data-parent="${sId}">
             <td>${plano}</td>
-            <td>${cellVal(pTot)}</td>
-            <td>${cellVal(pTot)}</td>
-            <td>${cellDiff(0)}</td>
+            ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
+            ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
         });
       });
@@ -3593,8 +3758,9 @@ function renderDREConsolidado(){
   }
 
   document.getElementById('dreTbody').innerHTML=html;
+  const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
   document.getElementById('dreSubtitle').textContent=
-    'Comparação DRE Gerencial × DFC para o filtro atual · Despesas ainda com a mesma base nos dois (aguardando planilha por vencimento) · clique para expandir';
+    `Comparação DRE Gerencial × DFC${subtitleExtra} · Despesas ainda com a mesma base nos dois (aguardando planilha por vencimento) · clique para expandir`;
 
   if(fixHeaderEnabled){ refreshHeaderCloneContent(); updateHeaderClonePosition(); }
 }
@@ -3787,17 +3953,22 @@ function renderLojas(){
   // correspondente; sem filtro nenhum, mostra o ano (ou faixa de anos)
   // real dos dados encontrados.
   const anoFiltro=document.getElementById('fAno').value;
-  const mesFiltro=document.getElementById('fMes').value;
+  // 2+ meses marcados: mostra a lista deles em vez de cair no "ano todo"
+  // (mesUnicoSelecionado() só cobre o caso de exatamente 1 mês).
+  const mesFiltro = mesesSelecionados.length>1
+    ? mesesSelecionados.map(m=>MES[m]).join('+')
+    : mesUnicoSelecionado();
   const anosPresentes=uniq(filtered.map(r=>r.ano).filter(Boolean),true);
   let periodo;
   if(anoFiltro && mesFiltro){
-    periodo=`${MES_FULL[+mesFiltro]} de ${anoFiltro}`;
+    periodo = mesesSelecionados.length>1 ? `${mesFiltro} de ${anoFiltro}` : `${MES_FULL[+mesFiltro]} de ${anoFiltro}`;
   } else if(anoFiltro){
     periodo=String(anoFiltro);
   } else if(mesFiltro){
+    const mesLbl = mesesSelecionados.length>1 ? mesFiltro : MES_FULL[+mesFiltro];
     periodo=anosPresentes.length===1
-      ? `${MES_FULL[+mesFiltro]} de ${anosPresentes[0]}`
-      : `${MES_FULL[+mesFiltro]} (${anosPresentes.length? anosPresentes[0]+'–'+anosPresentes[anosPresentes.length-1]:'—'})`;
+      ? `${mesLbl} de ${anosPresentes[0]}`
+      : `${mesLbl} (${anosPresentes.length? anosPresentes[0]+'–'+anosPresentes[anosPresentes.length-1]:'—'})`;
   } else if(anosPresentes.length===1){
     periodo=String(anosPresentes[0]);
   } else if(anosPresentes.length>1){
@@ -3919,9 +4090,13 @@ function renderComparativoMensal() {
   const agora = new Date();
   const anoCorrente = agora.getFullYear(), mesCorrente = agora.getMonth()+1;
 
-  /* Lê os filtros ativos */
+  /* Lê os filtros ativos. Esta comparação (mês atual x mês anterior) só
+     faz sentido pra UM mês por vez — com 0 ou 2+ meses marcados no multi-
+     select, mesUnicoSelecionado() devolve '' e cai no mesmo caminho de
+     "sem filtro de mês" (dois meses fechados mais recentes), igual a
+     antes de o filtro virar multi-select. */
   const fAnoVal = document.getElementById('fAno').value;
-  const fMesVal = document.getElementById('fMes').value;
+  const fMesVal = mesUnicoSelecionado();
   const fLojaVal = document.getElementById('fLoja').value;
 
   /* Base: sempre raw, mas respeitando filtro de loja se houver */
