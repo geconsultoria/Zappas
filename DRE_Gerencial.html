@@ -568,8 +568,18 @@ body {
 .dre-table.fixed-cols { table-layout: fixed; }
 .dre-table.fixed-cols thead tr:nth-child(2) th:nth-child(3n+2),
 .dre-table.fixed-cols tbody td:nth-child(3n+2) {
-  border-left: 2px solid var(--ink-3);
+  border-left: 2px solid var(--navy-mid);
 }
+/* Fonte um pouco menor nessa aba (colunas com largura fixa e mais
+   estreita que o layout automático das outras abas) — sem isso, valores
+   como "655.185,17" em negrito estouravam a largura da coluna. */
+.dre-table.fixed-cols td { padding-left: 8px; padding-right: 8px; }
+.dre-table.fixed-cols tr.row-group td,
+.dre-table.fixed-cols tr.row-resultado td { font-size: 11.5px; }
+.dre-table.fixed-cols tr.row-subgroup td,
+.dre-table.fixed-cols tr.row-item td { font-size: 10.5px; }
+.dre-table.fixed-cols td:first-child { font-size: 12px; padding-left: 16px; }
+.dre-table.fixed-cols .av-col { font-size: 9.5px !important; padding-left: 4px !important; padding-right: 6px !important; }
 .av-pos { color: var(--emerald-mid) !important; font-weight: 600 !important; }
 .av-neg { color: var(--crimson) !important; font-weight: 600 !important; }
 .av-neutral { color: var(--ink-3) !important; }
@@ -3878,8 +3888,8 @@ function renderDREConsolidado(){
   if(dreTableEl) dreTableEl.classList.add('fixed-cols');
   const colgroupEl=document.getElementById('dreColgroup');
   if(colgroupEl){
-    const grupoCols='<col style="width:112px"><col style="width:92px"><col style="width:80px">';
-    colgroupEl.innerHTML = `<col style="width:300px">${cols.map(()=>grupoCols).join('')}${grupoCols}`;
+    const grupoCols='<col style="width:104px"><col style="width:90px"><col style="width:88px">';
+    colgroupEl.innerHTML = `<col style="width:280px">${cols.map(()=>grupoCols).join('')}${grupoCols}`;
   }
 
   document.getElementById('dreThead').innerHTML = `
