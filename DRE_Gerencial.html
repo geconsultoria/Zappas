@@ -545,15 +545,31 @@ body {
 .dre-th-groupname {
   text-align: center !important;
   border-bottom: 1px solid var(--border) !important;
-  border-left: 2px solid var(--border-strong) !important;
+  border-left: 2px solid var(--ink-3) !important;
 }
 /* Separa visualmente o grupo de cada loja/mês (ex.: ANISIO | BADY) —
    sem essa borda mais forte, os grupos de 3 colunas ficavam "grudados"
    e pareciam desalinhados quando havia muitas colunas (ex.: Todos os
-   Meses). */
+   Meses). A mesma linha desce pelas linhas de dados (ver .fixed-cols
+   abaixo), não só pelo cabeçalho. */
 /* DRE Ger. / DFC / Dif. centralizados nas suas colunas (em vez do
    alinhamento à direita padrão dos demais cabeçalhos numéricos). */
 .dre-th-sub { text-align: center !important; }
+
+/* DRE x DFC: larguras de coluna fixas (via <colgroup>, preenchido em
+   renderDREConsolidado) — sem isso, o navegador distribuía a largura de
+   cada grupo de 3 colunas (DRE Ger./DFC/Dif.) de forma desigual entre as
+   lojas/meses (ex.: a 1ª coluna "DRE Ger." de uma loja ficava bem maior
+   que a de outra), porque o layout automático calcula cada coluna pelo
+   conteúdo mais largo dela. Com table-layout:fixed todas as colunas do
+   mesmo tipo ficam do mesmo tamanho. A linha mais escura de separação
+   entre lojas/meses desce também pelas linhas de dados (2ª linha do
+   cabeçalho e tbody), não só pela 1ª linha do cabeçalho. */
+.dre-table.fixed-cols { table-layout: fixed; }
+.dre-table.fixed-cols thead tr:nth-child(2) th:nth-child(3n+2),
+.dre-table.fixed-cols tbody td:nth-child(3n+2) {
+  border-left: 2px solid var(--ink-3);
+}
 .av-pos { color: var(--emerald-mid) !important; font-weight: 600 !important; }
 .av-neg { color: var(--crimson) !important; font-weight: 600 !important; }
 .av-neutral { color: var(--ink-3) !important; }
@@ -1493,7 +1509,8 @@ a.side-brand:hover { opacity:.85; }
       </div>
     </div>
     <div class="dre-scroll">
-      <table class="dre-table">
+      <table class="dre-table" id="dreTable">
+        <colgroup id="dreColgroup"></colgroup>
         <thead id="dreThead"></thead>
         <tbody id="dreTbody"></tbody>
       </table>
@@ -3464,6 +3481,13 @@ function renderDRE(){
   const totalCols = () => avVisible ? 1 + cols.length*2 + 2 : cols.length + 2;
 
   function buildThead(){
+    // Larguras fixas de coluna (table-layout:fixed) só se aplicam à aba
+    // DRE x DFC (ver renderDREConsolidado) — aqui (DFC/Gerencial) volta
+    // pro layout automático de sempre.
+    const dreTableEl=document.getElementById('dreTable');
+    if(dreTableEl) dreTableEl.classList.remove('fixed-cols');
+    const colgroupEl=document.getElementById('dreColgroup');
+    if(colgroupEl) colgroupEl.innerHTML='';
     document.getElementById('dreThead').innerHTML=`<tr>
       <th style="min-width:320px">Conta</th>
       ${cols.map(c=>`<th>${colLabel(c)}</th>${avVisible?`<th class="av-header av-col">AV%</th>`:''}`).join('')}
@@ -3844,6 +3868,19 @@ function renderDREConsolidado(){
 
   /* ── Layout: Conta + (Ger/DFC/Dif) por coluna + (Ger/DFC/Dif) do Total ── */
   const totalCols = () => 1 + cols.length*3 + 3;
+
+  // Larguras fixas por coluna (table-layout:fixed) — cada grupo de 3
+  // colunas (DRE Ger./DFC/Dif.) fica do mesmo tamanho em todas as
+  // lojas/meses, em vez do navegador calcular cada uma pelo conteúdo
+  // mais largo dela (o que deixava a 1ª coluna de algumas lojas bem
+  // maior que a de outras).
+  const dreTableEl=document.getElementById('dreTable');
+  if(dreTableEl) dreTableEl.classList.add('fixed-cols');
+  const colgroupEl=document.getElementById('dreColgroup');
+  if(colgroupEl){
+    const grupoCols='<col style="width:112px"><col style="width:92px"><col style="width:80px">';
+    colgroupEl.innerHTML = `<col style="width:300px">${cols.map(()=>grupoCols).join('')}${grupoCols}`;
+  }
 
   document.getElementById('dreThead').innerHTML = `
     <tr>
