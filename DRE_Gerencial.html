@@ -541,6 +541,27 @@ body {
 .btn-av-toggle.active { background: var(--navy-mid); color: #fff; border-color: var(--navy-mid); }
 
 /* ══════════════════════════════════════════════════════
+   ABAS DFC / DRE GERENCIAL / DRE CONSOLIDADO
+══════════════════════════════════════════════════════ */
+.dre-view-tabs { display: flex; gap: 8px; flex-wrap: wrap; margin: -6px 0 16px; }
+.dre-view-tab {
+  font-family: var(--font-body);
+  font-size: 12px; font-weight: 700;
+  color: var(--ink-3);
+  background: var(--surface);
+  border: 1.5px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 16px;
+  cursor: pointer;
+  letter-spacing: .01em;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+.dre-view-tab:hover { border-color: var(--navy-light); color: var(--navy-mid); }
+.dre-view-tab.is-active { background: var(--navy); color: #fff; border-color: var(--navy); }
+.dre-view-tab .tab-note { display: block; font-size: 9px; font-weight: 600; opacity: .75; letter-spacing: .04em; text-transform: uppercase; margin-top: 1px; }
+
+/* ══════════════════════════════════════════════════════
    CABEÇALHO FIXO DA TABELA DRE (clone flutuante)
 ══════════════════════════════════════════════════════ */
 .dre-header-clone {
@@ -1404,11 +1425,16 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <!-- DRE TABLE -->
-  <div class="section-head"><span class="section-title">DFC — Demonstração do Fluxo de Caixa</span><div class="section-line"></div></div>
+  <div class="section-head"><span class="section-title">Demonstração do Resultado</span><div class="section-line"></div></div>
+  <div class="dre-view-tabs" id="dreViewTabs">
+    <button class="dre-view-tab is-active" data-view="dfc" onclick="setDreView('dfc')">DFC — Fluxo de Caixa</button>
+    <button class="dre-view-tab" data-view="gerencial" onclick="setDreView('gerencial')">DRE Gerencial</button>
+    <button class="dre-view-tab" data-view="consolidado" onclick="setDreView('consolidado')">DRE Consolidado</button>
+  </div>
   <div class="dre-card" style="margin-bottom:28px">
     <div class="dre-card-header">
       <div>
-        <div class="dre-card-title">DFC - Demonstração do Fluxo de Caixa</div>
+        <div class="dre-card-title" id="dreCardTitle">DFC - Demonstração do Fluxo de Caixa</div>
         <div class="dre-card-sub" id="dreSubtitle">Valores em R$ · Clique em cada linha para expandir os detalhes</div>
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
@@ -1484,6 +1510,16 @@ const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL_DRE}?tipo=planocontas`;
 const RECBIDOS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const RECBIDOS_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=recebidos&loja=${k}`);
 const DEPARA_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=depara&loja=${k}`);
+
+// ══════════════════════════════════════════════════════════════
+// NOVO: Faturamento (Análise Comercial, por loja) — usado como Receita
+// do "DRE Gerencial" (aba nova). É o mesmo endpoint do Apps Script, só
+// que SEM "tipo=" (mesma lógica do Analise_Comercial.html: sem esse
+// parâmetro, o script devolve a planilha de vendas em vez do de-para
+// /contas a pagar/recebidos).
+// ══════════════════════════════════════════════════════════════
+const VENDAS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const VENDAS_URLS = VENDAS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?loja=${k}`);
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -1497,6 +1533,17 @@ const MES = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov
 const MES_FULL = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 let raw = [], filtered = [];
+
+// Faturamento (Análise Comercial) — Receita do "DRE Gerencial".
+// Cada item: {loja, ano, mes, valor}. filteredVendas segue os mesmos
+// filtros Ano/Mês/Loja aplicados a "filtered" (ver applyFilters()).
+let vendasRaw = [], filteredVendas = [];
+
+// Aba ativa da tabela DRE: 'dfc' (Fluxo de Caixa, como sempre foi),
+// 'gerencial' (mesma estrutura, mas Receita = faturamento da Análise
+// Comercial) ou 'consolidado' (comparação DRE Gerencial x DFC lado a
+// lado, com a diferença). Ver setDreView()/renderDRE()/renderDREConsolidado().
+let dreView = 'dfc';
 
 // Conciliação do De-Para: guarda, a cada carregamento, UMA LINHA POR
 // LANÇAMENTO analisado (Despesas/Contas a Pagar e Receitas/Recebidos), com
@@ -1681,6 +1728,21 @@ function parseAno(v){
   if(mSlash){ const y=parseInt(mSlash[1]); return y<100?y+2000:y; }
   return null;
 }
+
+// EBITDA = Resultado Operacional + juros bancários (identificados pelo
+// nome do subgrupo/plano). Compartilhado entre renderDRE() (DFC/DRE
+// Gerencial) e renderDREConsolidado(), que precisam do mesmo critério.
+const JUROS_BANCARIOS=['juros bancarios','juros bancario','juro bancario',
+  'juros bancos','juros banco','juros financeiros','juros financeiro',
+  'juros sobre emprestimo','juros sobre emprestimos',
+  'juros sobre financiamento','juros sobre financiamentos',
+  'encargos bancarios','encargo bancario','encargos financeiros',
+  'encargo financeiro','juros pagos','juro pago','juros pago'];
+function normJuros(s){
+  return String(s||'').toLowerCase().normalize('NFD')
+    .replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim();
+}
+function isJuros(sub){ const n=normJuros(sub); return JUROS_BANCARIOS.includes(n)||(n.includes('juros')&&n.includes('banc')); }
 
 function fmtBRL(v){ return new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
 function fmtShort(v){
@@ -2103,6 +2165,54 @@ function parseContasPagar(text, planoMap, lojaFallback){
   return { rows, linhas };
 }
 
+// Faturamento (planilha de vendas da Análise Comercial) — usado como
+// Receita do "DRE Gerencial". Mesma fonte/colunas que Analise_Comercial.html
+// (ano, loja, mes, total = valor faturado; canal + vs para excluir
+// Distribuição com VS=verdadeiro, igual lá) — só que aqui a gente só
+// precisa do total por loja/ano/mês, não do detalhe por semana/canal.
+function parseVendas(text, lojaFallback){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = [];
+  if(!lines.length) return rows;
+
+  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iAno   = findCol(rawHeaders,'ano');
+  const iLoja  = findCol(rawHeaders,'loja');
+  const iMes   = findCol(rawHeaders,'mes');
+  const iTotal = findCol(rawHeaders,'total');
+  const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
+  const iVs    = findCol(rawHeaders,'vs');
+  if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
+
+  for(let i=1;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+    const cells = splitLine(line,sep);
+    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
+
+    const ano = parseInt(g(iAno),10);
+    const mesRaw = g(iMes);
+    const mes = /^\d{1,2}$/.test(mesRaw) ? parseInt(mesRaw,10) : parseMesAbr(mesRaw);
+    if(!ano || !mes) continue;
+
+    const valor = parseNum(g(iTotal));
+    if(!valor) continue;
+
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    if(!loja) continue;
+
+    // Mesma regra do Analise_Comercial.html: canal DISTRIBUICAO só entra
+    // quando VS = False (senão duplicaria com outro canal).
+    const canal = normKey(iCanal>=0 ? g(iCanal) : '');
+    const vs = /^(true|verdadeiro|1|sim)$/i.test(g(iVs));
+    if(canal==='distribuicao' && vs) continue;
+
+    rows.push({ mes, ano, loja, valor });
+  }
+  return rows;
+}
+
 /* ══════════════════════════════════════════════════════════════
    FETCH
 ══════════════════════════════════════════════════════════════ */
@@ -2161,12 +2271,12 @@ function openDB(){
     req.onerror=()=>reject(req.error);
   });
 }
-async function saveCache(data,ts,rawTs,recon){
+async function saveCache(data,ts,rawTs,recon,vendas){
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -2299,6 +2409,32 @@ async function carregarTudo(){
     }));
   }
 
+  // ══════════════════════════════════════════════════════
+  // 5. Busca Faturamento (Análise Comercial, por loja) — Receita do
+  //    "DRE Gerencial" (não bloqueia o carregamento se falhar: o DFC
+  //    continua funcionando normalmente, só a aba DRE Gerencial fica
+  //    sem dado de receita pra essa loja).
+  // ══════════════════════════════════════════════════════
+  document.getElementById('loaderMsg').textContent='Carregando faturamento…';
+  let rowsVendas = [];
+  const BATCH_VENDAS = 2;
+  for (let i = 0; i < VENDAS_URLS.length; i += BATCH_VENDAS) {
+    const grupoUrls = VENDAS_URLS.slice(i, i + BATCH_VENDAS);
+    document.getElementById('loaderMsg').textContent =
+      'Carregando faturamento (' + Math.min(i+BATCH_VENDAS, VENDAS_URLS.length) + '/' + VENDAS_URLS.length + ')…';
+    await Promise.all(grupoUrls.map(async (url, j) => {
+      const idx = i + j;
+      const lojaKey = VENDAS_STORE_KEYS[idx];
+      try {
+        const text = await fetchCSV(url);
+        rowsVendas = rowsVendas.concat(parseVendas(text, lojaKey.toUpperCase()));
+      } catch(e) {
+        console.warn('Faturamento indisponível (' + lojaKey + '):', e.message);
+      }
+    }));
+  }
+  vendasRaw = rowsVendas;
+
   document.getElementById('loaderMsg').textContent='Processando dados…';
 
   /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
@@ -2321,7 +2457,7 @@ async function carregarTudo(){
   toggleFixHeader(true);
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
-  saveCache(raw, ts, Date.now(), reconciliacao);
+  saveCache(raw, ts, Date.now(), reconciliacao, vendasRaw);
 }
 
 function showUpdateOverlay(){
@@ -2372,6 +2508,11 @@ async function loadData(forceRefresh, silent){
           reconciliacao = cached.recon;
           reconciliacaoPronta = true;
         }
+        // Cache salvo antes do "DRE Gerencial" existir não tem faturamento —
+        // mesmo raciocínio do reconAusente acima: força atualização em
+        // segundo plano pra preencher a Receita dessa aba nova.
+        const vendasAusente = !Array.isArray(cached.vendas);
+        vendasRaw = cached.vendas || [];
         // Mesmo motivo do outro carregamento (ver comentário abaixo, em
         // carregarTudo): mostrar antes de renderizar, senão a tabela mede
         // largura zero e o cabeçalho fixo nasce desalinhado.
@@ -2379,7 +2520,7 @@ async function loadData(forceRefresh, silent){
         populateFilters();
         applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
-        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente;
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente || vendasAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
         if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
         return;
@@ -2433,6 +2574,12 @@ function applyFilters(){
   const mes=document.getElementById('fMes').value;
   const loja=document.getElementById('fLoja').value;
   filtered=raw.filter(r=>{
+    if(ano&&String(r.ano)!==ano) return false;
+    if(mes&&String(r.mes)!==mes) return false;
+    if(loja&&r.loja!==loja) return false;
+    return true;
+  });
+  filteredVendas=vendasRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
     if(mes&&String(r.mes)!==mes) return false;
     if(loja&&r.loja!==loja) return false;
@@ -2924,6 +3071,11 @@ function renderChartSubgrupo(){
 const CHEVRON = `<span class="row-chevron"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>`;
 
 function renderDRE(){
+  // "DRE Consolidado" tem estrutura de colunas totalmente diferente (DRE
+  // Gerencial / DFC / Diferença, em vez de uma coluna por loja/mês) —
+  // tem função própria, ver renderDREConsolidado().
+  if(dreView === 'consolidado'){ renderDREConsolidado(); return; }
+
   buildSlugMap();
 
   /* ── Detecta modo: se há filtro de loja (sem filtro de mês) → colunas por mês ── */
@@ -2969,8 +3121,21 @@ function renderDRE(){
   }
   function rowTotal(vals){ return cols.reduce((s,c)=>s+(vals[c]||0),0); }
 
+  // Receita do "DRE Gerencial": em vez da Receita Operacional classificada
+  // pelo de-para (base do DFC), usa o faturamento da Análise Comercial
+  // (mesma fonte/planilha, somado por loja/mês e já filtrado pelos mesmos
+  // Ano/Mês/Loja do resto do painel — ver applyFilters()).
+  function vendasColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredVendas.forEach(v=>{
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
+
   /* ── Calcular resultados ── */
-  const rec=slugColVals('receita_operacional');
+  const rec = dreView==='gerencial' ? vendasColVals() : slugColVals('receita_operacional');
   const imp=slugColVals('impostos_vendas');
   const ded=slugColVals('deducoes_vendas');
   const recLiq={}; cols.forEach(c=>recLiq[c]=rec[c]-imp[c]-ded[c]);
@@ -2983,18 +3148,8 @@ function renderDRE(){
   const proLab=slugColVals('pro_labore');
   const resOp={}; cols.forEach(c=>resOp[c]=lucroBruto[c]-despCom[c]-despPes[c]-despAdm[c]-despFin[c]-proLab[c]);
 
-  const JUROS_BANCARIOS=['juros bancarios','juros bancario','juro bancario',
-    'juros bancos','juros banco','juros financeiros','juros financeiro',
-    'juros sobre emprestimo','juros sobre emprestimos',
-    'juros sobre financiamento','juros sobre financiamentos',
-    'encargos bancarios','encargo bancario','encargos financeiros',
-    'encargo financeiro','juros pagos','juro pago','juros pago'];
-  function normJuros(s){
-    return String(s||'').toLowerCase().normalize('NFD')
-      .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
-  }
-  function isJuros(sub){ const n=normJuros(sub); return JUROS_BANCARIOS.includes(n)||(n.includes('juros')&&n.includes('banc')); }
-
+  // isJuros/JUROS_BANCARIOS agora s\u00e3o compartilhados (escopo do m\u00f3dulo) \u2014
+  // ver defini\u00e7\u00e3o acima de fmtBRL, usada tamb\u00e9m por renderDREConsolidado().
   const jurosPorCol={};
   cols.forEach(c=>jurosPorCol[c]=0);
   filtered.forEach(r=>{
@@ -3179,14 +3334,268 @@ function renderDRE(){
 
   document.getElementById('dreTbody').innerHTML=html;
   const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
+  const subtitleGerencial = dreView==='gerencial'
+    ? ' · Receita = faturamento da Análise Comercial · Despesas ainda por data de pagamento (aguardando planilha por vencimento)'
+    : '';
   document.getElementById('dreSubtitle').textContent=
-    `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir`;
+    `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir${subtitleGerencial}`;
 
   /* Só agora o <thead> e o <tbody> novos estão os dois no DOM, então as
      larguras de coluna medidas pra montar o clone do cabeçalho fixo
      batem com as larguras reais da tabela (evita o desalinhamento
      "Janeiro na coluna de Fevereiro" ao trocar loja/mês com o
      cabeçalho fixado). */
+  if(fixHeaderEnabled){ refreshHeaderCloneContent(); updateHeaderClonePosition(); }
+}
+
+/* ══════════════════════════════════════════════════════════════
+   ABAS DFC / DRE GERENCIAL / DRE CONSOLIDADO
+══════════════════════════════════════════════════════════════ */
+function setDreView(view){
+  dreView = view;
+  document.querySelectorAll('#dreViewTabs .dre-view-tab').forEach(btn=>{
+    btn.classList.toggle('is-active', btn.dataset.view === view);
+  });
+  const titles = {
+    dfc: 'DFC - Demonstração do Fluxo de Caixa',
+    gerencial: 'DRE Gerencial',
+    consolidado: 'DRE Consolidado — DRE Gerencial × DFC',
+  };
+  const titleEl = document.getElementById('dreCardTitle');
+  if(titleEl) titleEl.textContent = titles[view] || titles.dfc;
+  // % AV é calculado em cima das colunas de loja/mês — não existe nas
+  // colunas fixas do Consolidado (DRE Gerencial/DFC/Diferença), então o
+  // botão fica escondido nessa aba.
+  const btnAV = document.getElementById('btnAV');
+  if(btnAV) btnAV.style.display = (view==='consolidado') ? 'none' : '';
+  renderDRE();
+}
+
+/* ══════════════════════════════════════════════════════════════
+   DRE CONSOLIDADO — DRE Gerencial × DFC, lado a lado, com a diferença.
+   Diferente das outras duas abas: aqui não existe "uma coluna por
+   loja/mês" — são sempre 3 colunas fixas (DRE Gerencial | DFC |
+   Diferença), somando TUDO que estiver dentro do filtro Ano/Mês/Loja
+   atual num único total por linha, pra facilitar a conferência.
+
+   Importante: enquanto a planilha de Contas a Pagar por data de
+   VENCIMENTO não existir (o usuário vai gerar essa fonte à parte —
+   até lá o DRE Gerencial usa a mesma base de Despesas do DFC, por
+   data de pagamento), as linhas de Despesas são idênticas nas duas
+   colunas (Diferença = 0). Só a Receita muda de verdade hoje: DFC usa
+   o Recebido classificado pelo de-para, DRE Gerencial usa o
+   faturamento da Análise Comercial. Quando a planilha por vencimento
+   existir, essa mesma função já vai refletir a diferença nas Despesas
+   também, sem precisar mexer na estrutura da tela.
+══════════════════════════════════════════════════════════════ */
+function renderDREConsolidado(){
+  buildSlugMap();
+
+  /* ── Árvore de despesas: total único (sem quebra por coluna) ── */
+  const tree={}, grupoSum={}, subSum={};
+  filtered.forEach(r=>{
+    const g=r.grupo||'(sem grupo)';
+    const s=r.subgrupo||'(sem subgrupo)';
+    const p=r.plano||'(sem plano)';
+    if(!tree[g]) tree[g]={};
+    if(!tree[g][s]) tree[g][s]={};
+    if(tree[g][s][p]===undefined) tree[g][s][p]=0;
+    if(grupoSum[g]===undefined) grupoSum[g]=0;
+    const sk=g+'|'+s;
+    if(subSum[sk]===undefined) subSum[sk]=0;
+    tree[g][s][p]+=r.valor;
+    grupoSum[g]+=r.valor;
+    subSum[sk]+=r.valor;
+  });
+  function slugTotal(slug){
+    const grupos=slugToGruposMap[slug]||[];
+    return grupos.reduce((s,g)=>s+(grupoSum[g]||0),0);
+  }
+
+  const recDfcTotal = slugTotal('receita_operacional');
+  const recGerTotal = filteredVendas.reduce((s,v)=>s+v.valor,0);
+  const impTotal   = slugTotal('impostos_vendas');
+  const dedTotal   = slugTotal('deducoes_vendas');
+  const cmvTotal   = slugTotal('cmv');
+  const despComTotal = slugTotal('despesas_comerciais');
+  const despPesTotal = slugTotal('despesas_pessoal');
+  const despAdmTotal = slugTotal('despesas_administrativas');
+  const despFinTotal = slugTotal('despesas_financeiras');
+  const proLabTotal  = slugTotal('pro_labore');
+  const distLucTotal = slugTotal('distribuicao_lucro');
+  const irCsllTotal  = slugTotal('ir_csll');
+  const emprestTotal = slugTotal('emprestimos_financiamentos');
+  const investTotal  = slugTotal('investimento');
+  const parcelTotal  = slugTotal('parcelamento_impostos');
+
+  let jurosTotal=0;
+  filtered.forEach(r=>{ if(isJuros(r.subgrupo)||isJuros(r.plano)) jurosTotal+=r.valor; });
+
+  function calcResultados(recTotal){
+    const recLiq=recTotal-impTotal-dedTotal;
+    const lucroBruto=recLiq-cmvTotal;
+    const resOp=lucroBruto-despComTotal-despPesTotal-despAdmTotal-despFinTotal-proLabTotal;
+    const ebitda=resOp+jurosTotal;
+    const resIr=resOp-distLucTotal-irCsllTotal;
+    const resLiq=resIr-emprestTotal-investTotal-parcelTotal;
+    return { __rec_liq__:recLiq,'__lucro_bruto__':lucroBruto,
+      '__resultado_op__':resOp,'__ebitda__':ebitda,
+      '__res_ir__':resIr,'__res_liq__':resLiq };
+  }
+  const resGer = calcResultados(recGerTotal);
+  const resDfc = calcResultados(recDfcTotal);
+
+  /* ── Layout ── */
+  const totalCols = () => 4; // Conta + DRE Gerencial + DFC + Diferença
+
+  document.getElementById('dreThead').innerHTML = `<tr>
+    <th style="min-width:320px">Conta</th>
+    <th>DRE Gerencial</th>
+    <th>DFC</th>
+    <th>Diferença</th>
+  </tr>`;
+
+  function cellVal(v){
+    if(Math.abs(v)<0.005) return `<span class="val-zero">—</span>`;
+    return `<span class="${v<0?'val-neg':''}">${fmtBRL(v)}</span>`;
+  }
+  function cellRes(v){
+    return `<span class="${v>0?'val-pos':v<0?'val-neg':''}">${fmtBRL(v)}</span>`;
+  }
+  function cellDiff(v){
+    if(Math.abs(v)<0.005) return `<span class="val-zero">—</span>`;
+    return `<span class="${v<0?'val-neg':'val-pos'}">${v>0?'+':''}${fmtBRL(v)}</span>`;
+  }
+
+  let _uid=0;
+  const uid=()=>'dre-'+(++_uid);
+  const unmapped=Object.keys(tree).filter(g=>!slugFromGrupo(g));
+  let html='';
+
+  DRE_STRUCTURE.forEach(slot=>{
+    if(slot.type==='sep'){
+      html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
+      return;
+    }
+    if(slot.type==='resultado'){
+      const vGer=resGer[slot.slug]||0, vDfc=resDfc[slot.slug]||0;
+      html+=`<tr class="row-resultado ${slot.style||''}">
+        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+        <td>${cellRes(vGer)}</td>
+        <td>${cellRes(vDfc)}</td>
+        <td>${cellDiff(vGer-vDfc)}</td>
+      </tr>`;
+      return;
+    }
+
+    /* Receita Operacional é especial: o faturamento (DRE Gerencial) não
+       tem a mesma quebra por grupo/subgrupo/plano que o Recebido
+       classificado (DFC) — por isso mostra só uma linha-resumo em vez
+       de expandir por conta, diferente dos outros grupos. */
+    if(slot.slug==='receita_operacional'){
+      html+=`<tr class="row-group" style="cursor:default">
+        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+        <td>${cellVal(recGerTotal)}</td>
+        <td>${cellVal(recDfcTotal)}</td>
+        <td>${cellDiff(recGerTotal-recDfcTotal)}</td>
+      </tr>`;
+      return;
+    }
+
+    /* type === 'group' (despesas, CMV, impostos etc.) — mesma base nas
+       duas colunas por enquanto (ver comentário no topo da função), então
+       Diferença = 0 até a planilha por vencimento existir. */
+    const grupos=slugToGruposMap[slot.slug]||[];
+    if(!grupos.length){
+      html+=`<tr class="row-group" style="opacity:.4">
+        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+        <td>—</td><td>—</td><td>—</td>
+      </tr>`;
+      return;
+    }
+
+    grupos.forEach((grupoReal,gi)=>{
+      const gTot=grupoSum[grupoReal]||0;
+      const gId=uid();
+      const labelCell=gi===0
+        ?`${CHEVRON}<span class="dre-sign">${slot.sign}</span>${slot.label}<span class="expand-hint">expandir</span>`
+        :`${CHEVRON}<span style="padding-left:4px;opacity:.6;font-size:11px;font-style:italic">${grupoReal}</span><span class="expand-hint">expandir</span>`;
+
+      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+        <td>${labelCell}</td>
+        <td style="font-weight:700">${cellVal(gTot)}</td>
+        <td style="font-weight:700">${cellVal(gTot)}</td>
+        <td>${cellDiff(0)}</td>
+      </tr>`;
+
+      Object.keys(tree[grupoReal]).sort().forEach(sub=>{
+        const sk=grupoReal+'|'+sub;
+        const sTot=subSum[sk]||0;
+        const sId=uid();
+        html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+          <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
+          <td style="font-weight:700">${cellVal(sTot)}</td>
+          <td style="font-weight:700">${cellVal(sTot)}</td>
+          <td>${cellDiff(0)}</td>
+        </tr>`;
+
+        Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
+          const pTot=tree[grupoReal][sub][plano]||0;
+          html+=`<tr class="row-item" data-parent="${sId}">
+            <td>${plano}</td>
+            <td>${cellVal(pTot)}</td>
+            <td>${cellVal(pTot)}</td>
+            <td>${cellDiff(0)}</td>
+          </tr>`;
+        });
+      });
+    });
+  });
+
+  /* Grupos não mapeados */
+  if(unmapped.length){
+    html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
+    html+=`<tr class="row-group" style="opacity:.6">
+      <td colspan="${totalCols()}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)">
+        Outros Grupos Não Classificados
+      </td>
+    </tr>`;
+    unmapped.forEach(g=>{
+      const gTot=grupoSum[g]||0;
+      const gId=uid();
+      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+        <td>${CHEVRON}<span class="dre-sign">(-)</span>${g}<span class="expand-hint">expandir</span></td>
+        <td>${cellVal(gTot)}</td>
+        <td>${cellVal(gTot)}</td>
+        <td>${cellDiff(0)}</td>
+      </tr>`;
+      Object.keys(tree[g]).sort().forEach(sub=>{
+        const sk=g+'|'+sub;
+        const sTot=subSum[sk]||0;
+        const sId=uid();
+        html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+          <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
+          <td style="font-weight:700">${cellVal(sTot)}</td>
+          <td style="font-weight:700">${cellVal(sTot)}</td>
+          <td>${cellDiff(0)}</td>
+        </tr>`;
+        Object.keys(tree[g][sub]).sort().forEach(plano=>{
+          const pTot=tree[g][sub][plano]||0;
+          html+=`<tr class="row-item" data-parent="${sId}">
+            <td>${plano}</td>
+            <td>${cellVal(pTot)}</td>
+            <td>${cellVal(pTot)}</td>
+            <td>${cellDiff(0)}</td>
+          </tr>`;
+        });
+      });
+    });
+  }
+
+  document.getElementById('dreTbody').innerHTML=html;
+  document.getElementById('dreSubtitle').textContent=
+    'Comparação DRE Gerencial × DFC para o filtro atual · Despesas ainda com a mesma base nos dois (aguardando planilha por vencimento) · clique para expandir';
+
   if(fixHeaderEnabled){ refreshHeaderCloneContent(); updateHeaderClonePosition(); }
 }
 
