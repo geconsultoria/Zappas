@@ -611,20 +611,23 @@ body {
 .dre-table.fixed-cols td:first-child { font-size: 12px; padding-left: 16px; }
 .dre-table.fixed-cols .av-col { font-size: 9.5px !important; padding-left: 4px !important; padding-right: 6px !important; }
 /* Coluna "DFC" do DRE x DFC: mesmo espaçamento/tamanho da coluna "Dif."
-   (.av-col), mas SEM forçar a cor cinza — o texto usa a mesma cor da
-   coluna "DRE Ger." (herdada do td, ou das classes val-pos/val-neg nos
-   spans de cellVal/cellRes), já que o pedido foi deixar as duas fontes
-   (DRE Ger. e DFC) na mesma cor, mantendo só a coluna "Dif." em cinza. */
+   (.av-col), mas SEM forçar a cor cinza nem a fonte monoespaçada — o
+   texto usa a mesma cor E a mesma fonte/peso da coluna "DRE Ger."
+   (herdada do td, ou das classes val-pos/val-neg nos spans de
+   cellVal/cellRes; e font-numeric herdado de .dre-table td, em vez do
+   font-mono do .av-col original, que fazia o número parecer mais
+   "pesado"/negrito por ser monoespaçado), já que o pedido foi deixar
+   as duas colunas no mesmo formato, mantendo só a coluna "Dif." em
+   cinza/monoespaçada de propósito, pra se diferenciar visualmente. */
 .dfc-col {
   font-size: 11px !important;
-  font-family: var(--font-mono) !important;
   min-width: 58px !important;
   padding-left: 6px !important;
   padding-right: 10px !important;
   border-left: 1px dashed var(--border) !important;
 }
 .dre-table.fixed-cols .dfc-col { font-size: 9.5px !important; padding-left: 4px !important; padding-right: 6px !important; }
-.row-resultado .dfc-col { font-size: 12px !important; font-weight: 700 !important; }
+.row-resultado .dfc-col { font-size: 12px !important; }
 .row-group .dfc-col { font-size: 11px !important; }
 .dre-table.fixed-cols tr.row-group .dfc-col,
 .dre-table.fixed-cols tr.row-resultado .dfc-col { font-size: 11.5px !important; }
