@@ -1056,12 +1056,18 @@ async function fetchComTimeout(url, opts, ms){
 }
 async function fetchCSV(url){
   const errs=[];
+  // Apps Script pode demorar bastante quando está sob carga (redirects 302
+  // seguidos de execução do script) — tenta a chamada direta duas vezes,
+  // com um timeout bem mais generoso (60s) antes de desistir pra essa loja.
+  for(let tentativa=1; tentativa<=2; tentativa++){
+    try{
+      const r = await fetchComTimeout(url + (url.includes('?')?'&':'?') + '_=' + Date.now(), { cache:'no-store' }, 60000);
+      if(r.ok){ const t = await r.text(); if(t && !t.trim().startsWith('<')) return t; }
+      errs.push('direct#'+tentativa+':http'+r.status);
+    }catch(e){ errs.push('direct#'+tentativa+':'+e.message); }
+  }
   try{
-    const r = await fetchComTimeout(url + (url.includes('?')?'&':'?') + '_=' + Date.now(), { cache:'no-store' });
-    if(r.ok){ const t = await r.text(); if(t && !t.trim().startsWith('<')) return t; }
-  }catch(e){ errs.push('direct:'+e.message); }
-  try{
-    const r = await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+(url.includes('?')?'&':'?')+'_='+Date.now()), { cache:'no-store' });
+    const r = await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+(url.includes('?')?'&':'?')+'_='+Date.now()), { cache:'no-store' }, 60000);
     if(r.ok){ const j = await r.json(); if(j?.contents && !j.contents.trim().startsWith('<')) return j.contents; }
   }catch(e){ errs.push('allorigins:'+e.message); }
   throw new Error('Falha ao carregar CSV: '+errs.join(' | '));
@@ -1178,21 +1184,26 @@ let rawData = [];
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
   let rows = [];
-  const BATCH = 2;
-  for(let i=0;i<CURVAABC_URLS.length;i+=BATCH){
-    const grupo = CURVAABC_URLS.slice(i, i+BATCH);
+  const falharam = [];
+  // Uma loja de cada vez (em vez de 2 em paralelo): o Apps Script parece
+  // enfileirar/serializar execuções concorrentes do mesmo deployment, e
+  // disparar várias ao mesmo tempo só aumentava a chance de estourar o
+  // timeout em alguma delas (normalmente a 2ª do par, ex.: Bady).
+  for(let i=0;i<CURVAABC_URLS.length;i++){
+    const url = CURVAABC_URLS[i];
+    const lojaKey = CURVAABC_STORE_KEYS[i];
     const lbl = document.getElementById('ld-txt');
-    if(lbl) lbl.textContent = 'Carregando produtos ('+Math.min(i+BATCH,CURVAABC_URLS.length)+'/'+CURVAABC_URLS.length+')…';
-    await Promise.all(grupo.map(async (url,j) => {
-      const idx = i+j;
-      const lojaKey = CURVAABC_STORE_KEYS[idx];
-      try{
-        const text = await fetchCSV(url);
-        rows = rows.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
-      }catch(e){ console.warn('Curva ABC indisponível ('+lojaKey+'):', e.message); }
-    }));
+    if(lbl) lbl.textContent = 'Carregando produtos ('+(i+1)+'/'+CURVAABC_URLS.length+')… '+lojaKey;
+    try{
+      const text = await fetchCSV(url);
+      rows = rows.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
+    }catch(e){
+      console.warn('Curva ABC indisponível ('+lojaKey+'):', e.message);
+      falharam.push(lojaKey);
+    }
   }
   if(!rows.length) throw new Error('Nenhuma linha válida encontrada.');
+  if(falharam.length) console.warn('Lojas que não carregaram nesta atualização: '+falharam.join(', '));
   rawData = rows;
 }
 
