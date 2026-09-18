@@ -1628,6 +1628,14 @@ let vendasRaw = [], filteredVendas = [];
 // filtros Ano/Mês/Loja aplicados a "filtered" (ver applyFilters()).
 let custoProdutoRaw = [], filteredCusto = [];
 
+// Impostos sobre Vendas no "DRE Gerencial" — o imposto pago no mês N na
+// verdade se refere às vendas do mês N-1 (regime de competência), então
+// pro Gerencial cada lançamento de imposto é deslocado 1 mês pra trás
+// (dez/ano-1 quando o mês pago é janeiro). O DFC continua mostrando o
+// imposto no mês em que foi de fato pago (regime de caixa, sem
+// deslocamento) — ver recalcImpostosGer()/deslocarMesAnterior().
+let impostosGerRaw = [], filteredImpostosGer = [];
+
 // Aba ativa da tabela DRE: 'dfc' (Fluxo de Caixa, como sempre foi),
 // 'gerencial' (mesma estrutura, mas Receita = faturamento da Análise
 // Comercial) ou 'consolidado' (comparação DRE Gerencial x DFC lado a
@@ -2641,6 +2649,7 @@ async function carregarTudo(){
 
   raw = [...rowsRecebimentos, ...rowsDespSemReceita];
   if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
+  recalcImpostosGer();
   reconciliacaoPronta = true;
   // Precisa mostrar a área ANTES de popular/filtrar: com "display:none" a
   // tabela tem largura zero, e o cabeçalho fixo mede as colunas com 0px
@@ -2695,6 +2704,7 @@ async function loadData(forceRefresh, silent){
       const cached=await loadCacheDB();
       if(cached && cached.data && cached.data.length){
         raw=cached.data;
+        recalcImpostosGer();
         // Cache salvo por uma versão anterior da página não tem "recon.linhas"
         // (painel de Conciliação do De-Para é novo) — força uma atualização em
         // segundo plano pra preencher o painel, em vez de deixar tudo zerado
@@ -2853,6 +2863,20 @@ function populateFilters(){
   }
 }
 
+// Reconstrói impostosGerRaw a partir de "raw" — chamado sempre que "raw"
+// é (re)carregado (carregarTudo() e o caminho de cache em loadData()),
+// antes do primeiro applyFilters(). Não precisa de buildSlugMap(): usa
+// slugFromGrupo() direto, que só olha o texto do grupo.
+function recalcImpostosGer(){
+  impostosGerRaw = raw
+    .filter(r=>slugFromGrupo(r.grupo)==='impostos_vendas')
+    .map(r=>{
+      let mes=r.mes-1, ano=r.ano;
+      if(mes<1){ mes=12; ano=ano-1; }
+      return { mes, ano, loja:r.loja, valor:r.valor };
+    });
+}
+
 function applyFilters(){
   const ano=document.getElementById('fAno').value;
   const meses=mesesSelecionados; // [] = todos os meses
@@ -2870,6 +2894,12 @@ function applyFilters(){
     return true;
   });
   filteredCusto=custoProdutoRaw.filter(r=>{
+    if(ano&&String(r.ano)!==ano) return false;
+    if(meses.length&&!meses.includes(Number(r.mes))) return false;
+    if(loja&&r.loja!==loja) return false;
+    return true;
+  });
+  filteredImpostosGer=impostosGerRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(loja&&r.loja!==loja) return false;
@@ -3447,10 +3477,21 @@ function renderDRE(){
     });
     return out;
   }
+  // Impostos sobre Vendas (Gerencial): mesmo valor pago, só que jogado 1
+  // mês pra trás (ver recalcImpostosGer()) — regime de competência, em
+  // vez do mês de pagamento (regime de caixa, usado no DFC).
+  function impostosGerColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredImpostosGer.forEach(v=>{
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
 
   /* ── Calcular resultados ── */
   const rec = dreView==='gerencial' ? vendasColVals() : slugColVals('receita_operacional');
-  const imp=slugColVals('impostos_vendas');
+  const imp = dreView==='gerencial' ? impostosGerColVals() : slugColVals('impostos_vendas');
   const ded=slugColVals('deducoes_vendas');
   const recLiq={}; cols.forEach(c=>recLiq[c]=rec[c]-imp[c]-ded[c]);
   const cmv = dreView==='gerencial' ? custoColVals() : slugColVals('cmv');
@@ -3605,6 +3646,23 @@ function renderDRE(){
         ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
         <td style="font-weight:700">${cellVal(cmvTot)}</td>
         ${avCell(cmvTot,rowTotal(rec))}
+      </tr>`;
+      return;
+    }
+
+    /* Impostos sobre Vendas: no DRE Gerencial o imposto pago no mês N é
+       jogado pro mês N-1 (regime de competência — ver recalcImpostosGer()),
+       diferente do DFC (mês de pagamento). Como o mês muda, a árvore de
+       grupo/subgrupo/plano original (baseada no mês de pagamento) não bate
+       mais com o total já deslocado — por isso, igual à Receita e ao CMV
+       acima, mostra só uma linha-resumo em vez de expandir. */
+    if(slot.slug==='impostos_vendas' && dreView==='gerencial'){
+      const impTot=rowTotal(imp);
+      html+=`<tr class="row-group" style="cursor:default">
+        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+        ${cols.map(c=>`<td>${cellVal(imp[c]||0)}</td>${avCell(imp[c]||0,rec[c]||0)}`).join('')}
+        <td style="font-weight:700">${cellVal(impTot)}</td>
+        ${avCell(impTot,rowTotal(rec))}
       </tr>`;
       return;
     }
@@ -3831,11 +3889,23 @@ function renderDREConsolidado(){
     });
     return out;
   }
+  // Impostos sobre Vendas — lado "DRE Ger." usa o valor deslocado 1 mês
+  // pra trás (regime de competência, ver recalcImpostosGer()); o lado DFC
+  // continua com o mês de pagamento (regime de caixa), via slugColVals.
+  function impostosGerColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filteredImpostosGer.forEach(v=>{
+      const colKey = modoMensal ? v.mes : v.loja;
+      if(colKey in out) out[colKey]+=v.valor;
+    });
+    return out;
+  }
   function rowTotal(vals){ return cols.reduce((s,c)=>s+(vals[c]||0),0); }
 
   const recDfc = slugColVals('receita_operacional');
   const recGer = vendasColVals();
-  const imp    = slugColVals('impostos_vendas');
+  const impDfc = slugColVals('impostos_vendas');
+  const impGer = impostosGerColVals();
   const ded    = slugColVals('deducoes_vendas');
   const cmvDfc = slugColVals('cmv');
   const cmvGer = custoColVals();
@@ -3859,10 +3929,10 @@ function renderDREConsolidado(){
     }
   });
 
-  function calcResultados(recMap,cmvMap){
+  function calcResultados(recMap,cmvMap,impMap){
     const recLiq={}, lucroBruto={}, resOp={}, ebitda={}, resIr={}, resLiq={};
     cols.forEach(c=>{
-      recLiq[c]=recMap[c]-imp[c]-ded[c];
+      recLiq[c]=recMap[c]-impMap[c]-ded[c];
       lucroBruto[c]=recLiq[c]-cmvMap[c];
       resOp[c]=lucroBruto[c]-despCom[c]-despPes[c]-despAdm[c]-despFin[c]-proLab[c];
       ebitda[c]=resOp[c]+(jurosPorCol[c]||0);
@@ -3873,8 +3943,8 @@ function renderDREConsolidado(){
       '__resultado_op__':resOp,'__ebitda__':ebitda,
       '__res_ir__':resIr,'__res_liq__':resLiq };
   }
-  const resGer = calcResultados(recGer,cmvGer);
-  const resDfc = calcResultados(recDfc,cmvDfc);
+  const resGer = calcResultados(recGer,cmvGer,impGer);
+  const resDfc = calcResultados(recDfc,cmvDfc,impDfc);
 
   /* ── Layout: Conta + (Ger/DFC/Dif) por coluna + (Ger/DFC/Dif) do Total ── */
   const totalCols = () => 1 + cols.length*3 + 3;
@@ -4033,7 +4103,22 @@ function renderDREConsolidado(){
       return;
     }
 
-    /* type === 'group' (despesas, impostos etc.) — mesma base nas
+    /* Impostos sobre Vendas: no lado "DRE Ger." o valor já vem deslocado
+       1 mês pra trás (regime de competência — ver recalcImpostosGer());
+       no lado "DFC" continua no mês de pagamento (regime de caixa). Por
+       isso mostra Diferença de verdade, igual ao CMV acima, em vez de
+       expandir os subgrupos (que são do mês de pagamento, e não batem
+       mais com o total já deslocado do lado Ger.). */
+    if(slot.slug==='impostos_vendas'){
+      html+=`<tr class="row-group" style="cursor:default">
+        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+        ${cols.map(c=>triple(impGer[c]||0,impDfc[c]||0,cellVal,true)).join('')}
+        ${triple(rowTotal(impGer),rowTotal(impDfc),cellVal,true)}
+      </tr>`;
+      return;
+    }
+
+    /* type === 'group' (despesas etc.) — mesma base nas
        duas colunas por enquanto (ver comentário no topo da função), então
        Diferença = 0 até a planilha por vencimento existir. */
     const grupos=slugToGruposMap[slot.slug]||[];
