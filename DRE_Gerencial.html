@@ -1680,7 +1680,7 @@ const DRE_STRUCTURE = [
   { slug:'deducoes_vendas',            label:'DEDUÇÕES S/ VENDAS',                    sign:'(-)', type:'group',     style:'' },
   { slug:'__rec_liq__',                label:'RECEITA OPERACIONAL LÍQUIDA',           sign:'(=)', type:'resultado', style:'light' },
   { slug:'sep1', type:'sep' },
-  { slug:'cmv',                        label:'CMV — CUSTO MERCADORIA VENDIDA',        sign:'(-)', type:'group',     style:'' },
+  { slug:'cmv',                        label:'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)', sign:'(-)', type:'group',     style:'' },
   { slug:'__lucro_bruto__',            label:'LUCRO BRUTO',                           sign:'(=)', type:'resultado', style:'green' },
   { slug:'sep2', type:'sep' },
   { slug:'despesas_comerciais',        label:'DESPESAS COMERCIAIS',                   sign:'(-)', type:'group',     style:'' },
@@ -2254,7 +2254,11 @@ function parseVendas(text, lojaFallback){
     // que a linha já é só desses canais (comportamento anterior).
     if(iCanal>=0){
       const canal = normKey(g(iCanal));
-      if(!CANAIS_FATURAMENTO.includes(canal)) continue;
+      // match exato OU parcial (ex.: "loja fisica", "central de vendas")
+      // pra não zerar tudo se o texto do canal na planilha vier com
+      // palavras a mais em volta de loja/delivery/central.
+      const bate = CANAIS_FATURAMENTO.some(c => canal===c || canal.includes(c));
+      if(!bate) continue;
     }
 
     rows.push({ mes, ano, loja, valor });
@@ -2608,10 +2612,13 @@ function uniq(arr, numeric){ return [...new Set(arr)].filter(x=>x!=null&&x!=='')
 // usado pra desenhar as checkboxes do painel e validar mesesSelecionados.
 let mesesDisponiveis = [];
 
-// Rótulo mostrado no botão do filtro: "Todos os Meses" (nada marcado),
-// o nome do mês (só 1 marcado) ou "N meses selecionados" (vários).
+// Rótulo mostrado no botão do filtro: "Todos os Meses" (nada marcado, ou
+// todos os meses disponíveis marcados — mesmo resultado do filtro, só
+// muda a exibição), o nome do mês (só 1 marcado) ou "N meses
+// selecionados" (vários, mas não todos).
 function mesesLabel(){
   if(!mesesSelecionados.length) return 'Todos os Meses';
+  if(mesesDisponiveis.length && mesesSelecionados.length===mesesDisponiveis.length) return 'Todos os Meses';
   if(mesesSelecionados.length===1) return MES_FULL[mesesSelecionados[0]]||String(mesesSelecionados[0]);
   return mesesSelecionados.length+' meses selecionados';
 }
@@ -2663,7 +2670,11 @@ function toggleMes(m){
   applyFilters();
 }
 function selecionarTodosMeses(){
-  mesesSelecionados=[];
+  // Preenche com TODOS os meses disponíveis (em vez de esvaziar o array)
+  // pra marcar visualmente cada checkbox — antes ficava vazio, que
+  // filtra igual (array vazio = sem restrição), mas o painel aparecia
+  // com nada marcado ao clicar em "Todos".
+  mesesSelecionados=[...mesesDisponiveis];
   renderMesPanel();
   applyFilters();
 }
@@ -3366,6 +3377,38 @@ function renderDRE(){
       return;
     }
 
+    /* No DRE Gerencial, a Receita Operacional vem do faturamento da Análise
+       Comercial (Loja/Delivery/Central), que não tem a mesma quebra por
+       grupo/subgrupo/plano dos Recebimentos classificados (base do DFC).
+       Por isso, nessa view, mostra só uma linha-resumo (sem expandir) em
+       vez da árvore de "Recebimentos" (BOLETO, CARTÃO/PIX etc.) — que é
+       dado do DFC e não reflete o faturamento pedido. */
+    if(slot.slug==='receita_operacional' && dreView==='gerencial'){
+      const totBase=rowTotal(rec);
+      html+=`<tr class="row-group" style="cursor:default">
+        <td><span class="dre-sign">${slot.sign}</span>Receitas</td>
+        ${cols.map(c=>`<td>${cellVal(rec[c]||0)}</td>${avCell(rec[c]||0,rec[c]||0)}`).join('')}
+        <td style="font-weight:700">${cellVal(totBase)}</td>
+        ${avCell(totBase,totBase)}
+      </tr>`;
+      return;
+    }
+
+    /* CMV: mesma lógica da Receita acima — no DRE Gerencial mostra só uma
+       linha-resumo "Custo Mercadoria Vendida" (mesmo total apurado via
+       Contas a Pagar + Plano de Contas, igual ao Faturamento_Lucro.html),
+       em vez de expandir os subgrupos reais (Matéria Prima, Revenda etc.). */
+    if(slot.slug==='cmv' && dreView==='gerencial'){
+      const cmvTot=rowTotal(cmv);
+      html+=`<tr class="row-group" style="cursor:default">
+        <td><span class="dre-sign">${slot.sign}</span>CMV — Custo Mercadoria Vendida (Produto)</td>
+        ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
+        <td style="font-weight:700">${cellVal(cmvTot)}</td>
+        ${avCell(cmvTot,rowTotal(rec))}
+      </tr>`;
+      return;
+    }
+
     /* type === 'group' */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
@@ -3672,7 +3715,20 @@ function renderDREConsolidado(){
       return;
     }
 
-    /* type === 'group' (despesas, CMV, impostos etc.) — mesma base nas
+    /* CMV: mesma ideia da Receita Operacional acima — em vez de expandir
+       os subgrupos reais (Matéria Prima, Revenda etc.), mostra uma
+       linha-resumo única "Custo Mercadoria Vendida" (Ger/DFC/Diferença),
+       igual ao que o DRE Gerencial já faz sozinho. */
+    if(slot.slug==='cmv'){
+      html+=`<tr class="row-group" style="cursor:default">
+        <td><span class="dre-sign">${slot.sign}</span>Custo Mercadoria Vendida</td>
+        ${cols.map(c=>triple(cmv[c]||0,cmv[c]||0,cellVal,true)).join('')}
+        ${triple(rowTotal(cmv),rowTotal(cmv),cellVal,true)}
+      </tr>`;
+      return;
+    }
+
+    /* type === 'group' (despesas, impostos etc.) — mesma base nas
        duas colunas por enquanto (ver comentário no topo da função), então
        Diferença = 0 até a planilha por vencimento existir. */
     const grupos=slugToGruposMap[slot.slug]||[];
