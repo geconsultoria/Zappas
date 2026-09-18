@@ -445,6 +445,30 @@ body {
   position: sticky; top: 0;
 }
 .dre-table th:first-child { text-align: left; padding-left: 20px; min-width: 280px; }
+/* Coluna "Conta" fixa ao rolar horizontalmente — sem isso, ao passar
+   pelos meses/lojas (colunas), perdíamos de vista a que conta cada
+   linha se referia. left:0 prende a 1ª coluna na borda esquerda do
+   scroll; precisa de um background sólido (senão o conteúdo das outras
+   colunas "passa por baixo" ao rolar) — um por tipo de linha, pra
+   acompanhar o fundo que cada linha já tem (grupo/subgrupo/item/
+   resultado), e z-index maior no th pra ficar por cima do próprio
+   cabeçalho sticky (que já prende no topo) no canto superior-esquerdo. */
+.dre-table th:first-child { position: sticky; left: 0; z-index: 3; }
+.dre-table td:first-child {
+  position: sticky; left: 0; z-index: 1;
+  background: var(--surface);
+}
+.dre-table tr.row-group td:first-child { background: var(--navy-pale); }
+.dre-table tr.row-subgroup td:first-child { background: #F7F5F0; }
+.dre-table tr.row-resultado td:first-child { background: #C8DCF5; }
+.dre-table tr.row-resultado.green td:first-child { background: #B8EEDA; }
+.dre-table tr.row-resultado.light td:first-child { background: #E8F2FC; }
+.dre-table tr.row-resultado.gold td:first-child { background: #FAE9A0; }
+.dre-table tbody tr:hover td:first-child { background: var(--bg-2) !important; }
+/* Sombra sutil pra marcar a borda da coluna fixa enquanto o resto da
+   tabela rola por baixo dela. */
+.dre-table th:first-child,
+.dre-table td:first-child { box-shadow: 2px 0 4px -2px rgba(0,0,0,.15); }
 
 .dre-table tbody tr { border-bottom: 1px solid #F0EDE6; transition: background .12s; }
 .dre-table tbody tr:last-child { border-bottom: none; }
@@ -545,7 +569,7 @@ body {
 .dre-th-groupname {
   text-align: center !important;
   border-bottom: 1px solid var(--border) !important;
-  border-left: 2px solid var(--ink-3) !important;
+  border-left: 2px solid var(--navy-light) !important;
 }
 /* Separa visualmente o grupo de cada loja/mês (ex.: ANISIO | BADY) —
    sem essa borda mais forte, os grupos de 3 colunas ficavam "grudados"
@@ -566,9 +590,15 @@ body {
    entre lojas/meses desce também pelas linhas de dados (2ª linha do
    cabeçalho e tbody), não só pela 1ª linha do cabeçalho. */
 .dre-table.fixed-cols { table-layout: fixed; }
-.dre-table.fixed-cols thead tr:nth-child(2) th:nth-child(3n+2),
+/* A 2ª linha do cabeçalho (DRE Ger./DFC/Dif.) NÃO tem uma célula "Conta"
+   própria (ela é "rowspan=2" só na 1ª linha), então o "1º da coluna do
+   grupo" cai numa posição diferente ali (3n+1) do que no tbody (3n+2,
+   que TEM a célula Conta em toda linha) — por isso a linha de separação
+   parecia "cortada"/descontinuada entre o cabeçalho e o corpo da
+   tabela: as duas bordas estavam em colunas visuais diferentes. */
+.dre-table.fixed-cols thead tr:nth-child(2) th:nth-child(3n+1),
 .dre-table.fixed-cols tbody td:nth-child(3n+2) {
-  border-left: 2px solid var(--navy-mid);
+  border-left: 2px solid var(--navy-light);
 }
 /* Fonte um pouco menor nessa aba (colunas com largura fixa e mais
    estreita que o layout automático das outras abas) — sem isso, valores
@@ -580,6 +610,26 @@ body {
 .dre-table.fixed-cols tr.row-item td { font-size: 10.5px; }
 .dre-table.fixed-cols td:first-child { font-size: 12px; padding-left: 16px; }
 .dre-table.fixed-cols .av-col { font-size: 9.5px !important; padding-left: 4px !important; padding-right: 6px !important; }
+/* Coluna "DFC" do DRE x DFC: mesmo espaçamento/tamanho da coluna "Dif."
+   (.av-col), mas SEM forçar a cor cinza — o texto usa a mesma cor da
+   coluna "DRE Ger." (herdada do td, ou das classes val-pos/val-neg nos
+   spans de cellVal/cellRes), já que o pedido foi deixar as duas fontes
+   (DRE Ger. e DFC) na mesma cor, mantendo só a coluna "Dif." em cinza. */
+.dfc-col {
+  font-size: 11px !important;
+  font-family: var(--font-mono) !important;
+  min-width: 58px !important;
+  padding-left: 6px !important;
+  padding-right: 10px !important;
+  border-left: 1px dashed var(--border) !important;
+}
+.dre-table.fixed-cols .dfc-col { font-size: 9.5px !important; padding-left: 4px !important; padding-right: 6px !important; }
+.row-resultado .dfc-col { font-size: 12px !important; font-weight: 700 !important; }
+.row-group .dfc-col { font-size: 11px !important; }
+.dre-table.fixed-cols tr.row-group .dfc-col,
+.dre-table.fixed-cols tr.row-resultado .dfc-col { font-size: 11.5px !important; }
+.dre-table.fixed-cols tr.row-subgroup .dfc-col,
+.dre-table.fixed-cols tr.row-item .dfc-col { font-size: 10.5px !important; }
 .av-pos { color: var(--emerald-mid) !important; font-weight: 600 !important; }
 .av-neg { color: var(--crimson) !important; font-weight: 600 !important; }
 .av-neutral { color: var(--ink-3) !important; }
@@ -2873,7 +2923,10 @@ function recalcImpostosGer(){
     .map(r=>{
       let mes=r.mes-1, ano=r.ano;
       if(mes<1){ mes=12; ano=ano-1; }
-      return { mes, ano, loja:r.loja, valor:r.valor };
+      // Mantém grupo/subgrupo/plano (não só o total) pra dar pra expandir
+      // a linha de Impostos no DRE Gerencial/Consolidado e mostrar de
+      // qual imposto vem cada valor, igual ao DFC.
+      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano };
     });
 }
 
@@ -3435,6 +3488,27 @@ function renderDRE(){
     subSum[sk][colKey]=(subSum[sk][colKey]||0)+r.valor;
   });
 
+  // Árvore própria dos Impostos no DRE Gerencial: mesma ideia da árvore
+  // acima, mas a partir de "filteredImpostosGer" (valor já deslocado 1
+  // mês pra trás — ver recalcImpostosGer()), mantendo grupo/subgrupo/
+  // plano pra dar pra expandir e ver de qual imposto vem cada valor.
+  const treeImp={}, grupoSumImp={}, subSumImp={};
+  filteredImpostosGer.forEach(r=>{
+    const g=r.grupo||'(sem grupo)';
+    const s=r.subgrupo||'(sem subgrupo)';
+    const p=r.plano||'(sem plano)';
+    const colKey = modoMensal ? r.mes : r.loja;
+    if(!treeImp[g]) treeImp[g]={};
+    if(!treeImp[g][s]) treeImp[g][s]={};
+    if(!treeImp[g][s][p]) treeImp[g][s][p]={};
+    if(!grupoSumImp[g]) grupoSumImp[g]={};
+    const sk=g+'|'+s;
+    if(!subSumImp[sk]) subSumImp[sk]={};
+    treeImp[g][s][p][colKey]=(treeImp[g][s][p][colKey]||0)+r.valor;
+    grupoSumImp[g][colKey]=(grupoSumImp[g][colKey]||0)+r.valor;
+    subSumImp[sk][colKey]=(subSumImp[sk][colKey]||0)+r.valor;
+  });
+
   function slugColVals(slug){
     const grupos=slugToGruposMap[slug]||[];
     const out={};
@@ -3651,19 +3725,61 @@ function renderDRE(){
     }
 
     /* Impostos sobre Vendas: no DRE Gerencial o imposto pago no mês N é
-       jogado pro mês N-1 (regime de competência — ver recalcImpostosGer()),
-       diferente do DFC (mês de pagamento). Como o mês muda, a árvore de
-       grupo/subgrupo/plano original (baseada no mês de pagamento) não bate
-       mais com o total já deslocado — por isso, igual à Receita e ao CMV
-       acima, mostra só uma linha-resumo em vez de expandir. */
+       jogado pro mês N-1 (regime de competência — ver recalcImpostosGer()).
+       Expande na própria árvore de Impostos (treeImp/grupoSumImp/subSumImp,
+       montada a partir do valor já deslocado), pra mostrar de qual imposto
+       vem cada valor — igual ao DFC, só que com os meses trocados. */
     if(slot.slug==='impostos_vendas' && dreView==='gerencial'){
-      const impTot=rowTotal(imp);
-      html+=`<tr class="row-group" style="cursor:default">
-        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
-        ${cols.map(c=>`<td>${cellVal(imp[c]||0)}</td>${avCell(imp[c]||0,rec[c]||0)}`).join('')}
-        <td style="font-weight:700">${cellVal(impTot)}</td>
-        ${avCell(impTot,rowTotal(rec))}
-      </tr>`;
+      // Não usa slugToGruposMap aqui: ele é montado a partir de "filtered"
+      // (mês de pagamento/regime de caixa), então ao filtrar por um mês
+      // específico o Imposto pago no mês seguinte já não aparece mais em
+      // "filtered" — mas continua em treeImp (mês já deslocado pra trás).
+      // Os grupos de verdade pra essa árvore são as chaves do próprio
+      // treeImp, montado direto de filteredImpostosGer.
+      const gruposImp=Object.keys(treeImp);
+      if(!gruposImp.length){
+        html+=`<tr class="row-group" style="opacity:.4">
+          <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+          ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
+        </tr>`;
+        return;
+      }
+      gruposImp.forEach((grupoReal,gi)=>{
+        const gVals=grupoSumImp[grupoReal]||{};
+        const gTot=rowTotal(gVals);
+        const gId=uid();
+        const labelCell=gi===0
+          ?`${CHEVRON}<span class="dre-sign">${slot.sign}</span>${slot.label}<span class="expand-hint">expandir</span>`
+          :`${CHEVRON}<span style="padding-left:4px;opacity:.6;font-size:11px;font-style:italic">${grupoReal}</span><span class="expand-hint">expandir</span>`;
+        html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+          <td>${labelCell}</td>
+          ${cols.map(c=>`<td>${cellVal(gVals[c]||0)}</td>${avCell(gVals[c]||0,rec[c]||0)}`).join('')}
+          <td style="font-weight:700">${cellVal(gTot)}</td>
+          ${avCell(gTot,rowTotal(rec))}
+        </tr>`;
+        Object.keys((treeImp[grupoReal]||{})).sort().forEach(sub=>{
+          const sk=grupoReal+'|'+sub;
+          const sVals=subSumImp[sk]||{};
+          const sTot=rowTotal(sVals);
+          const sId=uid();
+          html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+            <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
+            ${cols.map(c=>`<td>${cellVal(sVals[c]||0)}</td>${avCell(sVals[c]||0,rec[c]||0)}`).join('')}
+            <td style="font-weight:700">${cellVal(sTot)}</td>
+            ${avCell(sTot,rowTotal(rec))}
+          </tr>`;
+          Object.keys(treeImp[grupoReal][sub]).sort().forEach(plano=>{
+            const pVals=treeImp[grupoReal][sub][plano]||{};
+            const pTot=rowTotal(pVals);
+            html+=`<tr class="row-item" data-parent="${sId}">
+              <td>${plano}</td>
+              ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
+              <td>${cellVal(pTot)}</td>
+              ${avCell(pTot,rowTotal(rec))}
+            </tr>`;
+          });
+        });
+      });
       return;
     }
 
@@ -3854,6 +3970,28 @@ function renderDREConsolidado(){
     subSum[sk][colKey]=(subSum[sk][colKey]||0)+r.valor;
   });
 
+  // Árvore paralela dos Impostos sobre Vendas já deslocados (lado "DRE
+  // Ger.", regime de competência — ver recalcImpostosGer()), pra poder
+  // expandir a linha de Impostos no Consolidado e mostrar de qual
+  // imposto vem cada valor, igual ao lado DFC (tree/grupoSum/subSum
+  // acima, que já tem o detalhe original de impostos_vendas).
+  const treeImpGer={}, grupoSumImpGer={}, subSumImpGer={};
+  filteredImpostosGer.forEach(r=>{
+    const g=r.grupo||'(sem grupo)';
+    const s=r.subgrupo||'(sem subgrupo)';
+    const p=r.plano||'(sem plano)';
+    const colKey = modoMensal ? r.mes : r.loja;
+    if(!treeImpGer[g]) treeImpGer[g]={};
+    if(!treeImpGer[g][s]) treeImpGer[g][s]={};
+    if(!treeImpGer[g][s][p]) treeImpGer[g][s][p]={};
+    if(!grupoSumImpGer[g]) grupoSumImpGer[g]={};
+    const sk=g+'|'+s;
+    if(!subSumImpGer[sk]) subSumImpGer[sk]={};
+    treeImpGer[g][s][p][colKey]=(treeImpGer[g][s][p][colKey]||0)+r.valor;
+    grupoSumImpGer[g][colKey]=(grupoSumImpGer[g][colKey]||0)+r.valor;
+    subSumImpGer[sk][colKey]=(subSumImpGer[sk][colKey]||0)+r.valor;
+  });
+
   function slugColVals(slug){
     const grupos=slugToGruposMap[slug]||[];
     const out={};
@@ -3959,7 +4097,7 @@ function renderDREConsolidado(){
   const colgroupEl=document.getElementById('dreColgroup');
   if(colgroupEl){
     const grupoCols='<col style="width:104px"><col style="width:90px"><col style="width:88px">';
-    colgroupEl.innerHTML = `<col style="width:280px">${cols.map(()=>grupoCols).join('')}${grupoCols}`;
+    colgroupEl.innerHTML = `<col style="width:340px">${cols.map(()=>grupoCols).join('')}${grupoCols}`;
   }
 
   document.getElementById('dreThead').innerHTML = `
@@ -4003,7 +4141,7 @@ function renderDREConsolidado(){
   // linhas de resultado) e cellDiff sempre pra terceira.
   function triple(gerVal,dfcVal,fmt,boldGerDfc){
     const st = boldGerDfc ? ' style="font-weight:700"' : '';
-    return `<td${st}>${fmt(gerVal)}</td><td class="av-col"${st}>${fmt(dfcVal)}</td><td class="av-col">${cellDiff(gerVal-dfcVal)}</td>`;
+    return `<td${st}>${fmt(gerVal)}</td><td class="dfc-col"${st}>${fmt(dfcVal)}</td><td class="av-col">${cellDiff(gerVal-dfcVal)}</td>`;
   }
 
   let _uid=0;
@@ -4106,15 +4244,58 @@ function renderDREConsolidado(){
     /* Impostos sobre Vendas: no lado "DRE Ger." o valor já vem deslocado
        1 mês pra trás (regime de competência — ver recalcImpostosGer());
        no lado "DFC" continua no mês de pagamento (regime de caixa). Por
-       isso mostra Diferença de verdade, igual ao CMV acima, em vez de
-       expandir os subgrupos (que são do mês de pagamento, e não batem
-       mais com o total já deslocado do lado Ger.). */
+       isso mostra Diferença de verdade, e abre em duas linhas
+       independentes — "DRE Ger." (treeImpGer, já deslocado) e "DFC"
+       (tree, mês de pagamento) — cada uma com o detalhe de qual imposto
+       compõe o valor do seu próprio lado, igual ao padrão já usado em
+       Receita Operacional (Receita/Recebimento). */
     if(slot.slug==='impostos_vendas'){
-      html+=`<tr class="row-group" style="cursor:default">
-        <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
+      const gId=uid();
+      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+        <td>${CHEVRON}<span class="dre-sign">${slot.sign}</span>${slot.label}<span class="expand-hint">expandir</span></td>
         ${cols.map(c=>triple(impGer[c]||0,impDfc[c]||0,cellVal,true)).join('')}
         ${triple(rowTotal(impGer),rowTotal(impDfc),cellVal,true)}
       </tr>`;
+
+      const gruposImpGer=Object.keys(treeImpGer);
+      const sIdGer=uid();
+      html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sIdGer}" onclick="toggleSubgroup('${sIdGer}',event)">
+        <td>${CHEVRON}DRE Ger.<span class="expand-hint">expandir</span></td>
+        ${cols.map(c=>triple(impGer[c]||0,0,cellVal)).join('')}
+        ${triple(rowTotal(impGer),0,cellVal)}
+      </tr>`;
+      gruposImpGer.forEach(grupoReal=>{
+        Object.keys(treeImpGer[grupoReal]).sort().forEach(sub=>{
+          Object.keys(treeImpGer[grupoReal][sub]).sort().forEach(plano=>{
+            const pVals=treeImpGer[grupoReal][sub][plano]||{};
+            html+=`<tr class="row-item" data-parent="${sIdGer}">
+              <td>${plano}</td>
+              ${cols.map(c=>triple(pVals[c]||0,0,cellVal)).join('')}
+              ${triple(rowTotal(pVals),0,cellVal)}
+            </tr>`;
+          });
+        });
+      });
+
+      const gruposImpDfc=slugToGruposMap['impostos_vendas']||[];
+      const sIdDfc=uid();
+      html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sIdDfc}" onclick="toggleSubgroup('${sIdDfc}',event)">
+        <td>${CHEVRON}DFC<span class="expand-hint">expandir</span></td>
+        ${cols.map(c=>triple(0,impDfc[c]||0,cellVal)).join('')}
+        ${triple(0,rowTotal(impDfc),cellVal)}
+      </tr>`;
+      gruposImpDfc.forEach(grupoReal=>{
+        Object.keys((tree[grupoReal]||{})).sort().forEach(sub=>{
+          Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
+            const pVals=tree[grupoReal][sub][plano]||{};
+            html+=`<tr class="row-item" data-parent="${sIdDfc}">
+              <td>${plano}</td>
+              ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
+              ${triple(0,rowTotal(pVals),cellVal)}
+            </tr>`;
+          });
+        });
+      });
       return;
     }
 
