@@ -2158,17 +2158,20 @@ function expLojaKey(l){ const k=normTxt(l); return k==='belveder'?'belvedere':k;
 function renderComparative(data) {
   // Dados base: sem filtro de ano, mas com filtro de loja/mês
   const f = getF();
-  const baseData = rawData.filter(r =>
+  // baseDataAll: sem filtro de canal (usado só por Quebras, que não tem canal)
+  const baseDataAll = rawData.filter(r =>
     (!f.loja || r.loja === f.loja) &&
     (!f.mes  || r.mes  === f.mes)
   );
+  // baseData: obedece também o filtro de Canal (Faturamento, Cupons, Ticket)
+  const baseData = f.canais.size ? baseDataAll.filter(r => f.canais.has(r.canal)) : baseDataAll;
 
-  // Índice (ano|mes|loja) → linhas: evita re-filtrar baseData a cada célula das linhas expansíveis
-  const _idx = {};
-  baseData.forEach(r => { const k = r.ano+'|'+r.mes+'|'+expLojaKey(r.loja); (_idx[k] = _idx[k] || []).push(r); });
-  const idxGet = (a, m, k) => _idx[a+'|'+m+'|'+k] || [];
+  // Índice (ano|mes|loja) → linhas: evita re-filtrar a cada célula das linhas expansíveis
+  const mkIdx = (arr) => { const o = {}; arr.forEach(r => { const k = r.ano+'|'+r.mes+'|'+expLojaKey(r.loja); (o[k] = o[k] || []).push(r); }); return o; };
+  const _idx = mkIdx(baseData), _idxAll = mkIdx(baseDataAll);
+  const idxGet = (a, m, k, all) => (all ? _idxAll : _idx)[a+'|'+m+'|'+k] || [];
 
-  const anos    = [...new Set(baseData.map(r => r.ano))].filter(Boolean).sort();
+  const anos    = [...new Set(baseDataAll.map(r => r.ano))].filter(Boolean).sort();
   const mesList = [...new Set(rawData.map(r => r.mes))].filter(Boolean).sort((a,b) => +a - +b);
   if (!anos.length || !mesList.length) return;
 
@@ -2212,13 +2215,13 @@ function renderComparative(data) {
 
   // ── Helper: agrega campo por (ano, mes) ─────────────
   function agg(anoVal, mesVal, field) {
+    if (field === 'quebras') return quebrasTotalFor(baseDataAll.filter(r => r.ano === anoVal && r.mes === mesVal));
     const rows = baseData.filter(r => r.ano === anoVal && r.mes === mesVal);
-    if (field === 'quebras') return quebrasTotalFor(rows);
     return rows.reduce((s, r) => s + (r[field] || 0), 0);
   }
   function aggAll(anoVal, field) {
+    if (field === 'quebras') return quebrasTotalFor(baseDataAll.filter(r => r.ano === anoVal));
     const rows = baseData.filter(r => r.ano === anoVal);
-    if (field === 'quebras') return quebrasTotalFor(rows);
     return rows.reduce((s, r) => s + (r[field] || 0), 0);
   }
 
@@ -2256,7 +2259,7 @@ function renderComparative(data) {
       if (expFat) {
         if (expField !== 'quebras') window.__dia[tbodyId] = { baseData, anos, field: expField, totaisPorAno, fmtVal, ahBadge };
         EXP_LOJAS.forEach(([key, nome]) => {
-          const vals = anos.map(a => { const rr = idxGet(a, mes, key); return expField==='quebras' ? quebrasTotalFor(rr) : rr.reduce((sm,r)=>sm+(r[expField]||0),0); });
+          const vals = anos.map(a => { const rr = idxGet(a, mes, key, expField==='quebras'); return expField==='quebras' ? quebrasTotalFor(rr) : rr.reduce((sm,r)=>sm+(r[expField]||0),0); });
           const clk = expField !== 'quebras';
           html += `<tr class="exp-sub${clk?' loja-click':''}" data-exp="${eid}"${clk?` data-tb="${tbodyId}" data-mes="${mes}" data-key="${key}"`:''}><td class="td-metric" style="border-right:2px solid var(--border-2)"${clk?` onclick="toggleDia(this.parentNode)"`:''}>${clk?'<span class="exp-caret">▶</span>':''}${nome}</td>`;
           anos.forEach((_, i) => {
