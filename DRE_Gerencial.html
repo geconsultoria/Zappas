@@ -465,6 +465,13 @@ body {
 .dre-table tr.row-resultado.green td:first-child { background: #B8EEDA; }
 .dre-table tr.row-resultado.light td:first-child { background: #E8F2FC; }
 .dre-table tr.row-resultado.gold td:first-child { background: #FAE9A0; }
+/* Linhas "apagadas" (sem dados): em vez de opacity na linha inteira — que deixava a coluna
+   fixa "Conta" transparente e mostrava os valores passando por baixo ao rolar — o
+   esmaecido é feito só na cor do texto, mantendo a coluna fixa com fundo sólido. */
+.dre-table tr.row-dim4 td { color: rgba(60,60,75,.4) !important; }
+.dre-table tr.row-dim6 td { color: rgba(60,60,75,.6) !important; }
+.dre-table tr.row-dim4 td:first-child { background: #EEF4FB; }
+.dre-table tr.row-dim6 td:first-child { background: #E5EEF9; }
 .dre-table tbody tr:hover td:first-child { background: var(--bg-2) !important; }
 /* Sombra sutil pra marcar a borda da coluna fixa enquanto o resto da
    tabela rola por baixo dela. */
@@ -824,6 +831,7 @@ tr.is-open .expand-hint { display: none; }
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
 }
+.loja-card.is-total { border-color: var(--ink); border-width: 1.5px; background: var(--surface-tint, var(--surface)); }
 .loja-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .loja-card-name {
   font-size: 10px; font-weight: 700;
@@ -1591,7 +1599,7 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <!-- LOJAS -->
-  <div class="section-head"><span class="section-title">Performance por Loja</span><div class="section-line"></div><span class="section-period" id="lojaPeriodo">—</span></div>
+  <div class="section-head"><span class="section-title" id="lojaTitulo">Performance por Loja</span><div class="section-line"></div><span class="section-period" id="lojaPeriodo">—</span></div>
   <div class="loja-grid" id="lojaGrid"></div>
 
   <!-- COMPARATIVO MENSAL -->
@@ -3755,7 +3763,7 @@ function renderDRE(){
       // treeImp, montado direto de filteredImpostosGer.
       const gruposImp=Object.keys(treeImp);
       if(!gruposImp.length){
-        html+=`<tr class="row-group" style="opacity:.4">
+        html+=`<tr class="row-group row-dim4">
           <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
           ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
         </tr>`;
@@ -3803,7 +3811,7 @@ function renderDRE(){
     /* type === 'group' */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
-      html+=`<tr class="row-group" style="opacity:.4">
+      html+=`<tr class="row-group row-dim4">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
         ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
       </tr>`;
@@ -3854,7 +3862,7 @@ function renderDRE(){
   /* Grupos não mapeados */
   if(unmapped.length){
     html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
-    html+=`<tr class="row-group" style="opacity:.6">
+    html+=`<tr class="row-group row-dim6">
       <td colspan="${totalCols()}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)">
         Outros Grupos Não Classificados
       </td>
@@ -3931,6 +3939,7 @@ function setDreView(view){
   const btnAV = document.getElementById('btnAV');
   if(btnAV) btnAV.style.display = (view==='consolidado') ? 'none' : '';
   renderDRE();
+  chamarSeguro(renderLojas); // cartões de loja acompanham a aba (DFC = caixa, DRE = resultado)
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4321,7 +4330,7 @@ function renderDREConsolidado(){
        Diferença = 0 até a planilha por vencimento existir. */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
-      html+=`<tr class="row-group" style="opacity:.4">
+      html+=`<tr class="row-group row-dim4">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
         ${cols.map(()=>`<td>—</td><td class="av-col">—</td><td class="av-col">—</td>`).join('')}
         <td>—</td><td class="av-col">—</td><td class="av-col">—</td>
@@ -4367,7 +4376,7 @@ function renderDREConsolidado(){
   /* Grupos não mapeados */
   if(unmapped.length){
     html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
-    html+=`<tr class="row-group" style="opacity:.6">
+    html+=`<tr class="row-group row-dim6">
       <td colspan="${totalCols()}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)">
         Outros Grupos Não Classificados
       </td>
@@ -4581,15 +4590,40 @@ function renderLojas(){
   // Saídas (todas as demais linhas, vindas de Contas a Pagar) por loja —
   // em vez de somar tudo junto num único número, que misturava o que
   // entrou com o que saiu e confundia a leitura.
-  const lojas = uniq(filtered.map(r=>r.loja).filter(Boolean));
-  const porLoja = lojas.map(loja => {
-    const rows = filtered.filter(r=>r.loja===loja);
-    const entradas = rows.filter(r=>slugFromGrupo(r.grupo)==='receita_operacional').reduce((a,r)=>a+r.valor,0);
-    const saidas   = rows.filter(r=>slugFromGrupo(r.grupo)!=='receita_operacional').reduce((a,r)=>a+r.valor,0);
-    return { loja, entradas, saidas, saldo: entradas - saidas };
-  });
+  const ger = (dreView === 'gerencial');
+  const somaSlug = (rows, slug) => rows.filter(r=>slugFromGrupo(r.grupo)===slug).reduce((a,r)=>a+r.valor,0);
+  const somaVal  = rows => rows.reduce((a,r)=>a+r.valor,0);
+  // Calcula um "cartão" (loja ou consolidado) a partir das linhas já filtradas.
+  const calcCard = (nome, rows, vendas, custo, impG) => {
+    if(!ger){
+      const entradas = somaSlug(rows,'receita_operacional');
+      const saidas   = rows.filter(r=>slugFromGrupo(r.grupo)!=='receita_operacional').reduce((a,r)=>a+r.valor,0);
+      return { loja:nome, entradas, saidas, saldo: entradas - saidas };
+    }
+    // DRE Gerencial: mesma lógica da tabela (Receita = faturamento, CMV = custo de produto,
+    // impostos por competência, demais contas do Contas a Pagar).
+    const rec = somaVal(vendas), imp = somaVal(impG), ded = somaSlug(rows,'deducoes_vendas');
+    const cmv = somaVal(custo);
+    const lb  = rec - imp - ded - cmv;
+    const ro  = lb - somaSlug(rows,'despesas_comerciais') - somaSlug(rows,'despesas_pessoal')
+                   - somaSlug(rows,'despesas_administrativas') - somaSlug(rows,'despesas_financeiras') - somaSlug(rows,'pro_labore');
+    const rl  = ro - somaSlug(rows,'distribuicao_lucro') - somaSlug(rows,'ir_csll')
+                   - somaSlug(rows,'emprestimos_financiamentos') - somaSlug(rows,'investimento') - somaSlug(rows,'parcelamento_impostos');
+    return { loja:nome, entradas: rec, saidas: rec - rl, saldo: rl, lb, ro, rl };
+  };
+  const nomesLojas = uniq([].concat(
+    filtered.map(r=>r.loja),
+    ger ? filteredVendas.map(r=>r.loja) : [],
+    ger ? filteredCusto.map(r=>r.loja) : []
+  ).filter(Boolean));
+  const porLoja = nomesLojas.map(loja => calcCard(loja,
+    filtered.filter(r=>r.loja===loja),
+    filteredVendas.filter(r=>r.loja===loja),
+    filteredCusto.filter(r=>r.loja===loja),
+    filteredImpostosGer.filter(r=>r.loja===loja)));
+  const consolidado = calcCard('CONSOLIDADO', filtered, filteredVendas, filteredCusto, filteredImpostosGer);
   const sorted = porLoja.sort((a,b)=>b.entradas-a.entradas);
-  const maxVal = Math.max(1, ...sorted.map(l=>Math.max(l.entradas,l.saidas)));
+  const maxVal = Math.max(1, consolidado.entradas, ...sorted.map(l=>Math.max(l.entradas,l.saidas)));
   const grid=document.getElementById('lojaGrid');
 
   // Período que compõe a soma exibida em cada card (respeita os filtros
@@ -4627,18 +4661,23 @@ function renderLojas(){
     grid.innerHTML='<div style="color:var(--ink-4);font-size:13px;padding:32px 0">Nenhuma loja encontrada.</div>';
     return;
   }
-  grid.innerHTML=sorted.map((d,i)=>`
-    <div class="loja-card">
-      <div class="loja-card-name">
-        <span class="loja-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
-        ${d.loja==='BELVEDER'?'BELVEDERE':d.loja}
-      </div>
-      <div class="loja-total ${d.saldo>=0?'':'val-neg'}">${fmtBRL(d.saldo)}</div>
-      <div class="loja-pct">Saldo de caixa · ${periodo}</div>
-      <div class="loja-bar-bg">
-        <div class="loja-bar-fill" style="width:${(d.entradas/maxVal*100).toFixed(1)}%;background:${PALETTE[i%PALETTE.length]}"></div>
-      </div>
-      <div class="loja-flow">
+  const rotSaldo = ger ? 'Resultado líquido' : 'Saldo de caixa';
+  const cardHtml = (d, i, total) => {
+    const cor = total ? 'var(--ink)' : PALETTE[i%PALETTE.length];
+    const nome = d.loja==='BELVEDER' ? 'BELVEDERE' : d.loja;
+    const fluxo = ger ? `
+        <div class="loja-flow-item">
+          <span class="loja-flow-lbl">Receita</span>
+          <span class="loja-flow-val pos">${fmtBRL(d.entradas)}</span>
+        </div>
+        <div class="loja-flow-item" style="align-items:center">
+          <span class="loja-flow-lbl">Lucro bruto</span>
+          <span class="loja-flow-val ${d.lb>=0?'pos':'neg'}">${fmtBRL(d.lb)}</span>
+        </div>
+        <div class="loja-flow-item" style="align-items:flex-end">
+          <span class="loja-flow-lbl">Res. operac.</span>
+          <span class="loja-flow-val ${d.ro>=0?'pos':'neg'}">${fmtBRL(d.ro)}</span>
+        </div>` : `
         <div class="loja-flow-item">
           <span class="loja-flow-lbl">Entradas</span>
           <span class="loja-flow-val pos">${fmtBRL(d.entradas)}</span>
@@ -4646,10 +4685,23 @@ function renderLojas(){
         <div class="loja-flow-item" style="align-items:flex-end">
           <span class="loja-flow-lbl">Saídas</span>
           <span class="loja-flow-val neg">${fmtBRL(d.saidas)}</span>
-        </div>
+        </div>`;
+    return `
+    <div class="loja-card${total?' is-total':''}">
+      <div class="loja-card-name">
+        <span class="loja-dot" style="background:${cor}"></span>
+        ${nome}
       </div>
-    </div>
-  `).join('');
+      <div class="loja-total ${d.saldo>=0?'':'val-neg'}">${fmtBRL(d.saldo)}</div>
+      <div class="loja-pct">${rotSaldo} · ${periodo}</div>
+      <div class="loja-bar-bg">
+        <div class="loja-bar-fill" style="width:${Math.max(0,Math.min(100,d.entradas/maxVal*100)).toFixed(1)}%;background:${cor}"></div>
+      </div>
+      <div class="loja-flow">${fluxo}
+      </div>
+    </div>`;
+  };
+  grid.innerHTML = cardHtml(consolidado, 0, true) + sorted.map((d,i)=>cardHtml(d,i,false)).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
