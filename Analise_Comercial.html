@@ -547,6 +547,12 @@ a.side-brand:hover { opacity:.85; }
 tr.exp-row.open .exp-caret { transform:rotate(90deg); }
 tr.exp-sub { display:none; }
 tr.exp-sub.show { display:table-row; }
+tr.dia-sub { display:none; }
+tr.dia-sub.show { display:table-row; }
+tr.dia-sub td { background:#fff; font-size:11px; color:var(--ink-3); }
+tr.dia-sub td.td-metric { padding-left:52px; font-weight:400; }
+tr.loja-click td.td-metric { cursor:pointer; user-select:none; }
+
 tr.exp-sub td { background:var(--surf-2); font-size:11.5px; color:var(--ink-3); }
 tr.exp-sub td.td-metric { padding-left:30px; font-weight:500; color:var(--ink-3); cursor:default; }
 
@@ -2052,6 +2058,56 @@ function toggleExp(id){
   const tr=document.querySelector('tr.exp-row[data-exp="'+id+'"]'); if(!tr) return;
   const open=tr.classList.toggle('open');
   document.querySelectorAll('tr.exp-sub[data-exp="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
+  if(!open){
+    document.querySelectorAll('tr.dia-sub[data-exp="'+id+'"]').forEach(x=>x.classList.remove('show'));
+    document.querySelectorAll('tr.loja-click[data-exp="'+id+'"]').forEach(x=>x.classList.remove('open'));
+  }
+}
+window.__dia = window.__dia || {};
+const DIAS_ABR=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+// Detalhe diário: montado só no 1º clique na loja (lazy) e reaproveitado depois.
+function toggleDia(tr){
+  const id=tr.dataset.exp+'|'+tr.dataset.key;
+  const open=tr.classList.toggle('open');
+  if(tr.dataset.loaded!=='1'){
+    tr.dataset.loaded='1';
+    const c=window.__dia[tr.dataset.tb]; if(!c) return;
+    const mes=tr.dataset.mes, key=tr.dataset.key;
+    const val=(rr)=>{
+      const ft=rr.reduce((sm,r)=>sm+(r.fat||0),0), cp=rr.reduce((sm,r)=>sm+(r.cupons||0),0);
+      return c.field==='ticket' ? (cp?ft/cp:0) : c.field==='cupons' ? cp : ft;
+    };
+    const perAno=c.anos.map(a=>{
+      const m={};
+      c.baseData.forEach(r=>{
+        if(r.ano!==a||r.mes!==mes||expLojaKey(r.loja)!==key) return;
+        if(!(r.data instanceof Date)||isNaN(r.data)) return;
+        (m[r.data.getDate()]=m[r.data.getDate()]||[]).push(r);
+      });
+      return m;
+    });
+    const dias=[...new Set(perAno.flatMap(m=>Object.keys(m).map(Number)))].sort((a,b)=>a-b);
+    let html='';
+    dias.forEach(d=>{
+      const vals=perAno.map(m=>m[d]?val(m[d]):0);
+      let wd='';
+      for(let i=c.anos.length-1;i>=0;i--){ if(perAno[i][d]){ wd=' ('+DIAS_ABR[perAno[i][d][0].data.getDay()]+')'; break; } }
+      html+=`<tr class="dia-sub show" data-exp="${tr.dataset.exp}" data-diaof="${id}"><td class="td-metric" style="border-right:2px solid var(--border-2)">Dia ${String(d).padStart(2,'0')}${wd}</td>`;
+      c.anos.forEach((_,i)=>{
+        const av=c.totaisPorAno[i]>0?vals[i]/c.totaisPorAno[i]*100:0;
+        html+=`<td style="text-align:center">${c.fmtVal(vals[i])}</td><td class="av-col" style="text-align:center">${fPct(av)}</td>`;
+      });
+      for(let i=1;i<c.anos.length;i++){
+        const p=vals[i-1],q=vals[i];
+        html+=`<td class="b-left" style="text-align:center">${c.ahBadge(p?(q-p)/p*100:null)}</td>`;
+      }
+      html+='</tr>';
+    });
+    if(!html) html=`<tr class="dia-sub show" data-exp="${tr.dataset.exp}" data-diaof="${id}"><td class="td-metric" colspan="20">Sem dados diários</td></tr>`;
+    tr.insertAdjacentHTML('afterend',html);
+    return;
+  }
+  document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
 }
 const EXP_CANAIS=[['loja','Loja'],['delivery','Delivery'],['central','Central'],['distribuicao','Distribuição']];
 const EXP_LOJAS=[['anisio','Anisio'],['bady','Bady'],['damha','Damha'],['belvedere','Belvedere'],['havan','Havan'],['muffato','Muffato']];
@@ -2151,9 +2207,11 @@ function renderComparative(data) {
       html += '</tr>';
 
       if (expFat) {
+        if (expField !== 'quebras') window.__dia[tbodyId] = { baseData, anos, field: expField, totaisPorAno, fmtVal, ahBadge };
         EXP_LOJAS.forEach(([key, nome]) => {
           const vals = anos.map(a => { const rr = baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key); return expField==='quebras' ? quebrasTotalFor(rr) : rr.reduce((sm,r)=>sm+(r[expField]||0),0); });
-          html += `<tr class="exp-sub" data-exp="${eid}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${nome}</td>`;
+          const clk = expField !== 'quebras';
+          html += `<tr class="exp-sub${clk?' loja-click':''}" data-exp="${eid}"${clk?` data-tb="${tbodyId}" data-mes="${mes}" data-key="${key}"`:''}><td class="td-metric" style="border-right:2px solid var(--border-2)"${clk?` onclick="toggleDia(this.parentNode)"`:''}>${clk?'<span class="exp-caret">▶</span>':''}${nome}</td>`;
           anos.forEach((_, i) => {
             const avL = totaisPorAno[i] > 0 ? vals[i] / totaisPorAno[i] * 100 : 0;
             html += `<td style="text-align:center">${fmtVal(vals[i])}</td><td class="av-col" style="text-align:center">${fPct(avL)}</td>`;
@@ -2243,9 +2301,10 @@ function renderComparative(data) {
         html += `<td class="b-left" style="text-align:center">${ahBadge(ah[i])}</td>`;
       }
       html += '</tr>';
+      window.__dia['ctb-ticket'] = { baseData, anos, field:'ticket', totaisPorAno, fmtVal:fNum2, ahBadge };
       EXP_LOJAS.forEach(([key, nome]) => {
         const vals = anos.map(a => { const rr = baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key); const ft = rr.reduce((sm,r)=>sm+(r.fat||0),0), cp = rr.reduce((sm,r)=>sm+(r.cupons||0),0); return cp ? ft/cp : 0; });
-        html += `<tr class="exp-sub" data-exp="${eidT}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${nome}</td>`;
+        html += `<tr class="exp-sub loja-click" data-exp="${eidT}" data-tb="ctb-ticket" data-mes="${mes}" data-key="${key}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleDia(this.parentNode)"><span class="exp-caret">▶</span>${nome}</td>`;
         anos.forEach((_, i) => {
           const avL = totaisPorAno[i] > 0 ? vals[i] / totaisPorAno[i] * 100 : 0;
           html += `<td style="text-align:center">${fNum2(vals[i])}</td><td class="av-col" style="text-align:center">${fPct(avL)}</td>`;
