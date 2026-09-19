@@ -2348,6 +2348,8 @@ function parseVendas(text, lojaFallback){
   const iMes   = findCol(rawHeaders,'mes');
   const iTotal = findCol(rawHeaders,'total');
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
+  const iVs    = findCol(rawHeaders,'vs');
+  const iFab   = findCol(rawHeaders,'fabrica');
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2377,7 +2379,9 @@ function parseVendas(text, lojaFallback){
       // match exato OU parcial (ex.: "loja fisica", "central de vendas")
       // pra não zerar tudo se o texto do canal na planilha vier com
       // palavras a mais em volta de loja/delivery/central.
-      canalMatch = CANAIS_FATURAMENTO.find(c => canal===c || canal.includes(c)) || '';
+      // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+      const isCentral = canal==='distribuicao' && !/^(true|verdadeiro|1|sim)$/i.test(g(iVs)) && /^(true|verdadeiro|1|sim)$/i.test(g(iFab));
+      canalMatch = isCentral ? 'central' : (CANAIS_FATURAMENTO.find(c => canal===c || canal.includes(c)) || '');
       if(!canalMatch) continue;
     }
 
@@ -2495,7 +2499,7 @@ async function fetchCSV(url){
    (carregamento instantâneo). Só busca dados novos quando o
    usuário clicar no botão de atualizar (↻).
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v2';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);

@@ -1201,7 +1201,7 @@ let metasData = [];
    Ao abrir a página, usa os dados já salvos no navegador
    (carregamento instantâneo). Só busca dados novos do Drive
    quando o usuário clicar no botão de atualizar. */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='elaboracaoMetas_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='elaboracaoMetas_data_v2';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -1358,6 +1358,7 @@ function transformFaturamento(rows, headers) {
   }
   const colCanal = findCol(['canais','canal','channel']);
   const colVs = findCol(['vs']);
+  const colFabrica = findCol(['fabrica']);
   const result = [];
   for (const row of rows) {
     const ano = parseInt(row[colAno]);
@@ -1371,7 +1372,10 @@ function transformFaturamento(rows, headers) {
     const canalNormVs = canal.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const vs = colVs ? /^(true|verdadeiro|1|sim)$/i.test((row[colVs] || '').trim()) : false;
     if (canalNormVs === 'DISTRIBUICAO' && vs) continue;
-    result.push({ ano, loja, mes, venda, canal });
+    // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+    const fabrica = colFabrica ? /^(true|verdadeiro|1|sim)$/i.test((row[colFabrica] || '').trim()) : false;
+    const canalFinal = (canalNormVs === 'DISTRIBUICAO' && !vs && fabrica) ? (canal === canal.toUpperCase() ? 'CENTRAL' : 'Central') : canal;
+    result.push({ ano, loja, mes, venda, canal: canalFinal });
   }
   return result;
 }

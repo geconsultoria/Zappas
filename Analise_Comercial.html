@@ -1221,7 +1221,7 @@ const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_resumo_v1';
+const DB_KEY   = 'analiseComercial_resumo_v2';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1407,10 +1407,14 @@ function parseCSV(text) {
       quebras:toNum(obj.quebras),
       // Coluna "VS" (True/False) adicionada na planilha.
       vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
+      // Coluna "Fabrica" (True/False): junto com Canal=DISTRIBUICAO e VS=False define o canal CENTRAL.
+      fabrica: /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim()),
     };
     if(!row.ano||!row.loja) continue;
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
     if(normTxt(row.canal)==='distribuicao' && row.vs) continue;
+    // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+    if(normTxt(row.canal)==='distribuicao' && !row.vs && row.fabrica) row.canal = row.canal===row.canal.toUpperCase() ? 'CENTRAL' : 'Central';
     rows.push(row);
   }
   return rows;

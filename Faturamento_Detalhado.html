@@ -986,7 +986,7 @@ const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_data_v1';
+const DB_KEY   = 'analiseComercial_data_v2';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1165,11 +1165,14 @@ function parseCSV(text) {
       cupons: cuponsVal,
       // Coluna "VS" (True/False) adicionada na planilha.
       vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
+      fabrica: /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim()),
     };
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
     const canalNormVs = String(row.canal||'').trim().toUpperCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     if(canalNormVs==='DISTRIBUICAO' && row.vs) continue;
+    // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+    if(canalNormVs==='DISTRIBUICAO' && !row.vs && row.fabrica) row.canal = row.canal===row.canal.toUpperCase() ? 'CENTRAL' : 'Central';
     rows.push(row);
   }
   return rows;
