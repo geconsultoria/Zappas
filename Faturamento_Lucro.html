@@ -349,7 +349,9 @@ tr.exp-sub{display:none}
 tr.exp-sub.show{display:table-row}
 tr.exp-sub td{background:#f8f8f3;font-size:11.5px;color:var(--text,#1f2937)}
 tr.exp-sub td:first-child{color:var(--text-muted,#6b7280);font-weight:500}
-tr.exp-sub td.num{font-weight:400}
+tbody td.num{font-weight:700 !important}
+tr.exp-row td:first-child{color:#0f1923}
+
 tr.exp-sub td.pct-good{color:var(--accent2)} tr.exp-sub td.pct-warn{color:var(--accent3)} tr.exp-sub td.pct-bad{color:var(--danger)}
 </style>
 
@@ -1233,6 +1235,10 @@ function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy();
 
 // ── RENDER
 function renderDashboard() {
+  const _abertas=[...document.querySelectorAll('tr.exp-row.open')].map(t=>t.dataset.exp);
+  try { _renderDashboard(); } finally { _abertas.forEach(id=>toggleExp(id)); }
+}
+function _renderDashboard() {
   const fatF = filterData(rawFat);
   const cmvF = filterDataCmv(rawCmv);
 
@@ -1467,6 +1473,13 @@ function mkChart(id, type, labels, datasets, fmt) {
 const fmt_ = fmt; // alias
 
 // ── Helper: AH% badge
+const _ixCache=new WeakMap();
+// Soma por (mês, loja) com índice montado uma única vez por array
+function sumML(arr,k,m,lj){
+  let o=_ixCache.get(arr); if(!o){o={};_ixCache.set(arr,o);}
+  let t=o[k]; if(!t){t={};arr.forEach(r=>{const key=r.mes+'|'+r.loja;t[key]=(t[key]||0)+(r[k]||0);});o[k]=t;}
+  return t[m+'|'+lj]||0;
+}
 function toggleExp(id){
   const tr=document.querySelector('tr.exp-row[data-exp="'+id+'"]'); if(!tr) return;
   const open=tr.classList.toggle('open');
@@ -1559,7 +1572,7 @@ function buildTableComparativo(anos, lojas) {
     tFA+=fA; tCA+=cA; tFB+=fB; tCB+=cB;
     rows += expHead('cm-'+m, MESES_FULL[m]||m, cells2(fA,cA,fB,cB));
     lojas.forEach((lj,li)=>{
-      const g=(arr,k)=>sumBy(arr.filter(r=>r.mes===m&&r.loja===lj),k);
+      const g=(arr,k)=>sumML(arr,k,m,lj);
       rows += expSub('cm-'+m, expLbl(lj), cells2(g(fatA,'total_venda'),g(cmvA,'valor'),g(fatB,'total_venda'),g(cmvB,'valor')));
     });
   });
@@ -1602,9 +1615,9 @@ function buildTableComparativo(anos, lojas) {
       const fB2 = sumBy(filtrar(anoB).filter(r=>r.loja===loja),'total_venda');
       const cB2 = sumBy(filtrarCmv(anoB).filter(r=>r.loja===loja),'valor');
       const lB2 = fB2-cB2, pB2 = fB2>0?(lB2/fB2)*100:0;
-      lRows += expHead('rl-'+loja, expLbl(loja), cells2(fA2,cA2,fB2,cB2), 'row-loja');
+      lRows += expHead('rl-'+loja, expLbl(loja), cells2(fA2,cA2,fB2,cB2));
       allM.forEach(m=>{
-        const g=(arr,k)=>sumBy(arr.filter(r=>r.mes===m&&r.loja===loja),k);
+        const g=(arr,k)=>sumML(arr,k,m,loja);
         const a=g(fatA,'total_venda'),b=g(cmvA,'valor'),c=g(fatB,'total_venda'),d=g(cmvB,'valor');
         if(a===0&&b===0&&c===0&&d===0) return;
         lRows += expSub('rl-'+loja, MESES_FULL[m]||m, cells2(a,b,c,d));
@@ -1655,7 +1668,7 @@ function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucL
     tF+=f; tC+=c;
     rows+=expHead('m1-'+m, mesLbl[i], cells1(f,c));
     lojas.forEach(lj=>{
-      const sf=sumBy(_fF.filter(r=>r.mes===m&&r.loja===lj),'total_venda'), sc=sumBy(_cF.filter(r=>r.mes===m&&r.loja===lj),'valor');
+      const sf=sumML(_fF,'total_venda',m,lj), sc=sumML(_cF,'valor',m,lj);
       rows+=expSub('m1-'+m, expLbl(lj), cells1(sf,sc));
     });
   });
@@ -1670,9 +1683,9 @@ function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucL
     let lRows='';
     lojas.forEach((l,i)=>{
       const f=fatLA[i],c=cmvLA[i],lb=lucLA[i],p=pctLA[i];
-      lRows+=expHead('r1-'+l, expLbl(l), cells1(f,c), 'row-loja');
+      lRows+=expHead('r1-'+l, expLbl(l), cells1(f,c));
       allM.forEach(m=>{
-        const sf=sumBy(_fF.filter(r=>r.mes===m&&r.loja===l),'total_venda'), sc=sumBy(_cF.filter(r=>r.mes===m&&r.loja===l),'valor');
+        const sf=sumML(_fF,'total_venda',m,l), sc=sumML(_cF,'valor',m,l);
         if(sf===0&&sc===0) return;
         lRows+=expSub('r1-'+l, MESES_FULL[m]||MESES_NOME[m]||m, cells1(sf,sc));
       });

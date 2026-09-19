@@ -2126,6 +2126,11 @@ function renderComparative(data) {
     (!f.mes  || r.mes  === f.mes)
   );
 
+  // Índice (ano|mes|loja) → linhas: evita re-filtrar baseData a cada célula das linhas expansíveis
+  const _idx = {};
+  baseData.forEach(r => { const k = r.ano+'|'+r.mes+'|'+expLojaKey(r.loja); (_idx[k] = _idx[k] || []).push(r); });
+  const idxGet = (a, m, k) => _idx[a+'|'+m+'|'+k] || [];
+
   const anos    = [...new Set(baseData.map(r => r.ano))].filter(Boolean).sort();
   const mesList = [...new Set(rawData.map(r => r.mes))].filter(Boolean).sort((a,b) => +a - +b);
   if (!anos.length || !mesList.length) return;
@@ -2214,7 +2219,7 @@ function renderComparative(data) {
       if (expFat) {
         if (expField !== 'quebras') window.__dia[tbodyId] = { baseData, anos, field: expField, totaisPorAno, fmtVal, ahBadge };
         EXP_LOJAS.forEach(([key, nome]) => {
-          const vals = anos.map(a => { const rr = baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key); return expField==='quebras' ? quebrasTotalFor(rr) : rr.reduce((sm,r)=>sm+(r[expField]||0),0); });
+          const vals = anos.map(a => { const rr = idxGet(a, mes, key); return expField==='quebras' ? quebrasTotalFor(rr) : rr.reduce((sm,r)=>sm+(r[expField]||0),0); });
           const clk = expField !== 'quebras';
           html += `<tr class="exp-sub${clk?' loja-click':''}" data-exp="${eid}"${clk?` data-tb="${tbodyId}" data-mes="${mes}" data-key="${key}"`:''}><td class="td-metric" style="border-right:2px solid var(--border-2)"${clk?` onclick="toggleDia(this.parentNode)"`:''}>${clk?'<span class="exp-caret">▶</span>':''}${nome}</td>`;
           anos.forEach((_, i) => {
@@ -2308,7 +2313,7 @@ function renderComparative(data) {
       html += '</tr>';
       window.__dia['ctb-ticket'] = { baseData, anos, field:'ticket', totaisPorAno, fmtVal:fNum2, ahBadge };
       EXP_LOJAS.forEach(([key, nome]) => {
-        const vals = anos.map(a => { const rr = baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key); const ft = rr.reduce((sm,r)=>sm+(r.fat||0),0), cp = rr.reduce((sm,r)=>sm+(r.cupons||0),0); return cp ? ft/cp : 0; });
+        const vals = anos.map(a => { const rr = idxGet(a, mes, key); const ft= rr.reduce((sm,r)=>sm+(r.fat||0),0), cp = rr.reduce((sm,r)=>sm+(r.cupons||0),0); return cp ? ft/cp : 0; });
         html += `<tr class="exp-sub loja-click" data-exp="${eidT}" data-tb="ctb-ticket" data-mes="${mes}" data-key="${key}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleDia(this.parentNode)"><span class="exp-caret">▶</span>${nome}</td>`;
         anos.forEach((_, i) => {
           const avL = totaisPorAno[i] > 0 ? vals[i] / totaisPorAno[i] * 100 : 0;
@@ -2404,6 +2409,10 @@ function renderComparative(data) {
       const aggLojaTot = (loja)      => dataAno.filter(r => r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
       const totalGeral = dataAno.reduce((s,r)=>s+(r.fat||0),0);
 
+      // Índice mes|loja|canal → soma (evita 288+ filtros sobre todas as linhas)
+      const _cidx = {};
+      dataAno.forEach(r => { const k = r.mes+'|'+r.loja+'|'+normTxt(r.canal); _cidx[k] = (_cidx[k]||0) + (r.fat||0); });
+
       // ── Corpo ──────────────────────────────────────────
       let html = '';
       mesesLoja.forEach(mes => {
@@ -2423,34 +2432,17 @@ function renderComparative(data) {
         html += `<td class="b-left" style="text-align:center;font-weight:700;background:var(--blue-xl);color:var(--blue)">${fNum(totLinha)}</td>`;
         html += '</tr>';
 
-        // Sub-linhas por canal (clique no canal abre as lojas)
+        // Sub-linhas por canal
         EXP_CANAIS.forEach(([ck, cn]) => {
-          const vc = (loja) => dataAno.filter(r => r.mes===mes && r.loja===loja && normTxt(r.canal)===ck).reduce((sm,r)=>sm+(r.fat||0),0);
-          const vals = lojas.map(vc);
-          const tot = vals.reduce((a,b)=>a+b,0);
-          html += `<tr class="exp-sub loja-click" data-exp="${eid}" data-key="${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleSub(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
-          vals.forEach(v => {
+          const vc = (loja) => _cidx[mes+'|'+loja+'|'+ck] || 0;
+          let tot = 0;
+          html += `<tr class="exp-sub" data-exp="${eid}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${cn}</td>`;
+          lojas.forEach(loja => {
+            const v = vc(loja); tot += v;
             const av = totMes > 0 ? v / totMes * 100 : 0;
             html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(av)}</td>`;
           });
           html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(tot)}</td></tr>`;
-
-          // Lojas dentro do canal: valor aparece na coluna da própria loja
-          EXP_LOJAS.forEach(([lk, ln]) => {
-            const idx = lojas.findIndex(l => expLojaKey(l) === lk);
-            if (idx < 0) return;
-            const v = vals[idx];
-            html += `<tr class="dia-sub" data-exp="${eid}" data-diaof="${eid}|${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${ln}</td>`;
-            lojas.forEach((_, j) => {
-              if (j === idx) {
-                const av = totMes > 0 ? v / totMes * 100 : 0;
-                html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(av)}</td>`;
-              } else {
-                html += `<td class="b-left" style="text-align:center">—</td><td class="av-col" style="text-align:center"></td>`;
-              }
-            });
-            html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(v)}</td></tr>`;
-          });
         });
       });
 
@@ -2494,10 +2486,14 @@ function toggleAV(scope) {
    RENDER ALL
 ═══════════════════════════════════════════════════════ */
 function renderAll() {
+  // Guarda quais linhas estavam abertas (a página re-renderiza quando o mapa de
+  // Quebras termina de carregar; sem isso as linhas abertas fechariam sozinhas).
+  const abertas = [...document.querySelectorAll('tr.exp-row.open')].map(t => t.dataset.exp);
   const data = applyF(rawData);
   renderKPIs(data);
   renderCharts(data);
   renderComparative(data);
+  abertas.forEach(id => toggleExp(id));
 }
 
 /* ═══════════════════════════════════════════════════════
