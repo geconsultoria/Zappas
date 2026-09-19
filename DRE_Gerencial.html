@@ -28,6 +28,7 @@
   --navy-mid:     #1A3D6B;
   --navy-light:   #2E6AB0;
   --navy-pale:    #D4E3F5;
+  --navy-sep:     #8FB4DE;
 
   --emerald:      #0D4F35;
   --emerald-mid:  #1A7A52;
@@ -569,7 +570,7 @@ body {
 .dre-th-groupname {
   text-align: center !important;
   border-bottom: 1px solid var(--border) !important;
-  border-left: 2px solid var(--navy-light) !important;
+  border-left: 1px solid var(--navy-sep) !important;
 }
 /* Separa visualmente o grupo de cada loja/mês (ex.: ANISIO | BADY) —
    sem essa borda mais forte, os grupos de 3 colunas ficavam "grudados"
@@ -598,7 +599,7 @@ body {
    tabela: as duas bordas estavam em colunas visuais diferentes. */
 .dre-table.fixed-cols thead tr:nth-child(2) th:nth-child(3n+1),
 .dre-table.fixed-cols tbody td:nth-child(3n+2) {
-  border-left: 2px solid var(--navy-light);
+  border-left: 1px solid var(--navy-sep);
 }
 /* Fonte um pouco menor nessa aba (colunas com largura fixa e mais
    estreita que o layout automático das outras abas) — sem isso, valores

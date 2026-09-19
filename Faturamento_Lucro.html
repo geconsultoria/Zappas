@@ -348,6 +348,7 @@ tr.exp-row.open .exp-caret{transform:rotate(90deg)}
 tr.exp-sub{display:none}
 tr.exp-sub.show{display:table-row}
 tr.exp-sub td{background:#f8fafc;font-size:11.5px}
+tr.exp-sub td:first-child,tr.exp-sub td.num{color:var(--accent);font-weight:600}
 </style>
 
 </head>
@@ -1476,7 +1477,7 @@ function expHead(id,label,cells,cls){
   return `<tr class="exp-row ${cls||''}" data-exp="${id}"><td onclick="toggleExp('${id}')" style="cursor:pointer;user-select:none"><span class="exp-caret">▶</span><strong>${label}</strong></td>${cells}</tr>`;
 }
 function expSub(id,label,cells){
-  return `<tr class="exp-sub" data-exp="${id}"><td style="padding-left:30px;color:var(--text-muted,#6b7280)">${label}</td>${cells}</tr>`;
+  return `<tr class="exp-sub" data-exp="${id}"><td style="padding-left:30px">${label}</td>${cells}</tr>`;
 }
 function cells2(fA,cA,fB,cB){
   const lA=fA-cA,pA=fA>0?lA/fA*100:0,lB=fB-cB,pB=fB>0?lB/fB*100:0,v=fA>0?(fB-fA)/fA*100:null;
@@ -1554,7 +1555,7 @@ function buildTableComparativo(anos, lojas) {
     const lB = fB - cB, pB = fB>0?(lB/fB)*100:0;
     if (fA===0 && cA===0 && fB===0 && cB===0) return;
     tFA+=fA; tCA+=cA; tFB+=fB; tCB+=cB;
-    rows += expHead('cm-'+m, MESES_FULL[m]||m, cells2(fA,cA,fB,cB));
+    rows += expHead('cm-'+m, MESES_FULL[m]||m, cells2(fA,cA,fB,cB),'row-loja');
     lojas.forEach((lj,li)=>{
       const g=(arr,k)=>sumBy(arr.filter(r=>r.mes===m&&r.loja===lj),k);
       rows += expSub('cm-'+m, expLbl(lj), cells2(g(fatA,'total_venda'),g(cmvA,'valor'),g(fatB,'total_venda'),g(cmvB,'valor')));
@@ -1650,7 +1651,7 @@ function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucL
     const f=fatMA[i],c=cmvMA[i],l=lucMA[i],p=f>0?(l/f)*100:0;
     if(f===0 && c===0) return; // ocultar meses sem valores
     tF+=f; tC+=c;
-    rows+=expHead('m1-'+m, mesLbl[i], cells1(f,c));
+    rows+=expHead('m1-'+m, mesLbl[i], cells1(f,c),'row-loja');
     lojas.forEach(lj=>{
       const sf=sumBy(_fF.filter(r=>r.mes===m&&r.loja===lj),'total_venda'), sc=sumBy(_cF.filter(r=>r.mes===m&&r.loja===lj),'valor');
       rows+=expSub('m1-'+m, expLbl(lj), cells1(sf,sc));
