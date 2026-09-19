@@ -2138,8 +2138,9 @@ function renderComparative(data) {
         return p ? (c - p) / p * 100 : null;
       });
 
-      const expFat = (tbodyId === 'ctb-fat');
-      const eid = 'fat-' + mes;
+      const EXPF = {'ctb-fat':'fat','ctb-cupons':'cupons','ctb-quebras':'quebras'};
+      const expField = EXPF[tbodyId]; const expFat = !!expField;
+      const eid = tbodyId + '-' + mes;
       html += `<tr class="mes-row${expFat?' exp-row':''}"${expFat?` data-exp="${eid}"`:''}><td class="td-metric" style="border-right:2px solid var(--border-2)"${expFat?` onclick="toggleExp('${eid}')"`:''}>${expFat?'<span class="exp-caret">▶</span>':''}${label}</td>`;
       anos.forEach((_, i) => {
         html += `<td style="text-align:center">${fmtVal(valsPorAno[i])}</td><td class="av-col" style="text-align:center">${fPct(av[i])}</td>`;
@@ -2151,7 +2152,7 @@ function renderComparative(data) {
 
       if (expFat) {
         EXP_LOJAS.forEach(([key, nome]) => {
-          const vals = anos.map(a => baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key).reduce((sm,r)=>sm+(r.fat||0),0));
+          const vals = anos.map(a => { const rr = baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key); return expField==='quebras' ? quebrasTotalFor(rr) : rr.reduce((sm,r)=>sm+(r[expField]||0),0); });
           html += `<tr class="exp-sub" data-exp="${eid}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${nome}</td>`;
           anos.forEach((_, i) => {
             const avL = totaisPorAno[i] > 0 ? vals[i] / totaisPorAno[i] * 100 : 0;
@@ -2233,7 +2234,8 @@ function renderComparative(data) {
         const p = valsPorAno[i-1], c = valsPorAno[i];
         return p ? (c - p) / p * 100 : null;
       });
-      html += `<tr class="mes-row"><td class="td-metric" style="border-right:2px solid var(--border-2)">${label}</td>`;
+      const eidT = 'ticket-' + mes;
+      html += `<tr class="mes-row exp-row" data-exp="${eidT}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleExp('${eidT}')"><span class="exp-caret">▶</span>${label}</td>`;
       anos.forEach((_, i) => {
         html += `<td style="text-align:center">${fNum2(valsPorAno[i])}</td><td class="av-col" style="text-align:center">${fPct(av[i])}</td>`;
       });
@@ -2241,6 +2243,19 @@ function renderComparative(data) {
         html += `<td class="b-left" style="text-align:center">${ahBadge(ah[i])}</td>`;
       }
       html += '</tr>';
+      EXP_LOJAS.forEach(([key, nome]) => {
+        const vals = anos.map(a => { const rr = baseData.filter(r => r.ano===a && r.mes===mes && expLojaKey(r.loja)===key); const ft = rr.reduce((sm,r)=>sm+(r.fat||0),0), cp = rr.reduce((sm,r)=>sm+(r.cupons||0),0); return cp ? ft/cp : 0; });
+        html += `<tr class="exp-sub" data-exp="${eidT}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${nome}</td>`;
+        anos.forEach((_, i) => {
+          const avL = totaisPorAno[i] > 0 ? vals[i] / totaisPorAno[i] * 100 : 0;
+          html += `<td style="text-align:center">${fNum2(vals[i])}</td><td class="av-col" style="text-align:center">${fPct(avL)}</td>`;
+        });
+        for (let i = 1; i < anos.length; i++) {
+          const pv = vals[i-1], cv = vals[i];
+          html += `<td class="b-left" style="text-align:center">${ahBadge(pv ? (cv-pv)/pv*100 : null)}</td>`;
+        }
+        html += '</tr>';
+      });
     });
 
     // Linha de total = ticket médio anual
