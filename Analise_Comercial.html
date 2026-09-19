@@ -2068,6 +2068,41 @@ function toggleSub(tr){
   const open=tr.classList.toggle('open');
   document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
 }
+window.__diaC = null;
+// Detalhe diário por canal (quadro Faturamento por Loja): montado só no 1º clique
+function toggleDiaCanal(tr){
+  const id=tr.dataset.exp+'|'+tr.dataset.key;
+  const open=tr.classList.toggle('open');
+  if(tr.dataset.loaded!=='1'){
+    tr.dataset.loaded='1';
+    const c=window.__diaC; if(!c) return;
+    const mes=tr.dataset.mes, ck=tr.dataset.key;
+    const porDia={};
+    c.dataAno.forEach(r=>{
+      if(r.mes!==mes||normTxt(r.canal)!==ck) return;
+      if(!(r.data instanceof Date)||isNaN(r.data)) return;
+      const d=r.data.getDate();
+      const o=porDia[d]=porDia[d]||{wd:r.data.getDay(),v:{}};
+      o.v[r.loja]=(o.v[r.loja]||0)+(r.fat||0);
+    });
+    const totMes=c.totMes[mes]||0;
+    let html='';
+    Object.keys(porDia).map(Number).sort((a,b)=>a-b).forEach(d=>{
+      const o=porDia[d];
+      html+=`<tr class="dia-sub show" data-exp="${tr.dataset.exp}" data-diaof="${id}"><td class="td-metric" style="border-right:2px solid var(--border-2)">Dia ${String(d).padStart(2,'0')}${c.ano?' ('+DIAS_ABR[o.wd]+')':''}</td>`;
+      let tot=0;
+      c.lojas.forEach(l=>{
+        const v=o.v[l]||0; tot+=v;
+        html+=`<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(totMes>0?v/totMes*100:0)}</td>`;
+      });
+      html+=`<td class="b-left" style="text-align:center;font-weight:600">${fNum(tot)}</td></tr>`;
+    });
+    if(!html) html=`<tr class="dia-sub show" data-exp="${tr.dataset.exp}" data-diaof="${id}"><td class="td-metric" colspan="30">Sem dados diários</td></tr>`;
+    tr.insertAdjacentHTML('afterend',html);
+    return;
+  }
+  document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
+}
 window.__dia = window.__dia || {};
 const DIAS_ABR=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 // Detalhe diário: montado só no 1º clique na loja (lazy) e reaproveitado depois.
@@ -2078,6 +2113,7 @@ function toggleDia(tr){
     tr.dataset.loaded='1';
     const c=window.__dia[tr.dataset.tb]; if(!c) return;
     const mes=tr.dataset.mes, key=tr.dataset.key;
+    const cf=getF().canais;
     const val=(rr)=>{
       const ft=rr.reduce((sm,r)=>sm+(r.fat||0),0), cp=rr.reduce((sm,r)=>sm+(r.cupons||0),0);
       return c.field==='ticket' ? (cp?ft/cp:0) : c.field==='cupons' ? cp : ft;
@@ -2086,6 +2122,7 @@ function toggleDia(tr){
       const m={};
       c.baseData.forEach(r=>{
         if(r.ano!==a||r.mes!==mes||expLojaKey(r.loja)!==key) return;
+        if(cf.size && !cf.has(r.canal)) return; // respeita o filtro de Canal
         if(!(r.data instanceof Date)||isNaN(r.data)) return;
         (m[r.data.getDate()]=m[r.data.getDate()]||[]).push(r);
       });
@@ -2404,14 +2441,19 @@ function renderComparative(data) {
       $('cth-loja').innerHTML = h1 + h2;
 
       // ── Funções de agregação (consolidadas — sem ano) ──
-      const aggVal     = (mes, loja) => dataAno.filter(r => r.mes===mes && r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
-      const aggMesTot  = (mes)       => dataAno.filter(r => r.mes===mes).reduce((s,r)=>s+(r.fat||0),0);
-      const aggLojaTot = (loja)      => dataAno.filter(r => r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
-      const totalGeral = dataAno.reduce((s,r)=>s+(r.fat||0),0);
+      // Linhas de mês/total obedecem ao filtro de Canal; as sub-linhas por canal mostram sempre os 4 canais.
+      const dataFilt   = f.canais.size ? dataAno.filter(r => f.canais.has(r.canal)) : dataAno;
+      const aggVal     = (mes, loja) => dataFilt.filter(r => r.mes===mes && r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
+      const aggMesTot  = (mes)       => dataFilt.filter(r => r.mes===mes).reduce((s,r)=>s+(r.fat||0),0);
+      const aggMesAll  = (mes)       => dataAno.filter(r => r.mes===mes).reduce((s,r)=>s+(r.fat||0),0);
+      const aggLojaTot = (loja)      => dataFilt.filter(r => r.loja===loja).reduce((s,r)=>s+(r.fat||0),0);
+      const totalGeral = dataFilt.reduce((s,r)=>s+(r.fat||0),0);
 
       // Índice mes|loja|canal → soma (evita 288+ filtros sobre todas as linhas)
       const _cidx = {};
       dataAno.forEach(r => { const k = r.mes+'|'+r.loja+'|'+normTxt(r.canal); _cidx[k] = (_cidx[k]||0) + (r.fat||0); });
+
+      window.__diaC = { dataAno, lojas, ano: f.ano, totMes: Object.fromEntries(mesesLoja.map(m => [m, aggMesAll(m)])) };
 
       // ── Corpo ──────────────────────────────────────────
       let html = '';
@@ -2432,14 +2474,15 @@ function renderComparative(data) {
         html += `<td class="b-left" style="text-align:center;font-weight:700;background:var(--blue-xl);color:var(--blue)">${fNum(totLinha)}</td>`;
         html += '</tr>';
 
+        const totMesAll = aggMesAll(mes);
         // Sub-linhas por canal
         EXP_CANAIS.forEach(([ck, cn]) => {
           const vc = (loja) => _cidx[mes+'|'+loja+'|'+ck] || 0;
           let tot = 0;
-          html += `<tr class="exp-sub" data-exp="${eid}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${cn}</td>`;
+          html += `<tr class="exp-sub loja-click" data-exp="${eid}" data-key="${ck}" data-mes="${mes}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleDiaCanal(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
           lojas.forEach(loja => {
             const v = vc(loja); tot += v;
-            const av = totMes > 0 ? v / totMes * 100 : 0;
+            const av = totMesAll > 0 ? v / totMesAll * 100 : 0;
             html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(av)}</td>`;
           });
           html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(tot)}</td></tr>`;
