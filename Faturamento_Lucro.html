@@ -342,6 +342,12 @@
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
+
+.exp-caret{display:inline-block;width:12px;font-size:9px;color:var(--accent);transition:transform .15s;margin-right:4px}
+tr.exp-row.open .exp-caret{transform:rotate(90deg)}
+tr.exp-sub{display:none}
+tr.exp-sub.show{display:table-row}
+tr.exp-sub td{background:#f8fafc;font-size:11.5px}
 </style>
 
 </head>
@@ -1458,6 +1464,31 @@ function mkChart(id, type, labels, datasets, fmt) {
 const fmt_ = fmt; // alias
 
 // ── Helper: AH% badge
+function toggleExp(id){
+  const tr=document.querySelector('tr.exp-row[data-exp="'+id+'"]'); if(!tr) return;
+  const open=tr.classList.toggle('open');
+  document.querySelectorAll('tr.exp-sub[data-exp="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
+}
+function expLbl(l){ return l==='BELVEDER'?'BELVEDERE':l; }
+function pctCls(p){ return p>=30?'pct-good':p>=15?'pct-warn':'pct-bad'; }
+// Linha expansível: cabeça (data-exp) + sub-linhas
+function expHead(id,label,cells,cls){
+  return `<tr class="exp-row ${cls||''}" data-exp="${id}"><td onclick="toggleExp('${id}')" style="cursor:pointer;user-select:none"><span class="exp-caret">▶</span><strong>${label}</strong></td>${cells}</tr>`;
+}
+function expSub(id,label,cells){
+  return `<tr class="exp-sub" data-exp="${id}"><td style="padding-left:30px;color:var(--text-muted,#6b7280)">${label}</td>${cells}</tr>`;
+}
+function cells2(fA,cA,fB,cB){
+  const lA=fA-cA,pA=fA>0?lA/fA*100:0,lB=fB-cB,pB=fB>0?lB/fB*100:0,v=fA>0?(fB-fA)/fA*100:null;
+  return `<td class="num">${fmtNum(fA)}</td><td class="num">${fmtNum(cA)}</td><td class="num" style="font-weight:600">${fmtNum(lA)}</td><td class="pct ${pctCls(pA)}">${fmtPct(pA)}</td>
+      <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(fB)}</td><td class="num">${fmtNum(cB)}</td><td class="num" style="font-weight:600">${fmtNum(lB)}</td><td class="pct ${pctCls(pB)}">${fmtPct(pB)}</td>
+      <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(v)}</td>`;
+}
+function cells1(f,c){
+  const l=f-c,p=f>0?l/f*100:0;
+  return `<td class="num">${fmtNum(f)}</td><td class="num">${fmtNum(c)}</td><td class="num" style="font-weight:600">${fmtNum(l)}</td><td class="pct ${pctCls(p)}">${fmtPct(p)}</td>`;
+}
+
 function ahBadge(v) {
   if (v === null || !isFinite(v)) return `<span style="color:var(--text-muted)">—</span>`;
   const cls = v >= 0 ? 'color:#0ea472;font-weight:700' : 'color:#ef4444;font-weight:700';
@@ -1523,15 +1554,11 @@ function buildTableComparativo(anos, lojas) {
     const lB = fB - cB, pB = fB>0?(lB/fB)*100:0;
     if (fA===0 && cA===0 && fB===0 && cB===0) return;
     tFA+=fA; tCA+=cA; tFB+=fB; tCB+=cB;
-    const varF = fA>0 ? (fB-fA)/fA*100 : null;
-    rows += `<tr>
-      <td><strong>${MESES_FULL[m]||m}</strong></td>
-      <td class="num">${fmtNum(fA)}</td><td class="num">${fmtNum(cA)}</td><td class="num" style="font-weight:600">${fmtNum(lA)}</td>
-      <td class="pct ${pA>=30?'pct-good':pA>=15?'pct-warn':'pct-bad'}">${fmtPct(pA)}</td>
-      <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(fB)}</td><td class="num">${fmtNum(cB)}</td><td class="num" style="font-weight:600">${fmtNum(lB)}</td>
-      <td class="pct ${pB>=30?'pct-good':pB>=15?'pct-warn':'pct-bad'}">${fmtPct(pB)}</td>
-      <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(varF)}</td>
-    </tr>`;
+    rows += expHead('cm-'+m, MESES_FULL[m]||m, cells2(fA,cA,fB,cB));
+    lojas.forEach((lj,li)=>{
+      const g=(arr,k)=>sumBy(arr.filter(r=>r.mes===m&&r.loja===lj),k);
+      rows += expSub('cm-'+m, expLbl(lj), cells2(g(fatA,'total_venda'),g(cmvA,'valor'),g(fatB,'total_venda'),g(cmvB,'valor')));
+    });
   });
 
   const tLA=tFA-tCA, tPa=tFA>0?(tLA/tFA)*100:0;
@@ -1572,15 +1599,13 @@ function buildTableComparativo(anos, lojas) {
       const fB2 = sumBy(filtrar(anoB).filter(r=>r.loja===loja),'total_venda');
       const cB2 = sumBy(filtrarCmv(anoB).filter(r=>r.loja===loja),'valor');
       const lB2 = fB2-cB2, pB2 = fB2>0?(lB2/fB2)*100:0;
-      const varF2 = fA2>0?(fB2-fA2)/fA2*100:null;
-      lRows += `<tr>
-        <td class="row-loja">${loja==='BELVEDER'?'BELVEDERE':loja}</td>
-        <td class="num">${fmtNum(fA2)}</td><td class="num">${fmtNum(cA2)}</td><td class="num" style="font-weight:600">${fmtNum(lA2)}</td>
-        <td class="pct ${pA2>=30?'pct-good':pA2>=15?'pct-warn':'pct-bad'}">${fmtPct(pA2)}</td>
-        <td class="num" style="border-left:2px solid var(--accent)">${fmtNum(fB2)}</td><td class="num">${fmtNum(cB2)}</td><td class="num" style="font-weight:600">${fmtNum(lB2)}</td>
-        <td class="pct ${pB2>=30?'pct-good':pB2>=15?'pct-warn':'pct-bad'}">${fmtPct(pB2)}</td>
-        <td style="text-align:center;border-left:2px solid var(--accent3)">${ahBadge(varF2)}</td>
-      </tr>`;
+      lRows += expHead('rl-'+loja, expLbl(loja), cells2(fA2,cA2,fB2,cB2), 'row-loja');
+      allM.forEach(m=>{
+        const g=(arr,k)=>sumBy(arr.filter(r=>r.mes===m&&r.loja===loja),k);
+        const a=g(fatA,'total_venda'),b=g(cmvA,'valor'),c=g(fatB,'total_venda'),d=g(cmvB,'valor');
+        if(a===0&&b===0&&c===0&&d===0) return;
+        lRows += expSub('rl-'+loja, MESES_FULL[m]||m, cells2(a,b,c,d));
+      });
     });
     const tFL2A=fatA.reduce((s,r)=>s+(r.total_venda||0),0), tCL2A=cmvA.reduce((s,r)=>s+(r.valor||0),0);
     const tFL2B=fatB.reduce((s,r)=>s+(r.total_venda||0),0), tCL2B=cmvB.reduce((s,r)=>s+(r.valor||0),0);
@@ -1619,18 +1644,17 @@ function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucL
     <span style="font-size:12px;font-weight:700;color:#0f1923;letter-spacing:-.1px">Comparativo Mensal</span>
   </div>`;
 
+  const _fF=filterData(rawFat), _cF=filterDataCmv(rawCmv);
   let rows='', tF=0, tC=0;
   allM.forEach((m,i)=>{
     const f=fatMA[i],c=cmvMA[i],l=lucMA[i],p=f>0?(l/f)*100:0;
     if(f===0 && c===0) return; // ocultar meses sem valores
     tF+=f; tC+=c;
-    rows+=`<tr>
-      <td><strong>${mesLbl[i]}</strong></td>
-      <td class="num">${fmtNum(f)}</td>
-      <td class="num">${fmtNum(c)}</td>
-      <td class="num" style="font-weight:600">${fmtNum(l)}</td>
-      <td class="pct ${p>=30?'pct-good':p>=15?'pct-warn':'pct-bad'}">${fmtPct(p)}</td>
-    </tr>`;
+    rows+=expHead('m1-'+m, mesLbl[i], cells1(f,c));
+    lojas.forEach(lj=>{
+      const sf=sumBy(_fF.filter(r=>r.mes===m&&r.loja===lj),'total_venda'), sc=sumBy(_cF.filter(r=>r.mes===m&&r.loja===lj),'valor');
+      rows+=expSub('m1-'+m, expLbl(lj), cells1(sf,sc));
+    });
   });
   const tL=tF-tC, tP=tF>0?(tL/tF)*100:0;
   rows+=`<tr class="row-total"><td>TOTAL GERAL</td><td class="num">${fmtNum(tF)}</td><td class="num">${fmtNum(tC)}</td><td class="num">${fmtNum(tL)}</td><td class="pct ${tP>=30?'pct-good':tP>=15?'pct-warn':'pct-bad'}">${fmtPct(tP)}</td></tr>`;
@@ -1643,7 +1667,12 @@ function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucL
     let lRows='';
     lojas.forEach((l,i)=>{
       const f=fatLA[i],c=cmvLA[i],lb=lucLA[i],p=pctLA[i];
-      lRows+=`<tr><td class="row-loja">${l}</td><td class="num">${fmtNum(f)}</td><td class="num">${fmtNum(c)}</td><td class="num" style="font-weight:600">${fmtNum(lb)}</td><td class="pct ${p>=30?'pct-good':p>=15?'pct-warn':'pct-bad'}">${fmtPct(p)}</td></tr>`;
+      lRows+=expHead('r1-'+l, expLbl(l), cells1(f,c), 'row-loja');
+      allM.forEach(m=>{
+        const sf=sumBy(_fF.filter(r=>r.mes===m&&r.loja===l),'total_venda'), sc=sumBy(_cF.filter(r=>r.mes===m&&r.loja===l),'valor');
+        if(sf===0&&sc===0) return;
+        lRows+=expSub('r1-'+l, MESES_FULL[m]||MESES_NOME[m]||m, cells1(sf,sc));
+      });
     });
     const tFL=fatLA.reduce((s,v)=>s+v,0), tCL=cmvLA.reduce((s,v)=>s+v,0), tLL=tFL-tCL, tPL=tFL>0?(tLL/tFL)*100:0;
     lRows+=`<tr class="row-total-loja"><td>TOTAL GERAL</td><td class="num">${fmtNum(tFL)}</td><td class="num">${fmtNum(tCL)}</td><td class="num">${fmtNum(tLL)}</td><td class="pct ${tPL>=30?'pct-good':tPL>=15?'pct-warn':'pct-bad'}">${fmtPct(tPL)}</td></tr>`;
