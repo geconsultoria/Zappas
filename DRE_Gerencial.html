@@ -1269,6 +1269,11 @@ a.side-brand:hover { opacity:.85; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
+#btn-export{padding:6px 10px !important;font-size:11px !important;white-space:nowrap}
+.site-header{padding-left:18px;padding-right:18px;gap:12px}
+.header-right{flex-wrap:nowrap;white-space:nowrap;gap:8px}
+.header-right .btn-refresh{padding:6px 10px;font-size:11px}
+.last-update{font-size:10px}
 </style>
 </head>
 <body>
@@ -1419,7 +1424,7 @@ a.side-brand:hover { opacity:.85; }
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
     <button class="btn-refresh" id="btn-export" onclick="exportarRelatorio()" style="display:none" title="Gera um arquivo HTML somente leitura com os dados atuais">
-      Exportar relatório
+      Exportar
     </button>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
