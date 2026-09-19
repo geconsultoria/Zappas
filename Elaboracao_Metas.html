@@ -903,6 +903,18 @@
 .update-card-sub.err { color: #E39184; }
 </style>
 
+<script>
+/* Garante que Central e Reembolso apareçam sempre no filtro de Canal, mesmo sem dados no período. */
+function ZAPPAS_CANAIS_EXTRAS(lista){
+  var l = (lista || []).slice();
+  var up = l.length === 0 || l.every(function(x){ return String(x) === String(x).toUpperCase(); });
+  ['Central','Reembolso'].forEach(function(n){
+    var v = up ? n.toUpperCase() : n;
+    if (!l.some(function(x){ return String(x).toLowerCase() === n.toLowerCase(); })) l.push(v);
+  });
+  return l.sort();
+}
+</script>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -958,7 +970,7 @@
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1201,7 +1213,7 @@ let metasData = [];
    Ao abrir a página, usa os dados já salvos no navegador
    (carregamento instantâneo). Só busca dados novos do Drive
    quando o usuário clicar no botão de atualizar. */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='elaboracaoMetas_data_v2';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='elaboracaoMetas_data_v3';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -1371,10 +1383,14 @@ function transformFaturamento(rows, headers) {
     // DISTRIBUICAO, só devem entrar nas análises as linhas onde VS = False.
     const canalNormVs = canal.trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const vs = colVs ? /^(true|verdadeiro|1|sim)$/i.test((row[colVs] || '').trim()) : false;
-    if (canalNormVs === 'DISTRIBUICAO' && vs) continue;
-    // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+    // CENTRAL = DISTRIBUICAO + VS=False + Fabrica=True; REEMBOLSO = DISTRIBUICAO + VS=True + Fabrica=False.
     const fabrica = colFabrica ? /^(true|verdadeiro|1|sim)$/i.test((row[colFabrica] || '').trim()) : false;
-    const canalFinal = (canalNormVs === 'DISTRIBUICAO' && !vs && fabrica) ? (canal === canal.toUpperCase() ? 'CENTRAL' : 'Central') : canal;
+    const isDistr = canalNormVs === 'DISTRIBUICAO';
+    if (isDistr && vs && fabrica) continue;
+    const upC = canal === canal.toUpperCase();
+    const canalFinal = (isDistr && !vs && fabrica) ? (upC ? 'CENTRAL' : 'Central')
+                     : (isDistr && vs && !fabrica) ? (upC ? 'REEMBOLSO' : 'Reembolso')
+                     : canal;
     result.push({ ano, loja, mes, venda, canal: canalFinal });
   }
   return result;
@@ -1598,7 +1614,7 @@ function buildFilters() {
   const anos = [...new Set(rawData.map(d => d.ano))].sort();
   const lojas = [...new Set(rawData.map(d => d.loja))].sort();
   const meses = [...new Set(rawData.map(d => d.mes))].sort((a,b) => a-b);
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
 
   fillSelect('f-ano', anos, v => v, v => v);
   fillSelect('f-loja', lojas, v => v, v => v==='BELVEDER'?'BELVEDERE':v);
@@ -1668,7 +1684,7 @@ function closeCanalDropdown() {
 }
 
 function toggleCanal(canal) {
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
   if (selectedCanais.has(canal)) {
     selectedCanais.delete(canal);
   } else {
@@ -1681,14 +1697,14 @@ function toggleCanal(canal) {
 
 function selectAllCanais() {
   selectedCanais = new Set();
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
   updateCanalCheckmarks(canais);
   updateCanalLabel(canais);
   applyFilters();
 }
 
 function clearAllCanais() {
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
   selectedCanais = new Set(canais);
   updateCanalCheckmarks(canais);
   updateCanalLabel(canais);

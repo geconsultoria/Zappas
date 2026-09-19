@@ -713,6 +713,18 @@ a.side-brand:hover { opacity:.85; }
 .update-card-sub.err { color: #E39184; }
 </style>
 
+<script>
+/* Garante que Central e Reembolso apareçam sempre no filtro de Canal, mesmo sem dados no período. */
+function ZAPPAS_CANAIS_EXTRAS(lista){
+  var l = (lista || []).slice();
+  var up = l.length === 0 || l.every(function(x){ return String(x) === String(x).toUpperCase(); });
+  ['Central','Reembolso'].forEach(function(n){
+    var v = up ? n.toUpperCase() : n;
+    if (!l.some(function(x){ return String(x).toLowerCase() === n.toLowerCase(); })) l.push(v);
+  });
+  return l.sort();
+}
+</script>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -783,7 +795,7 @@ a.side-brand:hover { opacity:.85; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -986,7 +998,7 @@ const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_data_v2';
+const DB_KEY   = 'analiseComercial_data_v3';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1170,7 +1182,11 @@ function parseCSV(text) {
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
     const canalNormVs = String(row.canal||'').trim().toUpperCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-    if(canalNormVs==='DISTRIBUICAO' && row.vs) continue;
+    if(canalNormVs==='DISTRIBUICAO' && row.vs){
+      if(row.fabrica) continue;
+      // Regra REEMBOLSO: Canal = DISTRIBUICAO + VS = True + Fabrica = False.
+      row.canal = row.canal===row.canal.toUpperCase() ? 'REEMBOLSO' : 'Reembolso';
+    }
     // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
     if(canalNormVs==='DISTRIBUICAO' && !row.vs && row.fabrica) row.canal = row.canal===row.canal.toUpperCase() ? 'CENTRAL' : 'Central';
     rows.push(row);
@@ -1206,7 +1222,7 @@ function populateFilters(data) {
   $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l => `<option value="${l}">${l==='BELVEDER'?'BELVEDERE':l}</option>`).join('');
   if(lojas.includes(cur)) $('f-loja').value = cur;
 
-  const canais = [...new Set(data.map(r => r.canal))].filter(Boolean).sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(data.map(r => r.canal))].filter(Boolean).sort());
   populateCanalDropdown(canais);
 }
 

@@ -463,6 +463,18 @@ a.side-brand:hover { opacity:.85; }
 .update-card-sub.err { color: #E39184; }
 </style>
 
+<script>
+/* Garante que Central e Reembolso apareçam sempre no filtro de Canal, mesmo sem dados no período. */
+function ZAPPAS_CANAIS_EXTRAS(lista){
+  var l = (lista || []).slice();
+  var up = l.length === 0 || l.every(function(x){ return String(x) === String(x).toUpperCase(); });
+  ['Central','Reembolso'].forEach(function(n){
+    var v = up ? n.toUpperCase() : n;
+    if (!l.some(function(x){ return String(x).toLowerCase() === n.toLowerCase(); })) l.push(v);
+  });
+  return l.sort();
+}
+</script>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -527,7 +539,7 @@ a.side-brand:hover { opacity:.85; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -798,7 +810,7 @@ const state = { rows: [], filters: { canal:["LOJA","DELIVERY"], ano:null, mes:nu
    de 5-10MB do localStorage. */
 const DB_NAME  = 'zappasCacheDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'bancoDeclaracao_data_v2';
+const DB_KEY   = 'bancoDeclaracao_data_v3';
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -995,6 +1007,8 @@ function cleanRows(raw){
     const fabrica = /^(true|verdadeiro|1|sim)$/i.test(pickNorm(norm, ["FABRICA"]).trim());
     let canalFinal = canalRaw.toUpperCase();
     if (canalFinal === "DISTRIBUICAO" && !vs && fabrica) canalFinal = "CENTRAL";
+    // Regra REEMBOLSO: Canal = DISTRIBUICAO + VS = True + Fabrica = False.
+    if (canalFinal === "DISTRIBUICAO" && vs && !fabrica) canalFinal = "REEMBOLSO";
     return {
       ano: ano,
       lojaRaw: lojaRaw,
@@ -1150,7 +1164,7 @@ function updateBtnLabel(){
 
 function populateFilters(reset){
   const menu = $("channelMenu");
-  const presentCanais = Array.from(new Set(state.rows.map(function(r){ return r.canal; }))).sort();
+  const presentCanais = ZAPPAS_CANAIS_EXTRAS(Array.from(new Set(state.rows.map(function(r){ return r.canal; }))).sort());
 
   const prevCanal = state.filters.canal;
   menu.innerHTML = presentCanais.map(function(c){

@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
+<title>Demonstrativo de Resultado — Dashboard Executivo</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -1325,7 +1325,7 @@ a.side-brand:hover { opacity:.85; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1384,7 +1384,7 @@ a.side-brand:hover { opacity:.85; }
 <!-- LOADING -->
 <div id="overlay">
   <div class="loader-ring"></div>
-  <div class="loader-text">DFC Fluxo de Caixa</div>
+  <div class="loader-text">Demonstrativo de Resultado</div>
   <div class="loader-sub" id="loaderMsg">Carregando dados…</div>
 </div>
 
@@ -1400,7 +1400,7 @@ a.side-brand:hover { opacity:.85; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">DFC Fluxo de Caixa</div>
+      <div class="logo-text">Demonstrativo de Resultado</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
@@ -1476,8 +1476,9 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <!-- METAS -->
-  <div class="section-head"><span class="section-title">Painel de Metas</span><div class="section-line"></div></div>
-  <div class="metas-grid" id="metasPanel"></div>
+  <!-- Painel de Metas oculto por enquanto (não será utilizado agora). Para reexibir, remova o display:none. -->
+  <div class="section-head" style="display:none"><span class="section-title">Painel de Metas</span><div class="section-line"></div></div>
+  <div class="metas-grid" id="metasPanel" style="display:none"></div>
 
   <!-- CHARTS ROW 1 -->
   <div class="section-head"><span class="section-title">Evolução & Composição</span><div class="section-line"></div></div>

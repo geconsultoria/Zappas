@@ -356,6 +356,18 @@ tr.exp-row td:first-child{color:#0f1923}
 tr.exp-sub td.pct-good{color:var(--accent2)} tr.exp-sub td.pct-warn{color:var(--accent3)} tr.exp-sub td.pct-bad{color:var(--danger)}
 </style>
 
+<script>
+/* Garante que Central e Reembolso apareçam sempre no filtro de Canal, mesmo sem dados no período. */
+function ZAPPAS_CANAIS_EXTRAS(lista){
+  var l = (lista || []).slice();
+  var up = l.length === 0 || l.every(function(x){ return String(x) === String(x).toUpperCase(); });
+  ['Central','Reembolso'].forEach(function(n){
+    var v = up ? n.toUpperCase() : n;
+    if (!l.some(function(x){ return String(x).toLowerCase() === n.toLowerCase(); })) l.push(v);
+  });
+  return l.sort();
+}
+</script>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -405,7 +417,7 @@ tr.exp-sub td.pct-good{color:var(--accent2)} tr.exp-sub td.pct-warn{color:var(--
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -558,7 +570,7 @@ let rawFat = [], rawCmv = [], chartInstances = {}, debugLog = [];
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v2';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v3';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -948,12 +960,13 @@ async function loadData(forceRefresh, silent = false) {
         total_venda: parseNum(r[colFatVenda])
       })).filter(r => r.total_venda !== 0 || (r.ano && r.loja))
         // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
-        .filter(r => !(String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO' && r.vs))
-        // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+        .filter(r => !(String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO' && r.vs && r.fabrica))
+        // Regras CENTRAL / REEMBOLSO: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
         .map(r => {
-          if (r.fabrica && !r.vs && String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO') {
-            r.canal = r.canal === r.canal.toUpperCase() ? 'CENTRAL' : 'Central';
-          }
+          const isDist = String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO';
+          const up = r.canal === r.canal.toUpperCase();
+          if (isDist && !r.vs && r.fabrica)  r.canal = up ? 'CENTRAL' : 'Central';       // Central: VS=False + Fabrica=True
+          if (isDist && r.vs && !r.fabrica)  r.canal = up ? 'REEMBOLSO' : 'Reembolso';    // Reembolso: VS=True + Fabrica=False
           return r;
         });
 
@@ -1069,7 +1082,7 @@ function populateFilters() {
   const anos  = [...new Set(rawFat.map(r=>r.ano))].filter(Boolean).sort();
   const lojas = [...new Set(rawFat.map(r=>r.loja))].filter(Boolean).sort();
   const meses = [...new Set(rawFat.map(r=>r.mes))].filter(m=>m>0).sort((a,b)=>a-b);
-  const canais = [...new Set(rawFat.map(r=>r.canal))].filter(Boolean).sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawFat.map(r=>r.canal))].filter(Boolean).sort());
   fillSel('f-ano',  anos,  'Todos', v=>v);
   fillSel('f-loja', lojas, 'Todas', v=>v==='BELVEDER'?'BELVEDERE':v);
   fillSel('f-mes',  meses, 'Todos', m=>MESES_NOME[m]||m);

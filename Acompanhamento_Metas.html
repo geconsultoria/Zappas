@@ -799,6 +799,18 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 .update-card-sub.err { color: #E39184; }
 </style>
 
+<script>
+/* Garante que Central e Reembolso apareçam sempre no filtro de Canal, mesmo sem dados no período. */
+function ZAPPAS_CANAIS_EXTRAS(lista){
+  var l = (lista || []).slice();
+  var up = l.length === 0 || l.every(function(x){ return String(x) === String(x).toUpperCase(); });
+  ['Central','Reembolso'].forEach(function(n){
+    var v = up ? n.toUpperCase() : n;
+    if (!l.some(function(x){ return String(x).toLowerCase() === n.toLowerCase(); })) l.push(v);
+  });
+  return l.sort();
+}
+</script>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -854,7 +866,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1164,7 +1176,7 @@ let metasData = []; // { ano, mes, loja, canal, meta, pe } — vindo da planilha
    de 5-10MB do localStorage. */
 const DB_NAME  = 'zappasCacheDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'acompanhamentoMetas_data_v2';
+const DB_KEY   = 'acompanhamentoMetas_data_v3';
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -1522,10 +1534,17 @@ function transform(rows, headers) {
     // Coluna "VS" (True/False) adicionada na planilha: para o canal
     // DISTRIBUICAO, só devem entrar nas análises as linhas onde VS = False.
     const vsVal = cVs ? /^(true|verdadeiro|1|sim)$/i.test(String(row[cVs]||'').trim()) : false;
-    if (normTxt(canalVal) === 'distribuicao' && vsVal) continue;
-    // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
+    // Coluna "Fabrica" (True/False) define Central e Reembolso dentro de DISTRIBUICAO:
+    //   CENTRAL   = DISTRIBUICAO + VS = False + Fabrica = True
+    //   REEMBOLSO = DISTRIBUICAO + VS = True  + Fabrica = False
+    //   (DISTRIBUICAO + VS = True + Fabrica = True continua fora.)
     const fabricaVal = cFabrica ? /^(true|verdadeiro|1|sim)$/i.test(String(row[cFabrica]||'').trim()) : false;
-    const canalFinal = (normTxt(canalVal) === 'distribuicao' && !vsVal && fabricaVal) ? (canalVal === canalVal.toUpperCase() ? 'CENTRAL' : 'Central') : canalVal;
+    const isDistr = normTxt(canalVal) === 'distribuicao';
+    if (isDistr && vsVal && fabricaVal) continue;
+    const upC = canalVal === canalVal.toUpperCase();
+    const canalFinal = (isDistr && !vsVal && fabricaVal) ? (upC ? 'CENTRAL' : 'Central')
+                     : (isDistr && vsVal && !fabricaVal) ? (upC ? 'REEMBOLSO' : 'Reembolso')
+                     : canalVal;
 
     result.push({
       ano, loja, mes, dia,
@@ -1573,7 +1592,7 @@ async function loadData(forceRefresh = false, silent = false) {
     const cached = await loadCache();
     if (cached && cached.data && cached.data.length) {
       rawData = cached.data;
-      const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+      const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
       buildFilters();
       buildCanalOptions(canais);
 
@@ -1661,7 +1680,7 @@ async function loadData(forceRefresh = false, silent = false) {
     quebrasMapDia = quebrasResult.diario  || {};
     rawData = transform(allRows, headers);
     if (!rawData.length) throw new Error('Nenhum registro válido encontrado após processamento.');
-    const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+    const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
     buildFilters();
     buildCanalOptions(canais);
     applyFilters();
@@ -1792,7 +1811,7 @@ function closeCanalDropdown() {
 }
 
 function toggleCanal(canal) {
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
   if (selectedCanais.has(canal)) {
     selectedCanais.delete(canal);
   } else {
@@ -1805,14 +1824,14 @@ function toggleCanal(canal) {
 
 function selectAllCanais() {
   selectedCanais = new Set();
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
   updateCanalCheckmarks(canais);
   updateCanalLabel(canais);
   applyFilters();
 }
 
 function clearAllCanais() {
-  const canais = [...new Set(rawData.map(d => d.canal).filter(Boolean))].sort();
+  const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawData.map(d => d.canal).filter(Boolean))].sort());
   selectedCanais = new Set(canais);
   updateCanalCheckmarks(canais);
   updateCanalLabel(canais);

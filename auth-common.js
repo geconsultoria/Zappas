@@ -53,7 +53,7 @@
     analise_comercial: { label: "Análise Comercial", href: "Analise_Comercial.html" },
     faturamento_lucro: { label: "Faturamento x Lucro", href: "Faturamento_Lucro.html" },
     faturamento_detalhado: { label: "Faturamento Detalhado", href: "Faturamento_Detalhado.html" },
-    dre_gerencial: { label: "DFC Fluxo de Caixa", href: "DRE_Gerencial.html" },
+    dre_gerencial: { label: "Demonstrativo de Resultado", href: "DRE_Gerencial.html" },
     contas_a_pagar: { label: "Contas a Pagar", href: "Contas_a_Pagar.html" },
     banco_declaracao: { label: "Banco", href: "Banco_Declaracao.html" },
     reembolso: { label: "Reembolso entre Lojas", href: "Reembolso.html" },
@@ -98,23 +98,37 @@
 
   function loadSessionFromStorage() {
     try {
-      var raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return null;
+      // Lê do localStorage e, se estiver vazio, da cópia em sessionStorage
+      // (proteção caso o localStorage tenha sido limpo/bloqueado pelo navegador).
+      var raw = null;
+      try { raw = localStorage.getItem(SESSION_KEY); } catch (e) {}
+      if (!raw) { try { raw = sessionStorage.getItem(SESSION_KEY); } catch (e) {} }
+      if (!raw) { log("Sem sessão salva neste navegador/endereço:", location.origin); return null; }
       var s = JSON.parse(raw);
-      if (!s || !s.exp || Date.now() / 1000 > s.exp) return null;
+      var agora = Date.now() / 1000;
+      if (!s || !s.exp) { log("Sessão salva inválida (sem exp)."); return null; }
+      if (agora > s.exp) { log("Sessão expirada em", new Date(s.exp * 1000).toLocaleString()); return null; }
+      // Sessão deslizante: cada abertura de tela renova a validade por mais 12h,
+      // então quem está usando o painel não é deslogado no meio do uso.
+      var novaExp = Math.floor(agora) + OTP_SESSION_SEGUNDOS;
+      if (novaExp > s.exp) { s.exp = novaExp; saveSessionToStorage(s); }
       return s;
     } catch (e) {
+      log("Erro ao ler sessão:", e);
       return null;
     }
   }
 
   function saveSessionToStorage(s) {
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(s)); } catch (e) {}
+    var txt = JSON.stringify(s);
+    try { localStorage.setItem(SESSION_KEY, txt); } catch (e) { log("Falha ao gravar no localStorage:", e); }
+    try { sessionStorage.setItem(SESSION_KEY, txt); } catch (e) {}
   }
 
   function clearSession() {
     session = null;
     try { localStorage.removeItem(SESSION_KEY); } catch (e) {}
+    try { sessionStorage.removeItem(SESSION_KEY); } catch (e) {}
   }
 
   function fetchUsuario(email) {
@@ -352,7 +366,9 @@
         email: email,
         name: payload.name || data.nome || email,
         picture: payload.picture || "",
-        exp: payload.exp,
+        // Usa a mesma duração do login por código (12h) em vez do "exp" do token
+        // do Google, que costuma ser de ~1h e derrubava a sessão cedo demais.
+        exp: Math.floor(Date.now() / 1000) + OTP_SESSION_SEGUNDOS,
         role: data.role,
         loja: data.loja || "",
         permissoes: data.permissoes || {},
