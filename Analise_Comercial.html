@@ -2063,6 +2063,11 @@ function toggleExp(id){
     document.querySelectorAll('tr.loja-click[data-exp="'+id+'"]').forEach(x=>x.classList.remove('open'));
   }
 }
+function toggleSub(tr){
+  const id=tr.dataset.exp+'|'+tr.dataset.key;
+  const open=tr.classList.toggle('open');
+  document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
+}
 window.__dia = window.__dia || {};
 const DIAS_ABR=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 // Detalhe diário: montado só no 1º clique na loja (lazy) e reaproveitado depois.
@@ -2418,17 +2423,34 @@ function renderComparative(data) {
         html += `<td class="b-left" style="text-align:center;font-weight:700;background:var(--blue-xl);color:var(--blue)">${fNum(totLinha)}</td>`;
         html += '</tr>';
 
-        // Sub-linhas por canal
+        // Sub-linhas por canal (clique no canal abre as lojas)
         EXP_CANAIS.forEach(([ck, cn]) => {
           const vc = (loja) => dataAno.filter(r => r.mes===mes && r.loja===loja && normTxt(r.canal)===ck).reduce((sm,r)=>sm+(r.fat||0),0);
-          let tot = 0;
-          html += `<tr class="exp-sub" data-exp="${eid}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${cn}</td>`;
-          lojas.forEach(loja => {
-            const v = vc(loja); tot += v;
+          const vals = lojas.map(vc);
+          const tot = vals.reduce((a,b)=>a+b,0);
+          html += `<tr class="exp-sub loja-click" data-exp="${eid}" data-key="${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleSub(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
+          vals.forEach(v => {
             const av = totMes > 0 ? v / totMes * 100 : 0;
             html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(av)}</td>`;
           });
           html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(tot)}</td></tr>`;
+
+          // Lojas dentro do canal: valor aparece na coluna da própria loja
+          EXP_LOJAS.forEach(([lk, ln]) => {
+            const idx = lojas.findIndex(l => expLojaKey(l) === lk);
+            if (idx < 0) return;
+            const v = vals[idx];
+            html += `<tr class="dia-sub" data-exp="${eid}" data-diaof="${eid}|${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${ln}</td>`;
+            lojas.forEach((_, j) => {
+              if (j === idx) {
+                const av = totMes > 0 ? v / totMes * 100 : 0;
+                html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(av)}</td>`;
+              } else {
+                html += `<td class="b-left" style="text-align:center">—</td><td class="av-col" style="text-align:center"></td>`;
+              }
+            });
+            html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(v)}</td></tr>`;
+          });
         });
       });
 
