@@ -2942,19 +2942,7 @@ function populateFilters(){
 // é (re)carregado (carregarTudo() e o caminho de cache em loadData()),
 // antes do primeiro applyFilters(). Não precisa de buildSlugMap(): usa
 // slugFromGrupo() direto, que só olha o texto do grupo.
-// Reclassificação por conta: "Endivid. Empréstimos" vem do Plano de Contas dentro do grupo
-// "Despesas Financeiras", mas é dívida (principal) e deve ficar em "Empréstimos e Financiamentos".
-// (Correção definitiva: mudar o GRUPO_PL dessa conta na planilha Plano de Contas.)
-function reclassificarRaw(){
-  raw.forEach(r=>{
-    const p = normKey(r.plano), sg = normKey(r.subgrupo);
-    if((p.includes('endivid') || sg.includes('endivid')) && slugFromGrupo(r.grupo)!=='emprestimos_financiamentos'){
-      r.grupo = 'Empréstimos e Financiamentos';
-    }
-  });
-}
 function recalcImpostosGer(){
-  reclassificarRaw();
   impostosGerRaw = raw
     .filter(r=>slugFromGrupo(r.grupo)==='impostos_vendas')
     .map(r=>{
