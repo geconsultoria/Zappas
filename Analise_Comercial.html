@@ -1221,7 +1221,7 @@ const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_resumo_v2';
+const DB_KEY   = 'analiseComercial_resumo_v3';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1412,7 +1412,12 @@ function parseCSV(text) {
     };
     if(!row.ano||!row.loja) continue;
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
-    if(normTxt(row.canal)==='distribuicao' && row.vs) continue;
+    // Regra REEMBOLSO: Canal = DISTRIBUICAO + VS = True + Fabrica = False vira o canal REEMBOLSO.
+    // (DISTRIBUICAO com VS = True e Fabrica = True continua fora, como antes.)
+    if(normTxt(row.canal)==='distribuicao' && row.vs){
+      if(row.fabrica) continue;
+      row.canal = row.canal===row.canal.toUpperCase() ? 'REEMBOLSO' : 'Reembolso';
+    }
     // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
     if(normTxt(row.canal)==='distribuicao' && !row.vs && row.fabrica) row.canal = row.canal===row.canal.toUpperCase() ? 'CENTRAL' : 'Central';
     rows.push(row);
@@ -2155,7 +2160,7 @@ function toggleDia(tr){
   }
   document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
 }
-const EXP_CANAIS=[['loja','Loja'],['delivery','Delivery'],['central','Central'],['distribuicao','Distribuição']];
+const EXP_CANAIS=[['loja','Loja'],['delivery','Delivery'],['central','Central'],['distribuicao','Distribuição'],['reembolso','Reembolso']];
 const EXP_LOJAS=[['anisio','Anisio'],['bady','Bady'],['damha','Damha'],['belvedere','Belvedere'],['havan','Havan'],['muffato','Muffato']];
 function expLojaKey(l){ const k=normTxt(l); return k==='belveder'?'belvedere':k; }
 
