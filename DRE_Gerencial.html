@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Demonstrativo de Resultado — Dashboard Executivo</title>
+<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -465,13 +465,6 @@ body {
 .dre-table tr.row-resultado.green td:first-child { background: #B8EEDA; }
 .dre-table tr.row-resultado.light td:first-child { background: #E8F2FC; }
 .dre-table tr.row-resultado.gold td:first-child { background: #FAE9A0; }
-/* Linhas "apagadas" (sem dados): em vez de opacity na linha inteira — que deixava a coluna
-   fixa "Conta" transparente e mostrava os valores passando por baixo ao rolar — o
-   esmaecido é feito só na cor do texto, mantendo a coluna fixa com fundo sólido. */
-.dre-table tr.row-dim4 td { color: rgba(60,60,75,.4) !important; }
-.dre-table tr.row-dim6 td { color: rgba(60,60,75,.6) !important; }
-.dre-table tr.row-dim4 td:first-child { background: #EEF4FB; }
-.dre-table tr.row-dim6 td:first-child { background: #E5EEF9; }
 .dre-table tbody tr:hover td:first-child { background: var(--bg-2) !important; }
 /* Sombra sutil pra marcar a borda da coluna fixa enquanto o resto da
    tabela rola por baixo dela. */
@@ -731,12 +724,16 @@ body {
 
 /* ── ACCORDION ── */
 .dre-table tr.row-group,
-.dre-table tr.row-subgroup {
+.dre-table tr.row-subgroup,
+.dre-table tr.row-item.has-lanc {
   cursor: pointer;
   user-select: none;
 }
 .dre-table tr.row-group:hover td   { filter: brightness(.96); }
 .dre-table tr.row-subgroup:hover td { filter: brightness(.97); }
+.dre-table tr.row-item.has-lanc:hover td { filter: brightness(.98); }
+.dre-table tr.row-item.has-lanc:hover .expand-hint { opacity: 1; }
+.dre-table tr.row-item.has-lanc.is-open .expand-hint { display: none; }
 
 /* Chevron no início da célula de nome */
 .row-chevron {
@@ -755,14 +752,45 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 
 /* Linhas filhas ocultas por padrão — sem display:none para preservar layout */
 .dre-table tr.row-subgroup,
-.dre-table tr.row-item {
+.dre-table tr.row-item,
+.dre-table tr.row-lanc {
   display: none;
 }
 .dre-table tr.row-subgroup.visible,
-.dre-table tr.row-item.visible {
+.dre-table tr.row-item.visible,
+.dre-table tr.row-lanc.visible {
   display: table-row;
   animation: rowIn .18s ease forwards;
 }
+/* Linha de detalhe com os lançamentos individuais (Data/Título/Valor) que
+   compõem a conta clicada — mesmo padrão visual/subtable já usado no
+   painel de Conciliação do De-Para (.recon-subtable), só reaproveitado
+   aqui dentro da própria tabela do DRE. */
+.dre-table tr.row-lanc > td {
+  background: var(--surface-tint);
+  padding: 8px 14px 16px 68px !important;
+  white-space: normal;
+}
+.dre-lanc-wrap {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+.dre-lanc-wrap table { width: 100%; border-collapse: collapse; font-size: 11.5px; }
+.dre-lanc-wrap th {
+  position: sticky; top: 0;
+  background: var(--surface-tint);
+  text-align: left;
+  padding: 6px 10px;
+  font-size: 9.5px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--ink-4);
+  border-bottom: 1px solid var(--border);
+}
+.dre-lanc-wrap th.num, .dre-lanc-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-numeric); }
+.dre-lanc-wrap td { padding: 5px 10px; border-bottom: 1px solid #F0EDE6; color: var(--ink-2); white-space: normal; }
+.dre-lanc-wrap tr:last-child td { border-bottom: none; }
 @keyframes rowIn {
   from { opacity: 0; transform: translateY(-3px); }
   to   { opacity: 1; transform: none; }
@@ -831,7 +859,6 @@ tr.is-open .expand-hint { display: none; }
   box-shadow: var(--shadow-sm);
   transition: var(--transition);
 }
-.loja-card.is-total { border-color: var(--ink); border-width: 1.5px; background: var(--surface-tint, var(--surface)); }
 .loja-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 .loja-card-name {
   font-size: 10px; font-weight: 700;
@@ -1211,7 +1238,7 @@ a.side-brand:hover { opacity:.85; }
 .sidebar.collapsed:not(.peek) .side-link:hover::after {
   opacity:1; visibility:visible;
 }
-.side-item.open > .side-sub { max-height:640px; opacity:1; padding: 3px 0 6px 24px; }
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
 .side-sub a {
   display:flex; align-items:center; gap:9px;
   padding: 8px 10px; border-radius:8px;
@@ -1277,11 +1304,6 @@ a.side-brand:hover { opacity:.85; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
-#btn-export{padding:6px 10px !important;font-size:11px !important;white-space:nowrap}
-.site-header{padding-left:18px;padding-right:18px;gap:12px}
-.header-right{flex-wrap:nowrap;white-space:nowrap;gap:8px}
-.header-right .btn-refresh{padding:6px 10px;font-size:11px}
-.last-update{font-size:10px}
 </style>
 </head>
 <body>
@@ -1338,7 +1360,7 @@ a.side-brand:hover { opacity:.85; }
       <div class="side-sub">
         <a href="DRE_Gerencial.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          Demonstrativo de Resultado
+          DFC Fluxo de Caixa
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1397,7 +1419,7 @@ a.side-brand:hover { opacity:.85; }
 <!-- LOADING -->
 <div id="overlay">
   <div class="loader-ring"></div>
-  <div class="loader-text">Demonstrativo de Resultado</div>
+  <div class="loader-text">DFC Fluxo de Caixa</div>
   <div class="loader-sub" id="loaderMsg">Carregando dados…</div>
 </div>
 
@@ -1413,7 +1435,7 @@ a.side-brand:hover { opacity:.85; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">Demonstrativo de Resultado</div>
+      <div class="logo-text">DFC Fluxo de Caixa</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
@@ -1431,9 +1453,6 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
-    <button class="btn-refresh" id="btn-export" onclick="exportarRelatorio()" style="display:none" title="Gera um arquivo HTML somente leitura com os dados atuais">
-      Exportar
-    </button>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 4v5h-5"/><path d="M1 16v-5h5"/>
@@ -1492,9 +1511,8 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <!-- METAS -->
-  <!-- Painel de Metas oculto por enquanto (não será utilizado agora). Para reexibir, remova o display:none. -->
-  <div class="section-head" style="display:none"><span class="section-title">Painel de Metas</span><div class="section-line"></div></div>
-  <div class="metas-grid" id="metasPanel" style="display:none"></div>
+  <div class="section-head"><span class="section-title">Painel de Metas</span><div class="section-line"></div></div>
+  <div class="metas-grid" id="metasPanel"></div>
 
   <!-- CHARTS ROW 1 -->
   <div class="section-head"><span class="section-title">Evolução & Composição</span><div class="section-line"></div></div>
@@ -1599,7 +1617,7 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <!-- LOJAS -->
-  <div class="section-head"><span class="section-title" id="lojaTitulo">Performance por Loja</span><div class="section-line"></div><span class="section-period" id="lojaPeriodo">—</span></div>
+  <div class="section-head"><span class="section-title">Performance por Loja</span><div class="section-line"></div><span class="section-period" id="lojaPeriodo">—</span></div>
   <div class="loja-grid" id="lojaGrid"></div>
 
   <!-- COMPARATIVO MENSAL -->
@@ -2365,8 +2383,6 @@ function parseVendas(text, lojaFallback){
   const iMes   = findCol(rawHeaders,'mes');
   const iTotal = findCol(rawHeaders,'total');
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
-  const iVs    = findCol(rawHeaders,'vs');
-  const iFab   = findCol(rawHeaders,'fabrica');
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2396,9 +2412,7 @@ function parseVendas(text, lojaFallback){
       // match exato OU parcial (ex.: "loja fisica", "central de vendas")
       // pra não zerar tudo se o texto do canal na planilha vier com
       // palavras a mais em volta de loja/delivery/central.
-      // Regra CENTRAL: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
-      const isCentral = canal==='distribuicao' && !/^(true|verdadeiro|1|sim)$/i.test(g(iVs)) && /^(true|verdadeiro|1|sim)$/i.test(g(iFab));
-      canalMatch = isCentral ? 'central' : (CANAIS_FATURAMENTO.find(c => canal===c || canal.includes(c)) || '');
+      canalMatch = CANAIS_FATURAMENTO.find(c => canal===c || canal.includes(c)) || '';
       if(!canalMatch) continue;
     }
 
@@ -2516,7 +2530,7 @@ async function fetchCSV(url){
    (carregamento instantâneo). Só busca dados novos quando o
    usuário clicar no botão de atualizar (↻).
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v2';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v1';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -3469,7 +3483,36 @@ function renderChartSubgrupo(){
 ══════════════════════════════════════════════════════════════ */
 const CHEVRON = `<span class="row-chevron"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>`;
 
+/* Registros originais (ainda não somados) que compõem uma "conta" (linha
+   Plano_de_Contas) — usado pra abrir a lista de lançamentos individuais
+   (data/título/valor) ao clicar numa conta do DRE, igual ao painel de
+   Conciliação do De-Para (ver toggleItem()/registrarLanc() mais abaixo). */
+function itensDoPlano(sourceArr, grupo, sub, plano){
+  return (sourceArr||[]).filter(r=>
+    (r.grupo||'(sem grupo)')===grupo &&
+    (r.subgrupo||'(sem subgrupo)')===sub &&
+    (r.plano||'(sem plano)')===plano
+  );
+}
+// Mesma coisa, mas pra quando a conta agrega vários grupos DFC originais
+// (ex.: "Recebimento" no DRE x DFC, que junta todos os grupos mapeados
+// pra receita_operacional e agrupa só pelo nome da categoria/plano).
+function itensDoPlanoEmGrupos(sourceArr, grupos, plano){
+  return (sourceArr||[]).filter(r=>
+    grupos.includes(r.grupo) && (r.plano||'(sem plano)')===plano
+  );
+}
+function itensDoCanal(sourceArr, canal){
+  return (sourceArr||[]).filter(r=>r.canal===canal);
+}
+
 function renderDRE(){
+  // Zera o cache de lançamentos individuais a cada novo render (troca de
+  // filtro/loja/mês) — o conteúdo antigo não corresponde mais às linhas
+  // que vão ser desenhadas agora, e cada "conta" ganha um id novo (uid())
+  // de qualquer forma, então não tem por que manter o que ficou pra trás.
+  _lancStore = {};
+
   // "DRE Consolidado" tem estrutura de colunas totalmente diferente (DRE
   // Gerencial / DFC / Diferença, em vez de uma coluna por loja/mês) —
   // tem função própria, ver renderDREConsolidado().
@@ -3724,12 +3767,15 @@ function renderDRE(){
       [['loja','LOJA'],['delivery','DELIVERY'],['central','CENTRAL']].forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
         const cTot=rowTotal(cVals);
-        html+=`<tr class="row-item" data-parent="${sId}">
-          <td>${canalLabel}</td>
+        const iId=uid();
+        const lId=registrarLanc(itensDoCanal(filteredVendas,canalKey));
+        html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+          <td>${CHEVRON}${canalLabel}<span class="expand-hint">expandir</span></td>
           ${cols.map(c=>`<td>${cellVal(cVals[c]||0)}</td>${avCell(cVals[c]||0,rec[c]||0)}`).join('')}
           <td>${cellVal(cTot)}</td>
           ${avCell(cTot,totBase)}
         </tr>`;
+        html+=lancDetailRowHTML(iId,lId,totalCols());
       });
       return;
     }
@@ -3763,7 +3809,7 @@ function renderDRE(){
       // treeImp, montado direto de filteredImpostosGer.
       const gruposImp=Object.keys(treeImp);
       if(!gruposImp.length){
-        html+=`<tr class="row-group row-dim4">
+        html+=`<tr class="row-group" style="opacity:.4">
           <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
           ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
         </tr>`;
@@ -3796,12 +3842,15 @@ function renderDRE(){
           Object.keys(treeImp[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=treeImp[grupoReal][sub][plano]||{};
             const pTot=rowTotal(pVals);
-            html+=`<tr class="row-item" data-parent="${sId}">
-              <td>${plano}</td>
+            const iId=uid();
+            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
+            html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
               <td>${cellVal(pTot)}</td>
               ${avCell(pTot,rowTotal(rec))}
             </tr>`;
+            html+=lancDetailRowHTML(iId,lId,totalCols());
           });
         });
       });
@@ -3811,7 +3860,7 @@ function renderDRE(){
     /* type === 'group' */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
-      html+=`<tr class="row-group row-dim4">
+      html+=`<tr class="row-group" style="opacity:.4">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
         ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
       </tr>`;
@@ -3848,12 +3897,15 @@ function renderDRE(){
         Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
           const pVals=tree[grupoReal][sub][plano]||{};
           const pTot=rowTotal(pVals);
-          html+=`<tr class="row-item" data-parent="${sId}">
-            <td>${plano}</td>
+          const iId=uid();
+          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
           </tr>`;
+          html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -3862,7 +3914,7 @@ function renderDRE(){
   /* Grupos não mapeados */
   if(unmapped.length){
     html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
-    html+=`<tr class="row-group row-dim6">
+    html+=`<tr class="row-group" style="opacity:.6">
       <td colspan="${totalCols()}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)">
         Outros Grupos Não Classificados
       </td>
@@ -3891,12 +3943,15 @@ function renderDRE(){
         Object.keys(tree[g][sub]).sort().forEach(plano=>{
           const pVals=tree[g][sub][plano]||{};
           const pTot=rowTotal(pVals);
-          html+=`<tr class="row-item" data-parent="${sId}">
-            <td>${plano}</td>
+          const iId=uid();
+          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
           </tr>`;
+          html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -3939,7 +3994,6 @@ function setDreView(view){
   const btnAV = document.getElementById('btnAV');
   if(btnAV) btnAV.style.display = (view==='consolidado') ? 'none' : '';
   renderDRE();
-  chamarSeguro(renderLojas); // cartões de loja acompanham a aba (DFC = caixa, DRE = resultado)
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -4216,11 +4270,14 @@ function renderDREConsolidado(){
       </tr>`;
       [['loja','Loja'],['delivery','Delivery'],['central','Central']].forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
-        html+=`<tr class="row-item" data-parent="${sIdReceita}">
-          <td>${canalLabel}</td>
+        const iId=uid();
+        const lId=registrarLanc(itensDoCanal(filteredVendas,canalKey));
+        html+=`<tr class="row-item has-lanc" data-parent="${sIdReceita}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+          <td>${CHEVRON}${canalLabel}<span class="expand-hint">expandir</span></td>
           ${cols.map(c=>triple(cVals[c]||0,0,cellVal)).join('')}
           ${triple(rowTotal(cVals),0,cellVal)}
         </tr>`;
+        html+=lancDetailRowHTML(iId,lId,totalCols());
       });
       // Categorias do Recebido classificado (DFC) — agrega todos os
       // grupos/subgrupos mapeados pra receita_operacional, por "plano"
@@ -4243,11 +4300,14 @@ function renderDREConsolidado(){
       </tr>`;
       Object.keys(planoValsDfc).sort().forEach(plano=>{
         const pVals=planoValsDfc[plano];
-        html+=`<tr class="row-item" data-parent="${sIdRecebimento}">
-          <td>${plano}</td>
+        const iId=uid();
+        const lId=registrarLanc(itensDoPlanoEmGrupos(filtered,slugToGruposMap['receita_operacional']||[],plano));
+        html+=`<tr class="row-item has-lanc" data-parent="${sIdRecebimento}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+          <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
           ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
           ${triple(0,rowTotal(pVals),cellVal)}
         </tr>`;
+        html+=lancDetailRowHTML(iId,lId,totalCols());
       });
       return;
     }
@@ -4294,11 +4354,14 @@ function renderDREConsolidado(){
         Object.keys(treeImpGer[grupoReal]).sort().forEach(sub=>{
           Object.keys(treeImpGer[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=treeImpGer[grupoReal][sub][plano]||{};
-            html+=`<tr class="row-item" data-parent="${sIdGer}">
-              <td>${plano}</td>
+            const iId=uid();
+            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
+            html+=`<tr class="row-item has-lanc" data-parent="${sIdGer}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(pVals[c]||0,0,cellVal)).join('')}
               ${triple(rowTotal(pVals),0,cellVal)}
             </tr>`;
+            html+=lancDetailRowHTML(iId,lId,totalCols());
           });
         });
       });
@@ -4314,11 +4377,14 @@ function renderDREConsolidado(){
         Object.keys((tree[grupoReal]||{})).sort().forEach(sub=>{
           Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=tree[grupoReal][sub][plano]||{};
-            html+=`<tr class="row-item" data-parent="${sIdDfc}">
-              <td>${plano}</td>
+            const iId=uid();
+            const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+            html+=`<tr class="row-item has-lanc" data-parent="${sIdDfc}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
               ${triple(0,rowTotal(pVals),cellVal)}
             </tr>`;
+            html+=lancDetailRowHTML(iId,lId,totalCols());
           });
         });
       });
@@ -4330,7 +4396,7 @@ function renderDREConsolidado(){
        Diferença = 0 até a planilha por vencimento existir. */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
-      html+=`<tr class="row-group row-dim4">
+      html+=`<tr class="row-group" style="opacity:.4">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
         ${cols.map(()=>`<td>—</td><td class="av-col">—</td><td class="av-col">—</td>`).join('')}
         <td>—</td><td class="av-col">—</td><td class="av-col">—</td>
@@ -4363,11 +4429,14 @@ function renderDREConsolidado(){
 
         Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
           const pVals=tree[grupoReal][sub][plano]||{};
-          html+=`<tr class="row-item" data-parent="${sId}">
-            <td>${plano}</td>
+          const iId=uid();
+          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
             ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
+          html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -4376,7 +4445,7 @@ function renderDREConsolidado(){
   /* Grupos não mapeados */
   if(unmapped.length){
     html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
-    html+=`<tr class="row-group row-dim6">
+    html+=`<tr class="row-group" style="opacity:.6">
       <td colspan="${totalCols()}" style="font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-4)">
         Outros Grupos Não Classificados
       </td>
@@ -4400,11 +4469,14 @@ function renderDREConsolidado(){
         </tr>`;
         Object.keys(tree[g][sub]).sort().forEach(plano=>{
           const pVals=tree[g][sub][plano]||{};
-          html+=`<tr class="row-item" data-parent="${sId}">
-            <td>${plano}</td>
+          const iId=uid();
+          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
             ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
+          html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -4529,17 +4601,11 @@ function toggleGroup(gId){
   const isOpen=groupRow.classList.contains('is-open');
 
   if(isOpen){
-    /* Fechar: ocultar todos os filhos (subgrupos e seus itens) */
+    /* Fechar: ocultar todos os descendentes (subgrupos, contas e os
+       lançamentos individuais que porventura já estivessem abertos
+       dentro de alguma conta) */
     groupRow.classList.remove('is-open');
-    tbody.querySelectorAll(`tr[data-parent="${gId}"]`).forEach(sub=>{
-      const sId=sub.dataset.sid;
-      /* Fechar subgrupo aberto antes de ocultar */
-      if(sub.classList.contains('is-open')){
-        sub.classList.remove('is-open');
-        if(sId) tbody.querySelectorAll(`tr[data-parent="${sId}"]`).forEach(item=>{ item.classList.remove('visible'); });
-      }
-      sub.classList.remove('visible');
-    });
+    fecharDescendentes(tbody, gId);
   } else {
     /* Abrir: mostrar subgrupos diretos */
     groupRow.classList.add('is-open');
@@ -4557,17 +4623,85 @@ function toggleSubgroup(sId, e){
   const isOpen=subRow.classList.contains('is-open');
   if(isOpen){
     subRow.classList.remove('is-open');
-    tbody.querySelectorAll(`tr[data-parent="${sId}"]`).forEach(item=>item.classList.remove('visible'));
+    fecharDescendentes(tbody, sId);
   } else {
     subRow.classList.add('is-open');
     tbody.querySelectorAll(`tr[data-parent="${sId}"]`).forEach(item=>item.classList.add('visible'));
   }
 }
 
+// Fecha (remove .visible/.is-open) recursivamente todos os descendentes de
+// uma linha (filhos diretos por data-parent, e os netos deles, olhando o
+// próprio data-iid/data-sid de cada filho) — usado ao recolher um
+// grupo/subgrupo/conta, pra também esconder os lançamentos que porventura
+// já estivessem abertos dentro de uma conta filha.
+function fecharDescendentes(tbody, parentId){
+  tbody.querySelectorAll(`tr[data-parent="${parentId}"]`).forEach(row=>{
+    row.classList.remove('visible','is-open');
+    const childId = row.dataset.sid || row.dataset.iid;
+    if(childId) fecharDescendentes(tbody, childId);
+  });
+}
+
+/* ── Lançamentos individuais por trás de uma conta (Plano_de_Contas) ──
+   Cada "row-item" (conta) guarda, em _lancStore, os registros originais
+   (ainda não somados) que compõem o valor mostrado — a mesma ideia já
+   usada no painel de Conciliação do De-Para (toggleReconGrupo), só que
+   aqui dentro da própria tabela do DRE. Montado sob demanda (só quando o
+   usuário abre a conta) pra não gerar HTML de tudo de uma vez. */
+let _lancStore = {};
+function registrarLanc(itens){
+  const lId = 'lanc-'+Object.keys(_lancStore).length+'-'+Math.random().toString(36).slice(2,7);
+  _lancStore[lId] = itens || [];
+  return lId;
+}
+function lancDetailRowHTML(iId, lId, colCount){
+  return `<tr class="row-lanc" data-parent="${iId}" id="lancRow_${lId}">
+    <td colspan="${colCount}">
+      <div class="dre-lanc-wrap">
+        <table>
+          <thead><tr><th>Data</th><th>Título / Descrição</th><th class="num">Valor</th></tr></thead>
+          <tbody id="lancBody_${lId}"></tbody>
+        </table>
+      </div>
+    </td>
+  </tr>`;
+}
+function toggleItem(iId, lId, e){
+  if(e) e.stopPropagation();
+  const tbody=document.getElementById('dreTbody');
+  const itemRow=tbody.querySelector(`tr[data-iid="${iId}"]`);
+  const lancRow=document.getElementById('lancRow_'+lId);
+  if(!itemRow || !lancRow) return;
+  const isOpen=itemRow.classList.contains('is-open');
+  if(isOpen){
+    itemRow.classList.remove('is-open');
+    lancRow.classList.remove('visible');
+  } else {
+    itemRow.classList.add('is-open');
+    lancRow.classList.add('visible');
+    const body=document.getElementById('lancBody_'+lId);
+    if(body && !body.dataset.built){
+      const itens=(_lancStore[lId]||[]).slice().sort((a,b)=>(b.valor||0)-(a.valor||0));
+      body.innerHTML = itens.length
+        ? itens.map(it=>{
+            const dataFmt = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
+            const tituloFmt = it.titulo ? it.titulo : '<span style="color:var(--ink-4)">(sem título/descrição na planilha de origem)</span>';
+            const lojaFmt = it.loja ? ` <span style="color:var(--ink-4);font-size:10.5px">— ${it.loja}</span>` : '';
+            return `<tr><td>${dataFmt}</td><td>${tituloFmt}${lojaFmt}</td><td class="num">${fmtBRL(it.valor||0)}</td></tr>`;
+          }).join('')
+        : `<tr><td colspan="3" style="text-align:center;color:var(--ink-4);padding:10px">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
+      body.dataset.built='1';
+    }
+  }
+}
+
 function toggleAll(open){
   const tbody=document.getElementById('dreTbody');
   if(open){
-    /* Abrir todos os grupos */
+    /* Abrir todos os grupos, subgrupos e contas (mas não os lançamentos
+       individuais dentro de cada conta — esses continuam sob demanda,
+       clique a clique, pra não montar milhares de linhas de uma vez). */
     tbody.querySelectorAll('tr[data-gid]').forEach(gr=>{
       gr.classList.add('is-open');
       const gId=gr.dataset.gid;
@@ -4580,7 +4714,7 @@ function toggleAll(open){
   } else {
     /* Fechar tudo */
     tbody.querySelectorAll('tr.is-open').forEach(r=>r.classList.remove('is-open'));
-    tbody.querySelectorAll('tr.row-subgroup,tr.row-item').forEach(r=>r.classList.remove('visible'));
+    tbody.querySelectorAll('tr.row-subgroup,tr.row-item,tr.row-lanc').forEach(r=>r.classList.remove('visible'));
   }
 }
 
@@ -4590,40 +4724,15 @@ function renderLojas(){
   // Saídas (todas as demais linhas, vindas de Contas a Pagar) por loja —
   // em vez de somar tudo junto num único número, que misturava o que
   // entrou com o que saiu e confundia a leitura.
-  const ger = (dreView === 'gerencial');
-  const somaSlug = (rows, slug) => rows.filter(r=>slugFromGrupo(r.grupo)===slug).reduce((a,r)=>a+r.valor,0);
-  const somaVal  = rows => rows.reduce((a,r)=>a+r.valor,0);
-  // Calcula um "cartão" (loja ou consolidado) a partir das linhas já filtradas.
-  const calcCard = (nome, rows, vendas, custo, impG) => {
-    if(!ger){
-      const entradas = somaSlug(rows,'receita_operacional');
-      const saidas   = rows.filter(r=>slugFromGrupo(r.grupo)!=='receita_operacional').reduce((a,r)=>a+r.valor,0);
-      return { loja:nome, entradas, saidas, saldo: entradas - saidas };
-    }
-    // DRE Gerencial: mesma lógica da tabela (Receita = faturamento, CMV = custo de produto,
-    // impostos por competência, demais contas do Contas a Pagar).
-    const rec = somaVal(vendas), imp = somaVal(impG), ded = somaSlug(rows,'deducoes_vendas');
-    const cmv = somaVal(custo);
-    const lb  = rec - imp - ded - cmv;
-    const ro  = lb - somaSlug(rows,'despesas_comerciais') - somaSlug(rows,'despesas_pessoal')
-                   - somaSlug(rows,'despesas_administrativas') - somaSlug(rows,'despesas_financeiras') - somaSlug(rows,'pro_labore');
-    const rl  = ro - somaSlug(rows,'distribuicao_lucro') - somaSlug(rows,'ir_csll')
-                   - somaSlug(rows,'emprestimos_financiamentos') - somaSlug(rows,'investimento') - somaSlug(rows,'parcelamento_impostos');
-    return { loja:nome, entradas: rec, saidas: rec - rl, saldo: rl, lb, ro, rl };
-  };
-  const nomesLojas = uniq([].concat(
-    filtered.map(r=>r.loja),
-    ger ? filteredVendas.map(r=>r.loja) : [],
-    ger ? filteredCusto.map(r=>r.loja) : []
-  ).filter(Boolean));
-  const porLoja = nomesLojas.map(loja => calcCard(loja,
-    filtered.filter(r=>r.loja===loja),
-    filteredVendas.filter(r=>r.loja===loja),
-    filteredCusto.filter(r=>r.loja===loja),
-    filteredImpostosGer.filter(r=>r.loja===loja)));
-  const consolidado = calcCard('CONSOLIDADO', filtered, filteredVendas, filteredCusto, filteredImpostosGer);
+  const lojas = uniq(filtered.map(r=>r.loja).filter(Boolean));
+  const porLoja = lojas.map(loja => {
+    const rows = filtered.filter(r=>r.loja===loja);
+    const entradas = rows.filter(r=>slugFromGrupo(r.grupo)==='receita_operacional').reduce((a,r)=>a+r.valor,0);
+    const saidas   = rows.filter(r=>slugFromGrupo(r.grupo)!=='receita_operacional').reduce((a,r)=>a+r.valor,0);
+    return { loja, entradas, saidas, saldo: entradas - saidas };
+  });
   const sorted = porLoja.sort((a,b)=>b.entradas-a.entradas);
-  const maxVal = Math.max(1, consolidado.entradas, ...sorted.map(l=>Math.max(l.entradas,l.saidas)));
+  const maxVal = Math.max(1, ...sorted.map(l=>Math.max(l.entradas,l.saidas)));
   const grid=document.getElementById('lojaGrid');
 
   // Período que compõe a soma exibida em cada card (respeita os filtros
@@ -4661,23 +4770,18 @@ function renderLojas(){
     grid.innerHTML='<div style="color:var(--ink-4);font-size:13px;padding:32px 0">Nenhuma loja encontrada.</div>';
     return;
   }
-  const rotSaldo = ger ? 'Resultado líquido' : 'Saldo de caixa';
-  const cardHtml = (d, i, total) => {
-    const cor = total ? 'var(--ink)' : PALETTE[i%PALETTE.length];
-    const nome = d.loja==='BELVEDER' ? 'BELVEDERE' : d.loja;
-    const fluxo = ger ? `
-        <div class="loja-flow-item">
-          <span class="loja-flow-lbl">Receita</span>
-          <span class="loja-flow-val pos">${fmtBRL(d.entradas)}</span>
-        </div>
-        <div class="loja-flow-item" style="align-items:center">
-          <span class="loja-flow-lbl">Lucro bruto</span>
-          <span class="loja-flow-val ${d.lb>=0?'pos':'neg'}">${fmtBRL(d.lb)}</span>
-        </div>
-        <div class="loja-flow-item" style="align-items:flex-end">
-          <span class="loja-flow-lbl">Res. operac.</span>
-          <span class="loja-flow-val ${d.ro>=0?'pos':'neg'}">${fmtBRL(d.ro)}</span>
-        </div>` : `
+  grid.innerHTML=sorted.map((d,i)=>`
+    <div class="loja-card">
+      <div class="loja-card-name">
+        <span class="loja-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
+        ${d.loja==='BELVEDER'?'BELVEDERE':d.loja}
+      </div>
+      <div class="loja-total ${d.saldo>=0?'':'val-neg'}">${fmtBRL(d.saldo)}</div>
+      <div class="loja-pct">Saldo de caixa · ${periodo}</div>
+      <div class="loja-bar-bg">
+        <div class="loja-bar-fill" style="width:${(d.entradas/maxVal*100).toFixed(1)}%;background:${PALETTE[i%PALETTE.length]}"></div>
+      </div>
+      <div class="loja-flow">
         <div class="loja-flow-item">
           <span class="loja-flow-lbl">Entradas</span>
           <span class="loja-flow-val pos">${fmtBRL(d.entradas)}</span>
@@ -4685,23 +4789,10 @@ function renderLojas(){
         <div class="loja-flow-item" style="align-items:flex-end">
           <span class="loja-flow-lbl">Saídas</span>
           <span class="loja-flow-val neg">${fmtBRL(d.saidas)}</span>
-        </div>`;
-    return `
-    <div class="loja-card${total?' is-total':''}">
-      <div class="loja-card-name">
-        <span class="loja-dot" style="background:${cor}"></span>
-        ${nome}
+        </div>
       </div>
-      <div class="loja-total ${d.saldo>=0?'':'val-neg'}">${fmtBRL(d.saldo)}</div>
-      <div class="loja-pct">${rotSaldo} · ${periodo}</div>
-      <div class="loja-bar-bg">
-        <div class="loja-bar-fill" style="width:${Math.max(0,Math.min(100,d.entradas/maxVal*100)).toFixed(1)}%;background:${cor}"></div>
-      </div>
-      <div class="loja-flow">${fluxo}
-      </div>
-    </div>`;
-  };
-  grid.innerHTML = cardHtml(consolidado, 0, true) + sorted.map((d,i)=>cardHtml(d,i,false)).join('');
+    </div>
+  `).join('');
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -5054,76 +5145,7 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-
-/* ═══════════════════════════════════════════════════════
-   EXPORTAR RELATÓRIO (somente leitura, sem login/servidor)
-   Gera um único .html com os dados atuais (somados) embutidos.
-═══════════════════════════════════════════════════════ */
-function __aggRows(arr, sumKey){
-  const m = {};
-  (arr || []).forEach(r => {
-    const k = JSON.stringify(Object.keys(r).filter(x => x !== sumKey).sort().map(x => [x, r[x]]));
-    if (!m[k]) { m[k] = Object.assign({}, r); m[k][sumKey] = 0; }
-    m[k][sumKey] += Number(r[sumKey]) || 0;
-  });
-  return Object.values(m);
-}
-function __baixarSnapshot(html, nome){
-  const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = nome + '_' + new Date().toISOString().slice(0, 10) + '.html';
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-}
-async function __montarSnapshot(snap, novoLoad, loadHeader, extraCss){
-  const src = await (await fetch(location.href.split('#')[0], { cache: 'no-store' })).text();
-  const A = '<script src="auth-common.js"><' + '/script>';
-  if (src.indexOf(A) < 0 || src.indexOf(loadHeader) < 0) throw new Error('Estrutura da página mudou; não foi possível gerar o relatório.');
-  snap.rotulo = 'Posição de ' + new Date().toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-  const dados = JSON.stringify(snap).replace(/</g, '\\u003c');
-  const dataScript = '<script>\n' +
-    'window.AuthGuard={requireScreen:function(k,cb){cb({role:"viewer"});},logout:function(){},getSession:function(){return null;}};\n' +
-    'window.__SNAP__=' + dados + ';\n<\/script>';
-  let out = src;
-  out = out.replace(A, function () { return dataScript; });
-  const mt = out.match(/<script src="(https:\/\/[^"]*chart[^"]*)"><\/script>/i);
-  if (mt) {
-    try {
-      const js = await (await fetch(mt[1])).text();
-      out = out.replace(mt[0], function () { return '<script>' + js.replace(/<\/script/gi, '<\\/script') + '<' + '/script>'; });
-    } catch (e) { console.warn('Chart.js não embutido:', e.message); }
-  }
-  out = out.replace(loadHeader, function () { return novoLoad; });
-  out = out.replace('</head>', function () { return '<style>\nhtml{--side-w:0px !important;--side-w-collapsed:0px !important;}\n.sidebar,.side-toggle,.side-overlay,.home-screen,#btn-export,#btnRefresh,.update-overlay{display:none !important;}\n' + (extraCss || '') + '</style>\n</head>'; });
-  return out;
-}
-
-async function exportarRelatorio(){
-  try{
-    if(!raw.length){ alert('Aguarde os dados carregarem antes de exportar.'); return; }
-    // A conciliação do De-Para (títulos/fornecedores) é diagnóstico interno: não vai no relatório.
-    const snap = { raw: __aggRows(raw,'valor'), vendas: __aggRows(vendasRaw,'valor'), custo: __aggRows(custoProdutoRaw,'valor') };
-    const novoLoad =
-      'async function loadData(){\n' +
-      '  const S=window.__SNAP__; raw=S.raw; vendasRaw=S.vendas||[]; custoProdutoRaw=S.custo||[];\n' +
-      '  reconciliacao={linhas:[]}; reconciliacaoPronta=true; recalcImpostosGer();\n' +
-      '  document.getElementById("overlay").classList.add("hidden");\n' +
-      '  document.getElementById("mainArea").style.display="block";\n' +
-      '  populateFilters(); applyFilters(); toggleFixHeader(true);\n' +
-      '  document.getElementById("lastUpdate").textContent=S.rotulo;\n' +
-      '}\n' +
-      'async function loadData_ORIG(forceRefresh, silent){';
-    const html = await __montarSnapshot(snap, novoLoad, 'async function loadData(forceRefresh, silent){',
-      '.page-content{margin-left:0 !important;}\n.section-head:has(+ #conciliacaoCard),#conciliacaoCard{display:none !important;}\n');
-    __baixarSnapshot(html, 'Relatorio_DRE_Gerencial');
-  }catch(e){ console.error(e); alert('Não foi possível gerar o relatório: ' + e.message); }
-}
-
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(session){
-  if (session && session.role === 'admin') { var be = document.getElementById('btn-export'); if (be) be.style.display = ''; }
-  loadData();
-}));
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(){ loadData(); }));
 
 // Se outra página do painel (ex.: GestaoZappas) disparar uma
 // "Atualização Geral" enquanto esta aba já estiver aberta, esta também
