@@ -896,11 +896,41 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Mês</span>
-      <select class="ig-fselect" id="f-mes"><option value="">Todos</option></select>
+      <div class="canal-wrap ms-wrap" id="mes-wrap">
+        <div class="canal-trigger" id="mes-trigger" onclick="toggleMs('mes',event)">
+          <span id="mes-trigger-txt">Todos</span>
+          <span class="canal-badge" id="mes-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="mes-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Meses</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllMs('mes')">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllMs('mes')">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="mes-dd-list"></div>
+        </div>
+      </div>
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Loja</span>
-      <select class="ig-fselect" id="f-loja"><option value="">Todas</option></select>
+      <div class="canal-wrap ms-wrap" id="loja-wrap">
+        <div class="canal-trigger" id="loja-trigger" onclick="toggleMs('loja',event)">
+          <span id="loja-trigger-txt">Todas</span>
+          <span class="canal-badge" id="loja-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="loja-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Lojas</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllMs('loja')">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllMs('loja')">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="loja-dd-list"></div>
+        </div>
+      </div>
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Canal</span>
@@ -1708,8 +1738,8 @@ let selectedCanais = new Set();
 function getF() {
   return {
     ano:    $('f-ano').value,
-    loja:   $('f-loja').value,
-    mes:    $('f-mes').value,
+    loja:   MS.loja.sel,     // Set; vazio = todas
+    mes:    MS.mes.sel,      // Set; vazio = todos
     canais: selectedCanais   // Set; vazio = todos
   };
 }
@@ -1717,8 +1747,8 @@ function applyF(data) {
   const f = getF();
   return data.filter(r =>
     (!f.ano   || r.ano   === f.ano)  &&
-    (!f.loja  || r.loja  === f.loja) &&
-    (!f.mes   || r.mes   === f.mes)  &&
+    (!f.loja.size || f.loja.has(r.loja)) &&
+    (!f.mes.size  || f.mes.has(r.mes))   &&
     (f.canais.size === 0 || f.canais.has(r.canal))
   );
 }
@@ -1742,8 +1772,8 @@ function populateFilters(data) {
   const curYear = String(new Date().getFullYear());
   const anoSel  = $('f-ano').value || (anos.includes(curYear) ? curYear : (anos[anos.length-1]||''));
   fillSel('f-ano',  anos,  'Todos', v=>v);
-  fillSel('f-loja', lojas, 'Todas', v=>v==='BELVEDER'?'BELVEDERE':v);
-  fillSel('f-mes',  meses, 'Todos', m=>MONTHS[+m-1]||m);
+  populateMs('loja', lojas);
+  populateMs('mes',  meses);
   if(anoSel && anos.includes(anoSel)) $('f-ano').value = anoSel;
   populateCanalDropdown(canais);
 }
@@ -1864,6 +1894,7 @@ function toggleCanalDropdown(e) {
   e.stopPropagation();
   const dd      = $('canal-dropdown');
   const trigger = $('canal-trigger');
+  closeAllMs();
   const isOpen  = dd.classList.toggle('open');
   trigger.classList.toggle('open', isOpen);
 }
@@ -1876,6 +1907,98 @@ document.addEventListener('click', e => {
     if (dd) dd.classList.remove('open');
     if (tr) tr.classList.remove('open');
   }
+});
+
+
+/* ── Mês / Loja multi-select (mesmo padrão do Canal) ── */
+const MS = {
+  mes:  { sel: new Set(), all: [], allTxt: 'Todos', plural: 'meses', label: m => MONTHS[+m-1] || m },
+  loja: { sel: new Set(), all: [], allTxt: 'Todas', plural: 'lojas', label: v => v === 'BELVEDER' ? 'BELVEDERE' : v },
+};
+
+function populateMs(key, vals) {
+  const s = MS[key];
+  s.all = vals;
+  [...s.sel].forEach(v => { if (!vals.includes(v)) s.sel.delete(v); });
+  if (s.sel.size === vals.length) s.sel.clear();
+  const list = $(key + '-dd-list');
+  list.innerHTML = '';
+  vals.forEach(v => {
+    const isChecked = s.sel.size === 0 ? true : s.sel.has(v);
+    const lbl = s.label(v);
+    const item = document.createElement('label');
+    item.className = 'canal-item' + (isChecked && s.sel.size > 0 ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${v}" ${isChecked ? 'checked' : ''} onchange="onMsChange('${key}')">
+      <span class="canal-item-label" title="${lbl}">${lbl}</span>`;
+    list.appendChild(item);
+  });
+  updateMsTrigger(key);
+}
+
+function onMsChange(key) {
+  const s = MS[key];
+  const cbs = [...$(key + '-dd-list').querySelectorAll('input[type=checkbox]')];
+  s.sel = new Set(cbs.filter(cb => cb.checked).map(cb => cb.value));
+  // Todos marcados (ou nenhum) = sem filtro
+  if (s.sel.size === s.all.length) s.sel.clear();
+  cbs.forEach(cb => cb.closest('.canal-item').classList.toggle('checked', cb.checked && s.sel.size > 0));
+  updateMsTrigger(key);
+  renderAll();
+}
+
+function setAllMs(key, checked) {
+  MS[key].sel.clear();
+  $(key + '-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = checked;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateMsTrigger(key);
+  renderAll();
+}
+function selectAllMs(key) { setAllMs(key, true); }
+function clearAllMs(key)  { setAllMs(key, false); }
+
+function updateMsTrigger(key) {
+  const s = MS[key], n = s.sel.size;
+  const badge = $(key + '-badge'), txt = $(key + '-trigger-txt'), trigger = $(key + '-trigger');
+  if (n === 0) {
+    txt.textContent = s.allTxt;
+    badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else if (n === 1) {
+    const v = s.label([...s.sel][0]);
+    txt.textContent = v.length > 14 ? v.slice(0, 13) + '…' : v;
+    badge.style.display = 'none';
+    trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} ${s.plural}`;
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+    trigger.classList.add('has-sel');
+  }
+}
+
+function closeAllMs(except) {
+  Object.keys(MS).forEach(k => {
+    if (k === except) return;
+    $(k + '-dropdown').classList.remove('open');
+    $(k + '-trigger').classList.remove('open');
+  });
+}
+
+function toggleMs(key, e) {
+  e.stopPropagation();
+  closeAllMs(key);
+  $('canal-dropdown').classList.remove('open');
+  $('canal-trigger').classList.remove('open');
+  const isOpen = $(key + '-dropdown').classList.toggle('open');
+  $(key + '-trigger').classList.toggle('open', isOpen);
+}
+
+document.addEventListener('click', e => {
+  const w = e.target.closest('.ms-wrap');
+  closeAllMs(w ? w.id.replace('-wrap', '') : undefined);
 });
 
 /* ═══════════════════════════════════════════════════════
@@ -2024,8 +2147,8 @@ function renderKPIs(data) {
   // badge
   const f=getF(); let parts=[];
   if(f.ano)  parts.push(f.ano);
-  if(f.loja) parts.push(f.loja);
-  if(f.mes)  parts.push(MONTHS[+f.mes-1]||f.mes);
+  if(f.loja.size) parts.push([...f.loja].join(', '));
+  if(f.mes.size)  parts.push([...f.mes].map(m=>MONTHS[+m-1]||m).join(', '));
   $('sec-count').textContent= `${fN(data.length)} registros`;
 }
 
@@ -2184,8 +2307,8 @@ function renderComparative(data) {
   const f = getF();
   // baseDataAll: sem filtro de canal (usado só por Quebras, que não tem canal)
   const baseDataAll = rawData.filter(r =>
-    (!f.loja || r.loja === f.loja) &&
-    (!f.mes  || r.mes  === f.mes)
+    (!f.loja.size || f.loja.has(r.loja)) &&
+    (!f.mes.size  || f.mes.has(r.mes))
   );
   // baseData: obedece também o filtro de Canal (Faturamento, Cupons, Ticket)
   const baseData = f.canais.size ? baseDataAll.filter(r => f.canais.has(r.canal)) : baseDataAll;
@@ -2422,8 +2545,8 @@ function renderComparative(data) {
   {
     // Respeita filtros de mês e loja
     const baseDataLoja = rawData.filter(r =>
-      (!f.mes  || r.mes  === f.mes)  &&
-      (!f.loja || r.loja === f.loja)
+      (!f.mes.size  || f.mes.has(r.mes))  &&
+      (!f.loja.size || f.loja.has(r.loja))
     );
 
     // Quando filtro de ano está vazio → consolida tudo (sem separar por ano)
@@ -2699,7 +2822,7 @@ const showErr    = (msg, det) => { const w=$('error-wrap'); w.classList.add('sho
 const hideErr    = () => $('error-wrap').classList.remove('show');
 
 // Filters (canal has own onCanalChange handler)
-['f-ano','f-loja','f-mes'].forEach(id => $(id).addEventListener('change', renderAll));
+['f-ano'].forEach(id => $(id).addEventListener('change', renderAll));
 
 // Sticky bar shadow
 window.addEventListener('scroll', () => {
