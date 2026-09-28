@@ -2504,19 +2504,16 @@ function parseCompras(text, lojaFallback){
   const iLoja  = findCol(rawHeaders,'loja');
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
-  // O export de Compras costuma vir com linhas 100% idênticas repetidas
-  // (mesmo produto/mês/quantidade/total/"ent" — não é só o mesmo produto
-  // comprado de novo, é a MESMA linha duplicada) — no arquivo de
-  // referência isso chegou a inflar o total em ~16%. Descarta linhas
-  // cujo conteúdo bruto (todas as colunas) já apareceu antes nesse mesmo
-  // arquivo/loja, mantendo só a 1ª ocorrência.
-  const vistos = new Set();
-
+  // OBS: o arquivo de Compras tem várias linhas com todas as colunas
+  // idênticas (mesmo produto/mês/quantidade/total/"ent" repetidos). A
+  // princípio isso parecia duplicata de exportação, mas a soma de
+  // referência da planilha do usuário bate exatamente com a soma bruta
+  // do CSV (linhas repetidas incluídas) — ou seja, são compras válidas
+  // mesmo, não duplicata. Por isso NÃO filtra/deduplica aqui: soma tudo,
+  // igual à planilha de referência.
   for(let i=1;i<lines.length;i++){
     const line = lines[i].trim();
     if(!line) continue;
-    if(vistos.has(line)) continue;
-    vistos.add(line);
     const cells = splitLine(line,sep);
     const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
