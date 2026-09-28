@@ -2648,170 +2648,185 @@ async function carregarTudo(){
   // Zera a conciliação do De-Para a cada carregamento
   reconciliacao.linhas = [];
 
+  // As 5 buscas por loja (De-Para, Plano de Contas, Contas a Pagar, Recebidos, Faturamento, Curva
+  // ABC, Compras) rodavam uma depois da outra (await em sequência) — cada etapa só começava depois
+  // da anterior terminar, mesmo sendo totalmente independentes entre si (Faturamento não depende de
+  // Curva ABC, por exemplo). Isso multiplicava o tempo total de carregamento por ~5. Agora todas
+  // disparam juntas (como já era no GestaoZappas.html) e só são esperadas juntas no final — só
+  // Contas a Pagar (que precisa do Plano de Contas) e Recebidos (que precisa do De-Para) continuam
+  // esperando sua dependência específica, e mesmo essas já começam antes das outras terminarem.
+  document.getElementById('loaderMsg').textContent='Carregando tudo em paralelo…';
+
   // ══════════════════════════════════════════════════════
-  // 1. Busca de-para único (planilha única pra todas as lojas)
+  // 1. De-Para único (planilha única pra todas as lojas) — independente
   // ══════════════════════════════════════════════════════
   // Antes eram 6 buscas (uma planilha de De-Para por loja, via Apps Script) juntadas num mapa
   // "global" de fallback pra quando a aba de alguma loja vinha vazia (ex.: Damha e Belvedere).
   // Agora é uma única planilha do Google Sheets com os códigos de todas as lojas — confirmado que
   // o sistema de PDV usa os mesmos códigos em qualquer loja — buscada direto (sem passar pelo Apps
-  // Script/pasta do Drive), então vira 1 busca só. deparaMaps[loja] continua existindo (é usado
-  // mais abaixo), só que agora todo mundo aponta pro mesmo mapa único.
-  document.getElementById('loaderMsg').textContent='Carregando de-para…';
+  // Script/pasta do Drive), então vira 1 busca só.
   const DEPARA_UNICO_URL = 'https://docs.google.com/spreadsheets/d/1B1HK4Ocvx4D_q56gli1hS2CTofbRASkwmX5lyqZHGLY/gviz/tq?tqx=out:csv';
   const deparaMapGlobal = new Map();
-  try {
-    const text = await fetchCSV(DEPARA_UNICO_URL);
-    parseDepara(text).forEach((v, cod) => deparaMapGlobal.set(cod, v));
-  } catch(e) {
-    console.warn('De-Para único não carregado:', e.message);
-  }
-  const deparaMaps = {};
-  RECBIDOS_STORE_KEYS.forEach(lojaKey => { deparaMaps[lojaKey] = deparaMapGlobal; });
+  const pDePara = (async () => {
+    try {
+      const text = await fetchCSV(DEPARA_UNICO_URL);
+      parseDepara(text).forEach((v, cod) => deparaMapGlobal.set(cod, v));
+    } catch(e) {
+      console.warn('De-Para único não carregado:', e.message);
+    }
+  })();
 
   // ══════════════════════════════════════════════════════
-  // 2. Busca o plano de contas
+  // 2. Plano de Contas — independente
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando plano de contas…';
   let planoMap = new Map();
-  try {
-    planoMap = await fetchPlanoContas();
-  } catch(e) {
-    console.warn('Plano de Contas não carregado:', e.message);
-  }
+  const pPlanoContas = (async () => {
+    try {
+      planoMap = await fetchPlanoContas();
+    } catch(e) {
+      console.warn('Plano de Contas não carregado:', e.message);
+    }
+  })();
 
   // ══════════════════════════════════════════════════════
-  // 3. Busca Contas a Pagar (por loja)
+  // 3. Contas a Pagar (por loja) — espera só o Plano de Contas
   // ══════════════════════════════════════════════════════
   let rowsDespesas = [];
   const naoMapeadosGeral = new Set();
   const BATCH = 2;
-  for (let i = 0; i < CTASPAGAR_URLS.length; i += BATCH) {
-    const grupoUrls = CTASPAGAR_URLS.slice(i, i + BATCH);
-    document.getElementById('loaderMsg').textContent =
-      'Carregando despesas (' + Math.min(i+BATCH, CTASPAGAR_URLS.length) + '/' + CTASPAGAR_URLS.length + ')…';
-    await Promise.all(grupoUrls.map(async (url, j) => {
-      const idx = i + j;
-      const lojaKey = CTASPAGAR_STORE_KEYS[idx];
-      try {
-        const text = await fetchCSV(url);
-        const { rows, linhas } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
-        rowsDespesas = rowsDespesas.concat(rows);
-        linhas.forEach(l => { if(l.status==='erro') naoMapeadosGeral.add(l.codigo); });
-        reconciliacao.linhas.push(...linhas);
-      } catch(e) {
-        console.warn('Contas a pagar indisponível (' + lojaKey + '):', e.message);
-      }
-    }));
-  }
-  if (naoMapeadosGeral.size) {
-    console.warn('[DRE] Códigos de centro de custo (codcentro) sem correspondência no Plano de Contas — linhas ignoradas:', [...naoMapeadosGeral].join(', '));
-  }
+  const pCtasPagar = pPlanoContas.then(() => (async () => {
+    for (let i = 0; i < CTASPAGAR_URLS.length; i += BATCH) {
+      const grupoUrls = CTASPAGAR_URLS.slice(i, i + BATCH);
+      document.getElementById('loaderMsg').textContent =
+        'Carregando despesas (' + Math.min(i+BATCH, CTASPAGAR_URLS.length) + '/' + CTASPAGAR_URLS.length + ')…';
+      await Promise.all(grupoUrls.map(async (url, j) => {
+        const idx = i + j;
+        const lojaKey = CTASPAGAR_STORE_KEYS[idx];
+        try {
+          const text = await fetchCSV(url);
+          const { rows, linhas } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
+          rowsDespesas = rowsDespesas.concat(rows);
+          linhas.forEach(l => { if(l.status==='erro') naoMapeadosGeral.add(l.codigo); });
+          reconciliacao.linhas.push(...linhas);
+        } catch(e) {
+          console.warn('Contas a pagar indisponível (' + lojaKey + '):', e.message);
+        }
+      }));
+    }
+    if (naoMapeadosGeral.size) {
+      console.warn('[DRE] Códigos de centro de custo (codcentro) sem correspondência no Plano de Contas — linhas ignoradas:', [...naoMapeadosGeral].join(', '));
+    }
+  })());
 
   // ══════════════════════════════════════════════════════
-  // 4. Busca Recebidos (por loja) + usa de-para da mesma loja + filtra
+  // 4. Recebidos (por loja) — espera só o De-Para + filtra
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando recebimentos…';
   let rowsRecebimentos = [];
   const BATCH_REC = 2;
-  for (let i = 0; i < RECBIDOS_URLS.length; i += BATCH_REC) {
-    const grupoUrls = RECBIDOS_URLS.slice(i, i + BATCH_REC);
-    document.getElementById('loaderMsg').textContent =
-      'Carregando recebidos (' + Math.min(i+BATCH_REC, RECBIDOS_URLS.length) + '/' + RECBIDOS_URLS.length + ')…';
-    await Promise.all(grupoUrls.map(async (url, j) => {
-      const idx = i + j;
-      const lojaKey = RECBIDOS_STORE_KEYS[idx];
-      try {
-        const text = await fetchCSV(url);
-        const deparaProprio = deparaMaps[lojaKey] || new Map();
-        // Se o De-Para da própria loja veio vazio, usa o "global" (junção de todas as lojas) em vez
-        // de zerar a Receita Operacional dessa loja — ver comentário acima de deparaMapGlobal.
-        const lojaDepara = deparaProprio.size > 0 ? deparaProprio : deparaMapGlobal;
-        const { rows, linhas } = parseRecebidosLoja(text, lojaDepara, lojaKey.toUpperCase());
-        rowsRecebimentos = rowsRecebimentos.concat(rows);
-        reconciliacao.linhas.push(...linhas);
-      } catch(e) {
-        console.warn('Recebidos indisponível (' + lojaKey + '):', e.message);
-      }
-    }));
-  }
+  const pRecebidos = pDePara.then(() => (async () => {
+    for (let i = 0; i < RECBIDOS_URLS.length; i += BATCH_REC) {
+      const grupoUrls = RECBIDOS_URLS.slice(i, i + BATCH_REC);
+      document.getElementById('loaderMsg').textContent =
+        'Carregando recebidos (' + Math.min(i+BATCH_REC, RECBIDOS_URLS.length) + '/' + RECBIDOS_URLS.length + ')…';
+      await Promise.all(grupoUrls.map(async (url, j) => {
+        const idx = i + j;
+        const lojaKey = RECBIDOS_STORE_KEYS[idx];
+        try {
+          const text = await fetchCSV(url);
+          // Todas as lojas usam o mesmo de-para único agora, então não existe mais "de-para próprio
+          // vazio" — o fallback de fato acontece só se a planilha única inteira não carregou.
+          const { rows, linhas } = parseRecebidosLoja(text, deparaMapGlobal, lojaKey.toUpperCase());
+          rowsRecebimentos = rowsRecebimentos.concat(rows);
+          reconciliacao.linhas.push(...linhas);
+        } catch(e) {
+          console.warn('Recebidos indisponível (' + lojaKey + '):', e.message);
+        }
+      }));
+    }
+  })());
 
   // ══════════════════════════════════════════════════════
-  // 5. Busca Faturamento (Análise Comercial, por loja) — Receita do
-  //    "DRE Gerencial" (não bloqueia o carregamento se falhar: o DFC
-  //    continua funcionando normalmente, só a aba DRE Gerencial fica
-  //    sem dado de receita pra essa loja).
+  // 5. Faturamento (Análise Comercial, por loja) — Receita do "DRE
+  //    Gerencial" — independente (não bloqueia o carregamento se falhar:
+  //    o DFC continua funcionando normalmente, só a aba DRE Gerencial
+  //    fica sem dado de receita pra essa loja).
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando faturamento…';
   let rowsVendas = [];
   const BATCH_VENDAS = 2;
-  for (let i = 0; i < VENDAS_URLS.length; i += BATCH_VENDAS) {
-    const grupoUrls = VENDAS_URLS.slice(i, i + BATCH_VENDAS);
-    document.getElementById('loaderMsg').textContent =
-      'Carregando faturamento (' + Math.min(i+BATCH_VENDAS, VENDAS_URLS.length) + '/' + VENDAS_URLS.length + ')…';
-    await Promise.all(grupoUrls.map(async (url, j) => {
-      const idx = i + j;
-      const lojaKey = VENDAS_STORE_KEYS[idx];
-      try {
-        const text = await fetchCSV(url);
-        rowsVendas = rowsVendas.concat(parseVendas(text, lojaKey.toUpperCase()));
-      } catch(e) {
-        console.warn('Faturamento indisponível (' + lojaKey + '):', e.message);
-      }
-    }));
-  }
-  vendasRaw = rowsVendas;
+  const pFaturamento = (async () => {
+    for (let i = 0; i < VENDAS_URLS.length; i += BATCH_VENDAS) {
+      const grupoUrls = VENDAS_URLS.slice(i, i + BATCH_VENDAS);
+      document.getElementById('loaderMsg').textContent =
+        'Carregando faturamento (' + Math.min(i+BATCH_VENDAS, VENDAS_URLS.length) + '/' + VENDAS_URLS.length + ')…';
+      await Promise.all(grupoUrls.map(async (url, j) => {
+        const idx = i + j;
+        const lojaKey = VENDAS_STORE_KEYS[idx];
+        try {
+          const text = await fetchCSV(url);
+          rowsVendas = rowsVendas.concat(parseVendas(text, lojaKey.toUpperCase()));
+        } catch(e) {
+          console.warn('Faturamento indisponível (' + lojaKey + '):', e.message);
+        }
+      }));
+    }
+    vendasRaw = rowsVendas;
+  })();
 
   // ══════════════════════════════════════════════════════
-  // 6. Busca Curva ABC de Produtos (por loja) — CMV (Produto) do
-  //    "DRE Gerencial" (não bloqueia o carregamento se falhar: o DFC
-  //    continua funcionando normalmente com o CMV (Compra) de sempre).
+  // 6. Curva ABC de Produtos (por loja) — CMV (Produto) do "DRE
+  //    Gerencial" — independente (não bloqueia o carregamento se falhar:
+  //    o DFC continua funcionando normalmente com o CMV (Compra) de sempre).
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando custo de produtos…';
   let rowsCusto = [];
   const BATCH_CUSTO = 2;
-  for (let i = 0; i < CURVAABC_URLS.length; i += BATCH_CUSTO) {
-    const grupoUrls = CURVAABC_URLS.slice(i, i + BATCH_CUSTO);
-    document.getElementById('loaderMsg').textContent =
-      'Carregando custo de produtos (' + Math.min(i+BATCH_CUSTO, CURVAABC_URLS.length) + '/' + CURVAABC_URLS.length + ')…';
-    await Promise.all(grupoUrls.map(async (url, j) => {
-      const idx = i + j;
-      const lojaKey = CURVAABC_STORE_KEYS[idx];
-      try {
-        const text = await fetchCSV(url);
-        rowsCusto = rowsCusto.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
-      } catch(e) {
-        console.warn('Custo de produtos indisponível (' + lojaKey + '):', e.message);
-      }
-    }));
-  }
-  custoProdutoRaw = rowsCusto;
+  const pCurvaABC = (async () => {
+    for (let i = 0; i < CURVAABC_URLS.length; i += BATCH_CUSTO) {
+      const grupoUrls = CURVAABC_URLS.slice(i, i + BATCH_CUSTO);
+      document.getElementById('loaderMsg').textContent =
+        'Carregando custo de produtos (' + Math.min(i+BATCH_CUSTO, CURVAABC_URLS.length) + '/' + CURVAABC_URLS.length + ')…';
+      await Promise.all(grupoUrls.map(async (url, j) => {
+        const idx = i + j;
+        const lojaKey = CURVAABC_STORE_KEYS[idx];
+        try {
+          const text = await fetchCSV(url);
+          rowsCusto = rowsCusto.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
+        } catch(e) {
+          console.warn('Custo de produtos indisponível (' + lojaKey + '):', e.message);
+        }
+      }));
+    }
+    custoProdutoRaw = rowsCusto;
+  })();
 
   // ══════════════════════════════════════════════════════
-  // 7. Busca Compras (por loja) — CMV (Compra) do DFC, substituindo a
-  //    classificação via Contas a Pagar + Plano de Contas (não bloqueia
-  //    o carregamento se falhar: o resto do DFC continua funcionando
-  //    normalmente, só o CMV fica zerado até o arquivo estar disponível).
+  // 7. Compras (por loja) — CMV (Compra) do DFC, substituindo a
+  //    classificação via Contas a Pagar + Plano de Contas — independente
+  //    (não bloqueia o carregamento se falhar: o resto do DFC continua
+  //    funcionando normalmente, só o CMV fica zerado até o arquivo estar
+  //    disponível).
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando compras…';
   let rowsCompras = [];
   const BATCH_COMPRAS = 2;
-  for (let i = 0; i < COMPRAS_URLS.length; i += BATCH_COMPRAS) {
-    const grupoUrls = COMPRAS_URLS.slice(i, i + BATCH_COMPRAS);
-    document.getElementById('loaderMsg').textContent =
-      'Carregando compras (' + Math.min(i+BATCH_COMPRAS, COMPRAS_URLS.length) + '/' + COMPRAS_URLS.length + ')…';
-    await Promise.all(grupoUrls.map(async (url, j) => {
-      const idx = i + j;
-      const lojaKey = COMPRAS_STORE_KEYS[idx];
-      try {
-        const text = await fetchCSV(url);
-        rowsCompras = rowsCompras.concat(parseCompras(text, lojaKey.toUpperCase()));
-      } catch(e) {
-        console.warn('Compras indisponível (' + lojaKey + '):', e.message);
-      }
-    }));
-  }
-  comprasRaw = rowsCompras;
+  const pCompras = (async () => {
+    for (let i = 0; i < COMPRAS_URLS.length; i += BATCH_COMPRAS) {
+      const grupoUrls = COMPRAS_URLS.slice(i, i + BATCH_COMPRAS);
+      document.getElementById('loaderMsg').textContent =
+        'Carregando compras (' + Math.min(i+BATCH_COMPRAS, COMPRAS_URLS.length) + '/' + COMPRAS_URLS.length + ')…';
+      await Promise.all(grupoUrls.map(async (url, j) => {
+        const idx = i + j;
+        const lojaKey = COMPRAS_STORE_KEYS[idx];
+        try {
+          const text = await fetchCSV(url);
+          rowsCompras = rowsCompras.concat(parseCompras(text, lojaKey.toUpperCase()));
+        } catch(e) {
+          console.warn('Compras indisponível (' + lojaKey + '):', e.message);
+        }
+      }));
+    }
+    comprasRaw = rowsCompras;
+  })();
+
+  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento, pCurvaABC, pCompras]);
 
   document.getElementById('loaderMsg').textContent='Processando dados…';
 
