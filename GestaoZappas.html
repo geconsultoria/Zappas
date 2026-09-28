@@ -755,7 +755,14 @@ function existeAtualizacaoMaisRecenteZappas(cacheTs) {
   } catch(e) { return false; }
 }
 
-async function gerarResumoMensal() {
+// avisar=false é usado na chamada automática (1x por sessão, ver AuthGuard.requireScreen abaixo):
+// essa chamada só existe pra manter a planilha de resumo do backend em dia silenciosamente, sem o
+// usuário ter pedido — ela NÃO deve avisar as outras páginas (avisarOutrasPaginasZappas) que "há
+// dado novo", porque isso fazia o próprio GestaoZappas (e o DRE_Gerencial) se considerarem com cache
+// desatualizado na visita seguinte, mesmo o cache tendo acabado de ser salvo poucos segundos antes —
+// forçando uma busca completa (~30 planilhas) de novo sem necessidade. O clique manual no botão
+// "Atualização Geral" continua avisando normalmente (avisar=true, o padrão).
+async function gerarResumoMensal(avisar = true) {
   const btn    = document.getElementById('btn-gerar-resumo');
   const icon   = document.getElementById('icon-gerar-resumo');
   const status = document.getElementById('status-gerar-resumo');
@@ -788,8 +795,9 @@ async function gerarResumoMensal() {
       cardSub.textContent = '✓ ' + texto.replace(/^OK - /, '');
       // Resumo gerado com sucesso: avisa as 6 páginas de relatório que
       // há dado novo, pra elas se atualizarem sozinhas (sem precisar
-      // clicar em "Atualizar" em cada uma).
-      avisarOutrasPaginasZappas();
+      // clicar em "Atualizar" em cada uma) — só quando alguém pediu essa
+      // atualização de propósito (clique manual), não na chamada automática.
+      if (avisar) avisarOutrasPaginasZappas();
     } else {
       status.style.color = '#A23B2E';
       status.textContent = texto;
@@ -2197,7 +2205,7 @@ AuthGuard.requireScreen('home', function(){
     const periodoEl = document.getElementById('resumo-period');
     if (periodoEl) periodoEl.textContent = 'não foi possível carregar';
   }).finally(() => {
-    if (isPrimeiraVezNaSessao) gerarResumoMensal();
+    if (isPrimeiraVezNaSessao) gerarResumoMensal(false);
   });
 });
 
