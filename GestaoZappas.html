@@ -1181,6 +1181,12 @@ function resumoParseDtEntrada(s) {
 function resumoFmtBRL(v) {
   return (v < 0 ? '-' : '') + 'R$ ' + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
+// Mesmo formato de resumoFmtBRL, sem o "R$" na frente — usado nos valores de Entradas/Saídas/
+// Receita/Despesas dos cards de Performance por Loja, que ficam lado a lado e não precisam repetir
+// o símbolo em cada um (o card já deixa claro que é R$ pelo contexto).
+function resumoFmtNum(v) {
+  return (v < 0 ? '-' : '') + Math.abs(v).toLocaleString('pt-BR', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
 function resumoFmtPct(v) {
   return v.toLocaleString('pt-BR', { minimumFractionDigits: 1, maximumFractionDigits: 1 }) + '%';
 }
@@ -1241,7 +1247,10 @@ async function resumoFetchCSV(url) {
 // a tela se atualiza sozinha assim que eles chegarem.
 const RESUMO_DB_NAME  = 'zappas_resumo_cache_db';
 const RESUMO_DB_STORE = 'cache';
-const RESUMO_DB_KEY   = 'resumo_geral';
+// v2: muda a chave pra invalidar cache salvo antes da correção do bug de código com sufixo
+// decimal (".0") na comparação com De-Para/Plano de Contas — sem isso, quem já tinha cache salvo
+// continuaria vendo os números antigos (errados) até o cache de 12h expirar sozinho.
+const RESUMO_DB_KEY   = 'resumo_geral_v2';
 function resumoOpenDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(RESUMO_DB_NAME, 1);
@@ -1405,7 +1414,11 @@ async function carregarResumoGeral() {
         const codRaw = String(r[cCodPL] || '').trim(); if (!codRaw) return;
         const info = { grupo: cGrupo ? r[cGrupo] : '', sub_grupo: cSub ? r[cSub] : '', conta_pl: cConta ? r[cConta] : '' };
         planoMap.set(codRaw, info);
-        const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || ''); if (codNum) planoMap.set(codNum, info);
+        // parseInt(codRaw, 10) (não .replace(/\D/g,'') antes) — se o código vier com sufixo decimal
+        // da planilha (ex.: "26.0", comum quando a coluna é exportada como número), o replace juntava
+        // os dois lados do ponto ("26.0" virava "260", código errado); parseInt já para no primeiro
+        // caractere não-numérico, então lê "26" certinho.
+        const codNum = String(parseInt(codRaw, 10) || ''); if (codNum) planoMap.set(codNum, info);
       });
     } catch (e) { /* sem plano de contas, KPIs de DFC ficam zerados */ }
   })();
@@ -1427,7 +1440,7 @@ async function carregarResumoGeral() {
       if (cCod && cDesc) rows.forEach(r => {
         const cod = String(r[cCod] || '').trim(); if (!cod) return;
         deparaMapGlobal.set(cod, r[cDesc]);
-        const codNum = String(parseInt(cod.replace(/\D/g, ''), 10) || ''); if (codNum) deparaMapGlobal.set(codNum, r[cDesc]);
+        const codNum = String(parseInt(cod, 10) || ''); if (codNum) deparaMapGlobal.set(codNum, r[cDesc]);
       });
     } catch (e) { /* de-para indisponível — Recebidos ficará sem classificação até a próxima tentativa */ }
     RESUMO_STORE_KEYS.forEach(k => { deparaMaps[k] = deparaMapGlobal; });
@@ -1508,7 +1521,7 @@ async function carregarResumoGeral() {
       rows.forEach(r => {
         const valor = resumoParseNum(r[cConta]); if (!valor) { dbg.valorZero++; return; }
         const codPgto = cCodPgto ? String(r[cCodPgto] || '').trim() : ''; if (!codPgto) { dbg.semCodigo++; return; }
-        let recebimento = deparaMap.get(codPgto) || deparaMap.get(String(parseInt(codPgto.replace(/\D/g, ''), 10) || '')) || '';
+        let recebimento = deparaMap.get(codPgto) || deparaMap.get(String(parseInt(codPgto, 10) || '')) || '';
         if (!recebimento) { dbg.semDepara++; return; }
         if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) { dbg.semCategoria++; registraDetalhe(dbg.semCategoriaDetalhe, recebimento, valor); return; }
 
@@ -1553,7 +1566,7 @@ async function carregarResumoGeral() {
         let grupoInfo = null;
         if (cCodCtr) {
           const codRaw = String(r[cCodCtr] || '').trim();
-          const codNum = String(parseInt(codRaw.replace(/\D/g, ''), 10) || '');
+          const codNum = String(parseInt(codRaw, 10) || '');
           grupoInfo = planoMap.get(codRaw) || planoMap.get(codNum);
         }
         // Código de centro de custo sem correspondência no Plano de Contas — o DRE_Gerencial.html
@@ -1922,11 +1935,11 @@ function resumoRenderFiltrados() {
             <div class="perf-loja-flow">
               <div class="perf-loja-flow-item">
                 <span class="perf-loja-flow-lbl">Entradas</span>
-                <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradas)}</span>
+                <span class="perf-loja-flow-val pos">${resumoFmtNum(d.entradas)}</span>
               </div>
               <div class="perf-loja-flow-item" style="align-items:flex-end">
                 <span class="perf-loja-flow-lbl">Saídas</span>
-                <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
+                <span class="perf-loja-flow-val neg">${resumoFmtNum(d.saidas)}</span>
               </div>
             </div>
           </div>
@@ -1937,11 +1950,11 @@ function resumoRenderFiltrados() {
             <div class="perf-loja-flow">
               <div class="perf-loja-flow-item">
                 <span class="perf-loja-flow-lbl">Receita</span>
-                <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradasGer)}</span>
+                <span class="perf-loja-flow-val pos">${resumoFmtNum(d.entradasGer)}</span>
               </div>
               <div class="perf-loja-flow-item" style="align-items:flex-end">
                 <span class="perf-loja-flow-lbl">Despesas</span>
-                <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidasGer)}</span>
+                <span class="perf-loja-flow-val neg">${resumoFmtNum(d.saidasGer)}</span>
               </div>
             </div>
           </div>

@@ -2101,8 +2101,10 @@ function parseDepara(text){
     const desc = g(iDesc);
     if(!cod) continue;
     map.set(String(cod).trim(), desc);
-    // Também mapeia sem zeros à esquerda
-    const codNum = String(parseInt(cod.replace(/\D/g,''),10) || '');
+    // Também mapeia sem zeros à esquerda. parseInt(cod,10) (não .replace(/\D/g,'') antes) — se o
+    // código vier com sufixo decimal da planilha (ex.: "26.0"), o replace juntava os dois lados do
+    // ponto ("26.0" virava "260", código errado); parseInt já para no primeiro caractere não-numérico.
+    const codNum = String(parseInt(cod,10) || '');
     if(codNum && codNum !== cod) map.set(codNum, desc);
   }
   return map;
@@ -2194,7 +2196,7 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
 
     let recebimento = deparaMap.get(String(codPgto).trim()) || '';
     if(!recebimento){
-      const codNum = String(parseInt(codPgto.replace(/\D/g,''),10) || '');
+      const codNum = String(parseInt(codPgto,10) || '');
       recebimento = deparaMap.get(codNum) || '';
     }
     const nomePgto = iNomePgto>=0 ? g(iNomePgto) : '';
@@ -2289,7 +2291,7 @@ async function fetchPlanoContas(){
       sub_grupo: g(iSubGrp),
     };
     map.set(codPLraw, entry);
-    const codPLnum = String(parseInt(codPLraw.replace(/\D/g,''),10) || '');
+    const codPLnum = String(parseInt(codPLraw,10) || '');
     if(codPLnum) map.set(codPLnum, entry);
   }
   return map;
@@ -2346,7 +2348,7 @@ function parseContasPagar(text, planoMap, lojaFallback){
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     const codCentroRaw = g(iCodCtr);
-    const codCentroNum = String(parseInt(codCentroRaw.replace(/\D/g,''),10) || '');
+    const codCentroNum = String(parseInt(codCentroRaw,10) || '');
     const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
 
     // Monta um rótulo identificando o lançamento (pra listar os "títulos"
@@ -2594,7 +2596,9 @@ async function fetchCSV(url){
    (carregamento instantâneo). Só busca dados novos quando o
    usuário clicar no botão de atualizar (↻).
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v1';
+// v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
+// comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v2';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
