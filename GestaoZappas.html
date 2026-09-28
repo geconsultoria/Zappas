@@ -437,7 +437,7 @@ body {
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          DFC Fluxo de Caixa
+          Demonstrativo de Resultado
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1485,9 +1485,10 @@ async function carregarResumoGeral() {
     const dbg = resumoDebugRecebidos[lojaKey.toUpperCase()] = {
       lidos: 0, semColuna: false, semCodigo: 0, valorZero: 0, semDepara: 0, semCategoria: 0, semData: 0, incluidos: 0,
       deparaMapSize: deparaMapProprio.size, deparaFallback: usandoDeparaFallback, erro: null,
-      // Detalhe de quem exatamente ficou de fora — pra investigar semDepara/semCategoria em vez de
-      // só ver o número agregado. Guarda por código/categoria: quantas linhas e quanto em R$.
-      semDeparaDetalhe: new Map(), semCategoriaDetalhe: new Map(),
+      // Detalhe de quem exatamente ficou de fora do semCategoria — pra investigar sem precisar
+      // abrir outra tela. O "semDepara" não tem detalhe aqui de propósito: já existe no
+      // Demonstrativo de Resultado, em "Conferência de Classificação (De-Para)".
+      semCategoriaDetalhe: new Map(),
     };
     try {
       const txt = await resumoFetchCSV(url);
@@ -1511,7 +1512,7 @@ async function carregarResumoGeral() {
         const valor = resumoParseNum(r[cConta]); if (!valor) { dbg.valorZero++; return; }
         const codPgto = cCodPgto ? String(r[cCodPgto] || '').trim() : ''; if (!codPgto) { dbg.semCodigo++; return; }
         let recebimento = deparaMap.get(codPgto) || deparaMap.get(String(parseInt(codPgto.replace(/\D/g, ''), 10) || '')) || '';
-        if (!recebimento) { dbg.semDepara++; registraDetalhe(dbg.semDeparaDetalhe, codPgto, valor); return; }
+        if (!recebimento) { dbg.semDepara++; return; }
         if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) { dbg.semCategoria++; registraDetalhe(dbg.semCategoriaDetalhe, recebimento, valor); return; }
 
         const dt = cDtEntrada ? resumoParseDtEntrada(r[cDtEntrada]) : null;
@@ -1736,7 +1737,6 @@ function resumoDebugSempre(d, resumoDebugRecebidos) {
   return `<div class="perf-loja-debug" style="color:#666">
     diag: lidos=${dbg.lidos} próprio=${dbg.deparaMapSize} fallback=${dbg.deparaFallback ? 'sim' : 'não'} incluidos=${dbg.incluidos}
     semDepara=${dbg.semDepara} semCategoria=${dbg.semCategoria} semData=${dbg.semData} semCódigo=${dbg.semCodigo || 0} valorZero=${dbg.valorZero || 0}
-    ${resumoDebugDetalheLista('Códigos sem De-Para', dbg.semDeparaDetalhe)}
     ${resumoDebugDetalheLista('Categorias fora do permitido', dbg.semCategoriaDetalhe)}
   </div>`;
 }
