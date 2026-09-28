@@ -332,7 +332,7 @@ body {
 .ig-kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; }
 .ig-kpi-sub { font-size:11px; color: var(--ink-3); text-align:right; }
 
-.perf-loja-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px; margin-bottom:26px; }
+.perf-loja-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:14px; margin-bottom:26px; }
 .perf-loja-card { background: var(--surface); border:1px solid var(--border); border-radius: var(--r-lg); padding:18px 20px; box-shadow: var(--sh); transition:box-shadow .2s, transform .2s; }
 .perf-loja-card:hover { box-shadow: var(--sh-md); transform:translateY(-2px); }
 .perf-loja-name { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
@@ -349,7 +349,12 @@ body {
 .perf-loja-flow-val.pos { color:#0ea472; }
 .perf-loja-flow-val.neg { color:#B4483A; }
 .perf-loja-empty { font-size:12px; color: var(--ink-4); padding:8px 0; margin-bottom:26px; }
-.perf-loja-debug { margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); font-size:10px; color:#B4483A; line-height:1.4; }
+/* Duas colunas lado a lado (DFC | DRE) dentro do mesmo card de loja */
+.perf-loja-regimes { display:flex; gap:16px; }
+.perf-loja-regime { flex:1; min-width:0; }
+.perf-loja-regime + .perf-loja-regime { padding-left:16px; border-left:1px dashed var(--border); }
+.perf-loja-regime-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-4); margin-bottom:2px; }
+.perf-loja-regime .perf-loja-total { font-size:18px; margin-bottom:2px; }
 
 .resumo-filter { display:flex; align-items:center; gap:8px; }
 .resumo-filter label { font-size:11px; color: var(--ink-3); font-weight:600; }
@@ -1004,7 +1009,9 @@ const RESUMO_CTASPAGAR_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tip
 const RESUMO_FAT_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 const RESUMO_PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
 const RESUMO_RECBIDOS_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=recebidos&loja=${k}`);
-const RESUMO_DEPARA_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=depara&loja=${k}`);
+// De-Para único pra todas as lojas (planilha do Google Sheets, buscada direto — sem passar
+// pelo Apps Script/pasta do Drive). Substitui as 6 buscas por loja que existiam antes.
+const RESUMO_DEPARA_UNICO_URL = 'https://docs.google.com/spreadsheets/d/1B1HK4Ocvx4D_q56gli1hS2CTofbRASkwmX5lyqZHGLY/gviz/tq?tqx=out:csv';
 const RESUMO_COMPRAS_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=compras&loja=${k}`);
 const RESUMO_CURVAABC_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=curvaabc&loja=${k}`);
 
@@ -1403,38 +1410,28 @@ async function carregarResumoGeral() {
     } catch (e) { /* sem plano de contas, KPIs de DFC ficam zerados */ }
   })();
 
-  // ── De-Para (todas as lojas) — usado pelos Recebidos pra classificar o tipo de recebimento ──
+  // ── De-Para único (todas as lojas) — usado pelos Recebidos pra classificar o tipo de recebimento ──
+  // Antes eram 6 buscas (uma planilha de De-Para por loja) juntadas num mapa "global" de fallback
+  // pra quando a aba de alguma loja vinha vazia. Agora é uma única planilha com os códigos de todas
+  // as lojas (confirmado que o sistema de PDV usa os mesmos códigos em qualquer loja), então vira 1
+  // busca só — mais rápido — e a mesma lógica de fallback continua funcionando (deparaMaps[loja]
+  // aponta todo mundo pro mesmo mapa, então "próprio" nunca fica vazio).
   const deparaMaps = {};
-  // De-Para "global": junta os códigos de todas as lojas num único mapa, pra servir de fallback
-  // quando o De-Para de uma loja específica vier vazio da planilha de origem (aba não preenchida
-  // ou com nome/coluna diferente pra aquela loja — ex.: Damha e Belvedere). Os códigos de pagamento
-  // costumam ser os mesmos em todas as lojas do mesmo sistema de PDV, então isso evita que a loja
-  // fique com Entradas zeradas por causa de uma aba vazia, sem precisar esperar a planilha ser corrigida.
   let deparaMapGlobal = new Map();
-  const pDePara = resumoMapLimit(RESUMO_DEPARA_URLS, 2, async (url, idx) => {
+  const pDePara = (async () => {
     try {
-      const txt = await resumoFetchCSV(url);
+      const txt = await resumoFetchCSV(RESUMO_DEPARA_UNICO_URL);
       const { rows, headers } = resumoParseCSV(txt);
       const cCod = resumoFindCol(headers, ['cod', 'codigo', 'codpgto']);
       const cDesc = resumoFindCol(headers, ['recebimento', 'descricao', 'tipo', 'categoria']);
-      const map = new Map();
       if (cCod && cDesc) rows.forEach(r => {
         const cod = String(r[cCod] || '').trim(); if (!cod) return;
-        map.set(cod, r[cDesc]);
-        const codNum = String(parseInt(cod.replace(/\D/g, ''), 10) || ''); if (codNum) map.set(codNum, r[cDesc]);
+        deparaMapGlobal.set(cod, r[cDesc]);
+        const codNum = String(parseInt(cod.replace(/\D/g, ''), 10) || ''); if (codNum) deparaMapGlobal.set(codNum, r[cDesc]);
       });
-      deparaMaps[RESUMO_STORE_KEYS[idx]] = map;
-    } catch (e) { deparaMaps[RESUMO_STORE_KEYS[idx]] = new Map(); }
-  }).then(() => {
-    // Percorre sempre na mesma ordem fixa (RESUMO_STORE_KEYS), nunca Object.values(deparaMaps) —
-    // a ordem de inserção nesse objeto depende de qual fetch por loja terminou primeiro (corrida
-    // assíncrona), o que fazia o de-para global sair diferente a cada carregamento (e diferente do
-    // DRE_Gerencial.html), gerando pequenas divergências de Entradas entre as duas telas.
-    RESUMO_STORE_KEYS.forEach(k => {
-      const m = deparaMaps[k];
-      if (m) m.forEach((v, cod) => { if (!deparaMapGlobal.has(cod)) deparaMapGlobal.set(cod, v); });
-    });
-  });
+    } catch (e) { /* de-para indisponível — Recebidos ficará sem classificação até a próxima tentativa */ }
+    RESUMO_STORE_KEYS.forEach(k => { deparaMaps[k] = deparaMapGlobal; });
+  })();
 
   // ── Meta do mês (soma de todas as lojas/canais) ──
   // metaRows guarda a meta de TODOS os meses/anos (não só o atual) pra alimentar o gráfico de Evolução Mensal.
@@ -1680,66 +1677,11 @@ async function carregarResumoGeral() {
 // recalculados juntos a partir dos filtros de Ano, Mês e Loja (dados já
 // carregados em memória, sem novo fetch)
 // ---------------------------------------------------------------------------
-// Mostra, só quando Entradas ficou zerada, em qual etapa os recebimentos daquela loja foram
-// descartados (ex.: não encontrados no De-Para, ou categoria de pagamento não reconhecida) —
-// evita que a loja pareça simplesmente "sem dados" sem explicação.
-function resumoDebugEntradasZero(d, resumoDebugRecebidos) {
-  if (d.entradas > 0 || !resumoDebugRecebidos) return '';
-  const dbg = resumoDebugRecebidos[d.loja];
-  if (!dbg) return '';
-  let motivo;
-  if (dbg.erro) motivo = 'erro ao buscar recebidos (' + dbg.erro + ')';
-  else if (dbg.semColuna) motivo = 'planilha de recebidos sem coluna de código/valor reconhecida';
-  else if (dbg.lidos === 0) motivo = 'planilha de recebidos veio vazia';
-  else if (dbg.deparaMapSize === 0 && !dbg.deparaFallback) motivo = 'de-para de pagamentos vazio para esta loja (e nenhuma outra loja tem de-para pra usar como substituto)';
-  else if (dbg.semDepara > 0 && dbg.semCategoria === 0 && dbg.incluidos === 0) motivo = dbg.semDepara + ' de ' + dbg.lidos + ' linhas sem código correspondente no de-para' + (dbg.deparaFallback ? ' (usando de-para de outra loja, pois o desta veio vazio)' : '');
-  else if (dbg.semCategoria > 0 && dbg.incluidos === 0) motivo = dbg.semCategoria + ' de ' + dbg.lidos + ' linhas com categoria de pagamento fora de boleto/convênio/cartão/pix/dinheiro';
-  else if (dbg.semData > 0 && dbg.incluidos === 0) motivo = dbg.semData + ' linhas elegíveis mas sem ano/mês reconhecido';
-  else motivo = dbg.lidos + ' linhas lidas, 0 elegíveis no período/categoria';
-  return `<div class="perf-loja-debug">Entradas zeradas: ${motivo}</div>`;
-}
-
-// Diagnóstico TEMPORÁRIO — mostra sempre (mesmo com Entradas > 0) os números por trás do cálculo,
-// pra investigar por que Damha/Belvedere não batem com o DFC mesmo com Entradas não-zeradas.
-// Remover depois que o motivo da diferença for confirmado.
-// Monta a lista expansível (<details>) com o "quem" por trás de um contador do diagnóstico —
-// ex.: quais códigos de pagamento (semDepara) ou quais textos de categoria (semCategoria) ficaram
-// de fora, quantas linhas cada um teve e quanto somam em R$. Ordena do que mais pesa em R$ pro que
-// menos pesa, e mostra só os 15 primeiros (o resto entra num "+N outros" pra não pesar a tela).
-function resumoDebugDetalheLista(titulo, mapa) {
-  if (!mapa || !mapa.size) return '';
-  const linhas = [...mapa.entries()]
-    .map(([chave, v]) => ({ chave: chave || '(vazio)', ...v }))
-    .sort((a, b) => b.soma - a.soma);
-  const TOP = 15;
-  const visiveis = linhas.slice(0, TOP);
-  const resto = linhas.slice(TOP);
-  const restoTxt = resto.length
-    ? `<div style="margin-top:4px;opacity:.75">+ ${resto.length} outro(s), somando ${resumoFmtBRL(resto.reduce((a, r) => a + r.soma, 0))}</div>`
-    : '';
-  return `
-    <details style="margin-top:6px;">
-      <summary style="cursor:pointer;color:#1A3D6B;">${titulo} (${linhas.length} distintos) — ver quais</summary>
-      <table style="width:100%;margin-top:4px;border-collapse:collapse;font-size:10px;">
-        <thead><tr style="text-align:left;opacity:.7;">
-          <th style="padding:2px 4px 2px 0;">valor</th><th style="padding:2px 4px;text-align:right;">linhas</th><th style="padding:2px 0 2px 4px;text-align:right;">soma R$</th>
-        </tr></thead>
-        <tbody>${visiveis.map(l => `<tr><td style="padding:2px 4px 2px 0;">${l.chave}</td><td style="padding:2px 4px;text-align:right;">${l.count}</td><td style="padding:2px 0 2px 4px;text-align:right;">${resumoFmtBRL(l.soma)}</td></tr>`).join('')}</tbody>
-      </table>
-      ${restoTxt}
-    </details>`;
-}
-
-function resumoDebugSempre(d, resumoDebugRecebidos) {
-  if (!resumoDebugRecebidos) return '';
-  const dbg = resumoDebugRecebidos[d.loja];
-  if (!dbg) return '';
-  return `<div class="perf-loja-debug" style="color:#666">
-    diag: lidos=${dbg.lidos} próprio=${dbg.deparaMapSize} fallback=${dbg.deparaFallback ? 'sim' : 'não'} incluidos=${dbg.incluidos}
-    semDepara=${dbg.semDepara} semCategoria=${dbg.semCategoria} semData=${dbg.semData} semCódigo=${dbg.semCodigo || 0} valorZero=${dbg.valorZero || 0}
-    ${resumoDebugDetalheLista('Categorias fora do permitido', dbg.semCategoriaDetalhe)}
-  </div>`;
-}
+// Os diagnósticos de captura (semDepara/semCategoria/semData etc.) continuam sendo
+// calculados no fetch de Recebidos (resumoDebugRecebidos), mas pararam de aparecer nos
+// cards de Performance por Loja — a tela ficou só com os valores mesmo (DFC e DRE lado a
+// lado). Se precisar investigar divergência de novo, os números ainda estão em
+// resumoFiltroState.resumoDebugRecebidos (console do navegador).
 
 const RESUMO_PALETTE = [
   '#1A3D6B', '#2E6AB0', '#0D4F35', '#1A7A52', '#7A5C00',
@@ -1920,7 +1862,28 @@ function resumoRenderFiltrados() {
   const saidasPorLoja = {};
   ctasF.forEach(r => { saidasPorLoja[r.loja] = (saidasPorLoja[r.loja] || 0) + r.valor; });
 
-  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja)])];
+  // ── DRE (Gerencial) por loja — mesma ideia do bloco DRE acima, só que
+  // quebrada por loja: troca só CMV (Contas a Pagar → Curva ABC) e Impostos
+  // sobre Vendas (na hora → deslocado 1 mês) dentro do total de Saídas;
+  // o resto (despesas comerciais/pessoal/administrativas/financeiras,
+  // pró-labore etc.) é o mesmo do DFC, já que só essas duas fontes mudam
+  // entre os dois regimes.
+  const sumsBySlugPorLoja = {};
+  ctasF.forEach(r => {
+    if (!r.slug) return;
+    if (!sumsBySlugPorLoja[r.loja]) sumsBySlugPorLoja[r.loja] = {};
+    sumsBySlugPorLoja[r.loja][r.slug] = (sumsBySlugPorLoja[r.loja][r.slug] || 0) + r.valor;
+  });
+  const gLoja = (loja, slug) => (sumsBySlugPorLoja[loja] && sumsBySlugPorLoja[loja][slug]) || 0;
+
+  const receitaGerPorLoja = {};
+  fatRows.filter(bate).forEach(r => { receitaGerPorLoja[r.loja] = (receitaGerPorLoja[r.loja] || 0) + r.valor; });
+  const cmvGerPorLoja = {};
+  (custoProdutoRows || []).filter(bate).forEach(r => { cmvGerPorLoja[r.loja] = (cmvGerPorLoja[r.loja] || 0) + r.valor; });
+  const impostosGerPorLoja = {};
+  impostosGerRows.filter(bate).forEach(r => { impostosGerPorLoja[r.loja] = (impostosGerPorLoja[r.loja] || 0) + r.valor; });
+
+  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja), ...Object.keys(receitaGerPorLoja)])];
   const emptyEl = document.getElementById('loja-perf-empty');
   const listPerfEl = document.getElementById('loja-perf-list');
   if (!lojasPerf.length) {
@@ -1931,7 +1894,12 @@ function resumoRenderFiltrados() {
     const RESUMO_PERF_ORDEM = ['anisio', 'bady', 'damha', 'belvedere', 'muffato', 'havan'];
     const dados = lojasPerf.map(l => {
       const entradas = entradasPorLoja[l] || 0, saidas = saidasPorLoja[l] || 0;
-      return { loja: l, entradas, saidas, saldo: entradas - saidas };
+      const entradasGer = receitaGerPorLoja[l] || 0;
+      const saidasGer = saidas - gLoja(l, 'cmv') - gLoja(l, 'impostos_vendas') + (cmvGerPorLoja[l] || 0) + (impostosGerPorLoja[l] || 0);
+      return {
+        loja: l, entradas, saidas, saldo: entradas - saidas,
+        entradasGer, saidasGer, saldoGer: entradasGer - saidasGer,
+      };
     }).sort((a, b) => {
       const ia = RESUMO_PERF_ORDEM.indexOf(resumoNorm(a.loja));
       const ib = RESUMO_PERF_ORDEM.indexOf(resumoNorm(b.loja));
@@ -1940,28 +1908,44 @@ function resumoRenderFiltrados() {
       if (ib === -1) return -1;
       return ia - ib;
     });
-    const maxVal = Math.max(1, ...dados.map(d => Math.max(d.entradas, d.saidas)));
     listPerfEl.innerHTML = dados.map((d, i) => `
       <div class="perf-loja-card">
         <div class="perf-loja-name">
           <span class="perf-loja-dot" style="background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></span>
           ${d.loja}
         </div>
-        <div class="perf-loja-total ${d.saldo >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldo)}</div>
-        <div class="perf-loja-sub">Saldo de caixa · ${periodoLongo || 'todos os períodos'}</div>
-        <div class="perf-loja-bar-bg"><div class="perf-loja-bar-fill" style="width:${(d.entradas / maxVal * 100).toFixed(1)}%;background:${RESUMO_PALETTE[i % RESUMO_PALETTE.length]}"></div></div>
-        <div class="perf-loja-flow">
-          <div class="perf-loja-flow-item">
-            <span class="perf-loja-flow-lbl">Entradas</span>
-            <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradas)}</span>
+        <div class="perf-loja-regimes">
+          <div class="perf-loja-regime">
+            <div class="perf-loja-regime-label">DFC</div>
+            <div class="perf-loja-total ${d.saldo >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldo)}</div>
+            <div class="perf-loja-sub">Saldo de caixa · ${periodoLongo || 'todos os períodos'}</div>
+            <div class="perf-loja-flow">
+              <div class="perf-loja-flow-item">
+                <span class="perf-loja-flow-lbl">Entradas</span>
+                <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradas)}</span>
+              </div>
+              <div class="perf-loja-flow-item" style="align-items:flex-end">
+                <span class="perf-loja-flow-lbl">Saídas</span>
+                <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
+              </div>
+            </div>
           </div>
-          <div class="perf-loja-flow-item" style="align-items:flex-end">
-            <span class="perf-loja-flow-lbl">Saídas</span>
-            <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidas)}</span>
+          <div class="perf-loja-regime">
+            <div class="perf-loja-regime-label">DRE</div>
+            <div class="perf-loja-total ${d.saldoGer >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldoGer)}</div>
+            <div class="perf-loja-sub">Resultado · ${periodoLongo || 'todos os períodos'}</div>
+            <div class="perf-loja-flow">
+              <div class="perf-loja-flow-item">
+                <span class="perf-loja-flow-lbl">Receita</span>
+                <span class="perf-loja-flow-val pos">${resumoFmtBRL(d.entradasGer)}</span>
+              </div>
+              <div class="perf-loja-flow-item" style="align-items:flex-end">
+                <span class="perf-loja-flow-lbl">Despesas</span>
+                <span class="perf-loja-flow-val neg">${resumoFmtBRL(d.saidasGer)}</span>
+              </div>
+            </div>
           </div>
         </div>
-        ${resumoDebugEntradasZero(d, resumoDebugRecebidos)}
-        ${resumoDebugSempre(d, resumoDebugRecebidos)}
       </div>
     `).join('');
   }

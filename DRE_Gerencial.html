@@ -1673,7 +1673,7 @@ const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL_DRE}?tipo=planocontas`;
 // ══════════════════════════════════════════════════════════════
 const RECBIDOS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const RECBIDOS_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=recebidos&loja=${k}`);
-const DEPARA_URLS = RECBIDOS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=depara&loja=${k}`);
+// De-Para agora é uma planilha única pra todas as lojas — ver DEPARA_UNICO_URL em carregarTudo().
 
 // ══════════════════════════════════════════════════════════════
 // NOVO: Faturamento (Análise Comercial, por loja) — usado como Receita
@@ -2645,34 +2645,25 @@ async function carregarTudo(){
   reconciliacao.linhas = [];
 
   // ══════════════════════════════════════════════════════
-  // 1. Busca de-para por loja (em paralelo)
+  // 1. Busca de-para único (planilha única pra todas as lojas)
   // ══════════════════════════════════════════════════════
-  document.getElementById('loaderMsg').textContent='Carregando de-para por loja…';
-  const deparaMaps = {};
-  await Promise.all(RECBIDOS_STORE_KEYS.map(async (lojaKey) => {
-    try {
-      const url = `${APPS_SCRIPT_URL_DRE}?tipo=depara&loja=${lojaKey}`;
-      const text = await fetchCSV(url);
-      deparaMaps[lojaKey] = parseDepara(text);
-    } catch(e) {
-      console.warn('De-Para não carregado (' + lojaKey + '):', e.message);
-      deparaMaps[lojaKey] = new Map();
-    }
-  }));
-  // De-Para "global": junta os códigos de todas as lojas num único mapa, pra servir de fallback
-  // quando o De-Para de uma loja específica vier vazio da planilha de origem (aba não preenchida
-  // pra aquela loja — ex.: Damha e Belvedere). Os códigos de pagamento costumam ser os mesmos em
-  // todas as lojas do mesmo sistema de PDV, então isso evita que a loja fique com Receita
-  // Operacional/Entradas zeradas por causa de uma aba vazia.
+  // Antes eram 6 buscas (uma planilha de De-Para por loja, via Apps Script) juntadas num mapa
+  // "global" de fallback pra quando a aba de alguma loja vinha vazia (ex.: Damha e Belvedere).
+  // Agora é uma única planilha do Google Sheets com os códigos de todas as lojas — confirmado que
+  // o sistema de PDV usa os mesmos códigos em qualquer loja — buscada direto (sem passar pelo Apps
+  // Script/pasta do Drive), então vira 1 busca só. deparaMaps[loja] continua existindo (é usado
+  // mais abaixo), só que agora todo mundo aponta pro mesmo mapa único.
+  document.getElementById('loaderMsg').textContent='Carregando de-para…';
+  const DEPARA_UNICO_URL = 'https://docs.google.com/spreadsheets/d/1B1HK4Ocvx4D_q56gli1hS2CTofbRASkwmX5lyqZHGLY/gviz/tq?tqx=out:csv';
   const deparaMapGlobal = new Map();
-  // Percorre sempre na mesma ordem fixa (RECBIDOS_STORE_KEYS), nunca Object.values(deparaMaps) —
-  // a ordem de inserção nesse objeto depende de qual fetch por loja terminou primeiro (corrida
-  // assíncrona), o que fazia o de-para global sair diferente a cada carregamento (e diferente do
-  // GestaoZappas.html), gerando pequenas divergências de Entradas entre as duas telas.
-  RECBIDOS_STORE_KEYS.forEach(lojaKey => {
-    const m = deparaMaps[lojaKey];
-    if (m) m.forEach((v, cod) => { if (!deparaMapGlobal.has(cod)) deparaMapGlobal.set(cod, v); });
-  });
+  try {
+    const text = await fetchCSV(DEPARA_UNICO_URL);
+    parseDepara(text).forEach((v, cod) => deparaMapGlobal.set(cod, v));
+  } catch(e) {
+    console.warn('De-Para único não carregado:', e.message);
+  }
+  const deparaMaps = {};
+  RECBIDOS_STORE_KEYS.forEach(lojaKey => { deparaMaps[lojaKey] = deparaMapGlobal; });
 
   // ══════════════════════════════════════════════════════
   // 2. Busca o plano de contas
