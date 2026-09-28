@@ -437,7 +437,7 @@ body {
       <div class="side-sub">
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
-          Demonstrativo de Resultado
+          DFC Fluxo de Caixa
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -579,8 +579,8 @@ body {
     </div>
 
     <div class="resumo-head" style="margin-top:8px;">
-      <div class="resumo-title">Indicadores principais (DFC)</div>
-      <div class="resumo-period">mesmo cálculo do Demonstrativo de Resultado</div>
+      <div class="resumo-title">Demonstração do Fluxo de Caixa — DFC</div>
+      <div class="resumo-period">regime de caixa · dinheiro efetivamente recebido/pago</div>
     </div>
     <div class="kpi-grid kpi-grid-5" id="dre-kpi-grid">
       <div class="kpi-card">
@@ -615,6 +615,44 @@ body {
       </div>
     </div>
     <div class="resumo-note" style="margin:-6px 0 20px;">Receita Operacional aqui vem dos Recebidos (dinheiro efetivamente recebido, igual ao DFC), por isso pode ser um pouco diferente do "Faturamento Total" acima, que soma o valor total vendido.</div>
+
+    <div class="resumo-head" style="margin-top:8px;">
+      <div class="resumo-title">Demonstração do Resultado do Exercício — DRE</div>
+      <div class="resumo-period">regime de competência · faturado/lançado no período</div>
+    </div>
+    <div class="kpi-grid kpi-grid-5" id="dregerencial-kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-accent"></div>
+        <div class="kpi-label">Receita Operacional</div>
+        <div class="kpi-value skel" id="kpi-dregerencial-receita">—</div>
+        <div class="kpi-foot" id="kpi-dregerencial-receita-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#0ea472"></div>
+        <div class="kpi-label">Lucro Bruto</div>
+        <div class="kpi-value skel" id="kpi-dregerencial-lucrobruto">—</div>
+        <div class="kpi-foot" id="kpi-dregerencial-lucrobruto-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#C8961A"></div>
+        <div class="kpi-label">Resultado Operacional</div>
+        <div class="kpi-value skel" id="kpi-dregerencial-resultop">—</div>
+        <div class="kpi-foot" id="kpi-dregerencial-resultop-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#0ea472"></div>
+        <div class="kpi-label">EBITDA</div>
+        <div class="kpi-value skel" id="kpi-dregerencial-ebitda">—</div>
+        <div class="kpi-foot" id="kpi-dregerencial-ebitda-foot"></div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-accent" style="background:#B4483A"></div>
+        <div class="kpi-label">Resultado Líquido</div>
+        <div class="kpi-value skel" id="kpi-dregerencial-resultliq">—</div>
+        <div class="kpi-foot" id="kpi-dregerencial-resultliq-foot"></div>
+      </div>
+    </div>
+    <div class="resumo-note" style="margin:-6px 0 20px;">Receita Operacional aqui vem do Faturamento (Análise Comercial) e o CMV vem da Curva ABC de Produtos — regime de competência, igual à aba "DRE Gerencial". Impostos sobre Vendas entram com 1 mês de defasagem (imposto pago em fevereiro é lançado no DRE de janeiro); as demais despesas usam a mesma classificação do Contas a Pagar do bloco DFC acima, sem deslocamento.</div>
 
     <div class="resumo-head" style="margin-top:8px;">
       <div class="resumo-title">Performance por loja</div>
@@ -967,6 +1005,8 @@ const RESUMO_FAT_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}
 const RESUMO_PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
 const RESUMO_RECBIDOS_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=recebidos&loja=${k}`);
 const RESUMO_DEPARA_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=depara&loja=${k}`);
+const RESUMO_COMPRAS_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=compras&loja=${k}`);
+const RESUMO_CURVAABC_URLS = RESUMO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=curvaabc&loja=${k}`);
 
 function resumoNorm(s) {
   return String(s).trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '')
@@ -1273,11 +1313,11 @@ async function carregarResumoGeral() {
     try {
       resumoInicializarFiltros({
         fatRows: cached.fatRows, cmvRows: cached.cmvRows, recebidosRows: cached.recebidosRows,
-        ctasPagarRows: cached.ctasPagarRows, metaRows: cached.metaRows, resumoDebugRecebidos: cached.resumoDebugRecebidos,
+        ctasPagarRows: cached.ctasPagarRows, comprasRows: cached.comprasRows || [], custoProdutoRows: cached.custoProdutoRows || [], metaRows: cached.metaRows, resumoDebugRecebidos: cached.resumoDebugRecebidos,
         anosDisponiveis: new Set(cached.anosDisponiveis), anoAtual, mesAtual, MES_NOME
       });
       resumoInicializarGraficos({
-        fatRows: cached.fatRows, cmvRows: cached.cmvRows, metaRows: cached.metaRows,
+        fatRows: cached.fatRows, cmvRows: cached.custoProdutoRows || [], metaRows: cached.metaRows,
         anosDisponiveis: new Set(cached.anosDisponiveis), anoAtual
       });
     } catch (e) { console.warn('[Resumo Geral] Falha ao aplicar cache local:', e); }
@@ -1294,7 +1334,12 @@ async function carregarResumoGeral() {
   // entre telas mais lenta sem trazer nada de novo.
   const CACHE_MAX_AGE_MS = 12 * 60 * 60 * 1000;
   const cacheEnvelhecido = cacheAplicado && (Date.now() - (cached.ts || 0) > CACHE_MAX_AGE_MS);
-  const precisaAtualizar = !cacheAplicado || cacheEnvelhecido || existeAtualizacaoMaisRecenteZappas(cached ? cached.ts : 0);
+  // Cache salvo antes do CMV do DFC passar a vir de Compras (em vez do
+  // Contas a Pagar) não tem comprasRows — força atualização pra não ficar
+  // mostrando CMV zerado no bloco DFC até o cache de 12h expirar sozinho.
+  const comprasAusente = cacheAplicado && !Array.isArray(cached.comprasRows);
+  const custoAusente = cacheAplicado && !Array.isArray(cached.custoProdutoRows);
+  const precisaAtualizar = !cacheAplicado || cacheEnvelhecido || comprasAusente || custoAusente || existeAtualizacaoMaisRecenteZappas(cached ? cached.ts : 0);
   if (!precisaAtualizar) return;
 
   // A partir daqui busca os dados de verdade nas planilhas — o cache
@@ -1437,7 +1482,13 @@ async function carregarResumoGeral() {
     // De-Para "global" (junção de todas as lojas) em vez de zerar as Entradas — ver comentário acima
     // de deparaMapGlobal.
     const usandoDeparaFallback = deparaMapProprio.size === 0 && deparaMapGlobal.size > 0;
-    const dbg = resumoDebugRecebidos[lojaKey.toUpperCase()] = { lidos: 0, semColuna: false, semDepara: 0, semCategoria: 0, semData: 0, incluidos: 0, deparaMapSize: deparaMapProprio.size, deparaFallback: usandoDeparaFallback, erro: null };
+    const dbg = resumoDebugRecebidos[lojaKey.toUpperCase()] = {
+      lidos: 0, semColuna: false, semCodigo: 0, valorZero: 0, semDepara: 0, semCategoria: 0, semData: 0, incluidos: 0,
+      deparaMapSize: deparaMapProprio.size, deparaFallback: usandoDeparaFallback, erro: null,
+      // Detalhe de quem exatamente ficou de fora — pra investigar semDepara/semCategoria em vez de
+      // só ver o número agregado. Guarda por código/categoria: quantas linhas e quanto em R$.
+      semDeparaDetalhe: new Map(), semCategoriaDetalhe: new Map(),
+    };
     try {
       const txt = await resumoFetchCSV(url);
       const { rows, headers } = resumoParseCSV(txt);
@@ -1450,12 +1501,18 @@ async function carregarResumoGeral() {
       if (!cCodPgto || !cConta) { dbg.semColuna = true; return; }
       const deparaMap = usandoDeparaFallback ? deparaMapGlobal : deparaMapProprio;
 
+      const registraDetalhe = (mapa, chave, valor) => {
+        const atual = mapa.get(chave) || { count: 0, soma: 0 };
+        atual.count++; atual.soma += valor;
+        mapa.set(chave, atual);
+      };
+
       rows.forEach(r => {
-        const valor = resumoParseNum(r[cConta]); if (!valor) return;
-        const codPgto = cCodPgto ? String(r[cCodPgto] || '').trim() : ''; if (!codPgto) return;
+        const valor = resumoParseNum(r[cConta]); if (!valor) { dbg.valorZero++; return; }
+        const codPgto = cCodPgto ? String(r[cCodPgto] || '').trim() : ''; if (!codPgto) { dbg.semCodigo++; return; }
         let recebimento = deparaMap.get(codPgto) || deparaMap.get(String(parseInt(codPgto.replace(/\D/g, ''), 10) || '')) || '';
-        if (!recebimento) { dbg.semDepara++; return; }
-        if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) { dbg.semCategoria++; return; }
+        if (!recebimento) { dbg.semDepara++; registraDetalhe(dbg.semDeparaDetalhe, codPgto, valor); return; }
+        if (!RESUMO_CAT_PERMITIDAS.some(p => resumoNormCat(recebimento).includes(p))) { dbg.semCategoria++; registraDetalhe(dbg.semCategoriaDetalhe, recebimento, valor); return; }
 
         const dt = cDtEntrada ? resumoParseDtEntrada(r[cDtEntrada]) : null;
         let mes = cMes ? resumoParseMes(r[cMes]) : null;
@@ -1522,18 +1579,87 @@ async function carregarResumoGeral() {
     } catch (e) { /* loja indisponível — segue com as demais */ }
   }));
 
-  await Promise.all([pFaturamento, pPlanoContas, pDePara, pMeta, pRecebidos, pCtasPagar]);
+  // ── Compras (todas as lojas) — CMV (Compra) do DFC ──
+  // Mesma fonte usada no DRE_Gerencial.html (substituiu a classificação via
+  // Contas a Pagar + Plano de Contas): colunas ano;mes;total;loja. Usa a
+  // coluna "total" (valor de fato da compra), soma tudo sem deduplicar —
+  // ver parseCompras()/COMPRAS_URLS no DRE_Gerencial.html pra mais detalhes.
+  const comprasRows = [];
+  const pCompras = resumoMapLimit(RESUMO_COMPRAS_URLS, 2, async (url, idx) => {
+    try {
+      const txt = await resumoFetchCSV(url);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cAno = resumoFindCol(headers, ['ano']);
+      const cMes = resumoFindCol(headers, ['mes']);
+      const cTotal = resumoFindCol(headers, ['total']);
+      const cLoja = resumoFindCol(headers, ['loja']);
+      if (!cAno || !cMes || !cTotal) return; // planilha sem as colunas esperadas — ignora essa loja
+      const lojaFallback = RESUMO_STORE_KEYS[idx].toUpperCase();
+
+      rows.forEach(r => {
+        const ano = resumoParseAno(r[cAno]);
+        const mes = resumoParseMes(r[cMes]);
+        if (!ano || !mes) return;
+        const valor = resumoParseNum(r[cTotal]); if (!valor) return;
+        const loja = (cLoja ? resumoMatchLojaKey(r[cLoja]) : null) || lojaFallback;
+        comprasRows.push({ ano, mes, valor, loja });
+        anosDisponiveis.add(ano);
+      });
+    } catch (e) { /* loja indisponível — segue com as demais */ }
+  });
+
+  // ── Curva ABC de Produtos (todas as lojas) — CMV do DRE Gerencial ──
+  // Mesma fonte usada no DRE_Gerencial.html/Curva_ABC_Produto.html: soma
+  // custofinal × qtd por linha. É o CMV do regime de competência (a Compras
+  // acima é o CMV do regime de caixa/DFC) — por isso os dois blocos abaixo
+  // (DFC e DRE) usam fontes de CMV diferentes de propósito.
+  const custoProdutoRows = [];
+  const pCurvaABC = resumoMapLimit(RESUMO_CURVAABC_URLS, 2, async (url, idx) => {
+    try {
+      const txt = await resumoFetchCSV(url);
+      const { rows, headers } = resumoParseCSV(txt);
+      const cData = resumoFindCol(headers, ['data']);
+      const cAno = resumoFindCol(headers, ['ano']);
+      const cMes = resumoFindCol(headers, ['mes']);
+      const cCusto = resumoFindCol(headers, ['custofinal', 'custo', 'custounitario']);
+      const cQtd = resumoFindCol(headers, ['qtd', 'quantidade']);
+      const cLoja = resumoFindCol(headers, ['loja']);
+      if (!cCusto || !cQtd) return; // planilha sem as colunas esperadas — ignora essa loja
+      const lojaFallback = RESUMO_STORE_KEYS[idx].toUpperCase();
+
+      rows.forEach(r => {
+        let ano = cAno ? resumoParseAno(r[cAno]) : null;
+        let mes = cMes ? resumoParseMes(r[cMes]) : null;
+        if ((!ano || !mes) && cData) {
+          const dt = resumoParseDataBR(r[cData]);
+          if (dt) { if (!ano) ano = dt.ano; if (!mes) mes = dt.mes; }
+        }
+        if (!ano || !mes) return;
+
+        const qtd = resumoParseNum(r[cQtd]);
+        const custoUnit = resumoParseNum(r[cCusto]);
+        const valor = custoUnit * qtd;
+        if (!valor) return;
+
+        const loja = (cLoja ? resumoMatchLojaKey(r[cLoja]) : null) || lojaFallback;
+        custoProdutoRows.push({ ano, mes, valor, loja });
+        anosDisponiveis.add(ano);
+      });
+    } catch (e) { /* loja indisponível — segue com as demais */ }
+  });
+
+  await Promise.all([pFaturamento, pPlanoContas, pDePara, pMeta, pRecebidos, pCtasPagar, pCompras, pCurvaABC]);
 
   // ── Indicadores Gerais + Indicadores Principais (DFC) + Performance por Loja ──
   // Os três são recalculados juntos, reagindo aos filtros de Ano/Mês/Loja — ver resumoRenderFiltrados().
   // Cada bloco roda em try/catch isolado: um erro num deles não pode impedir os outros de aparecer.
   try {
-    resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, metaRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
+    resumoInicializarFiltros({ fatRows, cmvRows, recebidosRows, ctasPagarRows, comprasRows, custoProdutoRows, metaRows, resumoDebugRecebidos, anosDisponiveis, anoAtual, mesAtual, MES_NOME });
   } catch (e) { console.error('[Resumo Geral] Falha em Indicadores Gerais/DFC/Performance por Loja:', e); }
 
   // ── Evolução mensal (gráficos + filtro de ano) ──
   try {
-    resumoInicializarGraficos({ fatRows, cmvRows, metaRows, anosDisponiveis, anoAtual });
+    resumoInicializarGraficos({ fatRows, cmvRows: custoProdutoRows, metaRows, anosDisponiveis, anoAtual });
   } catch (e) {
     console.error('[Resumo Geral] Falha em Evolução Mensal:', e);
     const evoEmpty = document.getElementById('chartEvolucao-empty');
@@ -1545,7 +1671,7 @@ async function carregarResumoGeral() {
   resumoSetLoading(false);
   // Guarda o resultado desta busca pra próxima abertura da home mostrar
   // na hora (ver cache no início da função).
-  resumoSaveCache({ fatRows, cmvRows, recebidosRows, ctasPagarRows, metaRows, resumoDebugRecebidos, anosDisponiveis: [...anosDisponiveis] });
+  resumoSaveCache({ fatRows, cmvRows, recebidosRows, ctasPagarRows, comprasRows, custoProdutoRows, metaRows, resumoDebugRecebidos, anosDisponiveis: [...anosDisponiveis] });
 }
 
 // ---------------------------------------------------------------------------
@@ -1575,11 +1701,44 @@ function resumoDebugEntradasZero(d, resumoDebugRecebidos) {
 // Diagnóstico TEMPORÁRIO — mostra sempre (mesmo com Entradas > 0) os números por trás do cálculo,
 // pra investigar por que Damha/Belvedere não batem com o DFC mesmo com Entradas não-zeradas.
 // Remover depois que o motivo da diferença for confirmado.
+// Monta a lista expansível (<details>) com o "quem" por trás de um contador do diagnóstico —
+// ex.: quais códigos de pagamento (semDepara) ou quais textos de categoria (semCategoria) ficaram
+// de fora, quantas linhas cada um teve e quanto somam em R$. Ordena do que mais pesa em R$ pro que
+// menos pesa, e mostra só os 15 primeiros (o resto entra num "+N outros" pra não pesar a tela).
+function resumoDebugDetalheLista(titulo, mapa) {
+  if (!mapa || !mapa.size) return '';
+  const linhas = [...mapa.entries()]
+    .map(([chave, v]) => ({ chave: chave || '(vazio)', ...v }))
+    .sort((a, b) => b.soma - a.soma);
+  const TOP = 15;
+  const visiveis = linhas.slice(0, TOP);
+  const resto = linhas.slice(TOP);
+  const restoTxt = resto.length
+    ? `<div style="margin-top:4px;opacity:.75">+ ${resto.length} outro(s), somando ${resumoFmtBRL(resto.reduce((a, r) => a + r.soma, 0))}</div>`
+    : '';
+  return `
+    <details style="margin-top:6px;">
+      <summary style="cursor:pointer;color:#1A3D6B;">${titulo} (${linhas.length} distintos) — ver quais</summary>
+      <table style="width:100%;margin-top:4px;border-collapse:collapse;font-size:10px;">
+        <thead><tr style="text-align:left;opacity:.7;">
+          <th style="padding:2px 4px 2px 0;">valor</th><th style="padding:2px 4px;text-align:right;">linhas</th><th style="padding:2px 0 2px 4px;text-align:right;">soma R$</th>
+        </tr></thead>
+        <tbody>${visiveis.map(l => `<tr><td style="padding:2px 4px 2px 0;">${l.chave}</td><td style="padding:2px 4px;text-align:right;">${l.count}</td><td style="padding:2px 0 2px 4px;text-align:right;">${resumoFmtBRL(l.soma)}</td></tr>`).join('')}</tbody>
+      </table>
+      ${restoTxt}
+    </details>`;
+}
+
 function resumoDebugSempre(d, resumoDebugRecebidos) {
   if (!resumoDebugRecebidos) return '';
   const dbg = resumoDebugRecebidos[d.loja];
   if (!dbg) return '';
-  return `<div class="perf-loja-debug" style="color:#666">diag: lidos=${dbg.lidos} próprio=${dbg.deparaMapSize} fallback=${dbg.deparaFallback ? 'sim' : 'não'} incluidos=${dbg.incluidos} semDepara=${dbg.semDepara} semCategoria=${dbg.semCategoria} semData=${dbg.semData}</div>`;
+  return `<div class="perf-loja-debug" style="color:#666">
+    diag: lidos=${dbg.lidos} próprio=${dbg.deparaMapSize} fallback=${dbg.deparaFallback ? 'sim' : 'não'} incluidos=${dbg.incluidos}
+    semDepara=${dbg.semDepara} semCategoria=${dbg.semCategoria} semData=${dbg.semData} semCódigo=${dbg.semCodigo || 0} valorZero=${dbg.valorZero || 0}
+    ${resumoDebugDetalheLista('Códigos sem De-Para', dbg.semDeparaDetalhe)}
+    ${resumoDebugDetalheLista('Categorias fora do permitido', dbg.semCategoriaDetalhe)}
+  </div>`;
 }
 
 const RESUMO_PALETTE = [
@@ -1616,7 +1775,7 @@ function resumoInicializarFiltros(state) {
 
 function resumoRenderFiltrados() {
   if (!resumoFiltroState) return;
-  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, metaRows, resumoDebugRecebidos, MES_NOME } = resumoFiltroState;
+  const { fatRows, cmvRows, recebidosRows, ctasPagarRows, comprasRows, custoProdutoRows, metaRows, resumoDebugRecebidos, MES_NOME } = resumoFiltroState;
   const selAno = document.getElementById('ig-f-ano');
   const selMes = document.getElementById('ig-f-mes');
   const selLoja = document.getElementById('ig-f-loja');
@@ -1640,8 +1799,12 @@ function resumoRenderFiltrados() {
   const periodoCurto = (mes ? MES_NOME[mes] + '/' : '') + (ano || '—') + (loja ? ' · ' + loja : '');
 
   // ── Indicadores Gerais ──
+  // CMV Total aqui é o custo do produto (Curva ABC — custofinal × qtd), o
+  // mesmo usado no bloco DRE Gerencial abaixo. Não usa mais cmvRows (que é
+  // uma classificação por grupo do Contas a Pagar, uma terceira fonte
+  // diferente de Compras e da Curva ABC).
   const totalFatF = fatRows.filter(bate).reduce((a, r) => a + r.valor, 0);
-  const totalCmvF = cmvRows.filter(bate).reduce((a, r) => a + r.valor, 0);
+  const totalCmvF = custoProdutoRows.filter(bate).reduce((a, r) => a + r.valor, 0);
   const lucroF = totalFatF - totalCmvF;
   const margemF = totalFatF > 0 ? (lucroF / totalFatF) * 100 : 0;
 
@@ -1681,7 +1844,11 @@ function resumoRenderFiltrados() {
   const g = slug => sumsBySlug[slug] || 0;
   const impVendas = g('impostos_vendas'), dedVendas = g('deducoes_vendas');
   const recLiq = receitaOperacional - impVendas - dedVendas;
-  const lucroBrutoDre = recLiq - g('cmv');
+  // CMV (Compra) no DFC vem do arquivo de Compras por loja (não mais da
+  // classificação via Contas a Pagar + Plano de Contas) — mesma fonte e
+  // mesmo critério (soma de "total", sem deduplicar) do DRE_Gerencial.html.
+  const cmvDfc = (comprasRows || []).filter(bate).reduce((a, r) => a + r.valor, 0);
+  const lucroBrutoDre = recLiq - cmvDfc;
   const resOp = lucroBrutoDre - g('despesas_comerciais') - g('despesas_pessoal') - g('despesas_administrativas') - g('despesas_financeiras') - g('pro_labore');
   const ebitda = resOp + jurosBancarios;
   const resLiqDre = (resOp - g('distribuicao_lucro') - g('ir_csll')) - g('emprestimos_financiamentos') - g('investimento') - g('parcelamento_impostos');
@@ -1700,6 +1867,49 @@ function resumoRenderFiltrados() {
 
   setVal('kpi-dre-resultliq', resumoFmtBRL(resLiqDre));
   setFoot('kpi-dre-resultliq-foot', receitaOperacional > 0 ? 'margem líquida ' + resumoFmtPct((resLiqDre / receitaOperacional) * 100) : '—', resLiqDre >= 0 ? 'pos' : 'neg');
+
+  // ── Demonstração do Resultado do Exercício — DRE (regime de competência) ──
+  // Mesma fórmula do "DRE Gerencial" do outro arquivo: Receita vem do
+  // Faturamento (Análise Comercial, já carregado em fatRows/totalFatF) e CMV
+  // vem da Curva ABC de Produtos — mesmo totalCmvF calculado acima pro card
+  // "CMV Total" de Indicadores Gerais, já que os dois usam a mesma fonte.
+  // Impostos sobre Vendas são deslocados 1 mês (o mesmo critério do
+  // DRE_Gerencial.html: imposto pago em fevereiro entra no DRE de janeiro).
+  // As demais despesas reaproveitam a mesma classificação do Contas a Pagar
+  // usada no bloco DFC acima (ctasF/g), sem deslocamento — só a Receita e o
+  // CMV mudam de fonte entre os dois regimes.
+  const receitaOperacionalGer = totalFatF;
+  const cmvGer = totalCmvF;
+
+  const impostosGerRows = ctasPagarRows
+    .filter(r => r.slug === 'impostos_vendas')
+    .map(r => {
+      let mes = r.mes - 1, ano = r.ano;
+      if (mes < 1) { mes = 12; ano -= 1; }
+      return { ano, mes, loja: r.loja, valor: r.valor };
+    });
+  const impVendasGer = impostosGerRows.filter(bate).reduce((a, r) => a + r.valor, 0);
+
+  const recLiqGer = receitaOperacionalGer - impVendasGer - dedVendas;
+  const lucroBrutoGer = recLiqGer - cmvGer;
+  const resOpGer = lucroBrutoGer - g('despesas_comerciais') - g('despesas_pessoal') - g('despesas_administrativas') - g('despesas_financeiras') - g('pro_labore');
+  const ebitdaGer = resOpGer + jurosBancarios;
+  const resLiqGer = (resOpGer - g('distribuicao_lucro') - g('ir_csll')) - g('emprestimos_financiamentos') - g('investimento') - g('parcelamento_impostos');
+
+  setVal('kpi-dregerencial-receita', resumoFmtBRL(receitaOperacionalGer));
+  setFoot('kpi-dregerencial-receita-foot', 'faturado no período (Análise Comercial)');
+
+  setVal('kpi-dregerencial-lucrobruto', resumoFmtBRL(lucroBrutoGer));
+  setFoot('kpi-dregerencial-lucrobruto-foot', receitaOperacionalGer > 0 ? 'margem bruta ' + resumoFmtPct((lucroBrutoGer / receitaOperacionalGer) * 100) : '—', lucroBrutoGer >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dregerencial-resultop', resumoFmtBRL(resOpGer));
+  setFoot('kpi-dregerencial-resultop-foot', receitaOperacionalGer > 0 ? 'mg. operacional ' + resumoFmtPct((resOpGer / receitaOperacionalGer) * 100) : '—', resOpGer >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dregerencial-ebitda', resumoFmtBRL(ebitdaGer));
+  setFoot('kpi-dregerencial-ebitda-foot', receitaOperacionalGer > 0 ? 'margem EBITDA ' + resumoFmtPct((ebitdaGer / receitaOperacionalGer) * 100) : '—', ebitdaGer >= 0 ? 'pos' : 'neg');
+
+  setVal('kpi-dregerencial-resultliq', resumoFmtBRL(resLiqGer));
+  setFoot('kpi-dregerencial-resultliq-foot', receitaOperacionalGer > 0 ? 'margem líquida ' + resumoFmtPct((resLiqGer / receitaOperacionalGer) * 100) : '—', resLiqGer >= 0 ? 'pos' : 'neg');
 
   // ── Performance por Loja (respeita os mesmos filtros; Loja selecionada mostra só aquele card) ──
   const lojaPeriodoEl = document.getElementById('loja-period');
