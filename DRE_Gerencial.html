@@ -3900,8 +3900,8 @@ function renderDRE(){
     if(slot.slug==='cmv'){
       const cmvTot=rowTotal(cmv);
       const cmvLabel = dreView==='gerencial'
-        ? 'CMV — Custo Mercadoria Vendida (Produto)'
-        : 'CMV — Custo Mercadoria Vendida (Compra)';
+        ? 'CMV — CUSTO MERCADORIA VENDIDA (PRODUTO)'
+        : 'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)';
       html+=`<tr class="row-group" style="cursor:default">
         <td><span class="dre-sign">${slot.sign}</span>${cmvLabel}</td>
         ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
@@ -4448,7 +4448,7 @@ function renderDREConsolidado(){
        que ainda aguardam a planilha por vencimento. */
     if(slot.slug==='cmv'){
       html+=`<tr class="row-group" style="cursor:default">
-        <td><span class="dre-sign">${slot.sign}</span>Custo Mercadoria Vendida</td>
+        <td><span class="dre-sign">${slot.sign}</span>CUSTO MERCADORIA VENDIDA</td>
         ${cols.map(c=>triple(cmvGer[c]||0,cmvDfc[c]||0,cellVal,true)).join('')}
         ${triple(rowTotal(cmvGer),rowTotal(cmvDfc),cellVal,true)}
       </tr>`;
