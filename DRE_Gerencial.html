@@ -1448,6 +1448,11 @@ a.side-brand:hover { opacity:.85; }
       <div class="ig-fmulti-panel" id="fMesPanel" onclick="event.stopPropagation()"></div>
     </div>
     <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="fLoja" onchange="applyFilters()"><option value="">Todas as Lojas</option></select></div>
+    <div class="ig-fgroup ig-fmulti-wrap" id="fCanalWrap">
+      <span class="ig-flabel">Canal</span>
+      <button type="button" class="ig-fselect ig-fmulti-btn" id="fCanalBtn" onclick="toggleCanalDropdown(event)">Loja, Delivery, Central</button>
+      <div class="ig-fmulti-panel" id="fCanalPanel" onclick="event.stopPropagation()"></div>
+    </div>
     <button class="ig-btn-clear" onclick="clearFilters()">Limpar</button>
   </div>
 
@@ -2378,6 +2383,17 @@ function parseContasPagar(text, planoMap, lojaFallback){
 // Delivery e Central (Central = DISTRIBUICAO + VS False + Fabrica True,
 // ver classificarCanal). Distribuição e Reembolso NÃO entram.
 const CANAIS_FATURAMENTO = ['loja','delivery','central'];
+// Todos os canais possíveis (mesmos da Análise Comercial), na ordem em
+// que aparecem no filtro e nas linhas do DRE.
+const CANAIS_TODOS = [['loja','Loja'],['delivery','Delivery'],['central','Central'],['distribuicao','Distribuição'],['reembolso','Reembolso']];
+// Filtro de Canal (multi-select). Padrão SEMPRE Loja + Delivery + Central
+// — ao abrir a página e ao clicar em "Limpar".
+let canaisSelecionados = [...CANAIS_FATURAMENTO];
+// Canais exibidos nas linhas da Receita (Gerencial / DRE x DFC).
+function canaisVisiveis(){
+  const sel = canaisSelecionados.length ? canaisSelecionados : CANAIS_TODOS.map(([k])=>k);
+  return CANAIS_TODOS.filter(([k])=>sel.includes(k)).map(([k,l])=>[k,l.toUpperCase()]);
+}
 // Classificação do canal — MESMA regra da Análise Comercial
 // (Analise_Comercial.html → parseCSV):
 //   • Loja / Delivery / Central: pelo nome exato do canal.
@@ -2391,10 +2407,10 @@ const RE_TRUE = /^(true|verdadeiro|1|sim)$/i;
 function classificarCanal(txt, vs, fabrica){
   const canal = normKey(txt);
   if(canal==='distribuicao'){
-    if(vs) return '';                 // Reembolso ou descartada
-    return fabrica ? 'central' : '';  // Central ou Distribuição
+    if(vs) return fabrica ? '' : 'reembolso';      // descartada ou Reembolso
+    return fabrica ? 'central' : 'distribuicao';   // Central ou Distribuição
   }
-  return CANAIS_FATURAMENTO.includes(canal) ? canal : '';
+  return CANAIS_TODOS.some(([k])=>k===canal) ? canal : '';
 }
 // Busca de coluna só por nome exato (sem o "match parcial" do findCol,
 // que poderia confundir "vs"/"fabrica" com outras colunas).
@@ -2455,7 +2471,7 @@ function parseVendas(text, lojaFallback){
       if(!canalMatch){
         // Distribuição/Reembolso ficam fora de propósito (igual à Análise
         // Comercial) — só registra nomes de canal desconhecidos.
-        if(t && normKey(t)!=='distribuicao' && normKey(t)!=='reembolso') canaisIgnorados.add(t);
+        if(t && normKey(t)!=='distribuicao') canaisIgnorados.add(t);
         continue;
       }
     }
@@ -2629,7 +2645,7 @@ async function fetchCSV(url){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v4';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v5';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -3045,6 +3061,46 @@ document.addEventListener('click', ()=>{
   if(panel) panel.classList.remove('is-open');
 });
 
+/* ── Filtro de Canal (multi-select, padrão Loja + Delivery + Central) ──
+   Afeta a Receita do DRE Gerencial (faturamento da Análise Comercial) e o
+   lado "DRE Ger." do DRE x DFC. O DFC (Recebido classificado) não tem
+   canal, então não muda com esse filtro. */
+function canaisLabel(){
+  const n = canaisSelecionados.length;
+  if(!n || n===CANAIS_TODOS.length) return 'Todos os Canais';
+  return CANAIS_TODOS.filter(([k])=>canaisSelecionados.includes(k)).map(([,l])=>l).join(', ');
+}
+function renderCanalPanel(){
+  const panel=document.getElementById('fCanalPanel');
+  if(!panel) return;
+  panel.innerHTML = `
+    <div class="ig-fmulti-actions">
+      <button type="button" onclick="canaisPadrao()">Padrão</button>
+      <button type="button" onclick="selecionarTodosCanais()">Todos</button>
+    </div>
+    ${CANAIS_TODOS.map(([k,l])=>`<label class="ig-fmulti-opt"><input type="checkbox" value="${k}" ${canaisSelecionados.includes(k)?'checked':''} onchange="toggleCanal('${k}')">${l}</label>`).join('')}`;
+  const btn=document.getElementById('fCanalBtn');
+  if(btn) btn.textContent = canaisLabel();
+}
+function toggleCanalDropdown(ev){
+  if(ev) ev.stopPropagation();
+  const mp=document.getElementById('fMesPanel'); if(mp) mp.classList.remove('is-open');
+  const panel=document.getElementById('fCanalPanel');
+  if(panel) panel.classList.toggle('is-open');
+}
+document.addEventListener('click', ()=>{
+  const panel=document.getElementById('fCanalPanel');
+  if(panel) panel.classList.remove('is-open');
+});
+function toggleCanal(k){
+  const i = canaisSelecionados.indexOf(k);
+  if(i===-1) canaisSelecionados.push(k); else canaisSelecionados.splice(i,1);
+  renderCanalPanel();
+  applyFilters();
+}
+function canaisPadrao(){ canaisSelecionados=[...CANAIS_FATURAMENTO]; renderCanalPanel(); applyFilters(); }
+function selecionarTodosCanais(){ canaisSelecionados=CANAIS_TODOS.map(([k])=>k); renderCanalPanel(); applyFilters(); }
+
 function toggleMes(m){
   const i = mesesSelecionados.indexOf(m);
   if(i===-1) mesesSelecionados.push(m); else mesesSelecionados.splice(i,1);
@@ -3073,6 +3129,7 @@ function populateFilters(){
   sel('fAno',anos,a=>String(a),'Todos os Anos');
   sel('fLoja',lojas,l=>l,'Todas as Lojas');
   mesesDisponiveis = meses;
+  renderCanalPanel();
   // Remove da seleção qualquer mês que não exista mais nos dados atuais
   // (ex.: trocou de fonte de dados) antes de redesenhar o painel.
   mesesSelecionados = mesesSelecionados.filter(m=>meses.includes(m));
@@ -3120,6 +3177,9 @@ function applyFilters(){
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(loja&&r.loja!==loja) return false;
+    // Canal: nenhum marcado = todos. Linhas sem canal (planilha sem a
+    // coluna) sempre entram, como antes.
+    if(r.canal && canaisSelecionados.length && !canaisSelecionados.includes(r.canal)) return false;
     return true;
   });
   filteredCusto=custoProdutoRaw.filter(r=>{
@@ -3148,6 +3208,8 @@ function clearFilters(){
   mesesSelecionados=[];
   renderMesPanel();
   document.getElementById('fLoja').value='';
+  canaisSelecionados=[...CANAIS_FATURAMENTO];
+  renderCanalPanel();
   applyFilters();
 }
 
@@ -3917,7 +3979,7 @@ function renderDRE(){
         <td style="font-weight:700">${cellVal(totBase)}</td>
         ${avCell(totBase,totBase)}
       </tr>`;
-      [['loja','LOJA'],['delivery','DELIVERY'],['central','CENTRAL']].forEach(([canalKey,canalLabel])=>{
+      canaisVisiveis().forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
         const cTot=rowTotal(cVals);
         const iId=uid();
@@ -4120,6 +4182,7 @@ function renderDRE(){
   const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
   const subtitleGerencial = dreView==='gerencial'
     ? ' · Receita = faturamento da Análise Comercial · Despesas ainda por data de pagamento (aguardando planilha por vencimento)'
+      + ' · Canais: ' + canaisLabel()
       + (canaisIgnorados.size ? ' · Canais desconhecidos ignorados: ' + [...canaisIgnorados].join(', ') : '')
     : '';
   document.getElementById('dreSubtitle').textContent=
@@ -4440,7 +4503,7 @@ function renderDREConsolidado(){
         ${cols.map(c=>triple(recGer[c]||0,0,cellVal)).join('')}
         ${triple(rowTotal(recGer),0,cellVal)}
       </tr>`;
-      [['loja','Loja'],['delivery','Delivery'],['central','Central']].forEach(([canalKey,canalLabel])=>{
+      canaisVisiveis().map(([k,l])=>[k,l.charAt(0)+l.slice(1).toLowerCase()]).forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
         const iId=uid();
         const lId=registrarLanc(itensDoCanal(filteredVendas,canalKey));
