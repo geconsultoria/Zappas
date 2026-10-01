@@ -2314,7 +2314,7 @@ function renderConferenciaCusto(rowsLoja, rowsSemLoja){
     return;
   }
 
-  const limite = semcustoMostrarTodos ? lista.length : 500;
+  const limite = lista.length;
   const limitado = lista.slice(0, limite);
   $('ctb-semcusto').innerHTML = limitado.map(p => `
     <tr>
@@ -2326,7 +2326,7 @@ function renderConferenciaCusto(rowsLoja, rowsSemLoja){
       <td class="num">${fBRL(p.total)}</td>
       <td class="num">${fBRL(modo100 ? 0 : p.custoTotal)}</td>
       <td class="num">${fPct(modo100 ? 100 : 0)}</td>
-    </tr>`).join('') + rodapeVerTodos(lista.length, limite, 8);
+    </tr>`).join('');
 }
 
 function renderDivergenciaCusto(rowsSemLoja){
@@ -2344,7 +2344,7 @@ function renderDivergenciaCusto(rowsSemLoja){
     return;
   }
 
-  const limite = semcustoMostrarTodos ? lista.length : 500;
+  const limite = lista.length;
   const limitado = lista.slice(0, limite);
   $('ctb-semcusto').innerHTML = limitado.map(p => {
     const tds = TOP10_LOJA_COLS.map(c => {
@@ -2359,7 +2359,7 @@ function renderDivergenciaCusto(rowsSemLoja){
       <td>${p.nome}</td>
       ${tds}
     </tr>`;
-  }).join('') + rodapeVerTodos(lista.length, limite, 2+TOP10_LOJA_COLS.length);
+  }).join('');
 }
 
 /* Rodapé "Mostrando N de M" compartilhado pelas listas de Conferência de
@@ -2407,9 +2407,28 @@ function detalheProduto(p, colspan, pct, pctAcum, classe, metricLabel){
     </tr>`;
 }
 
+/* Tabela de produtos paginada pelos DADOS (10 por tela): com milhares de
+   produtos, renderizar tudo de uma vez deixaria a tela lenta — então só a
+   página atual vai pro HTML. Qualquer novo render vindo de filtro/modo/
+   ordenação volta pra página 1; só o clique na paginação mantém a página. */
+let prodPagina = 1, _prodManterPagina = false, _prodUltimo = null;
+const PG_TAM = () => (typeof PAGINA_TAM !== 'undefined' ? PAGINA_TAM : 10);
 function renderTabela(data, produtos, metric){
+  _prodUltimo = { data, produtos, metric };
+  if(!_prodManterPagina) prodPagina = 1;
+  _prodManterPagina = false;
+  const nPag = Math.max(1, Math.ceil(data.length / PG_TAM()));
+  if(prodPagina > nPag) prodPagina = nPag;
   if(viewMode === 'mensal') renderTabelaMensal(data, produtos, metric);
   else renderTabelaResumo(data, metric);
+  if(typeof desenharPager === 'function'){
+    const scroll = $('ct-produtos').closest('.comp-scroll');
+    desenharPager(scroll, data.length, prodPagina, pag => {
+      prodPagina = pag; _prodManterPagina = true;
+      const u = _prodUltimo; renderTabela(u.data, u.produtos, u.metric);
+      scroll.scrollTop = 0;
+    });
+  }
 }
 
 /* ── Visão Resumo: uma linha por produto/loja, totais do período ── */
@@ -2430,7 +2449,8 @@ function renderTabelaResumo(data, metric){
     return;
   }
 
-  const limitado = data.slice(0, 500);
+  const _ini = (prodPagina-1)*PG_TAM();
+  const limitado = data.slice(_ini, _ini + PG_TAM());
 
   $('ctb-produtos').innerHTML = limitado.map((p,i) => {
     p.__i = i;
@@ -2463,8 +2483,7 @@ function renderTabelaResumo(data, metric){
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path stroke-linecap="round" stroke-linejoin="round" d="M9 6l6 6-6 6"/></svg>
       </button></td>${linha}
     </tr>` + detalheProduto(p, colspan, pct, pctAcum, classe, metricLabel);
-  }).join('') +
-    (data.length > 500 ? `<tr><td colspan="${colspan}" class="nd">Mostrando os 500 produtos com maior ${metricLabel.toLowerCase()}, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+  }).join('');
 }
 
 /* ── Visão Mensal: uma coluna por mês (% daquele mês), Grupo removido
@@ -2498,7 +2517,8 @@ function renderTabelaMensal(data, produtos, metric){
   }
 
   const totalFmt = p => metric==='qtd' ? fN(p.qtd) : (metric==='lucro' ? fBRL(p.margem) : fBRL(p.total));
-  const limitado = data.slice(0, 500);
+  const _ini = (prodPagina-1)*PG_TAM();
+  const limitado = data.slice(_ini, _ini + PG_TAM());
 
   $('ctb-produtos').innerHTML = limitado.map((p,i) => {
     p.__i = i;
@@ -2529,8 +2549,7 @@ function renderTabelaMensal(data, produtos, metric){
       <td class="num">${fPct(pctAcum)}</td>
       <td>${badge(classe)}</td>
     </tr>` + detalheProduto(p, colspan, pct, pctAcum, classe, metricLabel);
-  }).join('') +
-    (data.length > 500 ? `<tr><td colspan="${colspan}" class="nd">Mostrando os 500 produtos com maior ${metricLabel.toLowerCase()}, de ${fN(data.length)} encontrados. Use os filtros para refinar.</td></tr>` : '');
+  }).join('');
 }
 
 function toggleCtDetail(btn){
@@ -2647,11 +2666,11 @@ AuthGuard.requireScreen('curva_abc_produto', function(){ loadData(false); });
    grid e, toda vez que a tabela é redesenhada (troca de filtro, modo,
    ordenação…), volta pra página 1 e esconde o resto.
    • A linha de detalhe expandida (tr.ct-detail) anda junto com o produto.
-   • Linhas de aviso/rodapé (td.nd, ex.: "Mostrando os 500…") ficam
+   • Linhas de aviso (td.nd, ex.: "Nenhum produto encontrado") ficam
      sempre visíveis.
 ══════════════════════════════════════════════════════════════ */
 const PAGINA_TAM = 10;
-const GRIDS_PAGINADOS = ['ctb-grupos','ctb-produtos','ctb-semcusto'];
+const GRIDS_PAGINADOS = ['ctb-grupos','ctb-semcusto']; // produtos: paginado pelos dados (ver renderTabela)
 const _pgEstado = {};
 
 function _pgGrupos(tbody){
@@ -2674,8 +2693,14 @@ function paginarTabela(id, pagina){
   grupos.forEach((g,i) => g.forEach(tr => tr.classList.toggle('pg-hide', i<ini || i>=fim)));
   fixas.forEach(tr => tr.classList.remove('pg-hide'));
 
-  // Barra de páginas logo abaixo do grid
   const scroll = tbody.closest('.comp-scroll') || tbody.closest('table');
+  desenharPager(scroll, total, pag, p => { paginarTabela(id, p); scroll.scrollTop = 0; });
+}
+// Barra de páginas logo abaixo do grid (usada pelos grids paginados no
+// DOM e pela tabela de produtos, paginada pelos dados).
+function desenharPager(scroll, total, pag, irPara){
+  const nPag = Math.max(1, Math.ceil(total / PAGINA_TAM));
+  const ini = (pag-1)*PAGINA_TAM, fim = ini + PAGINA_TAM;
   let pager = scroll.nextElementSibling;
   if(!pager || !pager.classList.contains('pager')){
     pager = document.createElement('div');
@@ -2697,8 +2722,7 @@ function paginarTabela(id, pagina){
     `<button type="button" ${pag===nPag?'disabled':''} data-p="${pag+1}">›</button>`;
   pager.onclick = e => {
     const b = e.target.closest('button[data-p]'); if(!b || b.disabled) return;
-    paginarTabela(id, +b.dataset.p);
-    scroll.scrollTop = 0;
+    irPara(+b.dataset.p);
   };
 }
 GRIDS_PAGINADOS.forEach(id => {
