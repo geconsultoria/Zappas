@@ -816,7 +816,7 @@ let metasData = [];
 /* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════ */
 const DB_NAME  = 'zappasCacheDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'resultadoMeta_data_v3';
+const DB_KEY   = 'resultadoMeta_data_v4';
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -1213,7 +1213,31 @@ function getMetaFiltrada(loja, mes, ano) {
   if (selectedCanais.size === 0 || selectedCanais.size === canaisAll.length) {
     return getMetaSheet(loja, mes, ano);
   }
-  return [...selectedCanais].reduce((s, c) => s + getMetaCanal(loja, mes, ano, c), 0);
+  // CORREÇÃO: antes somava getMetaCanal() para cada canal marcado. Como as
+  // lojas sem canal na planilha (Belvedere, Havan, Muffato...) caíam no
+  // "fallback" tanto em LOJA quanto em DELIVERY, a meta era contada 2x.
+  // Agora: meta com canal específico entra só se o canal estiver marcado;
+  // meta sem canal (= loja inteira) entra UMA vez só, igual à Elaboração.
+  if (!loja || !mes || !ano || !metasData.length) return 0;
+  const sel = new Set([...selectedCanais].map(c => String(c).toUpperCase()));
+  const lojaUpper = loja.toUpperCase();
+  const base = metasData.filter(d =>
+    Number(d.ano) === Number(ano) && Number(d.mes) === Number(mes) && d.loja === lojaUpper);
+
+  // Anísio/Damha: total cadastrado dividido 97% Loja / 3% Delivery
+  if (['ANISIO', 'DAMHA'].includes(lojaUpper)) {
+    const total = base.reduce((s, d) => s + (d.meta || 0), 0);
+    const pct = (sel.has('LOJA') ? 0.97 : 0) + (sel.has('DELIVERY') ? 0.03 : 0);
+    return Math.round(total * pct);
+  }
+
+  const especifica = base
+    .filter(d => String(d.canal || '').trim() && sel.has(String(d.canal).toUpperCase()))
+    .reduce((s, d) => s + (d.meta || 0), 0);
+  const semCanal = (sel.has('LOJA') || sel.has('DELIVERY'))
+    ? base.filter(d => !String(d.canal || '').trim()).reduce((s, d) => s + (d.meta || 0), 0)
+    : 0;
+  return especifica + semCanal;
 }
 
 /* ═══════════════ CANAL (multi-select) ═══════════════
