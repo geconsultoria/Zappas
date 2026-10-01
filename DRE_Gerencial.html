@@ -2374,10 +2374,37 @@ function parseContasPagar(text, planoMap, lojaFallback){
   return { rows, linhas };
 }
 
-// Canais que compõem o Faturamento usado na Análise Comercial (segundo o
-// usuário): Loja, Delivery e Central. Outros canais que existam na
-// planilha (ex.: Distribuição) NÃO entram no faturamento do DRE Gerencial.
+// Canais que compõem o Faturamento usado na Análise Comercial: Loja,
+// Delivery e Central (Central = DISTRIBUICAO + VS False + Fabrica True,
+// ver classificarCanal). Distribuição e Reembolso NÃO entram.
 const CANAIS_FATURAMENTO = ['loja','delivery','central'];
+// Classificação do canal — MESMA regra da Análise Comercial
+// (Analise_Comercial.html → parseCSV):
+//   • Loja / Delivery / Central: pelo nome exato do canal.
+//   • DISTRIBUICAO + VS = False + Fabrica = True  → CENTRAL (entra).
+//   • DISTRIBUICAO + VS = True  + Fabrica = False → REEMBOLSO (não entra).
+//   • DISTRIBUICAO + VS = True  + Fabrica = True  → descartada (não entra).
+//   • DISTRIBUICAO + VS = False + Fabrica = False → Distribuição (não entra).
+// Só Loja, Delivery e Central compõem o faturamento do DRE Gerencial.
+let canaisIgnorados = new Set();
+const RE_TRUE = /^(true|verdadeiro|1|sim)$/i;
+function classificarCanal(txt, vs, fabrica){
+  const canal = normKey(txt);
+  if(canal==='distribuicao'){
+    if(vs) return '';                 // Reembolso ou descartada
+    return fabrica ? 'central' : '';  // Central ou Distribuição
+  }
+  return CANAIS_FATURAMENTO.includes(canal) ? canal : '';
+}
+// Busca de coluna só por nome exato (sem o "match parcial" do findCol,
+// que poderia confundir "vs"/"fabrica" com outras colunas).
+function findColExata(headers, ...names){
+  for(const n of names){
+    const i = headers.findIndex(h => normHeader(h) === normHeader(n));
+    if(i !== -1) return i;
+  }
+  return -1;
+}
 
 // Faturamento (planilha de vendas da Análise Comercial) — usado como
 // Receita do "DRE Gerencial". Mesma fonte/colunas que Analise_Comercial.html
@@ -2396,6 +2423,8 @@ function parseVendas(text, lojaFallback){
   const iMes   = findCol(rawHeaders,'mes');
   const iTotal = findCol(rawHeaders,'total');
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
+  const iVs    = findColExata(rawHeaders,'vs');
+  const iFab   = findColExata(rawHeaders,'fabrica');
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2421,12 +2450,14 @@ function parseVendas(text, lojaFallback){
     // que a linha já é só desses canais (comportamento anterior).
     let canalMatch = '';
     if(iCanal>=0){
-      const canal = normKey(g(iCanal));
-      // match exato OU parcial (ex.: "loja fisica", "central de vendas")
-      // pra não zerar tudo se o texto do canal na planilha vier com
-      // palavras a mais em volta de loja/delivery/central.
-      canalMatch = CANAIS_FATURAMENTO.find(c => canal===c || canal.includes(c)) || '';
-      if(!canalMatch) continue;
+      const t = g(iCanal);
+      canalMatch = classificarCanal(t, RE_TRUE.test(g(iVs)), RE_TRUE.test(g(iFab)));
+      if(!canalMatch){
+        // Distribuição/Reembolso ficam fora de propósito (igual à Análise
+        // Comercial) — só registra nomes de canal desconhecidos.
+        if(t && normKey(t)!=='distribuicao' && normKey(t)!=='reembolso') canaisIgnorados.add(t);
+        continue;
+      }
     }
 
     rows.push({ mes, ano, loja, valor, canal: canalMatch });
@@ -2598,7 +2629,7 @@ async function fetchCSV(url){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v2';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v4';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -2752,6 +2783,7 @@ async function carregarTudo(){
   //    fica sem dado de receita pra essa loja).
   // ══════════════════════════════════════════════════════
   let rowsVendas = [];
+  canaisIgnorados = new Set();
   const BATCH_VENDAS = 2;
   const pFaturamento = (async () => {
     for (let i = 0; i < VENDAS_URLS.length; i += BATCH_VENDAS) {
@@ -2770,6 +2802,7 @@ async function carregarTudo(){
       }));
     }
     vendasRaw = rowsVendas;
+    if(canaisIgnorados.size) console.warn('Canais de faturamento desconhecidos (ignorados):', [...canaisIgnorados]);
   })();
 
   // ══════════════════════════════════════════════════════
@@ -4087,6 +4120,7 @@ function renderDRE(){
   const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
   const subtitleGerencial = dreView==='gerencial'
     ? ' · Receita = faturamento da Análise Comercial · Despesas ainda por data de pagamento (aguardando planilha por vencimento)'
+      + (canaisIgnorados.size ? ' · Canais desconhecidos ignorados: ' + [...canaisIgnorados].join(', ') : '')
     : '';
   document.getElementById('dreSubtitle').textContent=
     `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir${subtitleGerencial}`;
