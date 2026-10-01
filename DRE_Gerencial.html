@@ -317,6 +317,11 @@ body {
   display: flex;
   flex-direction: column;
 }
+.kpi-row-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--navy-mid); margin: 0 0 8px 2px;
+}
+.kpi-grid.kpi-grid-dupla { margin-bottom: 18px; }
 .kpi-card:hover { box-shadow: var(--shadow-md); transform: translateY(-2px); }
 
 .kpi-card::after {
@@ -1500,37 +1505,16 @@ a.side-brand:hover { opacity:.85; }
 
   <!-- KPIs -->
   <div class="section-head" style="margin-top:0"><span class="section-title">Indicadores Principais</span><div class="section-line"></div></div>
-  <div class="kpi-grid">
-    <div class="kpi-card navy fade-in fade-in-delay-1">
-      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Receita Operacional</div>
-      <div class="kpi-value" id="kpiReceita">—</div>
-      <div class="kpi-sub" id="kpiReceitaSub">—</div>
-    </div>
-    <div class="kpi-card emerald fade-in fade-in-delay-2">
-      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Lucro Bruto</div>
-      <div class="kpi-value" id="kpiLucroBruto">—</div>
-      <div class="kpi-sub" id="kpiLucroBrutoSub">—</div>
-    </div>
-    <div class="kpi-card gold fade-in fade-in-delay-3">
-      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Resultado Operacional</div>
-      <div class="kpi-value" id="kpiResultOp">—</div>
-      <div class="kpi-sub" id="kpiResultOpSub">—</div>
-    </div>
-    <div class="kpi-card emerald fade-in fade-in-delay-4">
-      <div class="kpi-eyebrow"><span class="kpi-dot"></span>EBITDA</div>
-      <div class="kpi-value" id="kpiEbitda">—</div>
-      <div class="kpi-sub" id="kpiEbitdaSub">—</div>
-    </div>
-    <div class="kpi-card crimson fade-in fade-in-delay-5">
-      <div class="kpi-eyebrow"><span class="kpi-dot"></span>Resultado Líquido</div>
-      <div class="kpi-value" id="kpiResultLiq">—</div>
-      <div class="kpi-sub" id="kpiResultLiqSub">—</div>
-    </div>
-  </div>
+  <div class="kpi-row-label">DFC — Fluxo de Caixa</div>
+  <div class="kpi-grid kpi-grid-dupla" id="kpiGridDfc"></div>
+  <div class="kpi-row-label">DRE Gerencial</div>
+  <div class="kpi-grid" id="kpiGridDre"></div>
 
   <!-- METAS -->
-  <div class="section-head"><span class="section-title">Painel de Metas</span><div class="section-line"></div></div>
-  <div class="metas-grid" id="metasPanel"></div>
+  <!-- Painel de Metas oculto por enquanto (não está em uso). Pra voltar,
+       é só remover o style="display:none" das duas linhas abaixo. -->
+  <div class="section-head" style="display:none"><span class="section-title">Painel de Metas</span><div class="section-line"></div></div>
+  <div class="metas-grid" id="metasPanel" style="display:none"></div>
 
   <!-- CHARTS ROW 1 -->
   <div class="section-head"><span class="section-title">Evolução & Composição</span><div class="section-line"></div></div>
@@ -3554,59 +3538,44 @@ function buildSlugMap(){
 
 function renderKPIs(){
   buildSlugMap();
-  const rec=getSlugTotal('receita_operacional');
-  const imp=getSlugTotal('impostos_vendas');
+  const soma = arr => (arr||[]).reduce((t,r)=>t+(r.valor||0),0);
+  // Itens comuns às duas visões (mesma fonte nas duas tabelas)
   const ded=getSlugTotal('deducoes_vendas');
-  const cmv=getSlugTotal('cmv');
-  const recLiq=rec-imp-ded;
-  const lucroBruto=recLiq-cmv;
-  const despCom=getSlugTotal('despesas_comerciais');
-  const despPes=getSlugTotal('despesas_pessoal');
-  const despAdm=getSlugTotal('despesas_administrativas');
-  const despFin=getSlugTotal('despesas_financeiras');
-  const proLab=getSlugTotal('pro_labore');
-  const resOp=lucroBruto-despCom-despPes-despAdm-despFin-proLab;
-  /* EBITDA = Resultado Operacional + Juros Bancários em Despesas Financeiras */
-  /* Lista exaustiva de variações de 'juros bancários' normalizadas */
-  const JUROS_BANCARIOS=['juros bancarios','juros bancario','juro bancario',
-    'juros bancos','juros banco','juros financeiros','juros financeiro',
-    'juros sobre emprestimo','juros sobre emprestimos',
-    'juros sobre financiamento','juros sobre financiamentos',
-    'encargos bancarios','encargo bancario','encargos financeiros',
-    'encargo financeiro','juros pagos','juro pago','juros pago'];
-  function normJuros(s){
-    return String(s||'').toLowerCase().normalize('NFD')
-      .replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
-  }
-  function isJuros(subgrupo){
-    const n=normJuros(subgrupo);
-    /* match exato na lista OU contém a palavra 'juros' ou 'bancario' */
-    return JUROS_BANCARIOS.includes(n)||(n.includes('juros')&&n.includes('banc'));
-  }
-  const jurosTotal=filtered
-    .filter(r=>isJuros(r.subgrupo)||isJuros(r.plano))
-    .reduce((s,r)=>s+r.valor,0);
-  const ebitda=resOp+jurosTotal;
-  const distLuc=getSlugTotal('distribuicao_lucro');
-  const irCsll=getSlugTotal('ir_csll');
-  const emprest=getSlugTotal('emprestimos_financiamentos');
-  const invest=getSlugTotal('investimento');
-  const parcel=getSlugTotal('parcelamento_impostos');
-  const resLiq=(resOp-distLuc-irCsll)-emprest-invest-parcel;
+  const despOp=getSlugTotal('despesas_comerciais')+getSlugTotal('despesas_pessoal')
+    +getSlugTotal('despesas_administrativas')+getSlugTotal('despesas_financeiras')+getSlugTotal('pro_labore');
+  /* EBITDA = Resultado Operacional + Juros Bancários (isJuros compartilhado) */
+  const jurosTotal=filtered.filter(r=>isJuros(r.subgrupo)||isJuros(r.plano)).reduce((t,r)=>t+r.valor,0);
+  const abaixoOp=getSlugTotal('distribuicao_lucro')+getSlugTotal('ir_csll')
+    +getSlugTotal('emprestimos_financiamentos')+getSlugTotal('investimento')+getSlugTotal('parcelamento_impostos');
 
-  const mBRL=v=>fmtShort(v);
-  const setKpi=(id,v,subId,sub)=>{
-    const el=document.getElementById(id);
-    el.textContent=mBRL(v);
-    el.className='kpi-value'+(v>0?' positive':v<0?' negative':'');
-    if(subId) document.getElementById(subId).innerHTML=sub;
+  // Mesmas regras das tabelas: DFC = Recebido classificado + impostos no
+  // mês pago + CMV (Compra); DRE Gerencial = faturamento da Análise
+  // Comercial (filtro de Canal) + impostos por competência + CMV (Produto).
+  const calc=(rec,imp,cmv)=>{
+    const lucroBruto=rec-imp-ded-cmv;
+    const resOp=lucroBruto-despOp;
+    return { rec, lucroBruto, resOp, ebitda:resOp+jurosTotal, resLiq:resOp-abaixoOp };
   };
-  const total=sumVal(filtered);
-  setKpi('kpiReceita',rec,'kpiReceitaSub',`${fmtBRL(rec)} · ${pct(rec,total)} do total`);
-  setKpi('kpiLucroBruto',lucroBruto,'kpiLucroBrutoSub',`Margem bruta: ${rec?pct(lucroBruto,rec):'—'}`);
-  setKpi('kpiEbitda',ebitda,'kpiEbitdaSub',`Margem EBITDA: ${rec?pct(ebitda,rec):'—'}`);
-  setKpi('kpiResultOp',resOp,'kpiResultOpSub',`Mg. operacional: ${rec?pct(resOp,rec):'—'}`);
-  setKpi('kpiResultLiq',resLiq,'kpiResultLiqSub',`Margem líquida: ${rec?pct(resLiq,rec):'—'}`);
+  const dfc=calc(getSlugTotal('receita_operacional'), getSlugTotal('impostos_vendas'), soma(filteredCompras));
+  const dre=calc(soma(filteredVendas), soma(filteredImpostosGer), soma(filteredCusto));
+
+  const pctDe=(v,b)=>b?pct(v,b):'—';
+  const card=(cor,titulo,v,sub,delay)=>`
+    <div class="kpi-card ${cor}">
+      <div class="kpi-eyebrow"><span class="kpi-dot"></span>${titulo}</div>
+      <div class="kpi-value${v>0?' positive':v<0?' negative':''}">${fmtShort(v)}</div>
+      <div class="kpi-sub">${sub}</div>
+    </div>`;
+  const linha=k=>[
+    card('navy','Receita Operacional',k.rec,fmtBRL(k.rec),1),
+    card('emerald','Lucro Bruto',k.lucroBruto,`Margem bruta: ${pctDe(k.lucroBruto,k.rec)}`,2),
+    card('gold','Resultado Operacional',k.resOp,`Mg. operacional: ${pctDe(k.resOp,k.rec)}`,3),
+    card('emerald','EBITDA',k.ebitda,`Margem EBITDA: ${pctDe(k.ebitda,k.rec)}`,4),
+    card('crimson','Resultado Líquido',k.resLiq,`Margem líquida: ${pctDe(k.resLiq,k.rec)}`,5),
+  ].join('');
+  const gDfc=document.getElementById('kpiGridDfc'), gDre=document.getElementById('kpiGridDre');
+  if(gDfc) gDfc.innerHTML=linha(dfc);
+  if(gDre) gDre.innerHTML=linha(dre);
 }
 
 /* ─── Charts ─── */
