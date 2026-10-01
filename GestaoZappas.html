@@ -350,8 +350,16 @@ body {
 .perf-loja-flow-val.neg { color:#B4483A; }
 .perf-loja-empty { font-size:12px; color: var(--ink-4); padding:8px 0; margin-bottom:26px; }
 /* Duas colunas lado a lado (DFC | DRE) dentro do mesmo card de loja */
-.perf-loja-regimes { display:flex; gap:16px; }
-.perf-loja-regime { flex:1; min-width:0; }
+.perf-loja-regimes { display:flex; gap:16px; align-items:stretch; }
+/* Cada coluna (DFC / DRE) é uma coluna flex com o rodapé (Entradas/Saídas,
+   Receita/Despesas) preso na base — assim os dois rodapés ficam SEMPRE na
+   mesma altura. A legenda fica numa linha só (o período já aparece no
+   título da seção); antes "Saldo de caixa · Outubro de 2026" quebrava em
+   2 linhas e empurrava Entradas/Saídas pra baixo de Receita/Despesas. */
+.perf-loja-regime { flex:1; min-width:0; display:flex; flex-direction:column; }
+.perf-loja-regime .perf-loja-sub { white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.perf-loja-regime .perf-loja-flow { margin-top:auto; }
+.perf-loja-regime .perf-loja-sub + .perf-loja-flow { margin-top:12px; }
 .perf-loja-regime + .perf-loja-regime { padding-left:16px; border-left:1px dashed var(--border); }
 .perf-loja-regime-label { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color: var(--ink-4); margin-bottom:2px; }
 .perf-loja-regime .perf-loja-total { font-size:18px; margin-bottom:2px; }
@@ -1882,6 +1890,10 @@ function resumoRenderFiltrados() {
   recF.forEach(r => { entradasPorLoja[r.loja] = (entradasPorLoja[r.loja] || 0) + r.valor; });
   const saidasPorLoja = {};
   ctasF.forEach(r => { saidasPorLoja[r.loja] = (saidasPorLoja[r.loja] || 0) + r.valor; });
+  // CMV pelo custo da COMPRA (arquivo de Compras) — usado no DFC por loja,
+  // igual ao bloco "Indicadores Principais (DFC)" e ao DRE_Gerencial.html.
+  const comprasPorLoja = {};
+  (comprasRows || []).filter(bate).forEach(r => { comprasPorLoja[r.loja] = (comprasPorLoja[r.loja] || 0) + r.valor; });
 
   // ── DRE (Gerencial) por loja — mesma ideia do bloco DRE acima, só que
   // quebrada por loja: troca só CMV (Contas a Pagar → Curva ABC) e Impostos
@@ -1904,7 +1916,7 @@ function resumoRenderFiltrados() {
   const impostosGerPorLoja = {};
   impostosGerRows.filter(bate).forEach(r => { impostosGerPorLoja[r.loja] = (impostosGerPorLoja[r.loja] || 0) + r.valor; });
 
-  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja), ...Object.keys(receitaGerPorLoja)])];
+  const lojasPerf = [...new Set([...Object.keys(entradasPorLoja), ...Object.keys(saidasPorLoja), ...Object.keys(receitaGerPorLoja), ...Object.keys(comprasPorLoja)])];
   const emptyEl = document.getElementById('loja-perf-empty');
   const listPerfEl = document.getElementById('loja-perf-list');
   if (!lojasPerf.length) {
@@ -1914,9 +1926,15 @@ function resumoRenderFiltrados() {
     emptyEl.style.display = 'none';
     const RESUMO_PERF_ORDEM = ['anisio', 'bady', 'damha', 'belvedere', 'muffato', 'havan'];
     const dados = lojasPerf.map(l => {
-      const entradas = entradasPorLoja[l] || 0, saidas = saidasPorLoja[l] || 0;
+      // Regra única (igual ao DRE_Gerencial.html):
+      //   DFC: Saídas   = Contas a Pagar − CMV(Contas a Pagar) + CMV pelo custo da COMPRA
+      //   DRE: Despesas = Contas a Pagar − CMV(Contas a Pagar) − Impostos(mês pago)
+      //                   + CMV pelo custo do PRODUTO (Curva ABC) + Impostos por competência
+      const entradas = entradasPorLoja[l] || 0;
+      const ctasSemCmv = (saidasPorLoja[l] || 0) - gLoja(l, 'cmv');
+      const saidas = ctasSemCmv + (comprasPorLoja[l] || 0);
       const entradasGer = receitaGerPorLoja[l] || 0;
-      const saidasGer = saidas - gLoja(l, 'cmv') - gLoja(l, 'impostos_vendas') + (cmvGerPorLoja[l] || 0) + (impostosGerPorLoja[l] || 0);
+      const saidasGer = ctasSemCmv - gLoja(l, 'impostos_vendas') + (cmvGerPorLoja[l] || 0) + (impostosGerPorLoja[l] || 0);
       return {
         loja: l, entradas, saidas, saldo: entradas - saidas,
         entradasGer, saidasGer, saldoGer: entradasGer - saidasGer,
@@ -1939,7 +1957,7 @@ function resumoRenderFiltrados() {
           <div class="perf-loja-regime">
             <div class="perf-loja-regime-label">DFC</div>
             <div class="perf-loja-total ${d.saldo >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldo)}</div>
-            <div class="perf-loja-sub">Saldo de caixa · ${periodoLongo || 'todos os períodos'}</div>
+            <div class="perf-loja-sub" title="Saldo de caixa · ${periodoLongo || 'todos os períodos'}">Saldo de caixa</div>
             <div class="perf-loja-flow">
               <div class="perf-loja-flow-item">
                 <span class="perf-loja-flow-lbl">Entradas</span>
@@ -1954,7 +1972,7 @@ function resumoRenderFiltrados() {
           <div class="perf-loja-regime">
             <div class="perf-loja-regime-label">DRE</div>
             <div class="perf-loja-total ${d.saldoGer >= 0 ? '' : 'neg'}">${resumoFmtBRL(d.saldoGer)}</div>
-            <div class="perf-loja-sub">Resultado · ${periodoLongo || 'todos os períodos'}</div>
+            <div class="perf-loja-sub" title="Resultado · ${periodoLongo || 'todos os períodos'}">Resultado</div>
             <div class="perf-loja-flow">
               <div class="perf-loja-flow-item">
                 <span class="perf-loja-flow-lbl">Receita</span>

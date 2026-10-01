@@ -906,7 +906,7 @@ tr.is-open .expand-hint { display: none; }
 ══════════════════════════════════════════════════════ */
 .loja-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: 14px;
   margin-bottom: 28px;
 }
@@ -926,6 +926,32 @@ tr.is-open .expand-hint { display: none; }
   display: flex; align-items: center; gap: 8px;
 }
 .loja-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+.lj-cols { display: grid; grid-template-columns: 1fr 1fr; gap: 0; align-items: stretch; }
+.lj-col { display: flex; flex-direction: column; min-width: 0; padding-right: 14px; }
+.lj-col + .lj-col { padding-right: 0; padding-left: 14px; border-left: 1px dashed var(--border); }
+.lj-col-tit { font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-4); margin-bottom: 4px; }
+.lj-col-val { font-family: var(--font-numeric); font-size: 19px; font-weight: 700; color: var(--ink); white-space: nowrap; }
+.lj-col-val.neg { color: var(--crimson); }
+/* legenda numa linha só (o período fica no título da seção) — antes o
+   "Saldo de caixa · Outubro de 2026" quebrava em 2 linhas e empurrava
+   Entradas/Saídas pra baixo de Receita/Despesas. */
+.lj-col-leg { font-size: 11px; color: var(--ink-4); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lj-col-foot { margin-top: auto; padding-top: 10px; display: flex; justify-content: space-between; gap: 8px; border-top: 1px solid var(--border); }
+.lj-col-leg + .lj-col-foot { margin-top: 12px; }
+.lj-col-foot > div { display: flex; flex-direction: column; gap: 2px; }
+.lj-foot-lbl { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); }
+.lj-foot-val { font-family: var(--font-numeric); font-size: 13px; font-weight: 700; }
+.lj-foot-val.pos { color: var(--emerald-mid); }
+.lj-foot-val.neg { color: var(--crimson); }
+.loja-card-per { margin-left: auto; font-weight: 600; letter-spacing: .02em; text-transform: none; color: var(--ink-4); }
+/* Card da loja: DFC × DRE Gerencial lado a lado */
+.loja-cmp { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.loja-cmp th { font-size: 9px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--ink-4); text-align: right; padding: 0 0 6px 8px; border-bottom: 1px solid var(--border); }
+.loja-cmp td { font-family: var(--font-numeric); font-size: 12.5px; font-weight: 700; text-align: right; padding: 6px 0 6px 8px; white-space: nowrap; color: var(--ink); }
+.loja-cmp td:first-child { font-family: var(--font-body); font-size: 11px; font-weight: 600; text-align: left; padding-left: 0; color: var(--ink-3); white-space: normal; }
+.loja-cmp tr.loja-cmp-mg td { font-size: 10.5px; font-weight: 600; color: var(--ink-4); padding-top: 0; }
+.loja-cmp tr.loja-cmp-res td { border-top: 1px solid var(--border); padding-top: 8px; font-size: 13.5px; }
+.loja-cmp tr.loja-cmp-res td:first-child { font-size: 11px; color: var(--ink-2); }
 .loja-total {
   font-family: var(--font-numeric);
   font-size: 22px; font-weight: 700;
@@ -5167,19 +5193,34 @@ function toggleAll(open){
 
 /* ─── Loja Cards ─── */
 function renderLojas(){
-  // Separa Entradas (Recebimentos = grupo "RECEITA OPERACIONAL") de
-  // Saídas (todas as demais linhas, vindas de Contas a Pagar) por loja —
-  // em vez de somar tudo junto num único número, que misturava o que
-  // entrou com o que saiu e confundia a leitura.
-  const lojas = uniq(filtered.map(r=>r.loja).filter(Boolean));
+  // Cada card traz, lado a lado, os números da loja no DFC (caixa) e no
+  // DRE Gerencial (competência) — regra idêntica à do Dashboard (abaixo).
+  const soma = (arr, loja) => (arr||[]).reduce((t,r)=> r.loja===loja ? t+(r.valor||0) : t, 0);
+  const lojas = ordenarLojas(uniq([filtered, filteredVendas, filteredCusto, filteredCompras]
+    .flatMap(a=>(a||[]).map(r=>r.loja)).filter(Boolean)));
+  // MESMA regra do card "Performance por loja" do Dashboard (GestaoZappas):
+  //   Base: Contas a Pagar classificado (sem a linha de CMV dele) + Recebidos.
+  //   DFC  → Entradas = Recebido (Receita Operacional classificada)
+  //          Saídas   = Contas a Pagar − CMV(Contas a Pagar) + CMV pelo CUSTO DA COMPRA (arquivo de Compras)
+  //   DRE  → Receita  = Faturamento (Análise Comercial)
+  //          Despesas = Contas a Pagar − CMV(Contas a Pagar) − Impostos(mês pago)
+  //                     + CMV pelo CUSTO DO PRODUTO (Curva ABC) + Impostos por competência
   const porLoja = lojas.map(loja => {
     const rows = filtered.filter(r=>r.loja===loja);
-    const entradas = rows.filter(r=>slugFromGrupo(r.grupo)==='receita_operacional').reduce((a,r)=>a+r.valor,0);
-    const saidas   = rows.filter(r=>slugFromGrupo(r.grupo)!=='receita_operacional').reduce((a,r)=>a+r.valor,0);
-    return { loja, entradas, saidas, saldo: entradas - saidas };
+    const ehRec = r => slugFromGrupo(r.grupo)==='receita_operacional';
+    const slug = sl => rows.reduce((t,r)=> slugFromGrupo(r.grupo)===sl ? t+r.valor : t, 0);
+    const entradas = rows.reduce((t,r)=> ehRec(r) ? t+r.valor : t, 0);
+    const ctasSemCmv = rows.reduce((t,r)=> ehRec(r) ? t : t+r.valor, 0) - slug('cmv');
+    const saidas     = ctasSemCmv + soma(filteredCompras, loja);
+    const receitaGer = soma(filteredVendas, loja);
+    const saidasGer  = ctasSemCmv - slug('impostos_vendas') + soma(filteredCusto, loja) + soma(filteredImpostosGer, loja);
+    return {
+      loja,
+      dfc: { rec: entradas,   desp: saidas,    resLiq: entradas - saidas },
+      dre: { rec: receitaGer, desp: saidasGer, resLiq: receitaGer - saidasGer },
+    };
   });
-  const sorted = porLoja.sort((a,b)=>b.entradas-a.entradas);
-  const maxVal = Math.max(1, ...sorted.map(l=>Math.max(l.entradas,l.saidas)));
+  const sorted = porLoja;
   const grid=document.getElementById('lojaGrid');
 
   // Período que compõe a soma exibida em cada card (respeita os filtros
@@ -5217,26 +5258,31 @@ function renderLojas(){
     grid.innerHTML='<div style="color:var(--ink-4);font-size:13px;padding:32px 0">Nenhuma loja encontrada.</div>';
     return;
   }
+  const brl0 = x => (x<0?'-':'') + 'R$ ' + Math.abs(x).toLocaleString('pt-BR',{maximumFractionDigits:0});
+  const n0   = x => Math.round(x).toLocaleString('pt-BR');
+  // Mesmo modelo do card do Dashboard: DFC (saldo de caixa: Entradas ×
+  // Saídas) à esquerda e DRE (resultado: Receita × Despesas) à direita.
+  // Os rodapés ficam presos na base de cada coluna (margin-top:auto), então
+  // Entradas/Saídas e Receita/Despesas sempre na MESMA altura.
+  const coluna = (titulo, valor, legenda, l1, v1, l2, v2) => `
+    <div class="lj-col">
+      <div class="lj-col-tit">${titulo}</div>
+      <div class="lj-col-val ${valor<0?'neg':''}">${brl0(valor)}</div>
+      <div class="lj-col-leg">${legenda}</div>
+      <div class="lj-col-foot">
+        <div><span class="lj-foot-lbl">${l1}</span><span class="lj-foot-val pos">${n0(v1)}</span></div>
+        <div style="text-align:right"><span class="lj-foot-lbl">${l2}</span><span class="lj-foot-val neg">${n0(v2)}</span></div>
+      </div>
+    </div>`;
   grid.innerHTML=sorted.map((d,i)=>`
     <div class="loja-card">
       <div class="loja-card-name">
         <span class="loja-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
         ${d.loja==='BELVEDER'?'BELVEDERE':d.loja}
       </div>
-      <div class="loja-total ${d.saldo>=0?'':'val-neg'}">${fmtBRL(d.saldo)}</div>
-      <div class="loja-pct">Saldo de caixa · ${periodo}</div>
-      <div class="loja-bar-bg">
-        <div class="loja-bar-fill" style="width:${(d.entradas/maxVal*100).toFixed(1)}%;background:${PALETTE[i%PALETTE.length]}"></div>
-      </div>
-      <div class="loja-flow">
-        <div class="loja-flow-item">
-          <span class="loja-flow-lbl">Entradas</span>
-          <span class="loja-flow-val pos">${fmtBRL(d.entradas)}</span>
-        </div>
-        <div class="loja-flow-item" style="align-items:flex-end">
-          <span class="loja-flow-lbl">Saídas</span>
-          <span class="loja-flow-val neg">${fmtBRL(d.saidas)}</span>
-        </div>
+      <div class="lj-cols">
+        ${coluna('DFC', d.dfc.resLiq, 'Saldo de caixa', 'Entradas', d.dfc.rec, 'Saídas', d.dfc.desp)}
+        ${coluna('DRE', d.dre.resLiq, 'Resultado', 'Receita', d.dre.rec, 'Despesas', d.dre.desp)}
       </div>
     </div>
   `).join('');
