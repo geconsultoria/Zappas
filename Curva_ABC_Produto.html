@@ -275,7 +275,7 @@ a.side-brand:hover { opacity:.85; }
 }
 .ig-fselect.has-sel:focus { border-color: var(--amber-mid); box-shadow: 0 0 0 3px var(--amber-lt); }
 #f-ano { width: 68px; }
-#f-loja { width: 92px; }
+.lj-trigger { min-width: 96px; }
 #f-classe { width: 80px; }
 
 /* ── Mês multi-select (mesmo padrão do filtro Canal da Análise Comercial) ── */
@@ -813,7 +813,25 @@ a.side-brand:hover { opacity:.85; }
         </div>
       </div>
     </div>
-    <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="f-loja"><option value="">Todas</option></select></div>
+    <div class="ig-fgroup">
+      <span class="ig-flabel">Loja</span>
+      <div class="grp-wrap" id="lj-wrap">
+        <div class="grp-trigger lj-trigger" id="lj-trigger" onclick="toggleLojaDropdown(event)">
+          <span id="lj-trigger-txt">Todas</span>
+          <span class="grp-badge" id="lj-badge" style="display:none"></span>
+        </div>
+        <div class="grp-dropdown" id="lj-dropdown">
+          <div class="grp-dd-head">
+            <span class="grp-dd-title">Lojas</span>
+            <div class="grp-dd-actions">
+              <button class="grp-dd-btn" type="button" onclick="selectAllLojas()">Todas</button>
+              <button class="grp-dd-btn" type="button" onclick="clearAllLojas()">Limpar</button>
+            </div>
+          </div>
+          <div class="grp-dd-list" id="lj-dd-list"></div>
+        </div>
+      </div>
+    </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Grupo</span>
       <div class="grp-wrap" id="grp-wrap">
@@ -1423,7 +1441,6 @@ function populateFilters(){
   const lojas = [...new Set(rawData.map(r=>r.loja))].filter(Boolean).sort();
   const grupos = [...new Set(rawData.map(r=>r.nomegrupo))].filter(Boolean).sort();
   const curAno = $('f-ano').value;
-  const curLoja = $('f-loja').value;
 
   $('f-ano').innerHTML = '<option value="">Todos</option>' + anos.map(a=>`<option value="${a}">${a}</option>`).join('');
   if (anos.includes(+curAno)) {
@@ -1436,8 +1453,7 @@ function populateFilters(){
 
   populateMesDropdown();
 
-  $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l=>`<option value="${l}">${lojaLabel(l)}</option>`).join('');
-  if(lojas.includes(curLoja)) $('f-loja').value = curLoja;
+  populateLojaDropdown(lojas);
 
   populateGrupoDropdown(grupos);
   populateCanalDropdown();
@@ -1529,6 +1545,11 @@ document.addEventListener('click', e => {
   if(!e.target.closest('#mes-wrap')){
     const dd = $('mes-dropdown');
     const tr = $('mes-trigger');
+    if(dd) dd.classList.remove('open');
+    if(tr) tr.classList.remove('open');
+  }
+  if(!e.target.closest('#lj-wrap')){
+    const dd = $('lj-dropdown'), tr = $('lj-trigger');
     if(dd) dd.classList.remove('open');
     if(tr) tr.classList.remove('open');
   }
@@ -1657,6 +1678,54 @@ function toggleGrupoDropdown(e){
   }
 }
 
+/* ── Loja multi-select (mesmo visual de Grupo/Canal; amarelo quando há seleção) ──
+   selectedLojas vazio (ou todas marcadas) = sem filtro. Lista em ordem fixa:
+   Anisio, Bady, Damha, Belvedere, Muffato, Havan. */
+let selectedLojas = new Set();
+let lojasDisponiveis = [];
+const ORDEM_LOJAS = ['anisio','bady','damha','belvede','muffato','havan'];
+function populateLojaDropdown(lojas){
+  const pos = l => { const n = normTxt(lojaLabel(l)); const i = ORDEM_LOJAS.findIndex(k => n.startsWith(k)); return i === -1 ? 99 : i; };
+  lojasDisponiveis = [...lojas].sort((a,b)=>(pos(a)-pos(b)) || String(a).localeCompare(String(b)));
+  selectedLojas = new Set([...selectedLojas].filter(l => lojasDisponiveis.includes(l)));
+  renderLojaList(); updateLojaTrigger();
+}
+function renderLojaList(){
+  const list = $('lj-dd-list'); if(!list) return;
+  list.innerHTML = lojasDisponiveis.map(l => {
+    const ck = selectedLojas.has(l);
+    return `<label class="grp-item${ck?' checked':''}"><input type="checkbox" value="${l}" ${ck?'checked':''} onchange="onLojaChange(this)"><span class="grp-item-label">${lojaLabel(l)}</span></label>`;
+  }).join('') || '<div class="grp-dd-empty">Nenhuma loja</div>';
+}
+function onLojaChange(cb){
+  if(cb.checked) selectedLojas.add(cb.value); else selectedLojas.delete(cb.value);
+  cb.closest('label').classList.toggle('checked', cb.checked);
+  updateLojaTrigger(); applyFilters();
+}
+function selectAllLojas(){ selectedLojas = new Set(lojasDisponiveis); renderLojaList(); updateLojaTrigger(); applyFilters(); }
+function clearAllLojas(){ selectedLojas.clear(); renderLojaList(); updateLojaTrigger(); applyFilters(); }
+function lojaFiltroAtivo(){ return selectedLojas.size > 0 && selectedLojas.size < lojasDisponiveis.length; }
+function passaLoja(r){ return !lojaFiltroAtivo() || selectedLojas.has(r.loja); }
+function updateLojaTrigger(){
+  const n = selectedLojas.size, badge = $('lj-badge'), txt = $('lj-trigger-txt'), trigger = $('lj-trigger');
+  if(!trigger) return;
+  if(!lojaFiltroAtivo()){
+    txt.textContent = 'Todas'; badge.style.display = 'none'; trigger.classList.remove('has-sel'); trigger.title = '';
+    return;
+  }
+  trigger.classList.add('has-sel');
+  trigger.title = [...selectedLojas].map(lojaLabel).join(', ');
+  if(n === 1){ txt.textContent = lojaLabel([...selectedLojas][0]); badge.style.display = 'none'; }
+  else { txt.textContent = `${n} lojas`; badge.textContent = n; badge.style.display = 'inline-flex'; }
+}
+function toggleLojaDropdown(e){
+  e.stopPropagation();
+  const dd = $('lj-dropdown'), trigger = $('lj-trigger');
+  const isOpen = dd.classList.toggle('open');
+  trigger.classList.toggle('open', isOpen);
+  if(isOpen){ const r = trigger.getBoundingClientRect(); dd.style.top = (r.bottom + 6) + 'px'; dd.style.left = r.left + 'px'; }
+}
+
 /* ── Canal multi-select (padrão: Loja + Delivery) ──
    selectedCanais guarda as chaves normalizadas (loja, delivery, central…).
    Set vazio = todos. Linhas sem canal (planilha sem a coluna) sempre
@@ -1751,12 +1820,11 @@ function passaCanal(r){
    percentual acumulado do zero. */
 function getBaseFiltered(){
   const ano = $('f-ano').value ? +$('f-ano').value : null;
-  const loja = $('f-loja').value || null;
 
   return rawData.filter(r => {
     if(ano && r.ano !== ano) return false;
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return false;
-    if(loja && r.loja !== loja) return false;
+    if(!passaLoja(r)) return false;
     if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
     if(!passaCanal(r)) return false;
     return true;
@@ -1997,7 +2065,7 @@ function setMensalDisplayMode(mode){
   applyFilters();
 }
 
-['f-ano','f-loja','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
+['f-ano','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
 $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer); window._buscaTimer = setTimeout(applyFilters, 200); });
 
 /* ══════════════════════════════════════════════════════════════
@@ -2005,7 +2073,7 @@ $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer);
 ══════════════════════════════════════════════════════════════ */
 function applyFilters(){
   // Destaca em âmbar os selects com valor escolhido (Ano/Loja/Classe).
-  ['f-ano','f-loja','f-classe'].forEach(id => { const el=$(id); if(el) el.classList.toggle('has-sel', !!el.value); });
+  ['f-ano','f-classe'].forEach(id => { const el=$(id); if(el) el.classList.toggle('has-sel', !!el.value); });
   atualizarDisponibilidadeMensal();
   const { base, calc, metric, exibicao } = getFiltrados();
   renderKPIs(calc.porValor);
