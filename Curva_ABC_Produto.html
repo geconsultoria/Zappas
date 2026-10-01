@@ -1271,9 +1271,23 @@ async function loadCacheDB(){
     const db = await openDB();
     return await new Promise((resolve,reject)=>{
       const tx = db.transaction(DB_STORE,'readonly');
-      const req = tx.objectStore(DB_STORE).get(DB_KEY);
-      req.onsuccess = () => resolve(req.result||null);
-      req.onerror = () => reject(req.error);
+      const store = tx.objectStore(DB_STORE);
+      // Tenta a versão atual; se não houver, usa a mais recente das versões
+      // anteriores (marcada como "antiga" pra forçar atualização em segundo
+      // plano). Assim a tela abre na hora com os dados que já existiam, em
+      // vez de ficar parada esperando as 6 lojas carregarem do zero.
+      const chaves = [DB_KEY, 'curvaAbcProduto_data_v4','curvaAbcProduto_data_v3','curvaAbcProduto_data_v2','curvaAbcProduto_data_v1'];
+      const tenta = i => {
+        if(i >= chaves.length) return resolve(null);
+        const req = store.get(chaves[i]);
+        req.onsuccess = () => {
+          const r = req.result;
+          if(r && r.data && r.data.length) resolve(i===0 ? r : { ...r, antigo: true });
+          else tenta(i+1);
+        };
+        req.onerror = () => tenta(i+1);
+      };
+      tenta(0);
     });
   }catch(e){ console.warn('Cache local indisponível:', e); return null; }
 }
@@ -1286,8 +1300,10 @@ let rawData = [];
 /* ══════════════════════════════════════════════════════════════
    LOAD
 ══════════════════════════════════════════════════════════════ */
-async function carregarTudo(){
+async function carregarTudo(onLoja){
   let rows = [];
+  const anterior = Array.isArray(rawData) ? rawData : [];
+  const carregadas = new Set();
   const falharam = [];
   // Uma loja de cada vez (em vez de 2 em paralelo): o Apps Script parece
   // enfileirar/serializar execuções concorrentes do mesmo deployment, e
@@ -1300,7 +1316,15 @@ async function carregarTudo(){
     if(lbl) lbl.textContent = 'Carregando produtos ('+(i+1)+'/'+CURVAABC_URLS.length+')… '+lojaKey;
     try{
       const text = await fetchCSV(url);
-      rows = rows.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
+      const novas = parseCurvaABC(text, lojaKey.toUpperCase());
+      rows = rows.concat(novas);
+      novas.forEach(r => carregadas.add(r.loja));
+      carregadas.add(lojaKey.toUpperCase());
+      // Mostra o que já chegou + o dado anterior das lojas que ainda faltam.
+      if(onLoja){
+        const resto = anterior.filter(r => !carregadas.has(r.loja) && !carregadas.has(lojaLabel(r.loja)));
+        onLoja(unificarNomesGrupo(rows.concat(resto)), i+1, CURVAABC_URLS.length);
+      }
     }catch(e){
       console.warn('Curva ABC indisponível ('+lojaKey+'):', e.message);
       falharam.push(lojaKey);
@@ -1308,7 +1332,9 @@ async function carregarTudo(){
   }
   if(!rows.length) throw new Error('Nenhuma linha válida encontrada.');
   if(falharam.length) console.warn('Lojas que não carregaram nesta atualização: '+falharam.join(', '));
-  rawData = unificarNomesGrupo(rows);
+  // Loja que falhou: mantém o dado anterior dela em vez de sumir da tela.
+  const resto = anterior.filter(r => !carregadas.has(r.loja) && !carregadas.has(lojaLabel(r.loja)));
+  rawData = unificarNomesGrupo(rows.concat(resto));
 }
 
 function showUpdateOverlay(){
@@ -1340,7 +1366,7 @@ async function loadData(forceRefresh){
       applyFilters();
       $('content').classList.remove('hidden');
       $('loader').classList.add('out');
-      const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
+      const stale = cached.antigo || existeAtualizacaoMaisRecenteZappas(cached.rawTs);
       $('fb-ts').textContent = cached.ts + (stale ? ' (Atualização Disponível — atualizando…)' : '');
       if(stale) loadData(true);
       return;
@@ -1352,10 +1378,15 @@ async function loadData(forceRefresh){
   showUpdateOverlay();
 
   try{
-    await Promise.race([
-      carregarTudo(),
-      new Promise((_,reject)=>setTimeout(()=>reject(new Error('Tempo limite excedido (90s). Verifique sua conexão e tente novamente.')), 90000))
-    ]);
+    let mostrou = false;
+    await carregarTudo((parcial, n, total) => {
+      rawData = parcial;
+      populateFilters();
+      applyFilters();
+      $('content').classList.remove('hidden');
+      if(!mostrou){ $('loader').classList.add('out'); hideUpdateOverlay(false, 'Carregando as demais lojas…'); mostrou = true; }
+      $('fb-ts').textContent = n < total ? ('Atualizando a base… ' + n + '/' + total + ' lojas') : $('fb-ts').textContent;
+    });
     populateFilters();
     applyFilters();
     $('content').classList.remove('hidden');
