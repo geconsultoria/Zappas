@@ -140,6 +140,19 @@ body {
   background-repeat:no-repeat; background-position: right 9px center; min-width:120px;
 }
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
+/* Filtro ativo (com seleção) — mesmo tom âmbar da Análise Comercial,
+   pra bater o olho e já saber que tem filtro ligado. */
+.ig-fselect.has-sel {
+  border-color:#B87010; color:#7A4A05; background-color:#FDECD0; font-weight:600;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237A4A05' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.ig-fselect.has-sel:focus { border-color:#B87010; box-shadow:0 0 0 3px rgba(253,236,208,.45); }
+.ig-fmulti-btn { display:inline-flex; align-items:center; gap:6px; }
+.ig-fbadge {
+  display:inline-flex; align-items:center; justify-content:center;
+  background:#B87010; color:#fff; border-radius:20px;
+  font-size:9px; font-weight:800; min-width:16px; height:16px; padding:0 4px; line-height:1;
+}
 .ig-fselect option { color:#0f1923; }
 .ig-btn-clear {
   font-family: var(--font-body); font-size: 11px; font-weight: 600; color: rgba(255,255,255,.8);
@@ -1450,7 +1463,7 @@ a.side-brand:hover { opacity:.85; }
     <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="fLoja" onchange="applyFilters()"><option value="">Todas as Lojas</option></select></div>
     <div class="ig-fgroup ig-fmulti-wrap" id="fCanalWrap">
       <span class="ig-flabel">Canal</span>
-      <button type="button" class="ig-fselect ig-fmulti-btn" id="fCanalBtn" onclick="toggleCanalDropdown(event)">Loja, Delivery, Central</button>
+      <button type="button" class="ig-fselect ig-fmulti-btn" id="fCanalBtn" onclick="toggleCanalDropdown(event)">3 canais <span class="ig-fbadge">3</span></button>
       <div class="ig-fmulti-panel" id="fCanalPanel" onclick="event.stopPropagation()"></div>
     </div>
     <button class="ig-btn-clear" onclick="clearFilters()">Limpar</button>
@@ -3043,8 +3056,7 @@ function renderMesPanel(){
       <button type="button" onclick="limparMeses()">Limpar</button>
     </div>
     ${opts || '<div style="padding:6px 8px;font-size:12px;color:var(--ink-4)">Nenhum mês nos dados carregados.</div>'}`;
-  const btn=document.getElementById('fMesBtn');
-  if(btn) btn.textContent = mesesLabel();
+  atualizarDestaqueFiltros();
 }
 
 function toggleMesDropdown(ev){
@@ -3065,6 +3077,38 @@ document.addEventListener('click', ()=>{
    Afeta a Receita do DRE Gerencial (faturamento da Análise Comercial) e o
    lado "DRE Ger." do DRE x DFC. O DFC (Recebido classificado) não tem
    canal, então não muda com esse filtro. */
+// Destaca (tom âmbar + contador) os filtros que estão restringindo os
+// dados: Ano/Loja com valor escolhido, Mês com meses marcados e Canal com
+// qualquer seleção diferente de "Todos" (o padrão Loja+Delivery+Central
+// também fica destacado, igual à Análise Comercial).
+function atualizarDestaqueFiltros(){
+  const esc = t => String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;');
+  const badge = n => `<span class="ig-fbadge">${n}</span>`;
+  ['fAno','fLoja'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle('has-sel', !!el.value);
+  });
+  const mb=document.getElementById('fMesBtn');
+  if(mb){
+    const n=mesesSelecionados.length;
+    const ativo = n>0 && !(mesesDisponiveis.length && n===mesesDisponiveis.length);
+    mb.classList.toggle('has-sel', ativo);
+    mb.innerHTML = !ativo ? 'Todos os Meses'
+      : n===1 ? esc(MES_FULL[mesesSelecionados[0]]||mesesSelecionados[0])
+      : `${n} meses ${badge(n)}`;
+  }
+  const cb=document.getElementById('fCanalBtn');
+  if(cb){
+    const n=canaisSelecionados.length;
+    const ativo = n>0 && n<CANAIS_TODOS.length;
+    cb.classList.toggle('has-sel', ativo);
+    const nome = (CANAIS_TODOS.find(([k])=>k===canaisSelecionados[0])||[,''])[1];
+    cb.innerHTML = !ativo ? 'Todos os Canais'
+      : n===1 ? esc(nome)
+      : `${n} canais ${badge(n)}`;
+    cb.title = canaisLabel();
+  }
+}
 function canaisLabel(){
   const n = canaisSelecionados.length;
   if(!n || n===CANAIS_TODOS.length) return 'Todos os Canais';
@@ -3079,8 +3123,7 @@ function renderCanalPanel(){
       <button type="button" onclick="selecionarTodosCanais()">Todos</button>
     </div>
     ${CANAIS_TODOS.map(([k,l])=>`<label class="ig-fmulti-opt"><input type="checkbox" value="${k}" ${canaisSelecionados.includes(k)?'checked':''} onchange="toggleCanal('${k}')">${l}</label>`).join('')}`;
-  const btn=document.getElementById('fCanalBtn');
-  if(btn) btn.textContent = canaisLabel();
+  atualizarDestaqueFiltros();
 }
 function toggleCanalDropdown(ev){
   if(ev) ev.stopPropagation();
@@ -3182,6 +3225,7 @@ function applyFilters(){
     if(r.canal && canaisSelecionados.length && !canaisSelecionados.includes(r.canal)) return false;
     return true;
   });
+  atualizarDestaqueFiltros();
   filteredCusto=custoProdutoRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
