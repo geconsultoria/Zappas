@@ -2638,24 +2638,24 @@ async function fetchComTimeout(url, opts, ms){
   }
 }
 
-async function fetchCSV(url){
+async function fetchCSV(url, ms){
   const errs=[];
   /* 1. Viz API */
   try{
     const vizUrl=getVizUrl(url);
     if(vizUrl){
-      const r=await fetchComTimeout(vizUrl,{cache:'no-store'});
+      const r=await fetchComTimeout(vizUrl,{cache:'no-store'},ms);
       if(r.ok){const t=await r.text();if(t&&!t.trim().startsWith('<'))return t;}
     }
   }catch(e){errs.push('viz:'+e.message);}
   /* 2. Direto */
   try{
-    const r=await fetchComTimeout(url+'&_='+Date.now(),{cache:'no-store'});
+    const r=await fetchComTimeout(url+'&_='+Date.now(),{cache:'no-store'},ms);
     if(r.ok){const t=await r.text();if(t&&!t.trim().startsWith('<'))return t;}
   }catch(e){errs.push('direct:'+e.message);}
   /* 3. AllOrigins */
   try{
-    const r=await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+'&_='+Date.now()),{cache:'no-store'});
+    const r=await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+'&_='+Date.now()),{cache:'no-store'},ms);
     if(r.ok){const j=await r.json();if(j?.contents&&!j.contents.trim().startsWith('<'))return j.contents;}
   }catch(e){errs.push('allorigins:'+e.message);}
   throw new Error('Falha ao carregar CSV. Detalhes: '+errs.join(' | '));
@@ -2850,23 +2850,32 @@ async function carregarTudo(){
   //    Gerencial" — independente (não bloqueia o carregamento se falhar:
   //    o DFC continua funcionando normalmente com o CMV (Compra) de sempre).
   // ══════════════════════════════════════════════════════
+  cmvFalhas = new Set();
   let rowsCusto = [];
-  const BATCH_CUSTO = 2;
+  const rowsCustoAnterior = custoProdutoRaw || [];
   const pCurvaABC = (async () => {
-    for (let i = 0; i < CURVAABC_URLS.length; i += BATCH_CUSTO) {
-      const grupoUrls = CURVAABC_URLS.slice(i, i + BATCH_CUSTO);
-      document.getElementById('loaderMsg').textContent =
-        'Carregando custo de produtos (' + Math.min(i+BATCH_CUSTO, CURVAABC_URLS.length) + '/' + CURVAABC_URLS.length + ')…';
-      await Promise.all(grupoUrls.map(async (url, j) => {
-        const idx = i + j;
-        const lojaKey = CURVAABC_STORE_KEYS[idx];
+    // Uma loja por vez e com tempo maior (60s), igual à tela da Curva ABC:
+    // são as planilhas mais pesadas e o Apps Script estoura o tempo quando
+    // recebe várias ao mesmo tempo — era isso que deixava o CMV zerado.
+    for (let idx = 0; idx < CURVAABC_URLS.length; idx++) {
+      const lojaKey = CURVAABC_STORE_KEYS[idx];
+      document.getElementById('loaderMsg').textContent = 'Carregando custo de produtos (' + (idx+1) + '/' + CURVAABC_URLS.length + ')…';
+      let ok = false;
+      for (let tentativa = 1; tentativa <= 2 && !ok; tentativa++) {
         try {
-          const text = await fetchCSV(url);
+          const text = await fetchCSV(CURVAABC_URLS[idx], 60000);
           rowsCusto = rowsCusto.concat(parseCurvaABC(text, lojaKey.toUpperCase()));
+          ok = true;
         } catch(e) {
-          console.warn('Custo de produtos indisponível (' + lojaKey + '):', e.message);
+          console.warn('CurvaABC indisponível (' + lojaKey + ', tentativa ' + tentativa + '):', e.message);
         }
-      }));
+      }
+      // Falhou de vez: mantém o que já tinha dessa loja (cache), em vez de zerar.
+      if(!ok){
+        const lojaOk = nomeLojaCorreto(lojaKey);
+        rowsCusto = rowsCusto.concat(rowsCustoAnterior.filter(r => nomeLojaCorreto(r.loja) === lojaOk));
+        cmvFalhas.add(lojaOk);
+      }
     }
     custoProdutoRaw = rowsCusto;
   })();
@@ -2879,27 +2888,39 @@ async function carregarTudo(){
   //    disponível).
   // ══════════════════════════════════════════════════════
   let rowsCompras = [];
-  const BATCH_COMPRAS = 2;
+  const rowsComprasAnterior = comprasRaw || [];
   const pCompras = (async () => {
-    for (let i = 0; i < COMPRAS_URLS.length; i += BATCH_COMPRAS) {
-      const grupoUrls = COMPRAS_URLS.slice(i, i + BATCH_COMPRAS);
-      document.getElementById('loaderMsg').textContent =
-        'Carregando compras (' + Math.min(i+BATCH_COMPRAS, COMPRAS_URLS.length) + '/' + COMPRAS_URLS.length + ')…';
-      await Promise.all(grupoUrls.map(async (url, j) => {
-        const idx = i + j;
-        const lojaKey = COMPRAS_STORE_KEYS[idx];
+    // Uma loja por vez e com tempo maior (60s), igual à tela da Curva ABC:
+    // são as planilhas mais pesadas e o Apps Script estoura o tempo quando
+    // recebe várias ao mesmo tempo — era isso que deixava o CMV zerado.
+    for (let idx = 0; idx < COMPRAS_URLS.length; idx++) {
+      const lojaKey = COMPRAS_STORE_KEYS[idx];
+      document.getElementById('loaderMsg').textContent = 'Carregando compras (' + (idx+1) + '/' + COMPRAS_URLS.length + ')…';
+      let ok = false;
+      for (let tentativa = 1; tentativa <= 2 && !ok; tentativa++) {
         try {
-          const text = await fetchCSV(url);
+          const text = await fetchCSV(COMPRAS_URLS[idx], 60000);
           rowsCompras = rowsCompras.concat(parseCompras(text, lojaKey.toUpperCase()));
+          ok = true;
         } catch(e) {
-          console.warn('Compras indisponível (' + lojaKey + '):', e.message);
+          console.warn('Compras indisponível (' + lojaKey + ', tentativa ' + tentativa + '):', e.message);
         }
-      }));
+      }
+      // Falhou de vez: mantém o que já tinha dessa loja (cache), em vez de zerar.
+      if(!ok){
+        const lojaOk = nomeLojaCorreto(lojaKey);
+        rowsCompras = rowsCompras.concat(rowsComprasAnterior.filter(r => nomeLojaCorreto(r.loja) === lojaOk));
+        cmvFalhas.add(lojaOk);
+      }
     }
     comprasRaw = rowsCompras;
   })();
 
-  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento, pCurvaABC, pCompras]);
+  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento]);
+  // Custo (Curva ABC) e Compras continuam carregando em segundo plano —
+  // a tela já aparece, e o CMV é preenchido assim que terminarem.
+  cmvCarregando = true;
+  const pCmv = Promise.all([pCurvaABC, pCompras]);
 
   document.getElementById('loaderMsg').textContent='Processando dados…';
 
@@ -2926,6 +2947,14 @@ async function carregarTudo(){
   const ts = 'Atualizado '+new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
   document.getElementById('lastUpdate').textContent=ts;
   saveCache(raw, ts, Date.now(), reconciliacao, vendasRaw, custoProdutoRaw, comprasRaw);
+
+  pCmv.then(() => {
+    cmvCarregando = false;
+    corrigirNomesLojas();
+    applyFilters();
+    saveCache(raw, ts, Date.now(), reconciliacao, vendasRaw, custoProdutoRaw, comprasRaw);
+    if(cmvFalhas.size) console.warn('CMV: lojas que não carregaram (mantido o dado anterior):', [...cmvFalhas]);
+  });
 }
 
 function showUpdateOverlay(){
@@ -2984,11 +3013,11 @@ async function loadData(forceRefresh, silent){
         vendasRaw = cached.vendas || [];
         // Cache salvo antes do CMV (Produto) existir não tem custo de
         // produtos — mesmo raciocínio do vendasAusente acima.
-        const custoAusente = !Array.isArray(cached.custo);
+        const custoAusente = !Array.isArray(cached.custo) || !cached.custo.length;
         custoProdutoRaw = cached.custo || [];
         // Cache salvo antes do CMV (Compra) trocar de fonte não tem
         // Compras — mesmo raciocínio do custoAusente acima.
-        const comprasAusente = !Array.isArray(cached.compras);
+        const comprasAusente = !Array.isArray(cached.compras) || !cached.compras.length;
         comprasRaw = cached.compras || [];
         corrigirNomesLojas();   // cache salvo antes ainda tem "BELVEDER"
         recalcImpostosGer();
@@ -3011,7 +3040,7 @@ async function loadData(forceRefresh, silent){
     // pra sempre na tela.
     await Promise.race([
       carregarTudo(),
-      new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido ao carregar os dados (90s). Verifique sua conexão e tente novamente.')), 90000))
+      new Promise((_, reject) => setTimeout(() => reject(new Error('Tempo limite excedido ao carregar os dados (120s). Verifique sua conexão e tente novamente.')), 90000))
     ]);
     if(silent) hideUpdateOverlay(false, '✓ Dados atualizados.');
   }catch(err){
@@ -3181,7 +3210,10 @@ function limparMeses(){
 }
 
 function populateFilters(){
-  const anos=uniq(raw.map(r=>r.ano),true), meses=uniq(raw.map(r=>r.mes),true), lojas=ordenarLojas(uniq(raw.map(r=>r.loja)));
+  const anos=uniq(raw.map(r=>r.ano),true), meses=uniq(raw.map(r=>r.mes),true), lojas=ordenarLojas(uniq([
+    ...LOJAS_OFICIAIS.map(([,nome])=>nome),
+    ...[raw, vendasRaw, custoProdutoRaw, comprasRaw].flatMap(a=>(a||[]).map(r=>r.loja))
+  ].filter(Boolean)));
   const sel=(id,opts,fmt,placeholder)=>{ const el=document.getElementById(id); const cur=el.value; el.innerHTML=`<option value="">${placeholder}</option>`+opts.map(o=>`<option value="${o}">${fmt(o)}</option>`).join(''); if(opts.includes(Number(cur))||opts.includes(cur)) el.value=cur; };
   sel('fAno',anos,a=>String(a),'Todos os Anos');
   sel('fLoja',lojas,l=>l,'Todas as Lojas');
@@ -3211,14 +3243,27 @@ function populateFilters(){
 // truncado; o correto é "BELVEDERE"). Feito na carga pra que filtro,
 // colunas e cruzamentos entre fontes (despesas × faturamento × CMV)
 // usem sempre o mesmo nome.
+// Nomes oficiais das 6 lojas (na ordem de exibição). Qualquer variação que
+// venha das planilhas (acento, "BELVEDER", "LOJA BADY"…) vira o nome oficial.
+const LOJAS_OFICIAIS = [['anisio','ANISIO'],['bady','BADY'],['damha','DAMHA'],['belveder','BELVEDERE'],['muffato','MUFFATO'],['havan','HAVAN']];
 function nomeLojaCorreto(l){
   const n = normKey(l);
-  return n.startsWith('belveder') ? 'BELVEDERE' : l;
+  const hit = LOJAS_OFICIAIS.find(([k]) => n === k || n.startsWith(k) || n.split(' ').some(w => w.startsWith(k)));
+  return hit ? hit[1] : l;
 }
 function corrigirNomesLojas(){
   const fix = arr => (arr||[]).forEach(r => { if(r && r.loja) r.loja = nomeLojaCorreto(r.loja); });
   [raw, vendasRaw, custoProdutoRaw, comprasRaw].forEach(fix);
   if(reconciliacao && Array.isArray(reconciliacao.linhas)) fix(reconciliacao.linhas);
+}
+
+// Status do carregamento do CMV (Curva ABC / Compras), mostrado no subtítulo.
+let cmvCarregando = false;
+let cmvFalhas = new Set();
+function avisoCmv(){
+  if(cmvCarregando) return ' · Carregando CMV…';
+  if(cmvFalhas.size) return ' · CMV não atualizou: ' + [...cmvFalhas].join(', ');
+  return '';
 }
 
 function recalcImpostosGer(){
@@ -4252,7 +4297,7 @@ function renderDRE(){
       + (canaisIgnorados.size ? ' · Canais desconhecidos ignorados: ' + [...canaisIgnorados].join(', ') : '')
     : '';
   document.getElementById('dreSubtitle').textContent=
-    `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir${subtitleGerencial}`;
+    `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir${subtitleGerencial}${avisoCmv()}`;
 
   /* Só agora o <thead> e o <tbody> novos estão os dois no DOM, então as
      larguras de coluna medidas pra montar o clone do cabeçalho fixo
