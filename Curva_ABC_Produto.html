@@ -2071,7 +2071,30 @@ $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer);
 /* ══════════════════════════════════════════════════════════════
    RENDER
 ══════════════════════════════════════════════════════════════ */
+/* Filtro Grupo mostra só os grupos COM movimentação no recorte atual
+   (Ano, Mês, Loja e Canal — o próprio Grupo não entra, senão a lista
+   encolheria a cada grupo marcado). Só redesenha a lista quando o
+   conjunto de grupos muda, pra não perder a busca/rolagem do dropdown
+   enquanto o usuário marca os grupos. */
+function atualizarGruposDoPeriodo(){
+  const ano = $('f-ano').value ? +$('f-ano').value : null;
+  const set = new Set();
+  rawData.forEach(r => {
+    if(ano && r.ano !== ano) return;
+    if(selectedMeses.size && !selectedMeses.has(r.mes)) return;
+    if(!passaLoja(r)) return;
+    if(!passaCanal(r)) return;
+    if(r.nomegrupo) set.add(r.nomegrupo);
+  });
+  const grupos = [...set].sort();
+  if(grupos.length === gruposDisponiveis.length && grupos.every((g,i) => g === gruposDisponiveis[i])) return;
+  const busca = $('grp-dd-search') ? $('grp-dd-search').value : '';
+  populateGrupoDropdown(grupos);
+  if(busca){ $('grp-dd-search').value = busca; filterGrupoList(busca); }
+}
+
 function applyFilters(){
+  atualizarGruposDoPeriodo();
   // Destaca em âmbar os selects com valor escolhido (Ano/Loja/Classe).
   ['f-ano','f-classe'].forEach(id => { const el=$(id); if(el) el.classList.toggle('has-sel', !!el.value); });
   atualizarDisponibilidadeMensal();
