@@ -2448,7 +2448,7 @@ function canaisVisiveis(){
 //   • DISTRIBUICAO + VS = False + Fabrica = False → Distribuição (não entra).
 // Só Loja, Delivery e Central compõem o faturamento do DRE Gerencial.
 let canaisIgnorados = new Set();
-const RE_TRUE = /^(true|verdadeiro|1|sim)$/i;
+const RE_TRUE = /^\s*(true|verdadeiro|1|1\.0|sim|s|x|yes)\s*$/i;
 function classificarCanal(txt, vs, fabrica){
   const canal = normKey(txt);
   if(canal==='distribuicao'){
@@ -2484,8 +2484,10 @@ function parseVendas(text, lojaFallback){
   const iMes   = findCol(rawHeaders,'mes');
   const iTotal = findCol(rawHeaders,'total');
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
-  const iVs    = findColExata(rawHeaders,'vs');
-  const iFab   = findColExata(rawHeaders,'fabrica');
+  let iVs      = findColExata(rawHeaders,'vs');
+  if(iVs<0)  iVs  = rawHeaders.findIndex(h => /^vs\b|^vs_/.test(normKey(h)));
+  let iFab     = findColExata(rawHeaders,'fabrica');
+  if(iFab<0) iFab = rawHeaders.findIndex(h => normKey(h).includes('fabrica'));
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){

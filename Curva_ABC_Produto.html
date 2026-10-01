@@ -1148,9 +1148,17 @@ function parseCurvaABC(text, lojaFallback){
   const iLoja    = findCol(headers,'loja');
   // Canal (mesma regra da Análise Comercial): colunas canais/canal + VS + Fabrica.
   const exata = (...ns) => { for(const n of ns){ const i=headers.findIndex(h=>normTxt(h)===n); if(i!==-1) return i; } return -1; };
-  const iCanal   = exata('canais','canal','canais_semana');
-  const iVs      = exata('vs');
-  const iFab     = exata('fabrica');
+  // Nome exato primeiro; se não achar, qualquer coluna que contenha "canal"
+  // (ex.: "Canal Venda", "canal_vendas").
+  let iCanal     = exata('canais','canal','canais_semana');
+  if(iCanal<0) iCanal = headers.findIndex(h => normTxt(h).includes('canal'));
+  // VS / Fabrica: nome exato; se não achar, aceita variações ("VS ", "vs_venda", "Fábrica?").
+  let iVs        = exata('vs');
+  if(iVs<0) iVs  = headers.findIndex(h => /^vs\b|^vs_/.test(normTxt(h)));
+  let iFab       = exata('fabrica');
+  if(iFab<0) iFab = headers.findIndex(h => normTxt(h).includes('fabrica'));
+  // Verdadeiro: TRUE / VERDADEIRO / 1 / SIM / S / X (com ou sem espaços).
+  const ehVerdade = v => /^(true|verdadeiro|1|1\.0|sim|s|x|yes)$/i.test(String(v||'').trim());
 
   const missing=[];
   if(iNome<0)  missing.push('nome');
@@ -1182,8 +1190,8 @@ function parseCurvaABC(text, lojaFallback){
     //   DISTRIBUICAO + VS=False + Fabrica=True  → CENTRAL
     let canal = iCanal>=0 ? g(iCanal) : '';
     if(normTxt(canal)==='distribuicao'){
-      const vs  = /^(true|verdadeiro|1|sim)$/i.test(g(iVs));
-      const fab = /^(true|verdadeiro|1|sim)$/i.test(g(iFab));
+      const vs  = ehVerdade(g(iVs));
+      const fab = ehVerdade(g(iFab));
       if(vs && fab) continue;
       if(vs) canal = 'Reembolso';
       else if(fab) canal = 'Central';
@@ -1239,7 +1247,7 @@ function unificarNomesGrupo(rows){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v3';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v5';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
