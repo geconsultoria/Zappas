@@ -142,6 +142,33 @@ body {
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 /* Filtro ativo (com seleção) — mesmo tom âmbar da Análise Comercial,
    pra bater o olho e já saber que tem filtro ligado. */
+/* Tudo numa linha só (logo + filtros + Atualizado/Atualizar): versão
+   compacta dos filtros; só quebra linha em telas estreitas (<1240px). */
+.site-header { flex-wrap: nowrap; gap: 12px; padding-left: 20px; padding-right: 20px; }
+.site-header .ig-filter-bar { flex-wrap: nowrap; gap: 8px; padding: 6px 10px; flex: 0 1 auto; min-width: 0; }
+.site-header .ig-fgroup { gap: 5px; }
+.site-header .ig-fselect { min-width: 0; font-size: 12px; padding: 6px 24px 6px 9px; background-position: right 8px center; }
+.site-header #fAno { width: 92px; }
+.site-header #fMesBtn { min-width: 104px; }
+.site-header #fLoja { max-width: 140px; }
+.site-header #fCanalBtn { min-width: 100px; }
+.site-header .ig-btn-clear { padding: 6px 10px; }
+.site-header .logo-sub { white-space: nowrap; }
+.header-right { margin-left: auto; }
+.site-header .ig-fselect, .site-header .ig-btn-clear, .site-header .ig-flabel { white-space: nowrap; }
+.site-header .ig-filter-bar { flex-shrink: 0; }
+.site-header .header-logo { min-width: 0; flex-shrink: 1; }
+.site-header .logo-text { white-space: nowrap; }
+.header-right { gap: 8px; }
+.last-update { max-width: 118px; line-height: 1.25; text-align: right; font-size: 10.5px; }
+.site-header .btn-refresh { padding: 7px 12px; white-space: nowrap; }
+@media (max-width: 1240px) {
+  .site-header { flex-wrap: wrap; }
+  .site-header .header-logo { flex-shrink: 0; }
+}
+@media (max-width: 900px) {
+  .site-header .ig-filter-bar { flex-wrap: wrap; }
+}
 .ig-fselect.has-sel {
   border-color:#B87010; color:#7A4A05; background-color:#FDECD0; font-weight:600;
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237A4A05' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
@@ -3151,7 +3178,7 @@ function limparMeses(){
 }
 
 function populateFilters(){
-  const anos=uniq(raw.map(r=>r.ano),true), meses=uniq(raw.map(r=>r.mes),true), lojas=uniq(raw.map(r=>r.loja));
+  const anos=uniq(raw.map(r=>r.ano),true), meses=uniq(raw.map(r=>r.mes),true), lojas=ordenarLojas(uniq(raw.map(r=>r.loja)));
   const sel=(id,opts,fmt,placeholder)=>{ const el=document.getElementById(id); const cur=el.value; el.innerHTML=`<option value="">${placeholder}</option>`+opts.map(o=>`<option value="${o}">${fmt(o)}</option>`).join(''); if(opts.includes(Number(cur))||opts.includes(cur)) el.value=cur; };
   sel('fAno',anos,a=>String(a),'Todos os Anos');
   sel('fLoja',lojas,l=>l,'Todas as Lojas');
@@ -3188,6 +3215,15 @@ function recalcImpostosGer(){
       // qual imposto vem cada valor, igual ao DFC.
       return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano };
     });
+}
+
+// Ordem fixa das lojas nas colunas da Demonstração do Resultado (e no
+// filtro de Loja): Anisio, Bady, Damha, Belvedere, Muffato, Havan. Lojas
+// fora da lista (se aparecerem) vão pro final, em ordem alfabética.
+const ORDEM_LOJAS = ['anisio','bady','damha','belvede','muffato','havan'];
+function ordenarLojas(lista){
+  const pos = l => { const n = normKey(l); const i = ORDEM_LOJAS.findIndex(k => n.startsWith(k)); return i === -1 ? 99 : i; };
+  return [...lista].sort((a,b) => (pos(a)-pos(b)) || String(a).localeCompare(String(b),'pt-BR'));
 }
 
 function applyFilters(){
@@ -3745,7 +3781,7 @@ function renderDRE(){
 
   /* Colunas dinâmicas: no modo mensal são os meses presentes (só os
      selecionados, se algum estiver marcado); senão são as lojas */
-  const lojas = uniq(filtered.map(r=>r.loja));
+  const lojas = ordenarLojas(uniq(filtered.map(r=>r.loja)));
   const mesesPresentes = modoMensal
     ? uniq(filtered.map(r=>r.mes).filter(Boolean), true)   /* numérico ordenado */
     : [];
@@ -4260,7 +4296,7 @@ function renderDREConsolidado(){
      (loja ou mês) vem triplicada: DRE Gerencial | DFC | Diferença. */
   const fLojaAtiva = document.getElementById('fLoja').value;
   const modoMensal = !!fLojaAtiva && mesesSelecionados.length !== 1;
-  const lojas = uniq(filtered.map(r=>r.loja));
+  const lojas = ordenarLojas(uniq(filtered.map(r=>r.loja)));
   const mesesPresentes = modoMensal
     ? uniq(filtered.map(r=>r.mes).filter(Boolean), true)
     : [];
