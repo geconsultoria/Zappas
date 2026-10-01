@@ -1668,7 +1668,17 @@ let canaisDisponiveis = []; // [{key,label}]
 function populateCanalDropdown(){
   const m = new Map();
   rawData.forEach(r => { if(r.canalKey && !m.has(r.canalKey)) m.set(r.canalKey, r.canal); });
-  canaisDisponiveis = [...m].map(([key,label])=>({key,label})).sort((a,b)=>a.label.localeCompare(b.label,'pt-BR'));
+  // Igual à Análise Comercial: Central e Reembolso aparecem SEMPRE no
+  // filtro (mesmo sem venda no período/base), e a lista segue uma ordem
+  // fixa: Loja, Delivery, Central, Distribuição, Reembolso (outros no fim).
+  if(m.size){
+    if(!m.has('central'))   m.set('central','Central');
+    if(!m.has('reembolso')) m.set('reembolso','Reembolso');
+  }
+  const ORDEM_CANAIS = ['loja','delivery','central','distribuicao','reembolso'];
+  const pos = k => { const i = ORDEM_CANAIS.indexOf(k); return i === -1 ? 99 : i; };
+  canaisDisponiveis = [...m].map(([key,label])=>({key,label}))
+    .sort((a,b)=>(pos(a.key)-pos(b.key)) || a.label.localeCompare(b.label,'pt-BR'));
   const keys = canaisDisponiveis.map(c=>c.key);
   selectedCanais = new Set([...selectedCanais].filter(k => keys.includes(k)));
   renderCanalList();
