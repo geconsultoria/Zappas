@@ -395,6 +395,7 @@ a.side-brand:hover { opacity:.85; }
   overflow: hidden;
 }
 .grp-dropdown.open { display: block; }
+.cnl-trigger { min-width: 96px; }
 
 .grp-dd-head {
   padding: 9px 12px 7px;
@@ -477,6 +478,7 @@ a.side-brand:hover { opacity:.85; }
 .kpi-val { font-family: var(--font-num); font-size: 23px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; line-height: 1; text-align: center; }
 .kpi-foot { font-size: 10.5px; color: var(--ink-4); margin-top: 8px; text-align: right; }
 .kpi-foot b { color: var(--ink-3); font-weight: 600; }
+.kpi-foot.kpi-foot-2 { margin-top: 3px; white-space: nowrap; }
 
 /* CARD / TABLE */
 .comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
@@ -810,6 +812,25 @@ a.side-brand:hover { opacity:.85; }
         </div>
       </div>
     </div>
+    <div class="ig-fgroup">
+      <span class="ig-flabel">Canal</span>
+      <div class="grp-wrap" id="cnl-wrap">
+        <div class="grp-trigger cnl-trigger" id="cnl-trigger" onclick="toggleCanalDropdown(event)">
+          <span id="cnl-trigger-txt">2 canais</span>
+          <span class="grp-badge" id="cnl-badge">2</span>
+        </div>
+        <div class="grp-dropdown" id="cnl-dropdown">
+          <div class="grp-dd-head">
+            <span class="grp-dd-title">Canais</span>
+            <div class="grp-dd-actions">
+              <button class="grp-dd-btn" type="button" onclick="canaisPadrao()">Padrão</button>
+              <button class="grp-dd-btn" type="button" onclick="selectAllCanais()">Todos</button>
+            </div>
+          </div>
+          <div class="grp-dd-list" id="cnl-dd-list"></div>
+        </div>
+      </div>
+    </div>
     <div class="ig-fgroup"><span class="ig-flabel">Classe</span>
       <select class="ig-fselect" id="f-classe">
         <option value="">Todas</option>
@@ -835,7 +856,7 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="sec" style="margin-top:0"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
   <div class="kpi-row">
-    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total Vendido</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> produtos ativos</div></div>
+    <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Total Vendido</div><div class="kpi-val" id="kv-total">—</div><div class="kpi-foot"><b id="kv-qtd">0</b> produtos ativos</div><div class="kpi-foot kpi-foot-2">Custo <b id="kv-custo">—</b> · <span id="kv-custo-pct" title="Custo sobre o valor vendido">0%</span></div></div>
     <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Curva A</div><div class="kpi-val" id="kv-curvaa">—</div><div class="kpi-foot"><b id="kv-qtd-a">0</b> produtos · <span id="kv-pct-a">0%</span> do total</div></div>
     <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Curva B</div><div class="kpi-val" id="kv-curvab">—</div><div class="kpi-foot"><b id="kv-qtd-b">0</b> produtos · <span id="kv-pct-b">0%</span> do total</div></div>
     <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Curva C</div><div class="kpi-val" id="kv-curvac">—</div><div class="kpi-foot"><b id="kv-qtd-c">0</b> produtos · <span id="kv-pct-c">0%</span> do total</div></div>
@@ -1101,6 +1122,11 @@ function parseCurvaABC(text, lojaFallback){
   const iQtd     = findCol(headers,'qtd','quantidade');
   const iTotal   = findCol(headers,'total','valortotal','valor');
   const iLoja    = findCol(headers,'loja');
+  // Canal (mesma regra da Análise Comercial): colunas canais/canal + VS + Fabrica.
+  const exata = (...ns) => { for(const n of ns){ const i=headers.findIndex(h=>normTxt(h)===n); if(i!==-1) return i; } return -1; };
+  const iCanal   = exata('canais','canal','canais_semana');
+  const iVs      = exata('vs');
+  const iFab     = exata('fabrica');
 
   const missing=[];
   if(iNome<0)  missing.push('nome');
@@ -1126,6 +1152,19 @@ function parseCurvaABC(text, lojaFallback){
     const nomegrupo = (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO';
     if(GRUPOS_EXCLUIDOS.includes(normTxt(nomegrupo))) continue;
 
+    // Regras de canal iguais às da Análise Comercial:
+    //   DISTRIBUICAO + VS=True  + Fabrica=True  → descartada
+    //   DISTRIBUICAO + VS=True  + Fabrica=False → REEMBOLSO
+    //   DISTRIBUICAO + VS=False + Fabrica=True  → CENTRAL
+    let canal = iCanal>=0 ? g(iCanal) : '';
+    if(normTxt(canal)==='distribuicao'){
+      const vs  = /^(true|verdadeiro|1|sim)$/i.test(g(iVs));
+      const fab = /^(true|verdadeiro|1|sim)$/i.test(g(iFab));
+      if(vs && fab) continue;
+      if(vs) canal = 'Reembolso';
+      else if(fab) canal = 'Central';
+    }
+
     rows.push({
       loja,
       ano: dt ? dt.ano : null, mes: dt ? dt.mes : null, dataTs: dt ? dt.ts : null, dtVenda: dtStr,
@@ -1133,6 +1172,9 @@ function parseCurvaABC(text, lojaFallback){
       nome: g(iNome) || '(sem nome)',
       grupo: iGrupo>=0 ? g(iGrupo) : '',
       nomegrupo,
+      canal: canal ? ({loja:'Loja',delivery:'Delivery',central:'Central',distribuicao:'Distribuição',reembolso:'Reembolso'}[normTxt(canal)]
+                      || canal.charAt(0).toUpperCase()+canal.slice(1).toLowerCase()) : '',
+      canalKey: normTxt(canal),
       custofinal: iCusto>=0 ? parseNum(g(iCusto)) : 0,
       qtd, total,
     });
@@ -1173,7 +1215,7 @@ function unificarNomesGrupo(rows){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v2';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v3';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -1335,6 +1377,7 @@ function populateFilters(){
   if(lojas.includes(curLoja)) $('f-loja').value = curLoja;
 
   populateGrupoDropdown(grupos);
+  populateCanalDropdown();
 }
 
 /* ── Mês multi-select (mesmo padrão do filtro Canal da Análise Comercial) ──
@@ -1423,6 +1466,11 @@ document.addEventListener('click', e => {
   if(!e.target.closest('#mes-wrap')){
     const dd = $('mes-dropdown');
     const tr = $('mes-trigger');
+    if(dd) dd.classList.remove('open');
+    if(tr) tr.classList.remove('open');
+  }
+  if(!e.target.closest('#cnl-wrap')){
+    const dd = $('cnl-dropdown'), tr = $('cnl-trigger');
     if(dd) dd.classList.remove('open');
     if(tr) tr.classList.remove('open');
   }
@@ -1546,6 +1594,85 @@ function toggleGrupoDropdown(e){
   }
 }
 
+/* ── Canal multi-select (padrão: Loja + Delivery) ──
+   selectedCanais guarda as chaves normalizadas (loja, delivery, central…).
+   Set vazio = todos. Linhas sem canal (planilha sem a coluna) sempre
+   entram, pra não zerar a tela se a coluna não existir. */
+const CANAIS_PADRAO = ['loja','delivery'];
+let selectedCanais = new Set(CANAIS_PADRAO);
+let canaisDisponiveis = []; // [{key,label}]
+
+function populateCanalDropdown(){
+  const m = new Map();
+  rawData.forEach(r => { if(r.canalKey && !m.has(r.canalKey)) m.set(r.canalKey, r.canal); });
+  canaisDisponiveis = [...m].map(([key,label])=>({key,label})).sort((a,b)=>a.label.localeCompare(b.label,'pt-BR'));
+  const keys = canaisDisponiveis.map(c=>c.key);
+  selectedCanais = new Set([...selectedCanais].filter(k => keys.includes(k)));
+  renderCanalList();
+  updateCanalTrigger();
+}
+function renderCanalList(){
+  const list = $('cnl-dd-list'); if(!list) return;
+  if(!canaisDisponiveis.length){
+    list.innerHTML = '<div class="grp-dd-empty">A planilha não tem coluna de canal</div>';
+    return;
+  }
+  list.innerHTML = canaisDisponiveis.map(c => {
+    const ck = selectedCanais.has(c.key);
+    return `<label class="grp-item${ck?' checked':''}"><input type="checkbox" value="${c.key}" ${ck?'checked':''} onchange="onCanalChange(this)"><span class="grp-item-label">${c.label}</span></label>`;
+  }).join('');
+}
+function onCanalChange(cb){
+  if(cb.checked) selectedCanais.add(cb.value); else selectedCanais.delete(cb.value);
+  cb.closest('label').classList.toggle('checked', cb.checked);
+  updateCanalTrigger();
+  applyFilters();
+}
+function canaisPadrao(){
+  const keys = canaisDisponiveis.map(c=>c.key);
+  selectedCanais = new Set(CANAIS_PADRAO.filter(k => !keys.length || keys.includes(k)));
+  renderCanalList(); updateCanalTrigger(); applyFilters();
+}
+function selectAllCanais(){
+  selectedCanais = new Set(canaisDisponiveis.map(c=>c.key));
+  renderCanalList(); updateCanalTrigger(); applyFilters();
+}
+function updateCanalTrigger(){
+  const n = selectedCanais.size, total = canaisDisponiveis.length;
+  const badge = $('cnl-badge'), txt = $('cnl-trigger-txt'), trigger = $('cnl-trigger');
+  if(!trigger) return;
+  if(n === 0 || (total && n === total)){
+    txt.textContent = 'Todos';
+    badge.style.display = 'none';
+    trigger.classList.remove('has-sel');
+  } else if(n === 1){
+    const [k] = selectedCanais;
+    txt.textContent = (canaisDisponiveis.find(c=>c.key===k)||{label:k}).label;
+    badge.style.display = 'none';
+    trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} canais`;
+    badge.textContent = n;
+    badge.style.display = 'inline-flex';
+    trigger.classList.add('has-sel');
+  }
+  trigger.title = [...selectedCanais].map(k=>(canaisDisponiveis.find(c=>c.key===k)||{label:k}).label).join(', ');
+}
+function toggleCanalDropdown(e){
+  e.stopPropagation();
+  const dd = $('cnl-dropdown'), trigger = $('cnl-trigger');
+  const isOpen = dd.classList.toggle('open');
+  trigger.classList.toggle('open', isOpen);
+  if(isOpen){
+    const r = trigger.getBoundingClientRect();
+    dd.style.top = (r.bottom + 6) + 'px';
+    dd.style.left = r.left + 'px';
+  }
+}
+function passaCanal(r){
+  return !(r.canalKey && selectedCanais.size && !selectedCanais.has(r.canalKey));
+}
+
 /* Filtros que definem o universo usado para calcular a curva
    (ano/mês/loja/grupo) — mudar qualquer um deles recalcula o
    percentual acumulado do zero. */
@@ -1558,6 +1685,7 @@ function getBaseFiltered(){
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return false;
     if(loja && r.loja !== loja) return false;
     if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
+    if(!passaCanal(r)) return false;
     return true;
   });
 }
@@ -1825,6 +1953,7 @@ function getBaseFiltradoSemLoja(){
     if(ano && r.ano !== ano) return false;
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return false;
     if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
+    if(!passaCanal(r)) return false;
     return true;
   });
 }
@@ -1842,6 +1971,11 @@ function renderKPIs(classificados){
 
   $('kv-total').textContent = fBRL(total);
   $('kv-qtd').textContent = fN(classificados.length);
+  // Custo total do período filtrado (custofinal × qtd de cada produto) e
+  // quanto ele representa do valor vendido.
+  const custo = classificados.reduce((s,p)=>s+(p.custoTotal||0),0);
+  $('kv-custo').textContent = fBRL(custo);
+  $('kv-custo-pct').textContent = fPct(total?custo/total*100:0);
   $('kv-curvaa').textContent = fBRL(vA);
   $('kv-qtd-a').textContent = fN(a.length);
   $('kv-pct-a').textContent = fPct(total?vA/total*100:0);
