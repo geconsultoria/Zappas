@@ -268,6 +268,12 @@ a.side-brand:hover { opacity:.85; }
 }
 .ig-fselect:focus { outline:none; border-color: var(--gold); }
 .ig-fselect option { color:#0f1923; }
+/* Filtro ativo (com valor escolhido) — mesmo tom âmbar dos filtros Mês/Grupo/Canal. */
+.ig-fselect.has-sel {
+  border-color: var(--amber-mid); color: var(--amber); background-color: var(--amber-lt); font-weight: 600;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%237A4A05' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+}
+.ig-fselect.has-sel:focus { border-color: var(--amber-mid); box-shadow: 0 0 0 3px var(--amber-lt); }
 #f-ano { width: 68px; }
 #f-loja { width: 92px; }
 #f-classe { width: 80px; }
@@ -1931,6 +1937,8 @@ $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer);
    RENDER
 ══════════════════════════════════════════════════════════════ */
 function applyFilters(){
+  // Destaca em âmbar os selects com valor escolhido (Ano/Loja/Classe).
+  ['f-ano','f-loja','f-classe'].forEach(id => { const el=$(id); if(el) el.classList.toggle('has-sel', !!el.value); });
   atualizarDisponibilidadeMensal();
   const { base, calc, metric, exibicao } = getFiltrados();
   renderKPIs(calc.porValor);
