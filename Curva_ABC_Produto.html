@@ -1141,9 +1141,39 @@ function parseCurvaABC(text, lojaFallback){
 }
 
 /* ══════════════════════════════════════════════════════════════
+   NOME DO GRUPO SEMPRE ATUALIZADO
+   Cada venda traz o "nomegrupo" que o grupo tinha NA DATA da venda. Quando
+   a descrição de um grupo é alterada no cadastro, as vendas antigas
+   continuam com o nome velho — e o filtro Grupo mostrava os dois nomes
+   (ou só o antigo, conforme o período). Aqui todas as linhas do mesmo
+   código de grupo passam a usar a descrição MAIS RECENTE (a da venda com
+   data mais nova). Linhas sem código de grupo ficam como estão.
+══════════════════════════════════════════════════════════════ */
+function normCodGrupo(c){ return String(c||'').trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,''); }
+function unificarNomesGrupo(rows){
+  const ultimo = new Map(); // codgrupo -> { ts, nome }
+  rows.forEach(r=>{
+    const cod = normCodGrupo(r.grupo);
+    if(!cod || !r.nomegrupo || r.nomegrupo==='SEM GRUPO') return;
+    const ts = r.dataTs || 0;
+    const atual = ultimo.get(cod);
+    if(!atual || ts >= atual.ts) ultimo.set(cod, { ts, nome: r.nomegrupo });
+  });
+  const out = [];
+  rows.forEach(r=>{
+    const u = ultimo.get(normCodGrupo(r.grupo));
+    const nomegrupo = u ? u.nome : r.nomegrupo;
+    // o nome novo pode ter virado um dos grupos excluídos
+    if(GRUPOS_EXCLUIDOS.includes(normTxt(nomegrupo))) return;
+    out.push(nomegrupo===r.nomegrupo ? r : { ...r, nomegrupo });
+  });
+  return out;
+}
+
+/* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v2';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -1204,7 +1234,7 @@ async function carregarTudo(){
   }
   if(!rows.length) throw new Error('Nenhuma linha válida encontrada.');
   if(falharam.length) console.warn('Lojas que não carregaram nesta atualização: '+falharam.join(', '));
-  rawData = rows;
+  rawData = unificarNomesGrupo(rows);
 }
 
 function showUpdateOverlay(){
@@ -1231,7 +1261,7 @@ async function loadData(forceRefresh){
   if(!forceRefresh){
     const cached = await loadCacheDB();
     if(cached && cached.data && cached.data.length){
-      rawData = cached.data;
+      rawData = unificarNomesGrupo(cached.data);
       populateFilters();
       applyFilters();
       $('content').classList.remove('hidden');
