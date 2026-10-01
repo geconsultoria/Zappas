@@ -636,6 +636,20 @@ body {
    entre lojas/meses desce também pelas linhas de dados (2ª linha do
    cabeçalho e tbody), não só pela 1ª linha do cabeçalho. */
 .dre-table.fixed-cols { table-layout: fixed; }
+/* DRE x DFC: na 2ª linha do cabeçalho o 1º <th> é o "DRE Ger." da 1ª
+   loja/mês (a célula "Conta" vem da 1ª linha, com rowspan=2). A regra
+   geral "th:first-child fica preso à esquerda" prendia esse "DRE Ger."
+   na borda e ele ficava por cima da coluna Conta ao rolar pro final.
+   Aqui ele rola normalmente (só continua preso no topo), e a célula
+   Conta fica acima de tudo, cobrindo as duas linhas do cabeçalho. */
+.dre-table thead tr:nth-child(2) th:first-child { left: auto; z-index: 2; }
+/* Linhas sem valor: antes eram "apagadas" com opacity:.4 na linha inteira,
+   o que deixava a célula fixa da Conta semitransparente — ao rolar, os
+   valores das outras colunas apareciam por trás da descrição. Agora só o
+   TEXTO fica esmaecido; o fundo da célula continua sólido. */
+.dre-table tr.row-vazia td { color: rgba(15,25,35,.38); }
+.dre-table tr.row-vazia td * { opacity: .45; }
+.dre-table thead tr:first-child th[rowspan] { z-index: 5; background: var(--surface-tint); vertical-align: bottom; }
 /* A 2ª linha do cabeçalho (DRE Ger./DFC/Dif.) NÃO tem uma célula "Conta"
    própria (ela é "rowspan=2" só na 1ª linha), então o "1º da coluna do
    grupo" cai numa posição diferente ali (3n+1) do que no tbody (3n+2,
@@ -4226,7 +4240,7 @@ function renderDRE(){
       // treeImp, montado direto de filteredImpostosGer.
       const gruposImp=Object.keys(treeImp);
       if(!gruposImp.length){
-        html+=`<tr class="row-group" style="opacity:.4">
+        html+=`<tr class="row-group row-vazia">
           <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
           ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
         </tr>`;
@@ -4277,7 +4291,7 @@ function renderDRE(){
     /* type === 'group' */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
-      html+=`<tr class="row-group" style="opacity:.4">
+      html+=`<tr class="row-group row-vazia">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
         ${cols.map(()=>`<td>—</td>${avVisible?'<td class="av-col">—</td>':''}`).join('')}<td>—</td>${avVisible?'<td class="av-col">—</td>':''}
       </tr>`;
@@ -4827,7 +4841,7 @@ function renderDREConsolidado(){
        Diferença = 0 até a planilha por vencimento existir. */
     const grupos=slugToGruposMap[slot.slug]||[];
     if(!grupos.length){
-      html+=`<tr class="row-group" style="opacity:.4">
+      html+=`<tr class="row-group row-vazia">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
         ${cols.map(()=>`<td>—</td><td class="av-col">—</td><td class="av-col">—</td>`).join('')}
         <td>—</td><td class="av-col">—</td><td class="av-col">—</td>
