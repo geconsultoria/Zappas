@@ -1088,9 +1088,15 @@ function parseNum(v){
 }
 function parseDataBR(str){
   const s = String(str||'').trim();
-  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(!m) return null;
-  const dia = +m[1], mes = +m[2], ano = +m[3];
+  let dia, mes, ano;
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(m){ dia = +m[1]; mes = +m[2]; ano = +m[3]; }
+  else {
+    // Formato ISO (aaaa-mm-dd), usado no novo arquivo com canal/fabrica.
+    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+    if(!m) return null;
+    ano = +m[1]; mes = +m[2]; dia = +m[3];
+  }
   if(mes<1||mes>12||dia<1||dia>31) return null;
   return { dia, mes, ano, ts: new Date(ano, mes-1, dia).getTime() };
 }
