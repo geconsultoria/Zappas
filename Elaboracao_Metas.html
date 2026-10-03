@@ -2386,35 +2386,44 @@ function renderMetaSuggestion(f, allLojas, getVenda, anoAtual) {
   const mesSel = f.mes ? parseInt(f.mes) : null;
   if (!mesSel) { container.innerHTML = ''; return; }
 
-  const mesNext = mesSel === 12 ? 1 : mesSel + 1;
-  const mesNextNome = MESES_NOME[mesNext - 1];
-  const mesSelNome = MESES_NOME[mesSel - 1];
+  // Se o filtro está no mês corrente (ainda em andamento), a sugestão é
+  // para o PRÓPRIO mês, usando a evolução do último mês fechado.
+  // Se o filtro está num mês já fechado, a sugestão é para o mês seguinte.
+  const hoje = new Date();
+  const isMesCorrente = (anoAtual === hoje.getFullYear() && mesSel === hoje.getMonth() + 1);
+
+  let baseMes, baseAno, alvoMes, alvoAno;
+  if (isMesCorrente) {
+    baseMes = mesSel === 1 ? 12 : mesSel - 1;
+    baseAno = mesSel === 1 ? anoAtual - 1 : anoAtual;
+    alvoMes = mesSel;
+    alvoAno = anoAtual;
+  } else {
+    baseMes = mesSel;
+    baseAno = anoAtual;
+    alvoMes = mesSel === 12 ? 1 : mesSel + 1;
+    alvoAno = mesSel === 12 ? anoAtual + 1 : anoAtual;
+  }
+  const baseAnoAnt = baseAno - 1;
+  const alvoAnoAnt = alvoAno - 1;
+  const baseNome = MESES_NOME[baseMes - 1];
+  const alvoNome = MESES_NOME[alvoMes - 1];
 
   const suggestions = [];
 
   for (const loja of allLojas) {
     if (loja === 'TOTAL BADY') continue;
 
-    const vendMesAtual25 = getVenda(2025, loja, mesSel);
-    const vendMesAtual26 = getVenda(anoAtual, loja, mesSel);
-    const vendMesProx25  = getVenda(2025, loja, mesNext);
+    const vendBaseAnt   = getVenda(baseAnoAnt, loja, baseMes);
+    const vendBaseAtual = getVenda(baseAno, loja, baseMes);
+    const vendAlvoAnt   = getVenda(alvoAnoAnt, loja, alvoMes);
 
-    if (!vendMesAtual25 || !vendMesAtual26 || !vendMesProx25) continue;
+    if (!vendBaseAnt || !vendBaseAtual || !vendAlvoAnt) continue;
 
-    const crescimento = (vendMesAtual26 - vendMesAtual25) / vendMesAtual25;
-    const metaSugerida = vendMesProx25 * (1 + crescimento);
+    const crescimento = (vendBaseAtual - vendBaseAnt) / vendBaseAnt;
+    const metaSugerida = vendAlvoAnt * (1 + crescimento);
 
-    const metaAtual = getVenda(anoAtual, loja, mesSel);
-    const peAtual = getVenda(anoAtual, loja, mesSel);
-
-    suggestions.push({
-      loja,
-      vendMesAtual25,
-      vendMesAtual26,
-      vendMesProx25,
-      crescimento,
-      metaSugerida
-    });
+    suggestions.push({ loja, vendBaseAnt, vendBaseAtual, vendAlvoAnt, crescimento, metaSugerida });
   }
 
   if (suggestions.length === 0) {
@@ -2428,46 +2437,50 @@ function renderMetaSuggestion(f, allLojas, getVenda, anoAtual) {
   let tableRows = suggestions.map(s => `
     <tr>
       <td class="sug-loja">${s.loja==='BELVEDER'?'BELVEDERE':s.loja}</td>
-      <td class="sug-ref">${fmtGrid(s.vendMesAtual25)}</td>
-      <td class="sug-ref">${fmtGrid(s.vendMesAtual26)}</td>
-      <td class="sug-ref">${fmtGrid(s.vendMesProx25)}</td>
+      <td class="sug-ref">${fmtGrid(s.vendBaseAnt)}</td>
+      <td class="sug-ref">${fmtGrid(s.vendBaseAtual)}</td>
+      <td class="sug-ref">${fmtGrid(s.vendAlvoAnt)}</td>
       <td class="sug-pct ${pctCls(s.crescimento)}">${pctFmt(s.crescimento)}</td>
       <td class="sug-valor">${fmtGrid(s.metaSugerida)}</td>
     </tr>
   `).join('');
 
-  const totalRef = suggestions.reduce((s, x) => s + x.vendMesProx25, 0);
-  const totalCresc = suggestions.reduce((s, x) => s + x.vendMesAtual25, 0);
-  const totalAtual = suggestions.reduce((s, x) => s + x.vendMesAtual26, 0);
-  const totalMeta = suggestions.reduce((s, x) => s + x.metaSugerida, 0);
-  const avgCresc = totalCresc > 0 ? (totalAtual - totalCresc) / totalCresc : 0;
+  const totalRef   = suggestions.reduce((s, x) => s + x.vendAlvoAnt, 0);
+  const totalAnt   = suggestions.reduce((s, x) => s + x.vendBaseAnt, 0);
+  const totalAtual = suggestions.reduce((s, x) => s + x.vendBaseAtual, 0);
+  const totalMeta  = suggestions.reduce((s, x) => s + x.metaSugerida, 0);
+  const avgCresc = totalAnt > 0 ? (totalAtual - totalAnt) / totalAnt : 0;
 
   const totalRow = `
     <tr style="border-top:2px solid var(--border-strong); font-weight:700;">
       <td class="sug-loja">TOTAL</td>
-      <td class="sug-ref">${fmtGrid(totalCresc)}</td>
+      <td class="sug-ref">${fmtGrid(totalAnt)}</td>
       <td class="sug-ref">${fmtGrid(totalAtual)}</td>
       <td class="sug-ref">${fmtGrid(totalRef)}</td>
       <td class="sug-pct ${pctCls(avgCresc)}">${pctFmt(avgCresc)}</td>
       <td class="sug-valor">${fmtGrid(totalMeta)}</td>
     </tr>`;
 
+  const notaMesCorrente = isMesCorrente
+    ? ` Como ${alvoNome}/${alvoAno} ainda está em andamento, a evolução usada é a do último mês fechado (${baseNome}).`
+    : '';
+
   container.innerHTML = `
     <div class="suggestion-panel">
       <div class="sug-header">
         <div class="sug-icon">💡</div>
         <div>
-          <div class="sug-title">Sugestão de Meta — ${mesNextNome.toUpperCase()}</div>
-          <div class="sug-subtitle">Baseada no realizado ${mesSelNome}/2025 aplicando a evolução ${mesSelNome}/2025→${mesSelNome}/2026</div>
+          <div class="sug-title">Sugestão de Meta — ${alvoNome.toUpperCase()}${isMesCorrente ? ' (MÊS ATUAL)' : ''}</div>
+          <div class="sug-subtitle">Baseada no realizado ${alvoNome}/${alvoAnoAnt} aplicando a evolução ${baseNome}/${baseAnoAnt}→${baseNome}/${baseAno}</div>
         </div>
       </div>
       <table class="sug-table">
         <thead>
           <tr>
             <th>Loja</th>
-            <th style="text-align:right">${mesSelNome} 2025</th>
-            <th style="text-align:right">${mesSelNome} 2026</th>
-            <th style="text-align:right">${mesNextNome} 2025</th>
+            <th style="text-align:right">${baseNome} ${baseAnoAnt}</th>
+            <th style="text-align:right">${baseNome} ${baseAno}</th>
+            <th style="text-align:right">${alvoNome} ${alvoAnoAnt}</th>
             <th style="text-align:right">Evolução</th>
             <th style="text-align:right">Meta Sugerida</th>
           </tr>
@@ -2478,8 +2491,8 @@ function renderMetaSuggestion(f, allLojas, getVenda, anoAtual) {
         </tbody>
       </table>
       <div class="sug-reason">
-        <strong>📐 Metodologia:</strong> A meta sugerida para <strong>${mesNextNome}</strong> é calculada pegando o valor realizado de <strong>${mesNextNome} de 2025</strong> e aplicando a <strong>evolução percentual</strong> entre ${mesSelNome}/2025 e ${mesSelNome}/2026. 
-        Exemplo: se uma loja teve R$ 100k em ${mesSelNome}/2025 e R$ 110k em ${mesSelNome}/2026 (crescimento de +10%), e o realizado de ${mesNextNome}/2025 foi R$ 120k, então a meta sugerida seria R$ 120k × 1,10 = <strong>R$ 132k</strong>.
+        <strong>📐 Metodologia:</strong> A meta sugerida para <strong>${alvoNome}/${alvoAno}</strong> é calculada pegando o valor realizado de <strong>${alvoNome} de ${alvoAnoAnt}</strong> e aplicando a <strong>evolução percentual</strong> entre ${baseNome}/${baseAnoAnt} e ${baseNome}/${baseAno}.${notaMesCorrente}
+        Exemplo: se uma loja teve R$ 100k em ${baseNome}/${baseAnoAnt} e R$ 110k em ${baseNome}/${baseAno} (crescimento de +10%), e o realizado de ${alvoNome}/${alvoAnoAnt} foi R$ 120k, então a meta sugerida seria R$ 120k × 1,10 = <strong>R$ 132k</strong>.
         Esta é uma referência — ajuste conforme estratégia comercial de cada loja.
       </div>
     </div>`;
