@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Curva ABC Produto</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
 /* ╔═══════════════════════════════════════╗
@@ -55,10 +55,10 @@
   --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
   --sh-lg: 0 8px 40px rgba(0,0,0,.12);
 
-  --font-head: 'Syne', system-ui, sans-serif;
-  --font-body: 'Epilogue', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-num:  'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  --font-head: 'Playfair Display', Georgia, serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-num:  'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
 
   --bar-h: 64px;
   --side-w: 232px;
@@ -221,7 +221,7 @@ a.side-brand:hover { opacity:.85; }
 .fb-brand { display: flex; align-items: center; gap: 8px; padding-right: 12px; border-right: 1px solid rgba(255,255,255,.15); margin-right: 0; flex-shrink: 0; }
 .fb-mark { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
 .fb-mark svg { width: 16px; height: 16px; color: #fff; }
-.fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+.fb-title { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
 .fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
 
 .fb-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-left: auto; padding-left: 12px; }
@@ -580,11 +580,6 @@ a.side-brand:hover { opacity:.85; }
 .comp-table td { padding: 9px 12px; color: var(--ink-2); white-space: nowrap; }
 .comp-table td.num { text-align: right; font-family: var(--font-num); font-weight: 600; }
 .comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
-.comp-table tfoot tr.tot-row td {
-  position: sticky; bottom: 0; z-index: 1;
-  background: var(--blue-xl); color: var(--blue); font-weight: 800;
-  border-top: 2px solid var(--blue-lt);
-}
 .comp-table .nd { text-align: center; padding: 40px 20px; color: var(--ink-4); }
 
 /* Expand/collapse row detail */
@@ -672,7 +667,7 @@ a.side-brand:hover { opacity:.85; }
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -1088,15 +1083,9 @@ function parseNum(v){
 }
 function parseDataBR(str){
   const s = String(str||'').trim();
-  let dia, mes, ano;
-  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
-  if(m){ dia = +m[1]; mes = +m[2]; ano = +m[3]; }
-  else {
-    // Formato ISO (aaaa-mm-dd), usado no novo arquivo com canal/fabrica.
-    m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-    if(!m) return null;
-    ano = +m[1]; mes = +m[2]; dia = +m[3];
-  }
+  const m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  const dia = +m[1], mes = +m[2], ano = +m[3];
   if(mes<1||mes>12||dia<1||dia>31) return null;
   return { dia, mes, ano, ts: new Date(ano, mes-1, dia).getTime() };
 }
@@ -2188,16 +2177,6 @@ function setGrupoDisplayMode(mode){
   renderGrupoLojaMatrix(getBaseFiltradoSemLoja());
 }
 
-/* Linha de TOTAL no rodapé (<tfoot>) do grid — soma todas as linhas do
-   grid (não só a página exibida) e fica fixa embaixo ao rolar. */
-function setTotalRow(tableId, cellsHtml){
-  const tbl = $(tableId); if(!tbl) return;
-  let tf = tbl.tFoot;
-  if(!cellsHtml){ if(tf) tf.remove(); return; }
-  if(!tf) tf = tbl.createTFoot();
-  tf.innerHTML = `<tr class="tot-row">${cellsHtml}</tr>`;
-}
-
 function renderGrupoLojaMatrix(rows){
   const lojaTotais = {};
   LOJA_COLS.forEach(c => lojaTotais[c.key] = 0);
@@ -2227,7 +2206,6 @@ function renderGrupoLojaMatrix(rows){
 
   if(!lista.length){
     $('ctb-grupos').innerHTML = `<tr><td colspan="${colspan}" class="nd">Sem dados para o período selecionado</td></tr>`;
-    setTotalRow('ct-grupos', null);
     return;
   }
 
@@ -2242,14 +2220,6 @@ function renderGrupoLojaMatrix(rows){
     }).join('');
     return `<tr><td>${nome}</td>${tds}<td class="num">${fBRL(vals.total)}</td></tr>`;
   }).join('');
-
-  const totGeral = lista.reduce((s,[,v]) => s + v.total, 0);
-  const totTds = LOJA_COLS.map(c => {
-    const v = lojaTotais[c.key];
-    if(!v) return '<td class="num">—</td>';
-    return `<td class="num">${grupoDisplayMode === 'pct' ? fPct(100) : fBRL(v)}</td>`;
-  }).join('');
-  setTotalRow('ct-grupos', `<td>TOTAL</td>${totTds}<td class="num">${fBRL(totGeral)}</td>`);
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -2480,7 +2450,6 @@ function renderConferenciaCusto(rowsLoja, rowsSemLoja){
   </tr>`;
 
   if(!lista.length){
-    setTotalRow('ct-semcusto', null);
     $('ctb-semcusto').innerHTML = `<tr><td colspan="8" class="nd">${modo100 ? 'Nenhum produto sem custo' : 'Nenhum produto com custo igual ao valor vendido'} encontrado para os filtros selecionados</td></tr>`;
     return;
   }
@@ -2498,18 +2467,10 @@ function renderConferenciaCusto(rowsLoja, rowsSemLoja){
       <td class="num">${fBRL(modo100 ? 0 : p.custoTotal)}</td>
       <td class="num">${fPct(modo100 ? 100 : 0)}</td>
     </tr>`).join('');
-
-  const tQtd = lista.reduce((s,p) => s + (p.qtd||0), 0);
-  const tTot = lista.reduce((s,p) => s + (p.total||0), 0);
-  const tCus = modo100 ? 0 : lista.reduce((s,p) => s + (p.custoTotal||0), 0);
-  setTotalRow('ct-semcusto', `<td>TOTAL</td><td></td><td></td><td></td>
-    <td class="num">${fN(tQtd)}</td><td class="num">${fBRL(tTot)}</td><td class="num">${fBRL(tCus)}</td>
-    <td class="num">${fPct(tTot ? (tTot - tCus)/tTot*100 : 0)}</td>`);
 }
 
 function renderDivergenciaCusto(rowsSemLoja){
   const lista = calcularDivergenciaCusto(rowsSemLoja);
-  setTotalRow('ct-semcusto', null); // custo unitário por loja — não faz sentido somar
 
   $('semcusto-title').textContent = 'Conferência';
   $('semcusto-sub').textContent = '';
@@ -2612,7 +2573,6 @@ function renderTabela(data, produtos, metric){
 
 /* ── Visão Resumo: uma linha por produto/loja, totais do período ── */
 function renderTabelaResumo(data, metric){
-  setTotalRow('ct-produtos', null);
   const { pct: pctF, pctAcum: pctAcumF, classe: classeF } = pctFieldsFor(metric);
   const modoLucro = metric === 'lucro';
   const metricLabel = metric === 'qtd' ? 'Qtd' : (metric === 'lucro' ? 'Lucro' : 'Valor');
@@ -2664,24 +2624,12 @@ function renderTabelaResumo(data, metric){
       </button></td>${linha}
     </tr>` + detalheProduto(p, colspan, pct, pctAcum, classe, metricLabel);
   }).join('');
-
-  const soma = f => data.reduce((s,p) => s + (p[f]||0), 0);
-  const tPct = soma(pctF);
-  setTotalRow('ct-produtos', modoLucro
-    ? `<td></td><td>TOTAL</td><td></td><td></td><td></td>
-       <td class="num">${fN(soma('qtd'))}</td><td class="num">${fBRL(soma('total'))}</td>
-       <td class="num">${fBRL(soma('custoTotal'))}</td><td class="num">${fBRL(soma('margem'))}</td>
-       <td class="num">${fPct(tPct)}</td><td></td><td></td>`
-    : `<td></td><td>TOTAL</td><td></td><td></td><td></td>
-       <td class="num">${fN(soma('qtd'))}</td><td class="num">${fBRL(soma('total'))}</td>
-       <td class="num">${fPct(tPct)}</td><td></td><td></td>`);
 }
 
 /* ── Visão Mensal: uma coluna por mês (% daquele mês), Grupo removido
    pra abrir espaço; Total/% Part./% Acum./Classe seguem o período inteiro,
    calculados à parte — não são a soma dos percentuais mensais. ── */
 function renderTabelaMensal(data, produtos, metric){
-  setTotalRow('ct-produtos', null);
   const { pct: pctF, pctAcum: pctAcumF, classe: classeF } = pctFieldsFor(metric);
   const metricLabel = metric === 'qtd' ? 'Qtd' : (metric === 'lucro' ? 'Lucro' : 'Valor');
 
@@ -2742,22 +2690,6 @@ function renderTabelaMensal(data, produtos, metric){
       <td>${badge(classe)}</td>
     </tr>` + detalheProduto(p, colspan, pct, pctAcum, classe, metricLabel);
   }).join('');
-
-  const fmtM = v => metric==='qtd' ? fN(v) : fBRL(v);
-  const totMesTd = mesesComDados.map(m => {
-    const v = data.reduce((s,p) => s + valorMetricMes(p,m,metric), 0);
-    if(!v) return '<td class="num">—</td>';
-    if(mensalDisplayMode === 'pct'){
-      const tot = totaisMes[m];
-      return `<td class="num">${fPct(tot ? v/tot*100 : 0)}</td>`;
-    }
-    return `<td class="num">${fmtM(v)}</td>`;
-  }).join('');
-  const campoTot = metric==='qtd' ? 'qtd' : (metric==='lucro' ? 'margem' : 'total');
-  const totPeriodo = data.reduce((s,p) => s + (p[campoTot]||0), 0);
-  const tPct = data.reduce((s,p) => s + (p[pctF]||0), 0);
-  setTotalRow('ct-produtos', `<td></td><td>TOTAL</td><td></td><td></td>${totMesTd}
-    <td class="num">${fmtM(totPeriodo)}</td><td class="num">${fPct(tPct)}</td><td></td><td></td>`);
 }
 
 function toggleCtDetail(btn){

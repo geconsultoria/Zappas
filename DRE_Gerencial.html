@@ -3,8 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Demonstrativo de Resultado — Dashboard Executivo</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
@@ -56,8 +56,8 @@
   --transition:   all .22s cubic-bezier(.4,0,.2,1);
   --font-display: 'Playfair Display', Georgia, serif;
   --font-body:    'IBM Plex Sans', system-ui, sans-serif;
-  --font-mono:    'IBM Plex Mono', 'Courier New', monospace;
-  --font-numeric: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
+  --font-mono:    'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-numeric: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
 
   --side-w: 232px; --side-w-collapsed: 74px;
 }
@@ -392,6 +392,7 @@ body {
 .kpi-value.negative { color: var(--crimson); }
 
 .kpi-sub {
+  font-family: var(--font-numeric);
   font-size: 11px;
   margin-top: auto;
   text-align: right;
@@ -1504,7 +1505,7 @@ a.side-brand:hover { opacity:.85; }
 <!-- LOADING -->
 <div id="overlay">
   <div class="loader-ring"></div>
-  <div class="loader-text">Demonstrativo de Resultado</div>
+  <div class="loader-text">DFC Fluxo de Caixa</div>
   <div class="loader-sub" id="loaderMsg">Carregando dados…</div>
 </div>
 
@@ -1520,7 +1521,7 @@ a.side-brand:hover { opacity:.85; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">Demonstrativo de Resultado</div>
+      <div class="logo-text">DFC Fluxo de Caixa</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
@@ -2560,10 +2561,6 @@ function parseVendas(text, lojaFallback){
    loja/mês. Mesma fonte/colunas do Curva_ABC_Produto.html; aqui só
    precisamos do custo total, não do detalhe por produto.
 ══════════════════════════════════════════════════════════════ */
-// Grupos que não são produto vendido de fato — os MESMOS que a tela
-// Curva_ABC_Produto.html tira de tudo (GRUPOS_EXCLUIDOS). Sem isso o CMV
-// do DRE somava custo de despesa com alimentação/transferências internas.
-const CURVAABC_GRUPOS_EXCLUIDOS = ['despesa com alimentacao', 'transferencias internas'];
 function parseCurvaABC(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
@@ -2572,25 +2569,12 @@ function parseCurvaABC(text, lojaFallback){
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iData  = findCol(rawHeaders,'data');
-  const iAno   = findColExata(rawHeaders,'ano');
-  const iMes   = findColExata(rawHeaders,'mes');
+  const iAno   = findCol(rawHeaders,'ano');
+  const iMes   = findCol(rawHeaders,'mes');
   const iCusto = findCol(rawHeaders,'custofinal','custo','custounitario');
   const iQtd   = findCol(rawHeaders,'qtd','quantidade');
-  const iLoja  = findColExata(rawHeaders,'loja');
-  const iGrupo = findColExata(rawHeaders,'grupo','codgrupo');
-  const iNomeGrp = findColExata(rawHeaders,'nomegrupo','grupodescricao','descricaogrupo');
-  // Canal: mesma regra da Curva ABC / Análise Comercial (canais + VS + Fabrica)
-  let iCanal = findColExata(rawHeaders,'canais','canal','canais_semana');
-  if(iCanal<0) iCanal = rawHeaders.findIndex(h => normKey(h).includes('canal'));
-  let iVs  = findColExata(rawHeaders,'vs');
-  if(iVs<0)  iVs  = rawHeaders.findIndex(h => /^vs\b|^vs_/.test(normKey(h)));
-  let iFab = findColExata(rawHeaders,'fabrica');
-  if(iFab<0) iFab = rawHeaders.findIndex(h => normKey(h).includes('fabrica'));
+  const iLoja  = findCol(rawHeaders,'loja');
   if(iCusto<0 || iQtd<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
-
-  const tmp = [];
-  const ultimoNomeGrupo = new Map(); // codgrupo -> { ts, nome } (igual unificarNomesGrupo da Curva ABC)
-  const normCod = c => String(c||'').trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,'');
 
   for(let i=1;i<lines.length;i++){
     const line = lines[i].trim();
@@ -2600,10 +2584,9 @@ function parseCurvaABC(text, lojaFallback){
 
     let ano = iAno>=0 ? parseInt(g(iAno),10) : null;
     let mes = iMes>=0 ? (/^\d{1,2}$/.test(g(iMes)) ? parseInt(g(iMes),10) : parseMesAbr(g(iMes))) : null;
-    let ts = 0;
-    if(iData>=0){
+    if((!ano || !mes) && iData>=0){
       const dt = parseDataBRSimples(g(iData));
-      if(dt){ if(!ano) ano=dt.ano; if(!mes) mes=dt.mes; ts = dt.ano*10000 + dt.mes*100; }
+      if(dt){ if(!ano) ano=dt.ano; if(!mes) mes=dt.mes; }
     }
     if(!ano || !mes) continue;
 
@@ -2615,35 +2598,8 @@ function parseCurvaABC(text, lojaFallback){
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
 
-    const nomegrupo = iNomeGrp>=0 ? g(iNomeGrp) : '';
-    if(CURVAABC_GRUPOS_EXCLUIDOS.includes(normKey(nomegrupo))) continue;
-    const codGrupo = iGrupo>=0 ? normCod(g(iGrupo)) : '';
-    if(codGrupo && nomegrupo){
-      const u = ultimoNomeGrupo.get(codGrupo);
-      if(!u || ts >= u.ts) ultimoNomeGrupo.set(codGrupo, { ts, nome: nomegrupo });
-    }
-
-    // Canal: Distribuição + VS + Fabrica = descartada (igual Curva ABC).
-    let canal = '';
-    if(iCanal>=0){
-      const t = g(iCanal);
-      if(t){
-        canal = classificarCanal(t, RE_TRUE.test(g(iVs)), RE_TRUE.test(g(iFab)));
-        if(!canal){
-          if(normKey(t)==='distribuicao') continue;          // VS + Fabrica → descartada
-          canal = normKey(t);                                // canal desconhecido: mantém o nome
-        }
-      }
-    }
-
-    tmp.push({ mes, ano, loja, valor, canal, codGrupo });
+    rows.push({ mes, ano, loja, valor });
   }
-  // Grupo renomeado depois para um grupo excluído também sai (mesma regra da Curva ABC).
-  tmp.forEach(r => {
-    const u = r.codGrupo ? ultimoNomeGrupo.get(r.codGrupo) : null;
-    if(u && CURVAABC_GRUPOS_EXCLUIDOS.includes(normKey(u.nome))) return;
-    rows.push({ mes:r.mes, ano:r.ano, loja:r.loja, valor:r.valor, canal:r.canal });
-  });
   return rows;
 }
 
@@ -3122,8 +3078,7 @@ async function loadData(forceRefresh, silent){
         vendasRaw = cached.vendas || [];
         // Cache salvo antes do CMV (Produto) existir não tem custo de
         // produtos — mesmo raciocínio do vendasAusente acima.
-        const custoAusente = !Array.isArray(cached.custo) || !cached.custo.length
-          || !('canal' in cached.custo[0]); // cache de antes da regra de canal/grupos do CMV
+        const custoAusente = !Array.isArray(cached.custo) || !cached.custo.length;
         custoProdutoRaw = cached.custo || [];
         // Cache salvo antes do CMV (Compra) trocar de fonte não tem
         // Compras — mesmo raciocínio do custoAusente acima.
@@ -3483,9 +3438,6 @@ function applyFilters(){
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(!passaLoja(r.loja)) return false;
-    // Mesmo filtro de Canal da Receita: o CMV só considera o custo dos
-    // produtos vendidos nos canais cuja receita está no DRE.
-    if(r.canal && canaisSelecionados.length && !canaisSelecionados.includes(r.canal)) return false;
     return true;
   });
   filteredImpostosGer=impostosGerRaw.filter(r=>{
@@ -3856,7 +3808,7 @@ function renderKPIs(){
 function destroyChart(c){ if(c) c.destroy(); }
 
 const CHART_DEFAULTS = {
-  font:{ family:"'Calibri', 'Nunito', Arial, sans-serif", size:11 },
+  font:{ family:"'Inter',system-ui,Arial,sans-serif", size:11 },
   color:'#7A7A6E',
   gridColor:'#E8E5DC',
 };

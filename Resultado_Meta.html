@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resultado da Meta</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════
    DESIGN TOKENS (mesma identidade visual do
@@ -173,7 +173,7 @@ a.side-brand:hover { opacity:.85; }
 }
 .hdr-logo svg { color: #fff; }
 .hdr-title {
-  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   font-size: 20px; font-weight: 800;
   color: #fff; letter-spacing: -.3px;
 }
@@ -207,7 +207,7 @@ a.side-brand:hover { opacity:.85; }
 .ig-fgroup { display: flex; align-items: center; gap: 7px; }
 .ig-flabel { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.65); white-space: nowrap; }
 .ig-fselect {
-  font-family: var(--font-head);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12.5px; font-weight: 500; color: #fff;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.28);
@@ -225,7 +225,7 @@ a.side-brand:hover { opacity:.85; }
 /* ── Canal multi-select ── */
 .canal-wrap { position: relative; }
 .canal-trigger {
-  font-family: var(--font-head);
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12.5px; font-weight: 500; color: #fff;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.28);
@@ -327,8 +327,8 @@ a.side-brand:hover { opacity:.85; }
 .rm-sum-card.c-amber::before { background: var(--amber); }
 .rm-sum-card.c-red::before   { background: var(--red); }
 .rm-sum-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
-.rm-sum-val { font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif; font-size: 18px; font-weight: 700; color: var(--ink); line-height:1.1; text-align: center; }
-.rm-sum-sub { font-size: 10px; font-weight: 600; margin-top: 3px; text-align: right; }
+.rm-sum-val { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 18px; font-weight: 700; color: var(--ink); line-height:1.1; text-align: center; }
+.rm-sum-sub { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 11.5px; font-weight: 600; margin-top: 4px; text-align: right; }
 .rm-sum-sub.pos { color: var(--ink); }
 .rm-sum-sub.neg { color: var(--red); }
 
@@ -361,7 +361,7 @@ table {
   width: 100%;
   border-collapse: separate;
   border-spacing: 0;
-  font-size: 10px;
+  font-size: 11.5px;
   table-layout: fixed;
 }
 thead { position: sticky; top: 0; z-index: 15; }
@@ -370,7 +370,7 @@ thead { position: sticky; top: 0; z-index: 15; }
   padding: 4px 3px;
   text-align: center;
   font-family: 'IBM Plex Sans', system-ui, sans-serif;
-  font-size: 9.5px; font-weight: 700;
+  font-size: 10.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .3px;
   white-space: nowrap;
   border-right: 1px solid rgba(255,255,255,.25);
@@ -385,7 +385,7 @@ thead { position: sticky; top: 0; z-index: 15; }
 .tr-sub th {
   padding: 3px 3px;
   text-align: center;
-  font-size: 8.5px; font-weight: 600;
+  font-size: 9.5px; font-weight: 600;
   line-height: 1.15;
   color: var(--ink2);
   background: var(--surface2);
@@ -404,27 +404,27 @@ tbody tr:hover { background: #F0F4FF; }
 tbody tr.tr-total-store { background: #F5F7FC; }
 
 td {
-  padding: 3px 3px;
+  padding: 4px 4px;
   text-align: right;
   vertical-align: middle;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
-  font-size: 9.5px;
+  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-size: 11.5px;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 10.5px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
+td.tl  { text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.ctr { text-align: center; }
 td.pos { color: var(--green); font-weight: 600; }
 td.neg { color: var(--red); font-weight: 600; }
 td.dash { color: var(--muted); }
 
-.badge { display:inline-block; padding: 2px 6px; border-radius: 20px; font-size: 8.5px; font-weight: 700; white-space:nowrap; }
+.badge { display:inline-block; padding: 2px 6px; border-radius: 20px; font-size: 9.5px; font-weight: 700; white-space:nowrap; }
 .badge-ok { background: var(--green-lt); color: #085C44; }
 .badge-no { background: var(--red-lt);   color: #991B13; }
 .badge-na { background: var(--surface2); color: var(--muted); }
@@ -434,7 +434,7 @@ td.dash { color: var(--muted); }
 .fx-desafio { background:#C9F2D8; color:#07523B; font-weight:700; }
 
 .tr-media { background: #EFF5FF; }
-.tr-media td { border-top: 2px solid var(--blue-mid); font-weight: 700; color: var(--blue); font-size: 11px; }
+.tr-media td { border-top: 2px solid var(--blue-mid); font-weight: 700; color: var(--blue); font-size: 12px; }
 
 /* ─── LOADING / ERROR ─── */
 .loading-box {
@@ -903,7 +903,7 @@ function N0(v) {
 }
 function Pct(v, d=2) {
   if (v === null || v === undefined || isNaN(v)) return '—';
-  return (v >= 0 ? '+' : '') + Number(v).toFixed(d) + '%';
+  return (v >= 0 ? '+' : '') + Number(v).toLocaleString('pt-BR', {minimumFractionDigits: d, maximumFractionDigits: d}) + '%';
 }
 
 /* ═══════════════ CSV PARSE ═══════════════ */
@@ -1634,13 +1634,13 @@ function renderResultado() {
     <div class="tbl-scroll">
       <table>
         <colgroup>
-          <col style="width:68px">
-          <col style="width:88px"><col style="width:88px"><col style="width:88px">
-          <col style="width:92px"><col style="width:62px"><col style="width:58px">
-          <col style="width:40px"><col style="width:88px"><col style="width:44px"><col style="width:58px">
-          <col style="width:82px"><col style="width:70px"><col style="width:50px">
-          <col style="width:68px">
-          <col style="width:82px"><col style="width:42px">
+          <col style="width:76px">
+          <col style="width:99px"><col style="width:99px"><col style="width:99px">
+          <col style="width:103px"><col style="width:69px"><col style="width:65px">
+          <col style="width:45px"><col style="width:99px"><col style="width:49px"><col style="width:65px">
+          <col style="width:92px"><col style="width:78px"><col style="width:56px">
+          <col style="width:76px">
+          <col style="width:92px"><col style="width:47px">
         </colgroup>
         <thead>
           <tr class="tr-grp">

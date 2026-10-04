@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de Metas</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   /* ===== DESIGN TOKENS ===== */
@@ -37,8 +37,8 @@
     --side-w-collapsed: 74px;
     --font-head: 'Playfair Display', Georgia, serif;
     --font-body: 'IBM Plex Sans', system-ui, sans-serif;
-    --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
-    --font-num: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
+    --font-mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    --font-num: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   }
 
   /* ===== RESET ===== */
@@ -190,14 +190,14 @@
   }
   .header-logo svg { color: #fff; }
   .header-title {
-    font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 20px;
     font-weight: 800;
     color: #fff;
     letter-spacing: -0.3px;
   }
   .header-subtitle {
-    font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 12px;
     color: rgba(255,255,255,.65);
     font-weight: 400;
@@ -781,7 +781,7 @@
   .suggestion-panel .sug-table th {
     text-align: left; padding: 8px 10px;
     background: rgba(255,255,255,0.7); border-bottom: 2px solid var(--border);
-    font-family: var(--font-head); font-weight: 600; font-size: 11.5px;
+    font-family: var(--font-body); font-weight: 600; font-size: 11.5px;
     color: var(--text-secondary); letter-spacing: 0.03em; text-transform: uppercase;
   }
   .suggestion-panel .sug-table td {
@@ -2063,7 +2063,7 @@ function renderChartLoja(byLoja) {
       maintainAspectRatio: false,
       cutout: '62%',
       plugins: {
-        legend: { position: 'right', labels: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 12 }, padding: 14, boxWidth: 12 } },
+        legend: { position: 'right', labels: { font: { family: "'Inter',system-ui,Arial,sans-serif", size: 12 }, padding: 14, boxWidth: 12 } },
         tooltip: {
           callbacks: {
             label: ctx => ` ${fmtCurrency(ctx.parsed)}`
@@ -2136,12 +2136,12 @@ function chartOptions({ prefix = '' } = {}) {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, color: '#9BA3B5' }
+        ticks: { font: { family: "'Inter',system-ui,Arial,sans-serif", size: 11 }, color: '#9BA3B5' }
       },
       y: {
         grid: { color: '#E4E8F0', drawBorder: false },
         ticks: {
-          font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, color: '#9BA3B5',
+          font: { family: "'Inter',system-ui,Arial,sans-serif", size: 11 }, color: '#9BA3B5',
           callback: v => 'R$ ' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
         },
         border: { display: false }

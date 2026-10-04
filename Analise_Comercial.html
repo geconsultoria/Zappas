@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Análise Comercial</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
@@ -56,10 +56,10 @@
   --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
   --sh-lg: 0 8px 40px rgba(0,0,0,.12);
 
-  --font-head: 'Syne', system-ui, sans-serif;
-  --font-body: 'Epilogue', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-num:  'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  --font-head: 'Playfair Display', Georgia, serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-num:  'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
 
   --bar-h: 64px; /* sticky bar height */
   --side-w: 232px; /* sidebar width */
@@ -252,7 +252,7 @@ a.side-brand:hover { opacity:.85; }
   display: flex; align-items: center; justify-content: center;
 }
 .fb-mark svg { width: 16px; height: 16px; color: #fff; }
-.fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+.fb-title { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
 .fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
 
 /* ── Canal multi-select ── */
@@ -729,7 +729,7 @@ tr.exp-sub td.td-metric { padding-left:30px; font-weight:500; color:var(--ink-3)
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -2026,13 +2026,13 @@ function groupMulti(data, key, fields) {
 ═══════════════════════════════════════════════════════ */
 const TT = {
   backgroundColor:'#16160F',
-  titleFont:{family:"'Syne',sans-serif",size:12,weight:'700'},
-  bodyFont:{family:"'Calibri','Trebuchet MS',sans-serif",size:12},
+  titleFont:{family: "'Inter',system-ui,Arial,sans-serif",size:12,weight:'700'},
+  bodyFont:{family:"'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",size:12},
   padding:10, cornerRadius:8,
 };
 const AXIS = {
-  x:{ grid:{color:'#F0EDE5',drawBorder:false}, ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0'}, border:{dash:[3,3],display:false} },
-  y:{ grid:{color:'#F0EDE5',drawBorder:false}, ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0'}, border:{dash:[3,3],display:false} },
+  x:{ grid:{color:'#F0EDE5',drawBorder:false}, ticks:{font:{family:"'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",size:11},color:'#AEADA0'}, border:{dash:[3,3],display:false} },
+  y:{ grid:{color:'#F0EDE5',drawBorder:false}, ticks:{font:{family:"'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",size:11},color:'#AEADA0'}, border:{dash:[3,3],display:false} },
 };
 
 function killChart(id){ if(charts[id]){charts[id].destroy();delete charts[id];} }
@@ -2045,12 +2045,12 @@ function barChart(id, labels, data, color, opts={}) {
 
   const categoryAxisCfg = {
     grid:{color:'#F0EDE5',drawBorder:false},
-    ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0'},
+    ticks:{font:{family:"'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",size:11},color:'#AEADA0'},
     border:{dash:[3,3],display:false}
   };
   const valueAxisCfg = {
     grid:{color:'#F0EDE5',drawBorder:false},
-    ticks:{font:{family:"'Calibri','Trebuchet MS',sans-serif",size:11},color:'#AEADA0',
+    ticks:{font:{family:"'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif",size:11},color:'#AEADA0',
       callback: v => opts.curr ? fBRL(v) : fN(v)
     },
     border:{dash:[3,3],display:false}
@@ -2084,7 +2084,7 @@ function lineChart(id, labels, datasets) {
       plugins:{
         legend:{
           display: datasets.length>1,
-          labels:{ font:{family:"'Epilogue'",size:11}, color:'#787868', usePointStyle:true, pointStyleWidth:8, padding:16 }
+          labels:{ font:{family:"'Inter',system-ui,Arial,sans-serif",size:11}, color:'#787868', usePointStyle:true, pointStyleWidth:8, padding:16 }
         },
         tooltip:{...TT, callbacks:{ label:c=>fBRL(c.raw) }},
       },
