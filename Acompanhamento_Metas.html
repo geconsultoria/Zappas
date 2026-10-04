@@ -594,6 +594,26 @@ a.side-brand:hover { opacity:.85; }
 .chart-sub   { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
 .chart-wrap  { position: relative; height: 230px; }
 
+/* ─── Painel compacto: Indicadores + KPIs + Gráficos cabem juntos na
+   mesma tela (sem precisar rolar pra ver os gráficos). Só reduz
+   espaçamentos, alturas e tamanhos — os dados não mudam. ─── */
+.main { padding-top: 16px; }
+.sh.mb { margin-bottom: 10px; }
+.ind-row, .kpi-row { gap: 12px; margin-bottom: 12px; }
+.ind-card { padding: 10px 16px 10px; }
+.ind-header { margin-bottom: 4px; }
+.ind-val { font-size: 22px; }
+.kpi-card { padding: 12px 16px 10px; }
+.kpi-header { margin-bottom: 4px; }
+.kpi-val { font-size: 22px; margin-bottom: 3px; }
+.charts-2 { gap: 12px; margin-bottom: 18px; }
+.chart-card { padding: 12px 16px 10px; }
+.chart-sub { margin-bottom: 8px; }
+/* gráficos acompanham a altura da tela: preenchem o espaço que sobra
+   abaixo dos cartões (mín. 180px, máx. 300px) */
+.charts-2 .chart-wrap { height: clamp(180px, calc(100vh - 470px), 300px); }
+.ind-icon, .kpi-ico { width: 28px; height: 28px; font-size: 14px; border-radius: 8px; }
+
 /* ─── TABLE CARD ─── */
 .tbl-card {
   background: var(--surface);
