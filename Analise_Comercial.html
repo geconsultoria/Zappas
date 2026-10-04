@@ -426,6 +426,7 @@ a.side-brand:hover { opacity:.85; }
 .kpi-foot b { color: var(--ink-3); font-weight: 600; }
 .kpi-quebras-pct { font-size: 15px; font-weight: 800; color: var(--rust-mid); line-height: 1.25; }
 .kpi-quebras-pct:empty { display: none; }
+#kv-quebras-desc:empty { display: none; }
 
 /* Cartões no mesmo tamanho/estilo dos "Indicadores Gerais" do
    Faturamento & Lucro Bruto: rótulo pequeno em maiúsculas, ícone 32px,
@@ -436,7 +437,7 @@ a.side-brand:hover { opacity:.85; }
 .kpi-icon svg { width: 18px; height: 18px; }
 .kpi-lbl { font-family: var(--font-body); font-size: 11px; font-weight: 600; letter-spacing: .6px; text-transform: uppercase; color: var(--ink-3); }
 .kpi-val, .kpi-val.sm, .kpi-val.xs { font-size: 22px; letter-spacing: -0.5px; margin-bottom: 4px; }
-.kpi-foot { font-size: 11px; padding-top: 2px; }
+.kpi-foot { font-size: 11px; padding-top: 0; }
 .kpi-quebras-pct { font-size: 12px; font-weight: 700; line-height: 1.3; }
 
 /* Mesmas medidas da tela Faturamento & Lucro Bruto:
@@ -1673,8 +1674,10 @@ function updateQuebrasStatusUI() {
     const pct = lastFatTotal > 0
       ? (lastQuebrasTotal / lastFatTotal * 100).toFixed(2).replace('.', ',') + '%'
       : '—';
-    pctEl.textContent = pct + ' do faturamento';
-    descEl.textContent = 'Total de perdas no período';
+    // Uma linha só no rodapé (em vez de % + descrição em 2 linhas), pra
+    // a caixa de Quebras ter a mesma altura das outras (~115px).
+    pctEl.textContent = pct + ' do faturamento em perdas';
+    descEl.textContent = '';
     footEl.style.color = '';
     pctEl.style.color = '';
     subEl.textContent = 'Total de perdas por mês e ano · AH% e AV%';
