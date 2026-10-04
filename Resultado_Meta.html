@@ -123,7 +123,7 @@ a.side-brand:hover { opacity:.85; }
 .sidebar.collapsed:not(.peek) .side-link:hover::after {
   opacity:1; visibility:visible;
 }
-.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
+.side-item.open > .side-sub { max-height:640px; opacity:1; padding: 3px 0 6px 24px; }
 .side-sub a {
   display:flex; align-items:center; gap:9px;
   padding: 8px 10px; border-radius:8px;
@@ -313,6 +313,33 @@ a.side-brand:hover { opacity:.85; }
 }
 
 /* ─── RESUMO TOTAL (cards) ─── */
+/* ── Ranking da Meta (lojas ordenadas pelo % da Meta) ── */
+.rk-card { background: var(--surface); border:1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px rgba(12,24,48,.06); padding: 14px 18px 10px; margin-bottom: 16px; }
+.rk-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 14px; }
+.rk-title { font-size: 13px; font-weight: 700; color: var(--ink); }
+.rk-legend { margin-left:auto; display:flex; gap:6px; flex-wrap:wrap; }
+.rk-pill { font-size: 10px; font-weight: 700; padding: 3px 9px; border-radius: 20px; white-space: nowrap; }
+.rk-pill.fx-meta { background:#FFF3B0; color:#7A5B00; }
+.rk-pill.fx-super { background:#FFD9A8; color:#7A3800; }
+.rk-pill.fx-desafio { background:#C9F2D8; color:#07523B; }
+.rk-pill.fx-abaixo { background:#FDE3E1; color:#9A1F17; }
+.rk-row { display:grid; grid-template-columns: 30px 110px 1fr 78px 110px; align-items:center; gap: 12px; padding: 7px 0; border-top: 1px solid var(--border); }
+.rk-row.first { border-top: none; }
+.rk-pos { font-family: 'Inter', system-ui, sans-serif; font-weight: 800; font-size: 13px; color: var(--muted); text-align:center; }
+.rk-row.first .rk-pos { color: #B8860B; }
+.rk-loja { font-size: 12px; font-weight: 700; color: var(--ink); text-transform: uppercase; letter-spacing: .02em; }
+.rk-bar { position: relative; height: 12px; background: #EEF1F7; border-radius: 6px; }
+.rk-fill { position:absolute; left:0; top:0; bottom:0; border-radius: 6px; }
+.rk-fill.fx-meta { background:#F2D24B; }
+.rk-fill.fx-super { background:#F5A653; }
+.rk-fill.fx-desafio { background:#2FB67A; }
+.rk-fill.fx-abaixo { background:#E0675E; }
+.rk-mark { position:absolute; top:-3px; bottom:-3px; width:0; border-left: 1.5px dashed rgba(12,24,48,.35); }
+.rk-mark span { position:absolute; top:-14px; left:-14px; width:28px; text-align:center; font-family: 'Inter', system-ui, sans-serif; font-size: 8.5px; font-weight:700; color: var(--muted); }
+.rk-pct { font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-align: right; color: var(--ink); }
+.rk-badge { justify-self: end; }
+.rk-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
+
 .rm-sum-row {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
   margin-bottom: 14px;
@@ -362,7 +389,10 @@ table {
   border-collapse: separate;
   border-spacing: 0;
   font-size: 11.5px;
-  table-layout: fixed;
+  /* auto (em vez de fixed): cada coluna fica do tamanho do seu conteúdo,
+     então os % não são mais cortados ("+107,4...") e a tabela inteira cabe
+     na largura da tela, sem barra de rolagem lateral. */
+  table-layout: auto;
 }
 thead { position: sticky; top: 0; z-index: 15; }
 
@@ -392,7 +422,7 @@ thead { position: sticky; top: 0; z-index: 15; }
   border-bottom: 2px solid var(--border-hi);
   border-right: 1px solid var(--border);
   white-space: normal;
-  word-break: break-word;
+  word-break: normal; overflow-wrap: normal;
   box-shadow: 0 2px 3px rgba(12,24,48,.08);
 }
 .tr-sub th.tl { text-align: left; }
@@ -404,24 +434,24 @@ tbody tr:hover { background: #F0F4FF; }
 tbody tr.tr-total-store { background: #F5F7FC; }
 
 td {
-  padding: 4px 4px;
+  padding: 5px 6px;
   text-align: right;
   vertical-align: middle;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
   font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   font-size: 11.5px;
+  font-weight: 600;          /* todos os valores com o mesmo peso/tamanho */
   white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  overflow: visible;
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
+td.tl  { text-transform: uppercase; text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.ctr { text-align: center; }
-td.pos { color: var(--green); font-weight: 600; }
-td.neg { color: var(--red); font-weight: 600; }
+td.pos { color: var(--green); }
+td.neg { color: var(--red); }
 td.dash { color: var(--muted); }
 
 .badge { display:inline-block; padding: 2px 6px; border-radius: 20px; font-size: 9.5px; font-weight: 700; white-space:nowrap; }
@@ -429,12 +459,12 @@ td.dash { color: var(--muted); }
 .badge-no { background: var(--red-lt);   color: #991B13; }
 .badge-na { background: var(--surface2); color: var(--muted); }
 
-.fx-meta    { background:#FFF3B0; color:#7A5B00; font-weight:700; }
-.fx-super   { background:#FFD9A8; color:#7A3800; font-weight:700; }
-.fx-desafio { background:#C9F2D8; color:#07523B; font-weight:700; }
+.fx-meta    { background:#FFF3B0; color:#7A5B00; }
+.fx-super   { background:#FFD9A8; color:#7A3800; }
+.fx-desafio { background:#C9F2D8; color:#07523B; }
 
 .tr-media { background: #EFF5FF; }
-.tr-media td { border-top: 2px solid var(--blue-mid); font-weight: 700; color: var(--blue); font-size: 12px; }
+.tr-media td { border-top: 2px solid var(--blue-mid); font-weight: 700; color: var(--blue); font-size: 11.5px; }
 
 /* ─── LOADING / ERROR ─── */
 .loading-box {
@@ -1508,6 +1538,44 @@ function findLojaValue(key) {
 }
 
 /* ═══════════════ CÁLCULO POR LOJA ═══════════════ */
+/* Ranking da Meta: lojas ordenadas pelo % da Meta (maior → menor), com
+   barra de progresso e a faixa atingida — 100% Meta, 105% Super Meta,
+   110% Desafio (ou "Abaixo da Meta"). Mesmas regras/cores do grid. */
+function rankingMetaHTML(linhas){
+  const itens = (linhas||[]).filter(r => r.pctMetaConcluida !== null && r.pctMetaConcluida !== undefined && !isNaN(r.pctMetaConcluida))
+    .sort((a,b) => b.pctMetaConcluida - a.pctMetaConcluida);
+  const legenda = `<div class="rk-legend">
+      <span class="rk-pill fx-meta">100% · Meta</span>
+      <span class="rk-pill fx-super">105% · Super Meta</span>
+      <span class="rk-pill fx-desafio">110% · Desafio</span>
+    </div>`;
+  if(!itens.length){
+    return `<div class="rk-card"><div class="rk-head"><div class="rk-title">Ranking da Meta</div>${legenda}</div><div class="rk-empty">Sem meta informada para o período.</div></div>`;
+  }
+  const escala = Math.max(120, Math.ceil(Math.max(...itens.map(r => r.pctMetaConcluida)) / 10) * 10);
+  const pos = v => (Math.min(v, escala) / escala * 100).toFixed(2) + '%';
+  const nomeFaixa = c => c==='fx-desafio' ? 'Desafio' : c==='fx-super' ? 'Super Meta' : c==='fx-meta' ? 'Meta' : 'Abaixo da Meta';
+  const linhasHTML = itens.map((r,i) => {
+    const fx = faixaClass(r.pctMetaConcluida) || 'fx-abaixo';
+    return `<div class="rk-row${i===0?' first':''}">
+      <div class="rk-pos">${i+1}º</div>
+      <div class="rk-loja">${r.loja}</div>
+      <div class="rk-bar">
+        <div class="rk-fill ${fx}" style="width:${pos(r.pctMetaConcluida)}"></div>
+        <div class="rk-mark" style="left:${pos(100)}">${i===0?'<span>100%</span>':''}</div>
+        <div class="rk-mark" style="left:${pos(105)}">${i===0?'<span>105%</span>':''}</div>
+        <div class="rk-mark" style="left:${pos(110)}">${i===0?'<span>110%</span>':''}</div>
+      </div>
+      <div class="rk-pct">${Pct(r.pctMetaConcluida).replace('+','')}</div>
+      <div class="rk-badge"><span class="rk-pill ${fx}">${nomeFaixa(fx)}</span></div>
+    </div>`;
+  }).join('');
+  return `<div class="rk-card">
+    <div class="rk-head"><div class="rk-title">Ranking da Meta · % da Meta por loja</div>${legenda}</div>
+    ${linhasHTML}
+  </div>`;
+}
+
 function faixaClass(pct) {
   if (pct === null || pct === undefined || isNaN(pct)) return '';
   if (pct >= 110) return 'fx-desafio';
@@ -1618,6 +1686,8 @@ function renderResultado() {
     </div>
   </div>
 
+  ${rankingMetaHTML(linhas)}
+
   <div class="tbl-card">
     <div class="tbl-head">
       <div>
@@ -1633,15 +1703,7 @@ function renderResultado() {
     </div>
     <div class="tbl-scroll">
       <table>
-        <colgroup>
-          <col style="width:76px">
-          <col style="width:99px"><col style="width:99px"><col style="width:99px">
-          <col style="width:103px"><col style="width:69px"><col style="width:65px">
-          <col style="width:45px"><col style="width:99px"><col style="width:49px"><col style="width:65px">
-          <col style="width:92px"><col style="width:78px"><col style="width:56px">
-          <col style="width:76px">
-          <col style="width:92px"><col style="width:47px">
-        </colgroup>
+        <!-- sem <colgroup>: larguras automáticas pelo conteúdo -->
         <thead>
           <tr class="tr-grp">
             <th class="grp-loja" rowspan="2">Loja</th>
