@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de Metas</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   /* ===== DESIGN TOKENS ===== */
@@ -35,10 +35,10 @@
     --filter-h: 64px;
     --side-w: 232px;
     --side-w-collapsed: 74px;
-    --font-head: 'Syne', system-ui, sans-serif;
-    --font-body: 'Epilogue', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-    --font-num: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+    --font-head: 'Playfair Display', Georgia, serif;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'IBM Plex Mono', 'Courier New', monospace;
+    --font-num: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   }
 
   /* ===== RESET ===== */
@@ -190,14 +190,14 @@
   }
   .header-logo svg { color: #fff; }
   .header-title {
-    font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+    font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
     font-size: 20px;
     font-weight: 800;
     color: #fff;
     letter-spacing: -0.3px;
   }
   .header-subtitle {
-    font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+    font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
     font-size: 12px;
     color: rgba(255,255,255,.65);
     font-weight: 400;
@@ -340,7 +340,7 @@
     flex-shrink: 0;
   }
   .section-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Playfair Display', Georgia, serif;
     font-size: 17px;
     font-weight: 700;
     color: var(--text-primary);
@@ -452,7 +452,7 @@
     margin-bottom: 18px;
   }
   .chart-card-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Playfair Display', Georgia, serif;
     font-size: 14px;
     font-weight: 700;
     color: var(--text-primary);
@@ -486,7 +486,7 @@
     background: var(--surface2);
   }
   .table-card-title {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Playfair Display', Georgia, serif;
     font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
@@ -541,7 +541,7 @@
   }
   td.loja-cell {
     font-weight: 600;
-    font-family: 'Syne', sans-serif;
+    font-family: 'Playfair Display', Georgia, serif;
     font-size: 13px;
   }
   .td-num {
@@ -635,7 +635,7 @@
     border-radius: var(--radius);
     text-align: center;
   }
-  .error-box h3 { color: var(--danger); font-family: 'Syne',sans-serif; margin-bottom: 8px; }
+  .error-box h3 { color: var(--danger); font-family: 'Playfair Display', Georgia, serif; margin-bottom: 8px; }
   .error-box p { color: #6d2935; font-size: 13px; }
   .error-box button {
     margin-top: 14px;
@@ -690,7 +690,7 @@
   .metas-table .th-group {
     background: #1A4FBA;
     color: #fff;
-    font-family: 'Syne', sans-serif;
+    font-family: 'Playfair Display', Georgia, serif;
     font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
@@ -813,7 +813,7 @@
   }
   .metas-table td:last-child { border-right: none; }
   .metas-table td.td-loja {
-    font-family: 'Syne', sans-serif;
+    font-family: 'Playfair Display', Georgia, serif;
     font-weight: 700;
     font-size: 10.5px;
     padding-left: 8px;
@@ -897,7 +897,7 @@
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -2063,7 +2063,7 @@ function renderChartLoja(byLoja) {
       maintainAspectRatio: false,
       cutout: '62%',
       plugins: {
-        legend: { position: 'right', labels: { font: { family: 'Epilogue', size: 12 }, padding: 14, boxWidth: 12 } },
+        legend: { position: 'right', labels: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 12 }, padding: 14, boxWidth: 12 } },
         tooltip: {
           callbacks: {
             label: ctx => ` ${fmtCurrency(ctx.parsed)}`
@@ -2136,12 +2136,12 @@ function chartOptions({ prefix = '' } = {}) {
     scales: {
       x: {
         grid: { display: false },
-        ticks: { font: { family: 'Epilogue', size: 11 }, color: '#9BA3B5' }
+        ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, color: '#9BA3B5' }
       },
       y: {
         grid: { color: '#E4E8F0', drawBorder: false },
         ticks: {
-          font: { family: 'Epilogue', size: 11 }, color: '#9BA3B5',
+          font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, color: '#9BA3B5',
           callback: v => 'R$ ' + (v >= 1000 ? (v/1000).toFixed(0)+'k' : v)
         },
         border: { display: false }

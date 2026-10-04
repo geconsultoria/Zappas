@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Acompanhamento de Metas</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -40,13 +40,13 @@
   --fh:          56px;
   --side-w:      232px;
   --side-w-collapsed: 74px;
-  --font-head:   'Outfit', sans-serif;
+  --font-head: 'Playfair Display', Georgia, serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
   font-size: 13px;
@@ -175,7 +175,7 @@ a.side-brand:hover { opacity:.85; }
 }
 .hdr-logo svg { color: #fff; }
 .hdr-title {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 20px; font-weight: 800;
   color: #fff; letter-spacing: -.3px;
 }
@@ -204,7 +204,7 @@ a.side-brand:hover { opacity:.85; }
   padding: 8px 16px;
   background: var(--blue); color: #fff;
   border: none; border-radius: var(--r-sm);
-  font-family: 'Outfit', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12px; font-weight: 600;
   cursor: pointer; transition: var(--tr);
   white-space: nowrap;
@@ -415,7 +415,7 @@ a.side-brand:hover { opacity:.85; }
 .meta-label { font-size: 11px; font-weight: 600; color: var(--muted); white-space: nowrap; }
 .meta-input {
   border: none; background: transparent;
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 13px; font-weight: 600; color: var(--ink);
   width: 130px; outline: none;
 }
@@ -493,7 +493,7 @@ a.side-brand:hover { opacity:.85; }
 .ind-icon.red   { background: var(--rust-lt);  color: var(--rust-mid); }
 .ind-icon.amber { background: var(--olive-lt); color: var(--olive); }
 .ind-label {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 9.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.1em;
   color: var(--text-muted);
@@ -504,14 +504,14 @@ a.side-brand:hover { opacity:.85; }
   flex: 1;
 }
 .ind-val {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 26px; font-weight: 700;
   color: var(--text-primary); letter-spacing: -.02em; line-height: 1;
   text-align: center;
   margin-bottom: 5px;
 }
 .ind-sub {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 10.5px;
   color: var(--text-muted);
   text-align: right;
@@ -549,7 +549,7 @@ a.side-brand:hover { opacity:.85; }
   margin-bottom: 8px;
 }
 .kpi-lbl {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 9.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 0.1em;
   color: var(--text-muted);
@@ -560,7 +560,7 @@ a.side-brand:hover { opacity:.85; }
   flex: 1;
 }
 .kpi-val {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 26px; font-weight: 700;
   letter-spacing: -.02em; line-height: 1;
   color: var(--text-primary);
@@ -568,7 +568,7 @@ a.side-brand:hover { opacity:.85; }
   margin-bottom: 5px;
 }
 .kpi-foot {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 10.5px;
   color: var(--text-muted);
   text-align: right;
@@ -644,7 +644,7 @@ thead {
 .tr-grp th {
   padding: 5px 4px;
   text-align: center;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 9px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .4px;
   white-space: nowrap;
@@ -684,7 +684,7 @@ td {
   vertical-align: middle;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 9.5px;
   white-space: nowrap;
   overflow: hidden;
@@ -692,7 +692,7 @@ td {
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 9.5px; color: var(--ink2); }
+td.tl  { text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 9.5px; color: var(--ink2); }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.pos { color: var(--green); font-weight: 600; }
 td.neg { color: var(--red); font-weight: 600; }
@@ -749,7 +749,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
   margin-top: 12px; padding: 7px 18px;
   background: var(--red); color: #fff;
   border: none; border-radius: var(--r-sm);
-  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 
 /* ─── RESPONSIVE ─── */
@@ -793,7 +793,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -2446,7 +2446,7 @@ function baseChartOpts({ legendPos = 'top' } = {}) {
     responsive: true, maintainAspectRatio: false,
     interaction: { mode: 'index', intersect: false },
     plugins: {
-      legend: { position: legendPos, labels: { font: { family: 'Outfit', size: 11 }, boxWidth: 12, padding: 12 } },
+      legend: { position: legendPos, labels: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, boxWidth: 12, padding: 12 } },
       tooltip: {
         backgroundColor: '#0C1830', titleColor: '#fff', bodyColor: '#9BB0CC',
         padding: 10, cornerRadius: 8, borderColor: '#223368', borderWidth: 1,
@@ -2454,10 +2454,10 @@ function baseChartOpts({ legendPos = 'top' } = {}) {
       },
     },
     scales: {
-      x: { grid: { display: false }, ticks: { font: { family: 'Outfit', size: 10 }, color: '#8594AF', maxTicksLimit: 12 } },
+      x: { grid: { display: false }, ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 10 }, color: '#8594AF', maxTicksLimit: 12 } },
       y: {
         grid: { color: '#E8ECF5' }, border: { display: false },
-        ticks: { font: { family: 'Outfit', size: 10 }, color: '#8594AF',
+        ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 10 }, color: '#8594AF',
           callback: v => 'R$ ' + (v >= 1000000 ? (v/1000000).toFixed(1)+'M' : v >= 1000 ? (v/1000).toFixed(0)+'k' : v) }
       }
     }

@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resultado da Meta</title>
-<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <style>
 /* ═══════════════════════════════════════════
    DESIGN TOKENS (mesma identidade visual do
@@ -39,13 +39,13 @@
   --fh:          56px;
   --side-w:      232px;
   --side-w-collapsed: 74px;
-  --font-head:   'Outfit', sans-serif;
+  --font-head: 'Playfair Display', Georgia, serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Outfit', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
   font-size: 13px;
@@ -173,7 +173,7 @@ a.side-brand:hover { opacity:.85; }
 }
 .hdr-logo svg { color: #fff; }
 .hdr-title {
-  font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 20px; font-weight: 800;
   color: #fff; letter-spacing: -.3px;
 }
@@ -186,7 +186,7 @@ a.side-brand:hover { opacity:.85; }
   padding: 8px 16px;
   background: var(--blue); color: #fff;
   border: none; border-radius: var(--r-sm);
-  font-family: 'Outfit', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12px; font-weight: 600;
   cursor: pointer; transition: var(--tr);
   white-space: nowrap;
@@ -327,7 +327,7 @@ a.side-brand:hover { opacity:.85; }
 .rm-sum-card.c-amber::before { background: var(--amber); }
 .rm-sum-card.c-red::before   { background: var(--red); }
 .rm-sum-lbl { font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin-bottom: 4px; }
-.rm-sum-val { font-family: 'IBM Plex Mono', monospace; font-size: 18px; font-weight: 700; color: var(--ink); line-height:1.1; text-align: center; }
+.rm-sum-val { font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif; font-size: 18px; font-weight: 700; color: var(--ink); line-height:1.1; text-align: center; }
 .rm-sum-sub { font-size: 10px; font-weight: 600; margin-top: 3px; text-align: right; }
 .rm-sum-sub.pos { color: var(--ink); }
 .rm-sum-sub.neg { color: var(--red); }
@@ -369,7 +369,7 @@ thead { position: sticky; top: 0; z-index: 15; }
 .tr-grp th {
   padding: 4px 3px;
   text-align: center;
-  font-family: 'Outfit', sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 9.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .3px;
   white-space: nowrap;
@@ -409,7 +409,7 @@ td {
   vertical-align: middle;
   border-right: 1px solid var(--border);
   border-bottom: 1px solid var(--border);
-  font-family: 'IBM Plex Mono', monospace;
+  font-family: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
   font-size: 9.5px;
   white-space: nowrap;
   overflow: hidden;
@@ -417,7 +417,7 @@ td {
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'Outfit', sans-serif; font-size: 10.5px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
+td.tl  { text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 10.5px; font-weight:700; color: var(--ink); overflow:visible; text-overflow:clip; }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.ctr { text-align: center; }
 td.pos { color: var(--green); font-weight: 600; }
@@ -461,7 +461,7 @@ td.dash { color: var(--muted); }
   margin-top: 12px; padding: 7px 18px;
   background: var(--red); color: #fff;
   border: none; border-radius: var(--r-sm);
-  font-family: 'Outfit', sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 
 /* ─── RESPONSIVE ─── */
@@ -684,7 +684,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
 <main class="main" id="mainContent">
   <div class="loading-box">
     <div class="spinner"></div>
-    <div class="loading-txt">Carregando dados da planilha…</div>
+    <div class="loading-txt">Atualizando a Base de Dados…</div>
   </div>
 </main>
 
@@ -697,8 +697,8 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       </svg>
     </div>
     <div>
-      <div class="update-card-title">Atualizando</div>
-      <div class="update-card-sub" id="update-card-sub">Buscando as informações mais recentes, aguarde…</div>
+      <div class="update-card-title">Atualizando a Base de Dados</div>
+      <div class="update-card-sub" id="update-card-sub">Aguarde, buscando as informações mais recentes…</div>
     </div>
   </div>
 </div>
@@ -1366,7 +1366,7 @@ function showUpdateOverlay(){
   if(!ov) return;
   icon.classList.add('spin');
   sub.className = 'update-card-sub';
-  sub.textContent = 'Buscando as informações mais recentes, aguarde…';
+  sub.textContent = 'Aguarde, buscando as informações mais recentes…';
   ov.classList.add('show');
 }
 function hideUpdateOverlay(isError, msg){
@@ -1400,7 +1400,7 @@ async function loadData(forceRefresh = false, silent = false) {
   const isRefresh = Array.isArray(rawData) && rawData.length > 0;
   if (!isRefresh) {
     document.getElementById('mainContent').innerHTML =
-      `<div class="loading-box"><div class="spinner"></div><div class="loading-txt">Carregando dados da planilha…</div></div>`;
+      `<div class="loading-box"><div class="spinner"></div><div class="loading-txt">Atualizando a Base de Dados…</div></div>`;
   } else if (!silent) {
     showUpdateOverlay();
   }
