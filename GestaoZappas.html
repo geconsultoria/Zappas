@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Gestão Zappas · Painel</title>
 <link rel="icon" type="image/png" sizes="48x48" href="logo.png?v=1">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500&family=Nunito:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 
 <style>
@@ -36,8 +36,11 @@
   --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
   --sh-lg: 0 8px 40px rgba(0,0,0,.12);
 
-  --font-head: 'Syne', system-ui, sans-serif;
-  --font-body: 'Epilogue', system-ui, sans-serif;
+  /* Mesmas fontes do DRE_Gerencial.html: títulos em Playfair Display,
+     textos em IBM Plex Sans e números em Calibri/Nunito. */
+  --font-head: 'Playfair Display', Georgia, serif;
+  --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+  --font-numeric: 'Calibri', 'Nunito', 'Trebuchet MS', Arial, sans-serif;
 
   --side-w: var(--side-w-collapsed);
   --side-w-collapsed: 74px;
@@ -140,7 +143,7 @@ body {
 }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: var(--font-head, 'Syne', sans-serif); font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: var(--font-head, 'Playfair Display', serif); font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -260,7 +263,7 @@ body {
 }
 .kpi-accent { position:absolute; top:0; left:0; right:0; height:3px; border-radius: var(--r-lg) var(--r-lg) 0 0; background: var(--gold); }
 .kpi-label { font-size:11px; font-weight:600; letter-spacing:.6px; text-transform:uppercase; color: var(--ink-3); margin-bottom:8px; }
-.kpi-value { font-family: var(--font-body); font-weight:700; font-size:22px; letter-spacing:-0.8px; color: var(--ink); line-height:1.15; }
+.kpi-value { font-family: var(--font-numeric); font-weight:700; font-size:22px; letter-spacing:-0.8px; color: var(--ink); line-height:1.15; }
 .kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; letter-spacing:normal; }
 .kpi-foot { font-size:11px; color: var(--ink-3); margin-top:6px; }
 .kpi-foot.pos { color:#3E8F63; }
@@ -285,7 +288,7 @@ body {
 .loja-perf-row { display:flex; flex-direction:column; gap:5px; }
 .loja-perf-top { display:flex; justify-content:space-between; align-items:baseline; gap:10px; }
 .loja-perf-nome { font-family: var(--font-head); font-weight:700; font-size:12.5px; color: var(--ink); }
-.loja-perf-saldo { font-family: var(--font-body); font-size:12px; font-weight:700; }
+.loja-perf-saldo { font-family: var(--font-numeric); font-size:12px; font-weight:700; }
 .loja-perf-saldo.pos { color:#0ea472; }
 .loja-perf-saldo.neg { color:#B4483A; }
 .loja-perf-bars { display:flex; flex-direction:column; gap:3px; }
@@ -328,7 +331,7 @@ body {
 .ig-kpi-card.teal .ig-kpi-icon { background:#e0f2fe; } .ig-kpi-card.teal .ig-kpi-icon svg { fill:#0e7490; }
 .ig-kpi-icon svg { width:18px; height:18px; }
 .ig-kpi-label { font-size:11px; font-weight:600; color: var(--ink-3); text-transform:uppercase; letter-spacing:.6px; }
-.ig-kpi-value { font-family: var(--font-body); font-size:22px; font-weight:700; letter-spacing:-0.8px; line-height:1; text-align:center; width:100%; margin-bottom:4px; color: var(--ink); }
+.ig-kpi-value { font-family: var(--font-numeric); font-size:22px; font-weight:700; letter-spacing:-0.8px; line-height:1; text-align:center; width:100%; margin-bottom:4px; color: var(--ink); }
 .ig-kpi-value.skel { color: var(--ink-4); font-size:14px; font-weight:600; }
 .ig-kpi-sub { font-size:11px; color: var(--ink-3); text-align:right; }
 
@@ -337,7 +340,7 @@ body {
 .perf-loja-card:hover { box-shadow: var(--sh-md); transform:translateY(-2px); }
 .perf-loja-name { font-size:10px; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color: var(--ink-3); margin-bottom:8px; display:flex; align-items:center; gap:8px; }
 .perf-loja-dot { width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-.perf-loja-total { font-family: var(--font-body); font-size:22px; font-weight:700; color: var(--ink); margin-bottom:4px; }
+.perf-loja-total { font-family: var(--font-numeric); font-size:22px; font-weight:700; color: var(--ink); margin-bottom:4px; }
 .perf-loja-total.neg { color:#B4483A; }
 .perf-loja-sub { font-size:11px; color: var(--ink-4); }
 .perf-loja-bar-bg { height:3px; background: var(--border); border-radius:2px; margin-top:12px; }
@@ -345,7 +348,7 @@ body {
 .perf-loja-flow { display:flex; align-items:center; justify-content:space-between; gap:10px; margin-top:10px; padding-top:10px; border-top:1px solid var(--border); }
 .perf-loja-flow-item { display:flex; flex-direction:column; gap:2px; }
 .perf-loja-flow-lbl { font-size:9px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color: var(--ink-4); }
-.perf-loja-flow-val { font-family: var(--font-body); font-size:13px; font-weight:700; }
+.perf-loja-flow-val { font-family: var(--font-numeric); font-size:13px; font-weight:700; }
 .perf-loja-flow-val.pos { color:#0ea472; }
 .perf-loja-flow-val.neg { color:#B4483A; }
 .perf-loja-empty { font-size:12px; color: var(--ink-4); padding:8px 0; margin-bottom:26px; }
@@ -2126,17 +2129,17 @@ function resumoRenderGraficos(ano, tentativa) {
             legend: { display: false },
             tooltip: {
               backgroundColor: '#0f1923', padding: 12, cornerRadius: 10,
-              bodyFont: { family: "'Epilogue',sans-serif", size: 12 },
-              titleFont: { family: "'Epilogue',sans-serif", size: 11, weight: '600' },
+              bodyFont: { family: "'Calibri','Nunito',Arial,sans-serif", size: 12 },
+              titleFont: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11, weight: '600' },
               callbacks: { label: ctx => ` ${ctx.dataset.label}: ${resumoFmtBRL(ctx.parsed.y)}` }
             }
           },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { family: "'Epilogue',sans-serif", size: 11 }, color: '#9aa3b0' } },
+            x: { grid: { display: false }, ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, color: '#9aa3b0' } },
             y: {
               grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
               border: { display: false },
-              ticks: { font: { family: "'JetBrains Mono',monospace", size: 10 }, color: '#9aa3b0', callback: v => 'R$' + resumoFmtK(v) }
+              ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 10 }, color: '#9aa3b0', callback: v => 'R$' + resumoFmtK(v) }
             }
           }
         }
@@ -2179,8 +2182,8 @@ function resumoRenderGraficos(ano, tentativa) {
             legend: { display: false },
             tooltip: {
               backgroundColor: '#0f1923', padding: 12, cornerRadius: 10,
-              bodyFont: { family: "'Epilogue',sans-serif", size: 12 },
-              titleFont: { family: "'Epilogue',sans-serif", size: 11, weight: '600' },
+              bodyFont: { family: "'Calibri','Nunito',Arial,sans-serif", size: 12 },
+              titleFont: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11, weight: '600' },
               callbacks: {
                 label: ctx => ctx.dataset.yAxisID === 'y1'
                   ? ` ${ctx.dataset.label}: ${ctx.parsed.y == null ? '—' : resumoFmtPct(ctx.parsed.y)}`
@@ -2189,17 +2192,17 @@ function resumoRenderGraficos(ano, tentativa) {
             }
           },
           scales: {
-            x: { grid: { display: false }, ticks: { font: { family: "'Epilogue',sans-serif", size: 11 }, color: '#9aa3b0' } },
+            x: { grid: { display: false }, ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 11 }, color: '#9aa3b0' } },
             y: {
               position: 'left',
               grid: { color: 'rgba(0,0,0,0.05)', drawBorder: false },
               border: { display: false },
-              ticks: { font: { family: "'JetBrains Mono',monospace", size: 10 }, color: '#9aa3b0', callback: v => 'R$' + resumoFmtK(v) }
+              ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 10 }, color: '#9aa3b0', callback: v => 'R$' + resumoFmtK(v) }
             },
             y1: {
               position: 'right',
               grid: { display: false }, border: { display: false },
-              ticks: { font: { family: "'JetBrains Mono',monospace", size: 10 }, color: '#9aa3b0', callback: v => v + '%' }
+              ticks: { font: { family: "'Calibri','Nunito',Arial,sans-serif", size: 10 }, color: '#9aa3b0', callback: v => v + '%' }
             }
           }
         }
