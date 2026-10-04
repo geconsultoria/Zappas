@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Faturamento & Lucro</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700;800&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   :root {
@@ -17,11 +17,11 @@
     --shadow: 0 4px 12px rgba(0,0,0,0.07),0 2px 4px rgba(0,0,0,0.04);
     --shadow-md: 0 4px 24px rgba(15,22,40,0.10);
     --shadow-lg: 0 8px 40px rgba(0,0,0,0.12);
-    --radius: 14px; --font: 'Epilogue',system-ui,sans-serif; --mono: 'JetBrains Mono',monospace;
-    --font-head: 'Syne', system-ui, sans-serif;
-    --font-body: 'Epilogue', system-ui, sans-serif;
-    --font-mono: 'JetBrains Mono', monospace;
-    --font-num: 'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+    --radius: 14px; --font: 'IBM Plex Sans', system-ui, sans-serif; --mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    --font-head: 'Playfair Display', Georgia, serif;
+    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    --font-num: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     --side-w: 232px;
     --side-w-collapsed: 74px;
   }
@@ -125,7 +125,7 @@
   .header-brand{display:flex;align-items:center;gap:12px}
   .header-logo{width:36px;height:36px;background:var(--accent);border-radius:10px;display:flex;align-items:center;justify-content:center}
   .header-logo svg{width:20px;height:20px;fill:white}
-  .header-title{font-family:'Calibri','Trebuchet MS',system-ui,sans-serif;font-size:20px;font-weight:700;letter-spacing:-0.3px;color:#fff}
+  .header-title{font-family:'Playfair Display', Georgia, serif;font-size:20px;font-weight:700;letter-spacing:-0.3px;color:#fff}
   .header-sub{font-family:var(--font-body);font-size:12px;color:rgba(255,255,255,.65)}
   .header-right{display:flex;align-items:center;gap:12px}
   .last-updated{font-family:var(--mono);font-size:11px;color:rgba(255,255,255,.65);background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.15);padding:5px 10px;border-radius:6px}
@@ -177,8 +177,8 @@
   .kpi-card.indigo .kpi-icon svg{fill:#8b5cf6}
   .kpi-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .kpi-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
-  .kpi-value{font-size:22px;font-weight:700;letter-spacing:-0.8px;line-height:1;text-align:center;width:100%;margin-bottom:4px}
-  .kpi-sub{font-size:11px;color:var(--text-muted);text-align:right}
+  .kpi-value{font-family:'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.8px;line-height:1;text-align:center;width:100%;margin-bottom:4px}
+  .kpi-sub{font-family:'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;font-size:11px;color:var(--text-muted);text-align:right}
 
   .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
   .charts-full{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
@@ -338,7 +338,7 @@
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -1441,20 +1441,20 @@ function mkChartPct2(id, labels, datasets) {
         legend:{display:false},
         tooltip:{
           backgroundColor:'#0f1923', padding:12, cornerRadius:10,
-          bodyFont:{family:"'Epilogue',sans-serif",size:12},
-          titleFont:{family:"'Epilogue',sans-serif",size:11,weight:'600'},
+          bodyFont:{family:"'Inter',system-ui,Arial,sans-serif",size:12},
+          titleFont:{family:"'Inter',system-ui,Arial,sans-serif",size:11,weight:'600'},
           callbacks:{ label: ctx => ` ${ctx.dataset.label}: ${fmtPct(ctx.parsed.y)}` }
         }
       },
       scales:{
-        x:{ grid:{display:false}, ticks:{font:{family:"'Epilogue',sans-serif",size:11},color:'#9aa3b0'} },
+        x:{ grid:{display:false}, ticks:{font:{family:"'Inter',system-ui,Arial,sans-serif",size:11},color:'#9aa3b0'} },
         y:{
           min: yMin, max: yMax,
           grid:{color:'rgba(0,0,0,0.05)',drawBorder:false},
           border:{display:false},
           ticks:{
             stepSize: step,
-            font:{family:"'JetBrains Mono',monospace",size:10}, color:'#9aa3b0',
+            font:{family:"'Inter',system-ui,Arial,sans-serif",size:10}, color:'#9aa3b0',
             callback: v => fmtPct(v)
           }
         }
@@ -1476,8 +1476,8 @@ function mkChart(id, type, labels, datasets, fmt) {
         legend:{display:false},
         tooltip:{
           backgroundColor:'#0f1923', padding:12, cornerRadius:10,
-          bodyFont:{family:"'Epilogue',sans-serif",size:12},
-          titleFont:{family:"'Epilogue',sans-serif",size:11,weight:'600'},
+          bodyFont:{family:"'Inter',system-ui,Arial,sans-serif",size:12},
+          titleFont:{family:"'Inter',system-ui,Arial,sans-serif",size:11,weight:'600'},
           callbacks:{
             label: ctx => {
               const v = ctx.parsed.y;
@@ -1489,12 +1489,12 @@ function mkChart(id, type, labels, datasets, fmt) {
         }
       },
       scales:{
-        x:{ grid:{display:false}, ticks:{font:{family:"'Epilogue',sans-serif",size:11},color:'#9aa3b0'} },
+        x:{ grid:{display:false}, ticks:{font:{family:"'Inter',system-ui,Arial,sans-serif",size:11},color:'#9aa3b0'} },
         y:{
           grid:{color:'rgba(0,0,0,0.05)',drawBorder:false},
           border:{display:false},
           ticks:{
-            font:{family:"'JetBrains Mono',monospace",size:10},color:'#9aa3b0',
+            font:{family:"'Inter',system-ui,Arial,sans-serif",size:10},color:'#9aa3b0',
             callback: v => fmt==='currency' ? 'R$'+fmtK(v) : fmt==='percent' ? fmtPct(v) : v
           }
         }
