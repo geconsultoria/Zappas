@@ -465,20 +465,7 @@ a.side-brand:hover { opacity:.85; }
 .p-rust  { background: var(--rust-lt);  color: var(--rust-mid);  border: 1px solid #F0B8A8; }
 
 .card-body { padding: 12px 16px 14px; }
-.chart-wrap { position: relative; height: 240px; }
-
-/* ─── Telas: 1) Indicadores + Evolução Temporal cabem juntos;
-         2) Ranking/Canal + Cupons/Quebras (4 gráficos) cabem juntos.
-   As alturas dos gráficos acompanham a altura da janela. ─── */
-.kpi { padding: 14px 20px; }
-.kpi-header { margin-bottom: 8px; }
-.kpi-foot { padding-top: 6px; }
-.sec-compact { margin: 16px 0 10px; }
-.tela1 .chart-wrap { height: clamp(180px, calc(100vh - 450px), 380px); }
-.tela2 .card-head { padding-top: 12px; }
-.tela2 .card-body { padding-top: 8px; padding-bottom: 10px; }
-.tela2 .chart-wrap { height: clamp(150px, calc((100vh - 330px) / 2), 320px); }
-.tela2 .canal-wrap { width: 100%; max-width: 420px; height: calc(clamp(150px, calc((100vh - 330px) / 2), 320px) - 26px); }
+.chart-wrap { position: relative; }
 
 /* ╔═══════════════════════════════════════╗
    ║  COMPARATIVE TABLE                   ║
@@ -1053,9 +1040,9 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
   </div>
 
-  <!-- CHARTS ROW 1 (tela 1: indicadores + evolução) -->
-  <div class="sec sec-compact"><span class="sec-title">Evolução Temporal</span><div class="sec-line"></div></div>
-  <div class="row c2 tela1">
+  <!-- CHARTS ROW 1 -->
+  <div class="sec"><span class="sec-title">Evolução Temporal</span><div class="sec-line"></div></div>
+  <div class="row c2">
     <div class="card fi">
       <div class="card-head">
         <div><div class="card-title">Faturamento por Mês</div><div class="card-sub">Evolução mensal das vendas no período selecionado</div></div>
@@ -1072,9 +1059,8 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
   </div>
 
-  <!-- CHARTS ROW 2 + 3 (tela 2: os 4 gráficos juntos) -->
-  <div class="sec"><span class="sec-title">Lojas, Canais e Perdas</span><div class="sec-line"></div></div>
-  <div class="row c2 tela2">
+  <!-- CHARTS ROW 2 -->
+  <div class="row c2">
     <div class="card fi">
       <div class="card-head">
         <div><div class="card-title">Ranking por Loja</div><div class="card-sub">Faturamento total por unidade</div></div>
@@ -1087,15 +1073,15 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         <div><div class="card-title">Distribuição por Canal</div><div class="card-sub">Participação percentual no faturamento</div></div>
         <span class="card-pill p-amber">Rosca</span>
       </div>
-      <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px">
-        <div class="chart-wrap canal-wrap"><canvas id="ch-canal"></canvas></div>
+      <div class="card-body" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;min-height:180px">
+        <canvas id="ch-canal" style="max-width:240px;max-height:190px"></canvas>
         <div id="canal-legend" style="display:flex;flex-wrap:nowrap;gap:12px;justify-content:center;align-items:center;font-size:10px;font-family:var(--font-body);color:var(--ink-3);"></div>
       </div>
     </div>
   </div>
 
   <!-- CHARTS ROW 3 -->
-  <div class="row c2 tela2">
+  <div class="row c2">
     <div class="card fi">
       <div class="card-head">
         <div><div class="card-title">Cupons por Mês</div><div class="card-sub">Quantidade de cupons emitidos</div></div>
@@ -2074,7 +2060,7 @@ function barChart(id, labels, data, color, opts={}) {
     type:'bar',
     data:{ labels, datasets:[{data, backgroundColor:grad, borderColor:color, borderWidth:0, borderRadius:5, borderSkipped:false}] },
     options:{
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:true,
       indexAxis: opts.h?'y':'x',
       plugins:{
         legend:{display:false},
@@ -2094,7 +2080,7 @@ function lineChart(id, labels, datasets) {
     type:'line',
     data:{ labels, datasets },
     options:{
-      responsive:true, maintainAspectRatio:false,
+      responsive:true, maintainAspectRatio:true,
       plugins:{
         legend:{
           display: datasets.length>1,
@@ -2118,7 +2104,7 @@ function donutChart(id, labels, data, colors) {
     type:'doughnut',
     data:{ labels, datasets:[{ data, backgroundColor:bgColors, borderWidth:3, borderColor:'#fff', hoverOffset:8 }] },
     options:{
-      responsive:true, maintainAspectRatio:false, cutout:'62%',
+      responsive:true, maintainAspectRatio:true, cutout:'62%',
       plugins:{
         legend:{ display:false },
         tooltip:{...TT, callbacks:{

@@ -594,6 +594,14 @@ a.side-brand:hover { opacity:.85; }
 .chart-sub   { font-size: 11px; color: var(--muted); margin-bottom: 14px; }
 .chart-wrap  { position: relative; height: 230px; }
 
+/* Planilha de Acompanhamento: todos os títulos centralizados e os valores
+   de Pess. AA, TKM AA, % Diária, % Acum., % s/ AA, Pess., TKM, % s/ AA,
+   Baixas e % Bx/Fat centralizados (colunas 3, 4 e 12 a 19). */
+.tbl-acomp thead th { text-align: center !important; }
+.tbl-acomp tbody td:nth-child(3),
+.tbl-acomp tbody td:nth-child(4),
+.tbl-acomp tbody td:nth-child(n+12) { text-align: center !important; }
+
 /* ─── Painel compacto: Indicadores + KPIs + Gráficos cabem juntos na
    mesma tela (sem precisar rolar pra ver os gráficos). Só reduz
    espaçamentos, alturas e tamanhos — os dados não mudam. ─── */
@@ -2302,7 +2310,7 @@ function renderDashboard(f) {
     </div>`;
   }).join('');
 
-  const tblH = `<table>
+  const tblH = `<table class="tbl-acomp">
     <thead>
       <tr class="tr-grp">
         <th class="grp-aa" colspan="5">ANO ANTERIOR (${anoAnt})</th>
