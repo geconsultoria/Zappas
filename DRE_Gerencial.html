@@ -2697,6 +2697,15 @@ function parseCompras(text, lojaFallback){
   const iNome  = exata('nome','produto','descricao');
   const iLoja  = exata('loja');
   if(iTotal<0 && !(iCusto>=0 && iQtd>=0)){ diag.motivo = 'sem coluna "total"'; return rows; }
+  // Proteção: se o ?tipo=compras devolver a planilha de VENDAS por produto
+  // (colunas codbarra/nomegrupo/canal, a mesma da Curva ABC), a coluna
+  // "total" é o valor VENDIDO, não o valor comprado — o CMV do DFC sairia
+  // igual ao faturamento de todos os canais. Nesse caso não usa o arquivo
+  // e mostra o motivo no aviso do DFC.
+  if(exata('canal') >= 0 && exata('codbarra') >= 0 && exata('nomegrupo') >= 0){
+    diag.motivo = 'o endereço de Compras (?tipo=compras) está devolvendo a planilha de VENDAS por produto (mesma da Curva ABC), não a de compras — corrigir no Apps Script';
+    return rows;
+  }
   if(iMes<0 && iData<0){ diag.motivo = 'sem coluna "mes" ou "data"'; return rows; }
 
   // OBS: o arquivo de Compras tem várias linhas com todas as colunas
@@ -2810,7 +2819,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v8';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v9';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
