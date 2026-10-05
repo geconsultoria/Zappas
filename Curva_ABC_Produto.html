@@ -1195,6 +1195,10 @@ function parseCurvaABC(text, lojaFallback){
     const qtd = parseNum(g(iQtd));
     const total = parseNum(g(iTotal));
     if(!qtd && !total) continue;
+    // Venda zero (quantidade > 0 mas valor vendido = 0, ex.: transferência,
+    // bonificação, consumo) não é venda: a linha sai da conta inteira, para
+    // o custo dela não entrar no CMV. Mesma regra no Faturamento x Lucro.
+    if(Math.abs(total) < 0.005) continue;
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
@@ -1265,7 +1269,7 @@ function unificarNomesGrupo(rows){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v5';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v6';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);

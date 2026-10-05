@@ -586,7 +586,7 @@ let rawProdTot = [];
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v5';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v7';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -986,8 +986,9 @@ function abcParseData(str){
   if(!m) return null;
   const dia = +m[1], mes = +m[2], ano = +m[3];
   if(mes<1||mes>12||dia<1||dia>31) return null;
-  return { mes, ano };
+  return { mes, ano, ts: new Date(ano, mes-1, dia).getTime() };
 }
+function abcNormCodGrupo(c){ return String(c||'').trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,''); }
 function abcDetectSep(txt){
   const l = txt.split('\n')[0];
   const c = { '\t': (l.match(/\t/g)||[]).length, ';': (l.match(/;/g)||[]).length, ',': (l.match(/,/g)||[]).length };
@@ -999,7 +1000,11 @@ function abcSplitLine(line, sep){
     if(ch==='"') inQ=!inQ; else if(ch===sep && !inQ){ out.push(cur); cur=''; } else cur+=ch; }
   out.push(cur); return out;
 }
-function abcAgregar(text, lojaFallback, acc){
+// Lê as linhas da loja em "out" (compactas). A soma só é feita em
+// abcConsolidar(), depois de TODAS as lojas, porque a Curva ABC renomeia
+// o grupo pelo nome mais recente do código (unificarNomesGrupo) e exclui
+// as linhas cujo código passou a ser um grupo excluído.
+function abcAgregar(text, lojaFallback, out){
   const sep = abcDetectSep(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   if(!lines.length) return 0;
@@ -1007,6 +1012,7 @@ function abcAgregar(text, lojaFallback, acc){
   const iData = abcFindCol(headers,'data');
   const iNome = abcFindCol(headers,'nome','produto','nomeproduto');
   const iNomeGrp = abcFindCol(headers,'nomegrupo','grupodescricao','descricaogrupo');
+  const iGrupo = abcFindCol(headers,'grupo','codgrupo');
   const iCusto = abcFindCol(headers,'custofinal','custo','custounitario');
   const iQtd = abcFindCol(headers,'qtd','quantidade');
   const iTotal = abcFindCol(headers,'total','valortotal','valor');
@@ -1026,6 +1032,10 @@ function abcAgregar(text, lojaFallback, acc){
     const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
     const qtd = abcParseNum(g(iQtd)), total = abcParseNum(g(iTotal));
     if(!qtd && !total) continue;
+    // Venda zero (quantidade > 0 mas valor vendido = 0, ex.: transferência,
+    // bonificação, consumo) não é venda: a linha sai da conta inteira, para
+    // o custo dela não entrar no CMV. Mesma regra da Curva ABC.
+    if(Math.abs(total) < 0.005) continue;
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
     const nomegrupo = (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO';
@@ -1037,13 +1047,35 @@ function abcAgregar(text, lojaFallback, acc){
       if(vs) canal = 'Reembolso'; else if(fab) canal = 'Central';
     }
     const dt = abcParseData(g(iData));
-    const ano = dt ? String(dt.ano) : '', mes = dt ? dt.mes : 0;
-    const custo = (iCusto>=0 ? abcParseNum(g(iCusto)) : 0) * (qtd||0);
-    const k = ano+'|'+loja+'|'+mes+'|'+canal;
-    const a = acc[k] || (acc[k] = { ano, lojaRaw: loja, mes, canalRaw: canal, total: 0, custo: 0 });
-    a.total += total; a.custo += custo; n++;
+    out.push({
+      ano: dt ? String(dt.ano) : '', mes: dt ? dt.mes : 0, ts: dt ? dt.ts : 0,
+      lojaRaw: loja, canalRaw: canal,
+      cod: abcNormCodGrupo(iGrupo>=0 ? g(iGrupo) : ''), nomegrupo,
+      total, custo: (iCusto>=0 ? abcParseNum(g(iCusto)) : 0) * (qtd||0),
+    });
+    n++;
   }
   return n;
+}
+// Réplica de unificarNomesGrupo() da Curva ABC + soma por ano×loja×mês×canal.
+function abcConsolidar(rows){
+  const ultimo = new Map();
+  rows.forEach(r => {
+    if(!r.cod || !r.nomegrupo || r.nomegrupo==='SEM GRUPO') return;
+    const atual = ultimo.get(r.cod);
+    if(!atual || r.ts >= atual.ts) ultimo.set(r.cod, { ts: r.ts, nome: r.nomegrupo });
+  });
+  const acc = {}; let excl = 0;
+  rows.forEach(r => {
+    const u = ultimo.get(r.cod);
+    const nome = u ? u.nome : r.nomegrupo;
+    if(ABC_GRUPOS_EXCLUIDOS.includes(abcNormTxt(nome))){ excl++; return; }
+    const k = r.ano+'|'+r.lojaRaw+'|'+r.mes+'|'+r.canalRaw;
+    const a = acc[k] || (acc[k] = { ano: r.ano, lojaRaw: r.lojaRaw, mes: r.mes, canalRaw: r.canalRaw, total: 0, custo: 0 });
+    a.total += r.total; a.custo += r.custo;
+  });
+  debugLog.push(`CMV produto: ${excl} linha(s) excluídas por grupo renomeado para grupo excluído.`);
+  return Object.values(acc);
 }
 async function fetchComTimeout(url, ms){
   const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), ms);
@@ -1054,19 +1086,19 @@ async function fetchComTimeout(url, ms){
 function setStatusSub(t){ const el = document.querySelector('.status-sub') || document.getElementById('update-card-sub'); if(el) el.textContent = t; }
 // Uma loja por vez, como na Curva ABC (o Apps Script serializa execuções).
 async function loadCmvProduto(){
-  const acc = {}; const falharam = [];
+  const linhas = []; const falharam = [];
   for(let i=0;i<CURVAABC_URLS.length;i++){
     const key = STORE_KEYS[i];
     setStatusSub(`Carregando CMV dos produtos (${i+1}/${CURVAABC_URLS.length})… ${key}`);
     try{
-      const n = abcAgregar(await fetchComTimeout(CURVAABC_URLS[i], 60000), key.toUpperCase(), acc);
+      const n = abcAgregar(await fetchComTimeout(CURVAABC_URLS[i], 60000), key.toUpperCase(), linhas);
       debugLog.push(`CMV produto (${key}): ${n} itens vendidos.`);
     }catch(e){
       falharam.push(key);
       debugLog.push(`<span class="warn">⚠ CMV produto (${key}) indisponível: ${e.message}</span>`);
     }
   }
-  return { linhas: Object.values(acc), falharam };
+  return { linhas: abcConsolidar(linhas), falharam };
 }
 // Casa loja/canal da base de produtos com os rótulos do faturamento
 // ('BELVEDER' x 'belvedere', 'LOJA' x 'Loja'), para os filtros servirem
