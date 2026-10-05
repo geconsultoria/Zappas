@@ -357,6 +357,56 @@ a.side-brand:hover { opacity:.85; }
   display: block; width: 100%; text-align: center; border: none; background: none;
   color: var(--muted); font-size: 12px; font-weight: 600; padding: 6px; cursor: pointer;
 }
+/* Contatos de WhatsApp cadastrados por loja + painel de envio direto */
+.rd-ct-overlay, .rd-send-overlay {
+  display: none; position: fixed; inset: 0; background: rgba(10,15,25,.6);
+  z-index: 610; align-items: center; justify-content: center; padding: 16px;
+}
+.rd-ct-overlay.show, .rd-send-overlay.show { display: flex; }
+.rd-ct-box {
+  background: #fff; border-radius: 14px; padding: 18px; width: 100%; max-width: 560px;
+  max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 60px rgba(0,0,0,.3);
+}
+.rd-ct-row { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 8px; align-items: center; padding: 6px 0; border-bottom: 1px solid #EEE; }
+.rd-ct-row:last-child { border-bottom: none; }
+.rd-ct-loja { font-weight: 800; font-size: 12px; color: #14213D; }
+.rd-ct-row input {
+  width: 100%; box-sizing: border-box; border: 1.5px solid #D8CFBE; border-radius: 8px;
+  padding: 7px 9px; font-size: 12.5px; font-family: inherit; background: #FAF8F4;
+}
+.rd-ct-row input:focus { outline: none; border-color: var(--amber, #B45309); background: #fff; }
+.rd-ct-row input.invalido { border-color: #C8281E; background: #FDECEA; }
+.rd-ct-head { display: grid; grid-template-columns: 130px 1fr 1fr; gap: 8px; font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding-bottom: 4px; }
+.rd-ct-opt { display: flex; gap: 14px; flex-wrap: wrap; font-size: 12px; color: #14213D; margin: 12px 0 4px; }
+.rd-ct-opt label { display: flex; gap: 5px; align-items: center; cursor: pointer; }
+.rd-ct-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 14px; align-items: center; }
+.rd-ct-status { flex: 1; font-size: 11px; color: var(--muted); }
+.rd-btn-pri {
+  border: none; border-radius: 9px; background: #128C7E; color: #fff; font-weight: 800;
+  font-size: 13px; padding: 10px 16px; cursor: pointer;
+}
+.rd-btn-pri:hover { background: #0E7266; }
+.rd-btn-pri:disabled { opacity: .6; cursor: default; }
+.rd-btn-sec {
+  border: 1.5px solid #D8CFBE; border-radius: 9px; background: #FAF8F4; color: #14213D;
+  font-weight: 700; font-size: 12.5px; padding: 9px 14px; cursor: pointer;
+}
+.rd-send-box {
+  background: #fff; border-radius: 14px; padding: 18px; width: 100%; max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3); text-align: center;
+}
+.rd-send-box img { max-width: 100%; max-height: 220px; border-radius: 8px; border: 1px solid #EEE; margin: 10px 0; }
+.rd-send-dest { font-weight: 800; font-size: 15px; color: #14213D; }
+.rd-send-num { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.rd-send-hint { font-size: 11.5px; color: var(--muted); margin: 8px 0 12px; line-height: 1.45; }
+.rd-send-box .rd-btn-pri { width: 100%; padding: 12px; font-size: 14px; }
+.rd-send-links { display: flex; justify-content: space-between; margin-top: 10px; }
+.rd-send-links button { border: none; background: none; color: var(--muted); font-size: 11.5px; font-weight: 600; cursor: pointer; text-decoration: underline; }
+@media (max-width: 520px) {
+  .rd-ct-row, .rd-ct-head { grid-template-columns: 1fr 1fr; }
+  .rd-ct-loja { grid-column: 1 / -1; }
+  .rd-ct-head span:first-child { display: none; }
+}
 .rd-pos { color: #0A7C5C; }
 .rd-neg { color: #C8281E; }
 .canal-dropdown {
@@ -1028,6 +1078,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       <select class="fb-select" id="rdLojaSelect" onchange="renderResumoDiario()"></select>
       <button class="canal-dd-btn" onclick="copiarResumoDiarioTexto(this)">📄 Copiar como texto</button>
       <button class="canal-dd-btn" id="btnEnviarImagem" onclick="enviarResumoDiarioImagem(this)">📷 Enviar imagem (WhatsApp)</button>
+      <button class="canal-dd-btn" onclick="abrirContatosWhats()" title="Cadastrar o número de WhatsApp de cada loja">👤 Contatos</button>
     </div>
     <div class="rd-modal-body" id="rdBody"></div>
   </div>
@@ -1047,6 +1098,42 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       <div class="d">Realizado embaixo da Meta Diária</div>
     </button>
     <button class="rd-modelpick-cancel" onclick="rdModelPickCancel()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ════ Cadastro de contatos de WhatsApp por loja ════ -->
+<div class="rd-ct-overlay" id="rdCtOverlay" onclick="if(event.target===this) fecharContatosWhats()">
+  <div class="rd-ct-box">
+    <div class="rd-modelpick-title">👤 Contatos de WhatsApp</div>
+    <div class="rd-modelpick-sub">Para quem vai a imagem de cada loja. Com o número cadastrado, o envio abre direto na conversa — sem escolher contato.</div>
+    <div class="rd-ct-head"><span>Loja</span><span>Nome</span><span>WhatsApp (com DDD)</span></div>
+    <div id="rdCtLista"></div>
+    <div class="rd-ct-opt" id="rdCtOpcaoApp">
+      <span style="font-weight:700">No computador, abrir em:</span>
+      <label><input type="radio" name="rdCtApp" value="app"> WhatsApp Desktop (aplicativo)</label>
+      <label><input type="radio" name="rdCtApp" value="web"> WhatsApp Web (navegador)</label>
+    </div>
+    <div class="rd-ct-actions">
+      <span class="rd-ct-status" id="rdCtStatus"></span>
+      <button class="rd-btn-sec" onclick="fecharContatosWhats()">Cancelar</button>
+      <button class="rd-btn-pri" id="rdCtSalvar" onclick="salvarContatosWhats()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- ════ Envio direto pro contato cadastrado ════ -->
+<div class="rd-send-overlay" id="rdSendOverlay" onclick="if(event.target===this) fecharEnvioDireto()">
+  <div class="rd-send-box">
+    <div class="rd-modelpick-sub" style="margin-bottom:6px">Enviar Resumo Diário para</div>
+    <div class="rd-send-dest" id="rdSendNome"></div>
+    <div class="rd-send-num" id="rdSendNum"></div>
+    <img id="rdSendPreview" alt="Prévia da imagem">
+    <button class="rd-btn-pri" id="rdSendBtn" onclick="rdEnvioDiretoConfirmar()">📤 Abrir conversa e enviar</button>
+    <div class="rd-send-hint" id="rdSendHint">A imagem é copiada e a conversa abre no WhatsApp. Lá, é só colar (<b>Ctrl+V</b>) e apertar <b>Enter</b>.</div>
+    <div class="rd-send-links">
+      <button onclick="rdEnvioDiretoOutro()">Enviar para outro contato</button>
+      <button onclick="fecharEnvioDireto()">Cancelar</button>
+    </div>
   </div>
 </div>
 
@@ -1187,6 +1274,11 @@ const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
 // Mesmo backend de Metas usado no Elaboracao_Metas.html — aqui só lemos
 // (GET), não precisa do token. Cole a mesma URL /exec dos dois arquivos.
 const METAS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec";
+
+// Contatos de WhatsApp por loja (Resumo Diário). Cole aqui a URL /exec do
+// Apps Script "Contatos_WhatsApp.gs" para os números valerem em qualquer
+// computador. Enquanto ficar vazio, os contatos são salvos só neste navegador.
+const CONTATOS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMjH4OeBiWB_NbBe6OVotNDfsNvClVCPq8YlUYdStC537-kusVIhFNX0_1WZc3UGKU3g/exec";
 /* ════════════════════════════════════════════════════ */
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -2775,6 +2867,7 @@ function abrirResumoDiario() {
   }
   document.getElementById('rdOverlay').classList.add('show');
   renderResumoDiario();
+  rdCarregarContatos(); // atualiza da planilha em segundo plano
 }
 function fecharResumoDiario() {
   document.getElementById('rdOverlay').classList.remove('show');
@@ -2995,6 +3088,216 @@ function rdModelPickCancel() {
   if (_rdModelPickResolve) { _rdModelPickResolve(null); _rdModelPickResolve = null; }
 }
 
+/* ═══════════ CONTATOS DE WHATSAPP POR LOJA ═══════════
+   Cada loja (e o envio "Todas as lojas") pode ter um número cadastrado.
+   Fonte: planilha via Apps Script (CONTATOS_APPS_SCRIPT_URL), com cópia
+   no localStorage — se a planilha não estiver configurada ou cair, usa
+   o que estiver salvo neste navegador. */
+const RD_CHAVE_TODAS = '__TODAS__';
+const RD_CONTATOS_LS = 'rd_whatsapp_contatos';
+const RD_APP_LS = 'rd_whatsapp_abrir_em';
+let rdContatos = {};
+try { rdContatos = JSON.parse(localStorage.getItem(RD_CONTATOS_LS) || '{}') || {}; } catch(e) { rdContatos = {}; }
+
+function rdEhCelular() {
+  return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+}
+// Só dígitos; se vier sem o 55 (10 ou 11 dígitos com DDD), adiciona.
+function rdNormalizarNumero(v) {
+  let d = String(v || '').replace(/\D/g, '');
+  if (d.length === 10 || d.length === 11) d = '55' + d;
+  return d;
+}
+function rdNumeroValido(d) { return /^\d{12,15}$/.test(d); }
+function rdFormatarNumero(d) {
+  const m = String(d).match(/^55(\d{2})(\d{4,5})(\d{4})$/);
+  return m ? `(${m[1]}) ${m[2]}-${m[3]}` : '+' + d;
+}
+function rdGetContato(chave) {
+  const c = rdContatos[chave];
+  return c && rdNumeroValido(c.numero) ? c : null;
+}
+function rdAbrirEm() {
+  try { return localStorage.getItem(RD_APP_LS) || 'app'; } catch(e) { return 'app'; }
+}
+function rdGuardarLocal() {
+  try { localStorage.setItem(RD_CONTATOS_LS, JSON.stringify(rdContatos)); } catch(e) {}
+}
+function rdPlanilhaContatosOk() {
+  return CONTATOS_APPS_SCRIPT_URL && /^https:\/\/script\.google\.com\//.test(CONTATOS_APPS_SCRIPT_URL);
+}
+async function rdCarregarContatos() {
+  if (!rdPlanilhaContatosOk()) return false;
+  try {
+    const r = await fetch(CONTATOS_APPS_SCRIPT_URL + '?_cb=' + Date.now(), { cache: 'no-store' });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    if (j && j.contatos && typeof j.contatos === 'object') {
+      rdContatos = j.contatos;
+      rdGuardarLocal();
+    }
+    return true;
+  } catch(e) {
+    console.warn('[CONTATOS] Falha ao ler da planilha, usando os salvos neste navegador:', e.message);
+    return false;
+  }
+}
+async function rdSalvarContatosPlanilha() {
+  // text/plain evita o "preflight" de CORS, que o Apps Script não responde.
+  const r = await fetch(CONTATOS_APPS_SCRIPT_URL, {
+    method: 'POST',
+    headers: { 'Content-Type': 'text/plain;charset=utf-8' },
+    body: JSON.stringify({ contatos: rdContatos }),
+  });
+  if (!r.ok) throw new Error('HTTP ' + r.status);
+  const j = await r.json();
+  if (!j || !j.ok) throw new Error((j && j.erro) || 'resposta inválida');
+}
+
+function rdLojasParaContato() {
+  let lojas = [...new Set(rawData.map(d=>d.loja))].filter(Boolean).sort();
+  if (restrictedLoja) {
+    const aliases = STORE_LOJA_ALIASES[restrictedLoja] || [restrictedLoja.toUpperCase()];
+    lojas = lojas.filter(l => aliases.includes(l));
+  } else {
+    lojas.push(RD_CHAVE_TODAS);
+  }
+  return lojas;
+}
+function rdEsc(v) {
+  return String(v == null ? '' : v).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+}
+function rdRenderListaContatos() {
+  const lojas = rdLojasParaContato();
+  document.getElementById('rdCtLista').innerHTML = lojas.map(l => {
+    const c = rdContatos[l] || {};
+    const rotulo = l === RD_CHAVE_TODAS ? 'TODAS AS LOJAS' : (l === 'BELVEDER' ? 'BELVEDERE' : l);
+    const num = c.numero ? rdFormatarNumero(c.numero) : '';
+    return `<div class="rd-ct-row" data-loja="${rdEsc(l)}">
+      <div class="rd-ct-loja">${rdEsc(rotulo)}</div>
+      <input type="text" class="ct-nome" placeholder="Ex: Gerente João" value="${rdEsc(c.nome || '')}">
+      <input type="tel" class="ct-num" placeholder="(11) 98765-4321" value="${rdEsc(num)}">
+    </div>`;
+  }).join('');
+}
+async function abrirContatosWhats() {
+  document.getElementById('rdCtStatus').textContent = rdPlanilhaContatosOk() ? 'Carregando da planilha…' : 'Salvo apenas neste navegador (planilha não configurada).';
+  const app = rdAbrirEm();
+  document.querySelectorAll('input[name="rdCtApp"]').forEach(r => { r.checked = r.value === app; });
+  rdRenderListaContatos();
+  document.getElementById('rdCtOverlay').classList.add('show');
+  if (rdPlanilhaContatosOk()) {
+    const ok = await rdCarregarContatos();
+    rdRenderListaContatos();
+    document.getElementById('rdCtStatus').textContent = ok ? 'Sincronizado com a planilha.' : 'Não foi possível ler a planilha — mostrando os salvos neste navegador.';
+  }
+}
+function fecharContatosWhats() {
+  document.getElementById('rdCtOverlay').classList.remove('show');
+}
+async function salvarContatosWhats() {
+  const status = document.getElementById('rdCtStatus');
+  const novos = { ...rdContatos };
+  let erro = false;
+  document.querySelectorAll('#rdCtLista .rd-ct-row').forEach(row => {
+    const loja = row.dataset.loja;
+    const nome = row.querySelector('.ct-nome').value.trim();
+    const inp = row.querySelector('.ct-num');
+    const numero = rdNormalizarNumero(inp.value);
+    inp.classList.remove('invalido');
+    if (!inp.value.trim()) { delete novos[loja]; return; }
+    if (!rdNumeroValido(numero)) { inp.classList.add('invalido'); erro = true; return; }
+    novos[loja] = { nome, numero };
+  });
+  if (erro) { status.textContent = '⚠️ Corrija os números em vermelho (use DDD + número).'; return; }
+
+  const appSel = document.querySelector('input[name="rdCtApp"]:checked');
+  if (appSel) { try { localStorage.setItem(RD_APP_LS, appSel.value); } catch(e) {} }
+
+  rdContatos = novos;
+  rdGuardarLocal();
+  if (!rdPlanilhaContatosOk()) { fecharContatosWhats(); return; }
+
+  const btn = document.getElementById('rdCtSalvar');
+  btn.disabled = true; status.textContent = 'Salvando na planilha…';
+  try {
+    await rdSalvarContatosPlanilha();
+    fecharContatosWhats();
+  } catch(e) {
+    console.warn('[CONTATOS] Falha ao salvar na planilha:', e.message);
+    status.textContent = '⚠️ Salvo neste navegador, mas falhou ao gravar na planilha (' + e.message + ').';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ---- Painel de envio direto ----
+let rdEnvioAtual = null;
+function rdAbrirEnvioDireto(info) {
+  if (rdEnvioAtual && rdEnvioAtual.previewUrl) URL.revokeObjectURL(rdEnvioAtual.previewUrl);
+  rdEnvioAtual = { ...info, previewUrl: URL.createObjectURL(info.blob) };
+  document.getElementById('rdSendNome').textContent = info.contato.nome || rdFormatarNumero(info.contato.numero);
+  document.getElementById('rdSendNum').textContent = (info.contato.nome ? rdFormatarNumero(info.contato.numero) + ' · ' : '') + info.lojaTxt;
+  document.getElementById('rdSendPreview').src = rdEnvioAtual.previewUrl;
+  const btn = document.getElementById('rdSendBtn');
+  btn.disabled = false; btn.textContent = '📤 Abrir conversa e enviar';
+  document.getElementById('rdSendHint').innerHTML = 'A imagem é copiada e a conversa abre no WhatsApp. Lá, é só colar (<b>Ctrl+V</b>) e apertar <b>Enter</b>.';
+  document.getElementById('rdSendOverlay').classList.add('show');
+}
+function fecharEnvioDireto() {
+  document.getElementById('rdSendOverlay').classList.remove('show');
+  if (rdEnvioAtual && rdEnvioAtual.previewUrl) URL.revokeObjectURL(rdEnvioAtual.previewUrl);
+  rdEnvioAtual = null;
+}
+function rdBaixarArquivo(blob, nome) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = nome;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 3000);
+}
+async function rdEnvioDiretoConfirmar() {
+  if (!rdEnvioAtual) return;
+  const { blob, nomeArquivo, contato } = rdEnvioAtual;
+  // A cópia acontece dentro do clique (gesto do usuário), que é quando o
+  // navegador libera gravar imagem na área de transferência.
+  let copiou = false;
+  try {
+    if (navigator.clipboard && window.ClipboardItem) {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      copiou = true;
+    }
+  } catch(e) { console.warn('[ENVIO] Não copiou a imagem:', e.message); }
+  if (!copiou) rdBaixarArquivo(blob, nomeArquivo);
+
+  const n = contato.numero;
+  if (rdAbrirEm() === 'web') {
+    window.open('https://web.whatsapp.com/send?phone=' + n, 'whatsapp_web');
+  } else {
+    window.location.href = 'whatsapp://send?phone=' + n;
+  }
+
+  const btn = document.getElementById('rdSendBtn');
+  btn.textContent = copiou ? '✅ Imagem copiada — cole na conversa' : '✅ Imagem baixada';
+  document.getElementById('rdSendHint').innerHTML = copiou
+    ? 'Na conversa que abriu, aperte <b>Ctrl+V</b> e depois <b>Enter</b>. Se o WhatsApp não abriu, troque para "WhatsApp Web" em 👤 Contatos.'
+    : 'Este navegador não deixou copiar a imagem, então ela foi baixada (<b>' + rdEsc(nomeArquivo) + '</b>). Na conversa que abriu, clique no clipe 📎 e anexe o arquivo.';
+  setTimeout(() => { if (document.getElementById('rdSendOverlay').classList.contains('show')) fecharEnvioDireto(); }, 6000);
+}
+async function rdEnvioDiretoOutro() {
+  if (!rdEnvioAtual) return;
+  const { blob, file, nomeArquivo, lojaTxt } = rdEnvioAtual;
+  fecharEnvioDireto();
+  try {
+    if (navigator.canShare && navigator.canShare({ files: [file] })) {
+      await navigator.share({ files: [file], title: 'Resumo Diário', text: `Resumo Diário — ${lojaTxt}` });
+      return;
+    }
+  } catch(e) { if (e.name === 'AbortError') return; }
+  rdBaixarArquivo(blob, nomeArquivo);
+  alert('Imagem baixada: ' + nomeArquivo + '\n\nAbra o WhatsApp e anexe o arquivo na conversa desejada.');
+}
+
 async function enviarResumoDiarioImagem(btnEl) {
   if (typeof html2canvas === 'undefined') {
     alert('Não foi possível carregar o gerador de imagem. Verifique sua conexão e tente novamente.');
@@ -3056,6 +3359,17 @@ async function enviarResumoDiarioImagem(btnEl) {
       : 'Todas as lojas';
     const nomeArquivo = `resumo-diario-${lojaTxt.toLowerCase().replace(/\s+/g,'-')}.png`;
     const file = new File([blob], nomeArquivo, { type: 'image/png' });
+
+    // Contato cadastrado pra essa loja (ou pro "Todas as lojas")? No
+    // computador, pula a tela de escolher contato: copia a imagem e abre
+    // a conversa da pessoa direto no WhatsApp.
+    const chaveContato = rdModo === 'uma' ? document.getElementById('rdLojaSelect').value : RD_CHAVE_TODAS;
+    const contato = rdGetContato(chaveContato);
+    if (contato && !rdEhCelular()) {
+      rdAbrirEnvioDireto({ blob, file, nomeArquivo, lojaTxt, contato });
+      btnEl.textContent = '📷 Enviar imagem (WhatsApp)';
+      return;
+    }
 
     // Compartilhamento nativo (abre a tela de escolher contato/app) —
     // funciona tanto no celular quanto no Windows (Chrome/Edge usam a
