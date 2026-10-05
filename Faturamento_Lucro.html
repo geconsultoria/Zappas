@@ -502,13 +502,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       <span class="ig-flabel">Loja</span>
       <select class="ig-fselect" id="f-loja"><option value="">Todas</option></select>
     </div>
-    <div class="ig-fgroup" id="cmvmode-group" title="Competência: custo do que foi vendido (custofinal × qtd), mesma base da Curva ABC.&#10;Caixa: contas do Contas a Pagar classificadas como CMV, pela data de pagamento.">
-      <span class="ig-flabel">CMV</span>
-      <select class="ig-fselect" id="f-cmvmode" onchange="setCmvMode(this.value)">
-        <option value="competencia">Competência (produto)</option>
-        <option value="caixa">Caixa (Contas a Pagar)</option>
-      </select>
-    </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Canal</span>
       <div class="canal-wrap" id="canal-wrap">
@@ -561,17 +554,18 @@ window.addEventListener('pageshow', function(e){
 // ══════════════════════════════════════════════════
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec';
 const STORE_KEYS = ['anisio', 'bady', 'belvedere', 'damha', 'havan', 'muffato'];
-// Agora lê o resumo mensal já agregado (loja x ano x mes x canal) em vez
-// dos 6 CSVs brutos venda-a-venda — bem mais rápido.
-const CSV_URLS_FAT = [`${APPS_SCRIPT_URL}?loja=resumo`];
+// FATURAMENTO: mesma fonte e mesmas regras da Análise Comercial e do
+// Faturamento Detalhado — as 6 lojas (?loja=<loja>), coluna "total".
+// (O ?loja=resumo foi abandonado porque divergia das demais páginas.)
+const CSV_URLS_FAT = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+// CMV: custo do produto vendido (custofinal × qtd), mesma base e mesmas
+// regras da Curva ABC Produto (?tipo=curvaabc).
+const CURVAABC_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=curvaabc&loja=${k}`);
 // CMV agora vem da mesma fonte lançada no DRE Gerencial: Contas a Pagar
 // (regime de caixa, por data de pagamento) classificado pelo Plano de
 // Contas — mesmo backend, mesmas 6 lojas.
 const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
 const CTASPAGAR_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
-// CMV por competência: mesma base da Curva ABC Produto (venda item a item,
-// custofinal × qtd), com as mesmas exclusões de grupo e regras de canal.
-const CURVAABC_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=curvaabc&loja=${k}`);
 // ══════════════════════════════════════════════════
 
 const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -584,18 +578,15 @@ const MESES_MAP = {
 };
 
 let rawFat = [], rawCmv = [], chartInstances = {}, debugLog = [];
-// Bases originais. rawFat/rawCmv passam a ser apenas a "visão ativa",
-// montada por aplicarModoCmv() conforme o seletor CMV.
-//   rawFatResumo / rawCmvCaixa → modo Caixa (resumo + Contas a Pagar)
-//   rawProd                     → modo Competência (agregado da Curva ABC)
-let rawFatResumo = [], rawCmvCaixa = [], rawProd = [], prodUnavailable = false;
-let cmvMode = (function(){ try { return localStorage.getItem('zappas_fatlucro_cmvmode') || 'competencia'; } catch(e){ return 'competencia'; } })();
+// Total vendido pela base de produtos (Curva ABC), por ano×loja×mês×canal —
+// usado só no quadro de Conciliação Faturamento × Curva ABC.
+let rawProdTot = [];
 
 // ─── CACHE LOCAL (IndexedDB)
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v4';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v5';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -769,6 +760,8 @@ async function fetchCSV(url) {
 }
 
 // ══════════════════════════════════════════════════
+//  [LEGADO — não é mais usado nesta tela] O CMV agora vem do custo do
+//  produto (loadCmvProduto). Mantido só como referência do DRE.
 //  CMV — mesma classificação usada no DRE_Gerencial.html:
 //  Contas a Pagar (regime de caixa, por dtpagamento) com o codcentro
 //  cruzado no Plano de Contas pra achar o "grupo"; linhas cujo grupo
@@ -887,10 +880,91 @@ async function loadCmvFromDRE() {
 }
 
 // ══════════════════════════════════════════════════
-//  CMV COMPETÊNCIA — leitura idêntica à da Curva ABC Produto
-//  Colunas: data, codbarra, nome, grupo, nomegrupo, custofinal, qtd,
-//  total, loja, canal/canais, vs, fabrica.
-//  Agrega em (ano, loja, mes, canal) → { total, custo } para ficar leve.
+//  FATURAMENTO — cópia fiel do parseCSV da Análise Comercial
+//  (toNum, normKey, parseLine, regras VS/Fábrica/Central/Reembolso,
+//  descarta linhas sem ano ou loja). Qualquer mudança lá deve ser
+//  replicada aqui para os totais continuarem batendo.
+// ══════════════════════════════════════════════════
+const acNormKey = s => String(s).trim().toLowerCase()
+  .normalize('NFD').replace(/[̀-ͯ]/g,'')
+  .replace(/[\s_\-]+/g,'_').replace(/[^a-z0-9_]/g,'');
+const acDetectSep = l => (l.match(/;/g)||[]).length > (l.match(/,/g)||[]).length ? ';' : ',';
+function acParseLine(line, sep) {
+  const f=[]; let inQ=false, cur='';
+  for(let i=0;i<line.length;i++){
+    const c=line[i];
+    if(c==='"'){inQ=!inQ;}
+    else if(c===sep&&!inQ){f.push(cur.trim());cur='';}
+    else cur+=c;
+  }
+  f.push(cur.trim()); return f;
+}
+function acToNum(s) {
+  if(s===null||s===undefined||String(s).trim()==='') return 0;
+  let v=String(s).trim().replace(/\s/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(v)) v=v.replace(/\./g,'').replace(',','.');
+  else v=v.replace(/,/g,'.');
+  const n=parseFloat(v); return isNaN(n)?0:n;
+}
+function acNormTxt(s){ return String(s||'').trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ').trim(); }
+// Lê o CSV de vendas de uma loja e soma em acc[ano|loja|mes|canal].
+function parseVendasLoja(text, acc) {
+  const lines = text.split(/\r?\n/);
+  if(!lines.length) return 0;
+  const sep = acDetectSep(lines[0]);
+  const headers = acParseLine(lines[0], sep).map(acNormKey);
+  const required = ['ano','loja','mes','total'];
+  const missing  = required.filter(r=>!headers.includes(r));
+  if(missing.length) throw new Error(`Colunas não encontradas: ${missing.join(', ')} — recebidas: ${headers.join(', ')}`);
+  let n = 0;
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim(); if(!line) continue;
+    const fields=acParseLine(line,sep);
+    if(fields.every(f=>!f)) continue;
+    const obj={}; headers.forEach((h,idx)=>{ obj[h]=fields[idx]??''; });
+    const ano  = String(obj.ano).trim();
+    const loja = String(obj.loja).trim();
+    if(!ano||!loja) continue;
+    let canal = String(obj.canais||obj.canal||obj.canais_semana||'').trim();
+    const vs  = /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim());
+    const fab = /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim());
+    if(acNormTxt(canal)==='distribuicao' && vs){
+      if(fab) continue;
+      canal = canal===canal.toUpperCase() ? 'REEMBOLSO' : 'Reembolso';
+    }
+    if(acNormTxt(canal)==='distribuicao' && !vs && fab) canal = canal===canal.toUpperCase() ? 'CENTRAL' : 'Central';
+    const r = { ano: parseAno(ano), loja: loja.toUpperCase(), mes: parseMes(obj.mes), canal };
+    const k = r.ano+'|'+r.loja+'|'+r.mes+'|'+r.canal;
+    const a = acc[k] || (acc[k] = Object.assign(r, { total_venda: 0 }));
+    a.total_venda += acToNum(obj.total);
+    n++;
+  }
+  return n;
+}
+async function loadFaturamentoLojas(){
+  const acc = {}; const falharam = [];
+  const BATCH = 2; // igual à Análise Comercial
+  for (let i = 0; i < CSV_URLS_FAT.length; i += BATCH) {
+    await Promise.all(CSV_URLS_FAT.slice(i, i+BATCH).map(async (url, j) => {
+      const key = STORE_KEYS[i+j];
+      setStatusSub(`Carregando faturamento (${Math.min(i+BATCH, CSV_URLS_FAT.length)}/${CSV_URLS_FAT.length})…`);
+      try {
+        const n = parseVendasLoja(await fetchCSV(url), acc);
+        debugLog.push(`Faturamento (${key}): ${n} linhas.`);
+      } catch(e) {
+        falharam.push(key);
+        debugLog.push(`<span class="warn">⚠ Faturamento (${key}) indisponível: ${e.message}</span>`);
+      }
+    }));
+  }
+  return { linhas: Object.values(acc), falharam };
+}
+
+// ══════════════════════════════════════════════════
+//  CMV — cópia fiel da leitura da Curva ABC Produto
+//  custo = custofinal × qtd; sem os grupos excluídos lá;
+//  mesmas regras de canal. Qualquer mudança na Curva ABC deve ser
+//  replicada aqui para o CMV continuar batendo.
 // ══════════════════════════════════════════════════
 const ABC_GRUPOS_EXCLUIDOS = ['despesa com alimentacao', 'transferencias internas'];
 function abcNormTxt(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
@@ -910,8 +984,8 @@ function abcParseNum(v){
 function abcParseData(str){
   const m = String(str||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
   if(!m) return null;
-  const mes = +m[2], ano = +m[3];
-  if(mes<1||mes>12) return null;
+  const dia = +m[1], mes = +m[2], ano = +m[3];
+  if(mes<1||mes>12||dia<1||dia>31) return null;
   return { mes, ano };
 }
 function abcDetectSep(txt){
@@ -931,6 +1005,7 @@ function abcAgregar(text, lojaFallback, acc){
   if(!lines.length) return 0;
   const headers = abcSplitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iData = abcFindCol(headers,'data');
+  const iNome = abcFindCol(headers,'nome','produto','nomeproduto');
   const iNomeGrp = abcFindCol(headers,'nomegrupo','grupodescricao','descricaogrupo');
   const iCusto = abcFindCol(headers,'custofinal','custo','custounitario');
   const iQtd = abcFindCol(headers,'qtd','quantidade');
@@ -942,7 +1017,8 @@ function abcAgregar(text, lojaFallback, acc){
   let iVs = exata('vs'); if(iVs<0) iVs = headers.findIndex(h => /^vs\b|^vs_/.test(abcNormTxt(h)));
   let iFab = exata('fabrica'); if(iFab<0) iFab = headers.findIndex(h => abcNormTxt(h).includes('fabrica'));
   const ehVerdade = v => /^(true|verdadeiro|1|1\.0|sim|s|x|yes)$/i.test(String(v||'').trim());
-  if(iQtd<0 || iTotal<0) throw new Error('colunas qtd/total não encontradas. Cabeçalhos: '+headers.join(', '));
+  const missing=[]; if(iNome<0) missing.push('nome'); if(iQtd<0) missing.push('qtd'); if(iTotal<0) missing.push('total');
+  if(missing.length) throw new Error('colunas não encontradas: '+missing.join(', '));
   let n = 0;
   for(let i=1;i<lines.length;i++){
     const line=lines[i].trim(); if(!line) continue;
@@ -975,82 +1051,41 @@ async function fetchComTimeout(url, ms){
         if(!r.ok) throw new Error('HTTP '+r.status); return await r.text(); }
   finally { clearTimeout(t); }
 }
-// Uma loja por vez (o Apps Script serializa execuções concorrentes).
-async function loadProdutosCompetencia(){
+function setStatusSub(t){ const el = document.querySelector('.status-sub') || document.getElementById('update-card-sub'); if(el) el.textContent = t; }
+// Uma loja por vez, como na Curva ABC (o Apps Script serializa execuções).
+async function loadCmvProduto(){
   const acc = {}; const falharam = [];
   for(let i=0;i<CURVAABC_URLS.length;i++){
     const key = STORE_KEYS[i];
-    const sub = document.querySelector('.status-sub');
-    if(sub) sub.textContent = `Carregando custo dos produtos (${i+1}/${CURVAABC_URLS.length})… ${key}`;
+    setStatusSub(`Carregando CMV dos produtos (${i+1}/${CURVAABC_URLS.length})… ${key}`);
     try{
-      const txt = await fetchComTimeout(CURVAABC_URLS[i], 60000);
-      const n = abcAgregar(txt, key.toUpperCase(), acc);
-      debugLog.push(`CMV Competência (${key}): ${n} itens vendidos lidos.`);
+      const n = abcAgregar(await fetchComTimeout(CURVAABC_URLS[i], 60000), key.toUpperCase(), acc);
+      debugLog.push(`CMV produto (${key}): ${n} itens vendidos.`);
     }catch(e){
       falharam.push(key);
-      debugLog.push(`<span class="warn">⚠ CMV Competência (${key}) indisponível: ${e.message}</span>`);
+      debugLog.push(`<span class="warn">⚠ CMV produto (${key}) indisponível: ${e.message}</span>`);
     }
   }
-  if(falharam.length === CURVAABC_URLS.length) throw new Error('nenhuma loja da Curva ABC carregou');
   return { linhas: Object.values(acc), falharam };
 }
-
-// Casa loja/canal da base de produtos com os rótulos usados no resumo de
-// faturamento (ex.: 'BELVEDER' x 'belvedere', 'LOJA' x 'Loja'), para os
-// filtros funcionarem igual nos dois modos.
+// Casa loja/canal da base de produtos com os rótulos do faturamento
+// ('BELVEDER' x 'belvedere', 'LOJA' x 'Loja'), para os filtros servirem
+// igualmente às duas bases.
 function lojaCanonKey(l){ const s = abcNormTxt(l); return s.indexOf('belveder') === 0 ? 'belvedere' : s; }
-function montarBaseCompetencia(){
+function mapearProdutos(prod, fat){
   const lojaMap = {}, canalMap = {};
-  rawFatResumo.forEach(r => {
-    if(r.loja) lojaMap[lojaCanonKey(r.loja)] = lojaMap[lojaCanonKey(r.loja)] || r.loja;
-    if(r.canal) canalMap[abcNormTxt(r.canal)] = canalMap[abcNormTxt(r.canal)] || r.canal;
+  fat.forEach(r => {
+    const lk = lojaCanonKey(r.loja); if(r.loja && !lojaMap[lk]) lojaMap[lk] = r.loja;
+    const ck = abcNormTxt(r.canal);  if(r.canal && !canalMap[ck]) canalMap[ck] = r.canal;
   });
-  const fat = [], cmv = [];
-  rawProd.forEach(p => {
-    const loja = lojaMap[lojaCanonKey(p.lojaRaw)] || String(p.lojaRaw).trim().toUpperCase();
+  const cmv = [], tot = [];
+  prod.forEach(p => {
+    const loja  = lojaMap[lojaCanonKey(p.lojaRaw)] || String(p.lojaRaw).trim().toUpperCase();
     const canal = p.canalRaw ? (canalMap[abcNormTxt(p.canalRaw)] || p.canalRaw) : '';
-    fat.push({ ano: p.ano, loja, mes: p.mes, canal, total_venda: p.total });
     cmv.push({ ano: p.ano, loja, mes: p.mes, canal, valor: p.custo });
+    tot.push({ ano: p.ano, loja, mes: p.mes, canal, total: p.total });
   });
-  return { fat, cmv };
-}
-function aplicarModoCmv(){
-  if(cmvMode === 'competencia' && (!rawProd.length || prodUnavailable)) cmvMode = 'caixa';
-  if(cmvMode === 'competencia'){
-    const b = montarBaseCompetencia(); rawFat = b.fat; rawCmv = b.cmv;
-  } else {
-    rawFat = rawFatResumo; rawCmv = rawCmvCaixa;
-  }
-  const sel = document.getElementById('f-cmvmode');
-  if(sel){
-    sel.value = cmvMode;
-    const opt = sel.querySelector('option[value="competencia"]');
-    if(opt){ opt.disabled = !rawProd.length; opt.textContent = rawProd.length ? 'Competência (produto)' : 'Competência (indisponível)'; }
-  }
-  atualizarAvisoCmv();
-}
-function setCmvMode(m){
-  cmvMode = m;
-  try { localStorage.setItem('zappas_fatlucro_cmvmode', m); } catch(e){}
-  aplicarModoCmv();
-  populateFilters();
-  renderDashboard();
-}
-// Faixa explicativa logo abaixo dos filtros, dizendo de onde vêm os números.
-function atualizarAvisoCmv(){
-  const main = document.getElementById('mainContent'); if(!main) return;
-  let el = document.getElementById('cmv-mode-note');
-  if(!el){ el = document.createElement('div'); el.id = 'cmv-mode-note'; }
-  el.style.cssText = 'padding:10px 14px;border-radius:10px;margin:0 0 16px;font-size:12.5px;line-height:1.45;border:1px solid;';
-  if(cmvMode === 'competencia'){
-    el.style.background = '#ecfdf5'; el.style.borderColor = '#a7f3d0'; el.style.color = '#065f46';
-    el.innerHTML = '<strong>CMV por competência</strong> — faturamento e custo vêm da mesma base da <strong>Curva ABC Produto</strong> (venda item a item; custo = custofinal × qtd; sem os grupos Despesa com Alimentação e Transferências Internas). O filtro de canal vale para o CMV também. Produtos sem custo cadastrado entram com custo zero — confira na Curva ABC › Conferência.';
-  } else {
-    el.style.background = '#fff7ed'; el.style.borderColor = '#fed7aa'; el.style.color = '#9a3412';
-    el.innerHTML = '<strong>CMV por caixa</strong> — faturamento do resumo mensal e CMV = contas pagas no Contas a Pagar classificadas como CMV no Plano de Contas (pela data de pagamento). Reflete compras pagas, não o custo do que foi vendido; o filtro de canal não altera o CMV.' +
-      (prodUnavailable ? ' <em>(Base de produtos indisponível nesta atualização.)</em>' : '');
-  }
-  if(main.firstChild !== el) main.insertBefore(el, main.firstChild);
+  return { cmv, tot };
 }
 
 // ─── LOAD
@@ -1082,19 +1117,17 @@ async function loadData(forceRefresh, silent = false) {
   if (!forceRefresh) {
     const cached = await loadCacheDB();
     if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length) {
-      rawFatResumo = cached.data.rawFat;
-      rawCmvCaixa = cached.data.rawCmv || [];
-      rawProd = cached.data.rawProd || [];
-      prodUnavailable = !!cached.data.prodUnavailable;
-      aplicarModoCmv();
+      rawFat = cached.data.rawFat;
+      rawCmv = cached.data.rawCmv || [];
+      rawProdTot = cached.data.rawProdTot || [];
       populateFilters();
       renderDashboard();
-      if (cached.data.cmvUnavailable && cmvMode === 'caixa') {
+      if (cached.data.cmvUnavailable) {
         const main = document.getElementById('mainContent');
         const warn = document.createElement('div');
         warn.className = 'status-center';
         warn.style.cssText = 'padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;color:#9a3412;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px';
-        warn.innerHTML = `<span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis (Contas a Pagar / Plano de Contas) — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Verifique se há lançamentos classificados como CMV no período.</span>`;
+        warn.innerHTML = `<span style="font-size:20px">⚠️</span> <span>CMV dos produtos indisponível (base da Curva ABC) — o CMV aparece como <strong>R$ 0,00</strong> e o Lucro Bruto fica igual ao faturamento. Tente atualizar novamente.</span>`;
         main.insertBefore(warn, main.firstChild);
       }
       const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs);
@@ -1113,68 +1146,21 @@ async function loadData(forceRefresh, silent = false) {
   try {
     debugLog.push(`<span class="ok">✓ Iniciando fetch dos CSVs…</span>`);
 
-    // Fetch all faturamento CSVs in parallel
-    const fatTexts = await Promise.all(
-      CSV_URLS_FAT.map(url => fetchCSV(url).catch(e => {
-        debugLog.push(`<span class="warn">⚠ Erro ao buscar CSV: ${e.message}</span>`);
-        return '';
-      }))
-    );
-    debugLog.push(`<span class="ok">✓ Faturamento: ${fatTexts.filter(t=>t).length}/${fatTexts.length} arquivos recebidos</span>`);
-
-    // Parse all faturamento CSVs and combine
-    rawFat = [];
-    rawFatResumo = rawFat;
-    for (let i = 0; i < fatTexts.length; i++) {
-      const fatText = fatTexts[i];
-      if (!fatText.trim()) continue;
-
-      const { rows: fatRows, headers: fatHeaders } = parseCSV(fatText);
-
-      const colFatAno    = findCol(fatHeaders, ['ano','year','ano_','ano2']);
-      const colFatLoja   = findCol(fatHeaders, ['loja','store','loja_','filial','unidade']);
-      const colFatMes    = findCol(fatHeaders, ['mes','m_s','month','mês','mes_','periodo']);
-      const colFatVenda  = findCol(fatHeaders, ['total_venda','totalvenda','venda','vendas','faturamento','receita','total','valor_venda','vlr_venda','fat']);
-      const colFatCanal  = findCol(fatHeaders, ['canais','canal','channel','canal_venda','canal_distribuicao','categoria']);
-      const colFatVs     = findCol(fatHeaders, ['vs']);
-      const colFatFabrica = findCol(fatHeaders, ['fabrica','fábrica']);
-
-      debugLog.push(`Arquivo ${i+1}: ${fatRows.length} linhas — venda:<strong>${colFatVenda||'não encontrado'}</strong> canal:<strong>${colFatCanal||'não encontrado'}</strong>`);
-
-      if (!colFatVenda) {
-        debugLog.push(`<span class="warn">⚠ Coluna de venda não encontrada no arquivo ${i+1}. Colunas: ${fatHeaders.join(', ')}</span>`);
-        continue;
-      }
-
-      const parsed = fatRows.map(r => ({
-        ano:         colFatAno   ? parseAno(r[colFatAno])                         : '',
-        loja:        colFatLoja  ? String(r[colFatLoja]||'').trim().toUpperCase() : 'SEM LOJA',
-        mes:         colFatMes   ? parseMes(r[colFatMes])                         : 0,
-        canal:       colFatCanal ? String(r[colFatCanal]||'').trim().replace(/^["']|["']$/g, '') : '',
-        vs:          colFatVs    ? /^(true|verdadeiro|1|sim)$/i.test(String(r[colFatVs]||'').trim()) : false,
-        fabrica:     colFatFabrica ? /^(true|verdadeiro|1|sim)$/i.test(String(r[colFatFabrica]||'').trim()) : false,
-        total_venda: parseNum(r[colFatVenda])
-      })).filter(r => r.total_venda !== 0 || (r.ano && r.loja))
-        // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
-        .filter(r => !(String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO' && r.vs && r.fabrica))
-        // Regras CENTRAL / REEMBOLSO: Canal = DISTRIBUICAO + VS = False + Fabrica = True.
-        .map(r => {
-          const isDist = String(r.canal||'').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'') === 'DISTRIBUICAO';
-          const up = r.canal === r.canal.toUpperCase();
-          if (isDist && !r.vs && r.fabrica)  r.canal = up ? 'CENTRAL' : 'Central';       // Central: VS=False + Fabrica=True
-          if (isDist && r.vs && !r.fabrica)  r.canal = up ? 'REEMBOLSO' : 'Reembolso';    // Reembolso: VS=True + Fabrica=False
-          return r;
-        });
-
-      rawFat.push(...parsed);
-    }
+    // Faturamento: 6 lojas, mesmas regras da Análise Comercial
+    const fatRes = await loadFaturamentoLojas();
+    rawFat = fatRes.linhas;
+    if (fatRes.falharam.length) debugLog.push(`<span class="warn">⚠ Sem faturamento de: ${fatRes.falharam.join(', ')}</span>`);
 
     debugLog.push(`<span class="ok">✓ Faturamento total: ${rawFat.length} linhas válidas</span>`);
     if (rawFat.length > 0) debugLog.push(`Amostra Fat[0]: ${JSON.stringify(rawFat[0])}`);
 
-    // Fetch CMV (Plano de Contas + Contas a Pagar, mesma fonte do DRE Gerencial)
+    // CMV do produto (mesma base da Curva ABC)
     try {
-      rawCmv = await loadCmvFromDRE();
+      const pr = await loadCmvProduto();
+      if (pr.falharam.length === STORE_KEYS.length) throw new Error('nenhuma loja da base de produtos carregou');
+      if (pr.falharam.length) debugLog.push(`<span class="warn">⚠ Sem CMV de: ${pr.falharam.join(', ')}</span>`);
+      const mp = mapearProdutos(pr.linhas, rawFat);
+      rawCmv = mp.cmv; rawProdTot = mp.tot;
       if (!rawCmv.length) {
         cmvUnavailable = true;
         debugLog.push(`<span class="warn">⚠ CMV: nenhuma linha classificada como CMV foi encontrada.</span>`);
@@ -1183,37 +1169,22 @@ async function loadData(forceRefresh, silent = false) {
         debugLog.push(`Amostra CMV[0]: ${JSON.stringify(rawCmv[0])}`);
       }
     } catch (cmvErr) {
-      rawCmv = [];
+      rawCmv = []; rawProdTot = [];
       cmvUnavailable = true;
       debugLog.push(`<span class="warn">⚠ CMV indisponível: ${cmvErr.message} — usando zeros</span>`);
     }
-    rawCmvCaixa = rawCmv;
 
-    // CMV por competência (base da Curva ABC Produto)
-    try {
-      const r = await loadProdutosCompetencia();
-      rawProd = r.linhas; prodUnavailable = false;
-      if (r.falharam.length) debugLog.push(`<span class="warn">⚠ Lojas sem base de produtos nesta atualização: ${r.falharam.join(', ')}</span>`);
-      debugLog.push(`<span class="ok">✓ CMV Competência: ${rawProd.length} agrupamentos (ano×loja×mês×canal)</span>`);
-    } catch (pErr) {
-      rawProd = []; prodUnavailable = true;
-      debugLog.push(`<span class="warn">⚠ CMV Competência indisponível: ${pErr.message} — usando CMV caixa</span>`);
-    }
+    if (rawFat.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
 
-    if (rawFatResumo.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
-
-    // Volta para o modo preferido (pode ter caído p/ Caixa num cache sem produtos)
-    try { cmvMode = localStorage.getItem('zappas_fatlucro_cmvmode') || 'competencia'; } catch(e){ cmvMode = 'competencia'; }
-    aplicarModoCmv();
     populateFilters();
     renderDashboard();
 
-    if (cmvUnavailable && cmvMode === 'caixa') {
+    if (cmvUnavailable) {
       const main = document.getElementById('mainContent');
       const warn = document.createElement('div');
       warn.className = 'status-center';
       warn.style.cssText = 'padding:12px;background:#fff7ed;border:1px solid #fed7aa;border-radius:10px;margin-bottom:16px;color:#9a3412;font-size:13px;font-weight:600;display:flex;align-items:center;gap:10px;flex-direction:column;align-items:stretch';
-      warn.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⚠️</span> <span>Dados de CMV indisponíveis (Contas a Pagar / Plano de Contas) — Lucro Bruto será exibido como <strong>R$ 0,00</strong>. Verifique se há lançamentos classificados como CMV no período.</span></div>${buildDebugPanel()}`;
+      warn.innerHTML = `<div style="display:flex;align-items:center;gap:10px"><span style="font-size:20px">⚠️</span> <span>CMV dos produtos indisponível (base da Curva ABC) — o CMV aparece como <strong>R$ 0,00</strong> e o Lucro Bruto fica igual ao faturamento. Tente atualizar novamente.</span></div>${buildDebugPanel()}`;
       main.insertBefore(warn, main.firstChild);
     }
 
@@ -1221,7 +1192,7 @@ async function loadData(forceRefresh, silent = false) {
     const ts = tsDate.toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
     document.getElementById('fb-ts').textContent = ts;
 
-    saveCache({ rawFat: rawFatResumo, rawCmv: rawCmvCaixa, rawProd, prodUnavailable, cmvUnavailable }, ts, tsDate.getTime());
+    saveCache({ rawFat, rawCmv, rawProdTot, cmvUnavailable }, ts, tsDate.getTime());
     if (isRefresh) hideUpdateOverlay(false, '✓ Dados atualizados.');
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
@@ -1336,16 +1307,9 @@ function filterData(rows) {
   );
 }
 function filterDataCmv(rows) {
-  // CMV caixa: só ano/loja/mes (Contas a Pagar não tem canal).
-  // CMV competência: o custo é do item vendido, então o canal também filtra.
-  const f = getFilters();
-  const usaCanal = cmvMode === 'competencia';
-  return rows.filter(r =>
-    (!f.ano  || r.ano  === f.ano)  &&
-    (!f.loja || r.loja === f.loja) &&
-    (!f.mes  || r.mes  === f.mes)  &&
-    (!usaCanal || f.canais.size === 0 || !r.canal || f.canais.has(r.canal))
-  );
+  // CMV do produto: mesmos filtros do faturamento, inclusive canal
+  // (o custo é do item vendido naquele canal — igual à Curva ABC).
+  return filterData(rows);
 }
 function applyFilters() { renderDashboard(); }
 
@@ -1473,7 +1437,7 @@ function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy();
 // ── RENDER
 function renderDashboard() {
   const _abertas=[...document.querySelectorAll('tr.exp-row.open')].map(t=>t.dataset.exp);
-  try { _renderDashboard(); } finally { _abertas.forEach(id=>toggleExp(id)); atualizarAvisoCmv(); }
+  try { _renderDashboard(); } finally { _abertas.forEach(id=>toggleExp(id)); }
 }
 function _renderDashboard() {
   const fatF = filterData(rawFat);
@@ -1509,7 +1473,7 @@ function _renderDashboard() {
   kpiWrap.innerHTML = `<div class="section-title">Indicadores Gerais</div>
   <div class="kpi-grid">
     ${kpi('blue','M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z','Faturamento Total',fmt(tFat),`${fatF.length} registros`)}
-    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z',(cmvMode==='competencia'?'CMV Total (Competência)':'CMV Total (Caixa)'),fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
+    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total (Produto)',fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
     ${kpi('green','M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z','Lucro Bruto',fmt(tLucro),`Margem de ${fmtPct(pctLB)}`)}
     ${kpi('indigo','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4h2v4zm0-6h-2V7h2v4z','% Lucro Bruto',fmtPct(pctLB),pctLB>=30?'✓ Acima do esperado':pctLB>=15?'→ Dentro do esperado':'↓ Abaixo do esperado')}
   </div>`;
@@ -1579,6 +1543,10 @@ function _renderDashboard() {
     buildTable(allM, mesLblFull, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucLA, pctLA).forEach(c => tWrap.appendChild(c));
   }
   main.appendChild(tWrap);
+
+  // ── Conciliação Faturamento × Curva ABC
+  const conc = buildConciliacao();
+  if (conc) main.appendChild(conc);
 
   // ── Draw charts
   requestAnimationFrame(() => {
@@ -1767,7 +1735,7 @@ function buildTableComparativo(anos, lojas) {
       r.ano === anoVal &&
       (!lojaSel || r.loja === lojaSel) &&
       (!mesSel  || r.mes === mesSel) &&
-      (cmvMode !== 'competencia' || selectedCanais.size === 0 || !r.canal || selectedCanais.has(r.canal))
+      (selectedCanais.size === 0 || !r.canal || selectedCanais.has(r.canal))
     );
   }
 
@@ -1888,6 +1856,41 @@ function buildTableComparativo(anos, lojas) {
   }
 
   return cards;
+}
+
+/* Conciliação: compara, com os MESMOS filtros, o faturamento (base de
+   vendas — igual à Análise Comercial / Faturamento Detalhado) com o total
+   vendido da base de produtos (igual ao "Total Vendido" da Curva ABC).
+   Diferença ≠ 0 indica venda sem item correspondente (ou vice-versa),
+   grupos excluídos na Curva ABC, descontos no cupom etc. */
+function buildConciliacao() {
+  if (!rawProdTot.length) return null;
+  const fatF = filterData(rawFat), proF = filterData(rawProdTot);
+  const lojas = [...new Set([...fatF.map(r=>r.loja), ...proF.map(r=>r.loja)])].filter(Boolean).sort();
+  const lbl = l => l==='BELVEDER' ? 'BELVEDERE' : l;
+  let tF = 0, tP = 0;
+  const linhas = lojas.map(l => {
+    const f = sumBy(fatF.filter(r=>r.loja===l), 'total_venda');
+    const p = sumBy(proF.filter(r=>r.loja===l), 'total');
+    tF += f; tP += p;
+    return { l, f, p };
+  });
+  const cell = (f,p) => {
+    const d = f - p, pc = f ? (d/f)*100 : 0;
+    const ok = Math.abs(d) < 0.5;
+    const cor = ok ? '#0ea472' : (Math.abs(pc) < 0.5 ? '#b45309' : '#ef4444');
+    return `<td class="num">${fmt(f)}</td><td class="num">${fmt(p)}</td>
+      <td class="num" style="color:${cor};font-weight:700">${ok ? '✓ bate' : fmt(d)}</td>
+      <td class="num" style="color:${cor}">${ok ? '—' : fmtPct(pc)}</td>`;
+  };
+  const rows = linhas.map(x => `<tr><td>${lbl(x.l)}</td>${cell(x.f,x.p)}</tr>`).join('') +
+    `<tr style="font-weight:700;background:var(--surface2)"><td>Total</td>${cell(tF,tP)}</tr>`;
+  const wrap = el('div');
+  wrap.innerHTML = `<div class="section-title">Conciliação Faturamento × Curva ABC</div>
+    <div class="table-card"><div class="table-header"><div class="chart-title">Faturamento (Análise Comercial) × Total Vendido (Curva ABC Produto)</div><div class="table-badge">Mesmos filtros</div></div>
+    <div style="padding:8px 20px 4px;font-size:12px;color:var(--text-secondary)">O CMV desta tela vem da base de produtos. Se a diferença abaixo não for zero, parte do faturamento não tem item (e custo) correspondente na Curva ABC — ou a Curva ABC tem itens fora do faturamento (ex.: grupos excluídos, descontos no cupom).</div>
+    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:left">Loja</th><th class="num">Faturamento</th><th class="num">Total Curva ABC</th><th class="num">Diferença</th><th class="num">% Dif.</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return wrap;
 }
 
 function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucLA, pctLA) {
@@ -2070,12 +2073,11 @@ async function __montarSnapshot(snap, novoLoad, loadHeader, extraCss){
 async function exportarRelatorio(){
   try{
     if(!rawFat.length){ alert('Aguarde os dados carregarem antes de exportar.'); return; }
-    const snap = { rawFat: __aggRows(rawFat,'total_venda'), rawCmv: __aggRows(rawCmv,'valor'), cmvMode };
+    const snap = { rawFat: __aggRows(rawFat,'total_venda'), rawCmv: __aggRows(rawCmv,'valor'), rawProdTot: __aggRows(rawProdTot,'total') };
     const novoLoad =
       'async function loadData(){\n' +
-      '  const S=window.__SNAP__; rawFat=S.rawFat; rawCmv=S.rawCmv||[]; cmvMode=S.cmvMode||"caixa";\n' +
-      '  var g=document.getElementById("cmvmode-group"); if(g) g.style.display="none";\n' +
-      '  populateFilters(); renderDashboard(); atualizarAvisoCmv();\n' +
+      '  const S=window.__SNAP__; rawFat=S.rawFat; rawCmv=S.rawCmv||[]; rawProdTot=S.rawProdTot||[];\n' +
+      '  populateFilters(); renderDashboard();\n' +
       '  document.getElementById("fb-ts").textContent=S.rotulo;\n' +
       '}\n' +
       'async function loadData_ORIG(forceRefresh, silent = false) {';

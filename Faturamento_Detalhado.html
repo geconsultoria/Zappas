@@ -998,7 +998,7 @@ const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_data_v3';
+const DB_KEY   = 'analiseComercial_data_v4';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1103,7 +1103,8 @@ function parseLine(line, sep) {
 function toNum(s) {
   if(s===null||s===undefined||String(s).trim()==='') return 0;
   let v=String(s).trim().replace(/\s/g,'');
-  if(/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(v)) v=v.replace(/\./g,'').replace(',','.');
+  // Aceita negativo com milhar (ex.: -1.234,56 de devolução) — antes virava -1,234.
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(v)) v=v.replace(/\./g,'').replace(',','.');
   else v=v.replace(/,/g,'.');
   const n=parseFloat(v); return isNaN(n)?0:n;
 }
@@ -1179,6 +1180,8 @@ function parseCSV(text) {
       vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
       fabrica: /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim()),
     };
+    // Igual à Análise Comercial: linha sem ano ou loja não entra no total.
+    if(!row.ano||!row.loja) continue;
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
     const canalNormVs = String(row.canal||'').trim().toUpperCase()
       .normalize('NFD').replace(/[\u0300-\u036f]/g,'');
