@@ -1205,6 +1205,10 @@ function parseCurvaABC(text, lojaFallback){
 
     const nomegrupo = (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO';
     if(GRUPOS_EXCLUIDOS.includes(normTxt(nomegrupo))) continue;
+    // Na planilha, "TRANSFERENCIAS INTERNAS" e "DESPESA COM ALIMENTACAO" vêm como
+    // NOME DO PRODUTO (grupo SERVICOS), não como grupo — então a regra acima
+    // nunca pegava. Agora exclui também pelo nome do produto.
+    if(GRUPOS_EXCLUIDOS.includes(normTxt(g(iNome)))) continue;
 
     // Regras de canal iguais às da Análise Comercial:
     //   DISTRIBUICAO + VS=True  + Fabrica=True  → descartada
@@ -1269,7 +1273,7 @@ function unificarNomesGrupo(rows){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v6';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v7';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
