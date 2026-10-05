@@ -842,6 +842,14 @@ const LOJAS_ORDEM = [
 
 let rawData = [];
 let metasData = [];
+// Usuário com acesso a uma loja só (não-admin com loja no cadastro de
+// acesso): a tela mostra apenas a loja dele. null = vê todas.
+let restrictedLoja = null;
+function lojaPermitida(key) {
+  if (!restrictedLoja) return true;
+  const r = String(restrictedLoja).trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  return key === r || r.startsWith(key) || key.startsWith(r);
+}
 
 /* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════ */
 const DB_NAME  = 'zappasCacheDB';
@@ -1644,6 +1652,7 @@ function renderResultado() {
   const anoAnt = ano - 1;
 
   const linhas = LOJAS_ORDEM
+    .filter(l => lojaPermitida(l.key))
     .map(l => ({ ...l, val: findLojaValue(l.key) }))
     .filter(l => l.val)
     .map(l => computeRow(l.val, l.label, ano, mes));
@@ -1671,7 +1680,7 @@ function renderResultado() {
   main.innerHTML = `
   <div class="sh mb">
     <div class="sh-bar"></div>
-    <div class="sh-title">Resultado da Meta — ${mesLbl} ${ano}</div>
+    <div class="sh-title">Resultado da Meta — ${restrictedLoja ? linhas[0].loja + ' · ' : ''}${mesLbl} ${ano}</div>
   </div>
 
   <div class="rm-sum-row">
@@ -1697,7 +1706,7 @@ function renderResultado() {
     </div>
   </div>
 
-  ${rankingMetaHTML(linhas)}
+  ${restrictedLoja ? '' : rankingMetaHTML(linhas)}
 
   <div class="tbl-card">
     <div class="tbl-head">
@@ -1796,7 +1805,10 @@ function renderResultado() {
 }
 
 /* ═══════════════ INIT ═══════════════ */
-AuthGuard.requireScreen('resultado_meta', function(){ loadData(false); });
+AuthGuard.requireScreen('resultado_meta', function(session){
+  if (session && session.role !== 'admin' && session.loja) restrictedLoja = session.loja;
+  loadData(false);
+});
 </script>
 
 </body>

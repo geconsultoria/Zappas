@@ -2673,7 +2673,12 @@ function renderComparativoMensal(ano, allLojas, getVenda) {
   if (!canvas || typeof Chart === 'undefined') return;
   const lojas = allLojas.filter(l => l !== 'TOTAL BADY');
   const sugeridas = [], informadas = [];
-  for (let m = 1; m <= 12; m++) {
+  // No ano corrente o gráfico termina no mês atual: meses futuros não têm
+  // venda, e a sugestão deles usaria um mês-base ainda em andamento
+  // (parcial), o que derrubava a linha.
+  const hoje = new Date();
+  const ultimoMes = ano === hoje.getFullYear() ? hoje.getMonth() + 1 : 12;
+  for (let m = 1; m <= ultimoMes; m++) {
     const baseMes = m === 1 ? 12 : m - 1;
     const baseAno = m === 1 ? ano - 1 : ano;
     let totSug = 0, temSug = false, totInf = 0;
@@ -2687,7 +2692,7 @@ function renderComparativoMensal(ano, allLojas, getVenda) {
     sugeridas.push(temSug ? Math.round(totSug) : null);
     informadas.push(totInf ? Math.round(totInf) : null);
   }
-  const labels = MESES_NOME.map(n => n.slice(0, 3));
+  const labels = MESES_NOME.slice(0, ultimoMes).map(n => n.slice(0, 3));
   const opts = chartOptions({ prefix: 'R$ ' });
   opts.interaction = { mode: 'index', intersect: false };
   opts.plugins.tooltip.callbacks = {
