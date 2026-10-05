@@ -502,6 +502,13 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       <span class="ig-flabel">Loja</span>
       <select class="ig-fselect" id="f-loja"><option value="">Todas</option></select>
     </div>
+    <div class="ig-fgroup" id="cmvmode-group" title="Competência: custo do que foi vendido (custofinal × qtd), mesma base da Curva ABC.&#10;Caixa: contas do Contas a Pagar classificadas como CMV, pela data de pagamento.">
+      <span class="ig-flabel">CMV</span>
+      <select class="ig-fselect" id="f-cmvmode" onchange="setCmvMode(this.value)">
+        <option value="competencia">Competência (produto)</option>
+        <option value="caixa">Caixa (Contas a Pagar)</option>
+      </select>
+    </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Canal</span>
       <div class="canal-wrap" id="canal-wrap">
@@ -562,6 +569,9 @@ const CSV_URLS_FAT = [`${APPS_SCRIPT_URL}?loja=resumo`];
 // Contas — mesmo backend, mesmas 6 lojas.
 const PLANO_CONTAS_URL = `${APPS_SCRIPT_URL}?tipo=planocontas`;
 const CTASPAGAR_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=ctaspagar&loja=${k}`);
+// CMV por competência: mesma base da Curva ABC Produto (venda item a item,
+// custofinal × qtd), com as mesmas exclusões de grupo e regras de canal.
+const CURVAABC_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=curvaabc&loja=${k}`);
 // ══════════════════════════════════════════════════
 
 const MESES_NOME = ['','Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -574,12 +584,18 @@ const MESES_MAP = {
 };
 
 let rawFat = [], rawCmv = [], chartInstances = {}, debugLog = [];
+// Bases originais. rawFat/rawCmv passam a ser apenas a "visão ativa",
+// montada por aplicarModoCmv() conforme o seletor CMV.
+//   rawFatResumo / rawCmvCaixa → modo Caixa (resumo + Contas a Pagar)
+//   rawProd                     → modo Competência (agregado da Curva ABC)
+let rawFatResumo = [], rawCmvCaixa = [], rawProd = [], prodUnavailable = false;
+let cmvMode = (function(){ try { return localStorage.getItem('zappas_fatlucro_cmvmode') || 'competencia'; } catch(e){ return 'competencia'; } })();
 
 // ─── CACHE LOCAL (IndexedDB)
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v3';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v4';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -870,6 +886,173 @@ async function loadCmvFromDRE() {
   return linhas;
 }
 
+// ══════════════════════════════════════════════════
+//  CMV COMPETÊNCIA — leitura idêntica à da Curva ABC Produto
+//  Colunas: data, codbarra, nome, grupo, nomegrupo, custofinal, qtd,
+//  total, loja, canal/canais, vs, fabrica.
+//  Agrega em (ano, loja, mes, canal) → { total, custo } para ficar leve.
+// ══════════════════════════════════════════════════
+const ABC_GRUPOS_EXCLUIDOS = ['despesa com alimentacao', 'transferencias internas'];
+function abcNormTxt(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function abcFindCol(headers, ...names){
+  const n = h => String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+  const wanted = names.map(n);
+  return headers.findIndex(h => wanted.includes(n(h)));
+}
+function abcParseNum(v){
+  if(v===null||v===undefined) return 0;
+  let s = String(v).trim(); if(!s) return 0;
+  s = s.replace(/[^\d,.\-]/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',', '.');
+  else if(/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
+  const x = parseFloat(s); return isNaN(x) ? 0 : x;
+}
+function abcParseData(str){
+  const m = String(str||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if(!m) return null;
+  const mes = +m[2], ano = +m[3];
+  if(mes<1||mes>12) return null;
+  return { mes, ano };
+}
+function abcDetectSep(txt){
+  const l = txt.split('\n')[0];
+  const c = { '\t': (l.match(/\t/g)||[]).length, ';': (l.match(/;/g)||[]).length, ',': (l.match(/,/g)||[]).length };
+  let best = ',', bn = -1; for(const k in c){ if(c[k] > bn){ bn = c[k]; best = k; } } return best;
+}
+function abcSplitLine(line, sep){
+  const out=[]; let cur=''; let inQ=false;
+  for(let i=0;i<line.length;i++){ const ch=line[i];
+    if(ch==='"') inQ=!inQ; else if(ch===sep && !inQ){ out.push(cur); cur=''; } else cur+=ch; }
+  out.push(cur); return out;
+}
+function abcAgregar(text, lojaFallback, acc){
+  const sep = abcDetectSep(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  if(!lines.length) return 0;
+  const headers = abcSplitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iData = abcFindCol(headers,'data');
+  const iNomeGrp = abcFindCol(headers,'nomegrupo','grupodescricao','descricaogrupo');
+  const iCusto = abcFindCol(headers,'custofinal','custo','custounitario');
+  const iQtd = abcFindCol(headers,'qtd','quantidade');
+  const iTotal = abcFindCol(headers,'total','valortotal','valor');
+  const iLoja = abcFindCol(headers,'loja');
+  const exata = (...ns) => { for(const n of ns){ const i=headers.findIndex(h=>abcNormTxt(h)===n); if(i!==-1) return i; } return -1; };
+  let iCanal = exata('canais','canal','canais_semana');
+  if(iCanal<0) iCanal = headers.findIndex(h => abcNormTxt(h).includes('canal'));
+  let iVs = exata('vs'); if(iVs<0) iVs = headers.findIndex(h => /^vs\b|^vs_/.test(abcNormTxt(h)));
+  let iFab = exata('fabrica'); if(iFab<0) iFab = headers.findIndex(h => abcNormTxt(h).includes('fabrica'));
+  const ehVerdade = v => /^(true|verdadeiro|1|1\.0|sim|s|x|yes)$/i.test(String(v||'').trim());
+  if(iQtd<0 || iTotal<0) throw new Error('colunas qtd/total não encontradas. Cabeçalhos: '+headers.join(', '));
+  let n = 0;
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim(); if(!line) continue;
+    const c = abcSplitLine(line,sep);
+    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
+    const qtd = abcParseNum(g(iQtd)), total = abcParseNum(g(iTotal));
+    if(!qtd && !total) continue;
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    if(!loja) continue;
+    const nomegrupo = (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO';
+    if(ABC_GRUPOS_EXCLUIDOS.includes(abcNormTxt(nomegrupo))) continue;
+    let canal = iCanal>=0 ? g(iCanal) : '';
+    if(abcNormTxt(canal)==='distribuicao'){
+      const vs = ehVerdade(g(iVs)), fab = ehVerdade(g(iFab));
+      if(vs && fab) continue;
+      if(vs) canal = 'Reembolso'; else if(fab) canal = 'Central';
+    }
+    const dt = abcParseData(g(iData));
+    const ano = dt ? String(dt.ano) : '', mes = dt ? dt.mes : 0;
+    const custo = (iCusto>=0 ? abcParseNum(g(iCusto)) : 0) * (qtd||0);
+    const k = ano+'|'+loja+'|'+mes+'|'+canal;
+    const a = acc[k] || (acc[k] = { ano, lojaRaw: loja, mes, canalRaw: canal, total: 0, custo: 0 });
+    a.total += total; a.custo += custo; n++;
+  }
+  return n;
+}
+async function fetchComTimeout(url, ms){
+  const ctl = new AbortController(); const t = setTimeout(()=>ctl.abort(), ms);
+  try { const r = await fetch(url + (url.includes('?')?'&':'?') + '_=' + Date.now(), { cache:'no-store', signal: ctl.signal });
+        if(!r.ok) throw new Error('HTTP '+r.status); return await r.text(); }
+  finally { clearTimeout(t); }
+}
+// Uma loja por vez (o Apps Script serializa execuções concorrentes).
+async function loadProdutosCompetencia(){
+  const acc = {}; const falharam = [];
+  for(let i=0;i<CURVAABC_URLS.length;i++){
+    const key = STORE_KEYS[i];
+    const sub = document.querySelector('.status-sub');
+    if(sub) sub.textContent = `Carregando custo dos produtos (${i+1}/${CURVAABC_URLS.length})… ${key}`;
+    try{
+      const txt = await fetchComTimeout(CURVAABC_URLS[i], 60000);
+      const n = abcAgregar(txt, key.toUpperCase(), acc);
+      debugLog.push(`CMV Competência (${key}): ${n} itens vendidos lidos.`);
+    }catch(e){
+      falharam.push(key);
+      debugLog.push(`<span class="warn">⚠ CMV Competência (${key}) indisponível: ${e.message}</span>`);
+    }
+  }
+  if(falharam.length === CURVAABC_URLS.length) throw new Error('nenhuma loja da Curva ABC carregou');
+  return { linhas: Object.values(acc), falharam };
+}
+
+// Casa loja/canal da base de produtos com os rótulos usados no resumo de
+// faturamento (ex.: 'BELVEDER' x 'belvedere', 'LOJA' x 'Loja'), para os
+// filtros funcionarem igual nos dois modos.
+function lojaCanonKey(l){ const s = abcNormTxt(l); return s.indexOf('belveder') === 0 ? 'belvedere' : s; }
+function montarBaseCompetencia(){
+  const lojaMap = {}, canalMap = {};
+  rawFatResumo.forEach(r => {
+    if(r.loja) lojaMap[lojaCanonKey(r.loja)] = lojaMap[lojaCanonKey(r.loja)] || r.loja;
+    if(r.canal) canalMap[abcNormTxt(r.canal)] = canalMap[abcNormTxt(r.canal)] || r.canal;
+  });
+  const fat = [], cmv = [];
+  rawProd.forEach(p => {
+    const loja = lojaMap[lojaCanonKey(p.lojaRaw)] || String(p.lojaRaw).trim().toUpperCase();
+    const canal = p.canalRaw ? (canalMap[abcNormTxt(p.canalRaw)] || p.canalRaw) : '';
+    fat.push({ ano: p.ano, loja, mes: p.mes, canal, total_venda: p.total });
+    cmv.push({ ano: p.ano, loja, mes: p.mes, canal, valor: p.custo });
+  });
+  return { fat, cmv };
+}
+function aplicarModoCmv(){
+  if(cmvMode === 'competencia' && (!rawProd.length || prodUnavailable)) cmvMode = 'caixa';
+  if(cmvMode === 'competencia'){
+    const b = montarBaseCompetencia(); rawFat = b.fat; rawCmv = b.cmv;
+  } else {
+    rawFat = rawFatResumo; rawCmv = rawCmvCaixa;
+  }
+  const sel = document.getElementById('f-cmvmode');
+  if(sel){
+    sel.value = cmvMode;
+    const opt = sel.querySelector('option[value="competencia"]');
+    if(opt){ opt.disabled = !rawProd.length; opt.textContent = rawProd.length ? 'Competência (produto)' : 'Competência (indisponível)'; }
+  }
+  atualizarAvisoCmv();
+}
+function setCmvMode(m){
+  cmvMode = m;
+  try { localStorage.setItem('zappas_fatlucro_cmvmode', m); } catch(e){}
+  aplicarModoCmv();
+  populateFilters();
+  renderDashboard();
+}
+// Faixa explicativa logo abaixo dos filtros, dizendo de onde vêm os números.
+function atualizarAvisoCmv(){
+  const main = document.getElementById('mainContent'); if(!main) return;
+  let el = document.getElementById('cmv-mode-note');
+  if(!el){ el = document.createElement('div'); el.id = 'cmv-mode-note'; }
+  el.style.cssText = 'padding:10px 14px;border-radius:10px;margin:0 0 16px;font-size:12.5px;line-height:1.45;border:1px solid;';
+  if(cmvMode === 'competencia'){
+    el.style.background = '#ecfdf5'; el.style.borderColor = '#a7f3d0'; el.style.color = '#065f46';
+    el.innerHTML = '<strong>CMV por competência</strong> — faturamento e custo vêm da mesma base da <strong>Curva ABC Produto</strong> (venda item a item; custo = custofinal × qtd; sem os grupos Despesa com Alimentação e Transferências Internas). O filtro de canal vale para o CMV também. Produtos sem custo cadastrado entram com custo zero — confira na Curva ABC › Conferência.';
+  } else {
+    el.style.background = '#fff7ed'; el.style.borderColor = '#fed7aa'; el.style.color = '#9a3412';
+    el.innerHTML = '<strong>CMV por caixa</strong> — faturamento do resumo mensal e CMV = contas pagas no Contas a Pagar classificadas como CMV no Plano de Contas (pela data de pagamento). Reflete compras pagas, não o custo do que foi vendido; o filtro de canal não altera o CMV.' +
+      (prodUnavailable ? ' <em>(Base de produtos indisponível nesta atualização.)</em>' : '');
+  }
+  if(main.firstChild !== el) main.insertBefore(el, main.firstChild);
+}
+
 // ─── LOAD
 function showUpdateOverlay(){
   const ov = document.getElementById('update-overlay');
@@ -899,11 +1082,14 @@ async function loadData(forceRefresh, silent = false) {
   if (!forceRefresh) {
     const cached = await loadCacheDB();
     if (cached && cached.data && cached.data.rawFat && cached.data.rawFat.length) {
-      rawFat = cached.data.rawFat;
-      rawCmv = cached.data.rawCmv || [];
+      rawFatResumo = cached.data.rawFat;
+      rawCmvCaixa = cached.data.rawCmv || [];
+      rawProd = cached.data.rawProd || [];
+      prodUnavailable = !!cached.data.prodUnavailable;
+      aplicarModoCmv();
       populateFilters();
       renderDashboard();
-      if (cached.data.cmvUnavailable) {
+      if (cached.data.cmvUnavailable && cmvMode === 'caixa') {
         const main = document.getElementById('mainContent');
         const warn = document.createElement('div');
         warn.className = 'status-center';
@@ -938,6 +1124,7 @@ async function loadData(forceRefresh, silent = false) {
 
     // Parse all faturamento CSVs and combine
     rawFat = [];
+    rawFatResumo = rawFat;
     for (let i = 0; i < fatTexts.length; i++) {
       const fatText = fatTexts[i];
       if (!fatText.trim()) continue;
@@ -1000,13 +1187,28 @@ async function loadData(forceRefresh, silent = false) {
       cmvUnavailable = true;
       debugLog.push(`<span class="warn">⚠ CMV indisponível: ${cmvErr.message} — usando zeros</span>`);
     }
+    rawCmvCaixa = rawCmv;
 
-    if (rawFat.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
+    // CMV por competência (base da Curva ABC Produto)
+    try {
+      const r = await loadProdutosCompetencia();
+      rawProd = r.linhas; prodUnavailable = false;
+      if (r.falharam.length) debugLog.push(`<span class="warn">⚠ Lojas sem base de produtos nesta atualização: ${r.falharam.join(', ')}</span>`);
+      debugLog.push(`<span class="ok">✓ CMV Competência: ${rawProd.length} agrupamentos (ano×loja×mês×canal)</span>`);
+    } catch (pErr) {
+      rawProd = []; prodUnavailable = true;
+      debugLog.push(`<span class="warn">⚠ CMV Competência indisponível: ${pErr.message} — usando CMV caixa</span>`);
+    }
 
+    if (rawFatResumo.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
+
+    // Volta para o modo preferido (pode ter caído p/ Caixa num cache sem produtos)
+    try { cmvMode = localStorage.getItem('zappas_fatlucro_cmvmode') || 'competencia'; } catch(e){ cmvMode = 'competencia'; }
+    aplicarModoCmv();
     populateFilters();
     renderDashboard();
 
-    if (cmvUnavailable) {
+    if (cmvUnavailable && cmvMode === 'caixa') {
       const main = document.getElementById('mainContent');
       const warn = document.createElement('div');
       warn.className = 'status-center';
@@ -1019,7 +1221,7 @@ async function loadData(forceRefresh, silent = false) {
     const ts = tsDate.toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
     document.getElementById('fb-ts').textContent = ts;
 
-    saveCache({ rawFat, rawCmv, cmvUnavailable }, ts, tsDate.getTime());
+    saveCache({ rawFat: rawFatResumo, rawCmv: rawCmvCaixa, rawProd, prodUnavailable, cmvUnavailable }, ts, tsDate.getTime());
     if (isRefresh) hideUpdateOverlay(false, '✓ Dados atualizados.');
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
@@ -1134,12 +1336,15 @@ function filterData(rows) {
   );
 }
 function filterDataCmv(rows) {
-  // CMV: filtrar apenas por ano/loja/mes — canal NÃO interfere no CMV
+  // CMV caixa: só ano/loja/mes (Contas a Pagar não tem canal).
+  // CMV competência: o custo é do item vendido, então o canal também filtra.
   const f = getFilters();
+  const usaCanal = cmvMode === 'competencia';
   return rows.filter(r =>
     (!f.ano  || r.ano  === f.ano)  &&
     (!f.loja || r.loja === f.loja) &&
-    (!f.mes  || r.mes  === f.mes)
+    (!f.mes  || r.mes  === f.mes)  &&
+    (!usaCanal || f.canais.size === 0 || !r.canal || f.canais.has(r.canal))
   );
 }
 function applyFilters() { renderDashboard(); }
@@ -1268,7 +1473,7 @@ function destroyChart(id){ if(chartInstances[id]){ chartInstances[id].destroy();
 // ── RENDER
 function renderDashboard() {
   const _abertas=[...document.querySelectorAll('tr.exp-row.open')].map(t=>t.dataset.exp);
-  try { _renderDashboard(); } finally { _abertas.forEach(id=>toggleExp(id)); }
+  try { _renderDashboard(); } finally { _abertas.forEach(id=>toggleExp(id)); atualizarAvisoCmv(); }
 }
 function _renderDashboard() {
   const fatF = filterData(rawFat);
@@ -1304,7 +1509,7 @@ function _renderDashboard() {
   kpiWrap.innerHTML = `<div class="section-title">Indicadores Gerais</div>
   <div class="kpi-grid">
     ${kpi('blue','M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z','Faturamento Total',fmt(tFat),`${fatF.length} registros`)}
-    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total (Produto)',fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
+    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z',(cmvMode==='competencia'?'CMV Total (Competência)':'CMV Total (Caixa)'),fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
     ${kpi('green','M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z','Lucro Bruto',fmt(tLucro),`Margem de ${fmtPct(pctLB)}`)}
     ${kpi('indigo','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4h2v4zm0-6h-2V7h2v4z','% Lucro Bruto',fmtPct(pctLB),pctLB>=30?'✓ Acima do esperado':pctLB>=15?'→ Dentro do esperado':'↓ Abaixo do esperado')}
   </div>`;
@@ -1561,7 +1766,8 @@ function buildTableComparativo(anos, lojas) {
     return rawCmv.filter(r =>
       r.ano === anoVal &&
       (!lojaSel || r.loja === lojaSel) &&
-      (!mesSel  || r.mes === mesSel)
+      (!mesSel  || r.mes === mesSel) &&
+      (cmvMode !== 'competencia' || selectedCanais.size === 0 || !r.canal || selectedCanais.has(r.canal))
     );
   }
 
@@ -1864,11 +2070,12 @@ async function __montarSnapshot(snap, novoLoad, loadHeader, extraCss){
 async function exportarRelatorio(){
   try{
     if(!rawFat.length){ alert('Aguarde os dados carregarem antes de exportar.'); return; }
-    const snap = { rawFat: __aggRows(rawFat,'total_venda'), rawCmv: __aggRows(rawCmv,'valor') };
+    const snap = { rawFat: __aggRows(rawFat,'total_venda'), rawCmv: __aggRows(rawCmv,'valor'), cmvMode };
     const novoLoad =
       'async function loadData(){\n' +
-      '  const S=window.__SNAP__; rawFat=S.rawFat; rawCmv=S.rawCmv||[];\n' +
-      '  populateFilters(); renderDashboard();\n' +
+      '  const S=window.__SNAP__; rawFat=S.rawFat; rawCmv=S.rawCmv||[]; cmvMode=S.cmvMode||"caixa";\n' +
+      '  var g=document.getElementById("cmvmode-group"); if(g) g.style.display="none";\n' +
+      '  populateFilters(); renderDashboard(); atualizarAvisoCmv();\n' +
       '  document.getElementById("fb-ts").textContent=S.rotulo;\n' +
       '}\n' +
       'async function loadData_ORIG(forceRefresh, silent = false) {';
