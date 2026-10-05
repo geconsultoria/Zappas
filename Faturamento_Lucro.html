@@ -1752,9 +1752,17 @@ function mkChartPct2(id, labels, datasets) {
   const allVals = datasets.flatMap(ds => ds.data).filter(v => v != null && isFinite(v));
   const dataMin = allVals.length ? Math.min(...allVals) : 0;
   const dataMax = allVals.length ? Math.max(...allVals) : 2;
-  const step = 2;
-  const yMin = Math.floor(dataMin / step) * step;
-  const yMax = Math.ceil((dataMax * 1.10) / step) * step;
+  // Eixo Y ajustado à faixa real dos valores: folga de 25% da variação
+  // acima e abaixo (mín. 0,5 p.p.) e passo "redondo" (0,5 / 1 / 2 / 5…)
+  // para ~5 linhas de grade. Antes o mínimo ficava colado no menor valor
+  // e o máximo subia 10% do valor (ex.: 70% → 78%), achatando a linha.
+  const faixa = Math.max(dataMax - dataMin, 1);
+  const folga = Math.max(faixa * 0.25, 0.5);
+  const bruto = (faixa + 2 * folga) / 5;
+  const mag = Math.pow(10, Math.floor(Math.log10(bruto)));
+  const step = [1, 2, 2.5, 5, 10].map(m => m * mag).find(v => v >= bruto) || 10 * mag;
+  const yMin = Math.floor((dataMin - folga) / step) * step;
+  const yMax = Math.ceil((dataMax + folga) / step) * step;
   chartInstances[id] = new Chart(el, {
     type:'line', data: { labels, datasets },
     options: {
