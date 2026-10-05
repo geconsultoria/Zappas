@@ -450,38 +450,230 @@
     });
   }
 
-  // ── Link "Administração" no rodapé do menu (só para admins) ────────────
+  // ── Menu "Administração" (só para admins) ──────────────────────────────
+  // Grupo padrão no menu lateral de TODAS as telas, no mesmo formato de
+  // Comercial / Financeiro / Metas: ao clicar, abre embaixo
+  //   • Atualização Geral   • Backup Geral   • Cadastro de Usuários
+  // Fica aqui (e não em cada HTML) pra existir num lugar só.
+
+  var DATA_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+  var METAS_APPS_SCRIPT_URL_BK = "https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec";
+  var GLOBAL_REFRESH_KEY_ADM = "zappas_global_refresh_ts";
+  var BACKUP_STORE_KEYS = ["anisio", "bady", "belvedere", "damha", "havan", "muffato"];
+  var BACKUP_APP_FILES = [
+    "GestaoZappas.html", "Administracao.html", "auth-common.js",
+    "Analise_Comercial.html", "Faturamento_Lucro.html", "Faturamento_Detalhado.html", "Curva_ABC_Produto.html",
+    "DRE_Gerencial.html", "Contas_a_Pagar.html", "Banco_Declaracao.html", "Reembolso.html", "Ciclo_Financeiro.html",
+    "Elaboracao_Metas.html", "Acompanhamento_Metas.html", "Resultado_Meta.html"
+  ];
+
+  var ICON_ADMIN = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>';
+  var ICON_CHEV = '<svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+  var ICON_REFRESH = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>';
+  var ICON_DOWNLOAD = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>';
+  var ICON_USERS = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>';
+
+  function paginaAtual() {
+    var p = (location.pathname.split("/").pop() || "").toLowerCase();
+    return p;
+  }
+
+  function injectAdminStyles() {
+    if (document.getElementById("auth-guard-admin-styles")) return;
+    var st = document.createElement("style");
+    st.id = "auth-guard-admin-styles";
+    st.textContent =
+      // Separador acima do grupo e itens-ação (são <a>, mesmo visual dos links)
+      ".side-item[data-menu=admin]{margin-top:6px;padding-top:6px;border-top:1px solid rgba(255,255,255,.08);}" +
+      ".side-item[data-menu=admin] .side-sub a{cursor:pointer;}" +
+      ".side-item[data-menu=admin] .side-sub a.ag-busy{opacity:.55;pointer-events:none;}" +
+      // Overlay de progresso (Atualização Geral / Backup Geral)
+      "#ag-adm-overlay{position:fixed;inset:0;z-index:99990;display:none;align-items:center;justify-content:center;background:rgba(10,20,40,.35);backdrop-filter:blur(2px);}" +
+      "#ag-adm-overlay.show{display:flex;}" +
+      "#ag-adm-overlay .ag-adm-card{background:#fff;border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:14px;min-width:300px;max-width:440px;box-shadow:0 12px 48px rgba(0,0,0,.25);font-family:'Epilogue',system-ui,sans-serif;}" +
+      "#ag-adm-overlay .ag-adm-icon{width:40px;height:40px;border-radius:12px;background:#E4ECF6;color:#1B3D6E;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
+      "#ag-adm-overlay .ag-adm-icon svg{width:20px;height:20px;}" +
+      "#ag-adm-overlay .ag-adm-icon.spin svg{animation:agAdmSpin .9s linear infinite;}" +
+      "@keyframes agAdmSpin{to{transform:rotate(360deg);}}" +
+      "#ag-adm-overlay .ag-adm-title{font-family:'Syne',system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#16160F;}" +
+      "#ag-adm-overlay .ag-adm-sub{font-size:12.5px;color:#787868;margin-top:2px;}" +
+      "#ag-adm-overlay .ag-adm-sub.ok{color:#3E8F63;}" +
+      "#ag-adm-overlay .ag-adm-sub.err{color:#B4483A;}";
+    document.head.appendChild(st);
+  }
+
+  function admOverlay(titulo, icone) {
+    var ov = document.getElementById("ag-adm-overlay");
+    if (!ov) {
+      ov = document.createElement("div");
+      ov.id = "ag-adm-overlay";
+      ov.innerHTML = '<div class="ag-adm-card"><div class="ag-adm-icon"></div><div><div class="ag-adm-title"></div><div class="ag-adm-sub"></div></div></div>';
+      document.body.appendChild(ov);
+    }
+    var ic = ov.querySelector(".ag-adm-icon"), ti = ov.querySelector(".ag-adm-title"), sub = ov.querySelector(".ag-adm-sub");
+    ic.innerHTML = icone; ic.classList.add("spin");
+    ti.textContent = titulo; sub.className = "ag-adm-sub"; sub.textContent = "Aguarde…";
+    ov.classList.add("show");
+    return {
+      msg: function (t) { sub.textContent = t; },
+      fim: function (t, ok, depois) {
+        ic.classList.remove("spin");
+        sub.className = "ag-adm-sub " + (ok ? "ok" : "err");
+        sub.textContent = t;
+        setTimeout(function () { ov.classList.remove("show"); if (depois) depois(); }, ok ? 1800 : 4000);
+      }
+    };
+  }
+
+  // Atualização Geral: na tela inicial usa a função que já existe lá;
+  // nas demais telas faz a mesma chamada e recarrega a tela no final,
+  // pra ela já abrir com os dados novos.
+  function acaoAtualizacaoGeral(el) {
+    if (typeof window.gerarResumoMensal === "function" && document.getElementById("btn-gerar-resumo")) {
+      window.gerarResumoMensal();
+      return;
+    }
+    if (el) el.classList.add("ag-busy");
+    var ui = admOverlay("Atualização Geral", ICON_REFRESH);
+    ui.msg("Gerando resumo mensal, aguarde…");
+    fetch(DATA_APPS_SCRIPT_URL + "?action=gerarResumo&_=" + Date.now(), { cache: "no-store" })
+      .then(function (r) { return r.text(); })
+      .then(function (texto) {
+        if (el) el.classList.remove("ag-busy");
+        if (String(texto).indexOf("OK") === 0) {
+          try { localStorage.setItem(GLOBAL_REFRESH_KEY_ADM, String(Date.now())); } catch (e) {}
+          ui.fim("✓ " + String(texto).replace(/^OK - /, "") + " · recarregando a tela…", true, function () { location.reload(); });
+        } else {
+          ui.fim(texto || "Falha ao atualizar.", false);
+        }
+      })
+      .catch(function (e) {
+        if (el) el.classList.remove("ag-busy");
+        ui.fim("Falha na conexão: " + e.message, false);
+      });
+  }
+
+  function carregarJSZip() {
+    if (window.JSZip) return Promise.resolve();
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error("Não foi possível carregar a biblioteca de compactação (verifique a conexão).")); };
+      document.head.appendChild(s);
+    });
+  }
+
+  // Backup Geral: mesma lógica da tela inicial (dados + telas do app num .zip).
+  function acaoBackupGeral(el) {
+    if (el) el.classList.add("ag-busy");
+    var ui = admOverlay("Backup Geral", ICON_DOWNLOAD);
+    var falhas = [];
+    var bust = "_bk=" + Date.now();
+    function buscar(url, rotulo) {
+      var sep = url.indexOf("?") >= 0 ? "&" : "?";
+      return fetch(url + sep + bust, { cache: "no-store" })
+        .then(function (r) { if (!r.ok) throw new Error("HTTP " + r.status); return r.text(); })
+        .catch(function (e) { falhas.push(rotulo + ": " + e.message); return null; });
+    }
+    var tarefas = [];
+    BACKUP_STORE_KEYS.forEach(function (l) {
+      tarefas.push(["dados/faturamento/" + l + ".csv", DATA_APPS_SCRIPT_URL + "?loja=" + l, "Faturamento (" + l + ")"]);
+      tarefas.push(["dados/contas_a_pagar/" + l + ".csv", DATA_APPS_SCRIPT_URL + "?tipo=ctaspagar&loja=" + l, "Contas a Pagar (" + l + ")"]);
+      tarefas.push(["dados/recebidos/" + l + ".csv", DATA_APPS_SCRIPT_URL + "?tipo=recebidos&loja=" + l, "Recebidos (" + l + ")"]);
+      tarefas.push(["dados/depara/" + l + ".csv", DATA_APPS_SCRIPT_URL + "?tipo=depara&loja=" + l, "De-Para (" + l + ")"]);
+    });
+    tarefas.push(["dados/plano_de_contas.csv", DATA_APPS_SCRIPT_URL + "?tipo=planocontas", "Plano de Contas"]);
+    tarefas.push(["dados/metas.csv", METAS_APPS_SCRIPT_URL_BK, "Metas"]);
+    BACKUP_APP_FILES.forEach(function (f) { tarefas.push(["app/" + f, f, "Tela " + f]); });
+
+    carregarJSZip().then(function () {
+      var zip = new window.JSZip();
+      var i = 0;
+      function proxima() {
+        if (i >= tarefas.length) return Promise.resolve();
+        var t = tarefas[i++];
+        ui.msg(t[2] + " (" + i + "/" + tarefas.length + ")");
+        return buscar(t[1], t[2]).then(function (txt) { if (txt) zip.file(t[0], txt); return proxima(); });
+      }
+      return proxima().then(function () {
+        var agora = new Date();
+        zip.file("LEIA-ME.txt", [
+          "BACKUP GERAL — GESTÃO ZAPPAS",
+          "Gerado em: " + agora.toLocaleString("pt-BR"),
+          "",
+          "  /dados → CSVs de Faturamento, Contas a Pagar, Recebidos, De-Para, Plano de Contas e Metas.",
+          "  /app   → cópia das telas do painel (HTML) e do auth-common.js, como publicadas.",
+          "",
+          "O código do Apps Script não entra aqui: faça a cópia dele em script.google.com (Arquivo → Fazer uma cópia).",
+          "",
+          falhas.length ? "FALHAS NESTE BACKUP:\n  " + falhas.join("\n  ") : "Nenhuma falha — todas as fontes foram incluídas."
+        ].join("\n"));
+        ui.msg("Compactando arquivo…");
+        return zip.generateAsync({ type: "blob", compression: "DEFLATE", compressionOptions: { level: 6 } }).then(function (blob) {
+          var nome = "Backup_Zappas_" + agora.toISOString().slice(0, 16).replace(/[-T:]/g, "").replace(/^(\d{8})(\d{4})$/, "$1_$2") + ".zip";
+          var url = URL.createObjectURL(blob);
+          var a = document.createElement("a");
+          a.href = url; a.download = nome;
+          document.body.appendChild(a); a.click(); a.remove();
+          setTimeout(function () { URL.revokeObjectURL(url); }, 4000);
+          if (el) el.classList.remove("ag-busy");
+          ui.fim(falhas.length ? "✓ Backup baixado com " + falhas.length + " falha(s) — veja o LEIA-ME.txt" : "✓ Backup baixado com sucesso", !falhas.length);
+        });
+      });
+    }).catch(function (e) {
+      if (el) el.classList.remove("ag-busy");
+      ui.fim("Erro no backup: " + e.message, false);
+    });
+  }
 
   function injectAdminLink() {
     if (!session || session.role !== "admin") return;
-    if (document.getElementById("side-link-admin")) return;
-
-    // Nem toda página tem um <div class="side-footer"> no rodapé do menu
-    // (só GestaoZappas.html tem, por causa dos botões "Atualização Geral" /
-    // "Backup Geral"). Nas demais, cria um rodapé simples dentro da sidebar
-    // para o link "Administração" ter onde entrar.
-    var footer = document.querySelector(".side-footer");
-    if (!footer) {
-      var sidebar = document.querySelector(".sidebar");
-      if (!sidebar) return;
-      footer = document.createElement("div");
-      footer.className = "side-footer";
-      footer.style.padding = "12px 10px 14px";
-      footer.style.borderTop = "1px solid rgba(255,255,255,.08)";
-      sidebar.appendChild(footer);
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", injectAdminLink);
+      return;
     }
+    var nav = document.querySelector(".sidebar .side-nav");
+    if (!nav || nav.querySelector('.side-item[data-menu="admin"]')) return;
+    injectAdminStyles();
 
-    var a = document.createElement("a");
-    a.id = "side-link-admin";
-    a.className = "side-link";
-    a.href = "Administracao.html";
-    a.style.textDecoration = "none";
-    a.style.display = "flex";
-    a.title = "Administração";
-    a.innerHTML =
-      '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09a1.65 1.65 0 00-1-1.51 1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09a1.65 1.65 0 001.51-1 1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>' +
-      "<span>Administração</span>";
-    footer.insertBefore(a, footer.firstChild);
+    var naAdmin = paginaAtual() === "administracao.html";
+    var item = document.createElement("div");
+    item.className = "side-item" + (naAdmin ? " open active" : "");
+    item.setAttribute("data-menu", "admin");
+    item.innerHTML =
+      '<button class="side-link" type="button" data-label="Administração">' + ICON_ADMIN + "<span>Administração</span>" + ICON_CHEV + "</button>" +
+      '<div class="side-sub">' +
+      '<a href="#" data-acao="atualizar">' + ICON_REFRESH + "Atualização Geral</a>" +
+      '<a href="#" data-acao="backup">' + ICON_DOWNLOAD + "Backup Geral</a>" +
+      '<a href="Administracao.html"' + (naAdmin ? ' class="active"' : "") + ">" + ICON_USERS + "Cadastro de Usuários</a>" +
+      "</div>";
+    nav.appendChild(item);
+
+    // Abrir/fechar igual aos outros grupos (fecha os demais ao abrir).
+    item.querySelector(".side-link").addEventListener("click", function () {
+      var aberto = item.classList.contains("open");
+      document.querySelectorAll(".side-item.open").forEach(function (i) { if (i !== item) i.classList.remove("open"); });
+      item.classList.toggle("open", !aberto);
+      var sb = document.getElementById("sidebar");
+      try { if (sb && sb.classList.contains("collapsed") && item.classList.contains("open")) lastOpenMenu = "admin"; } catch (e) {}
+    });
+    // Abrir outro grupo fecha o de Administração.
+    nav.addEventListener("click", function (ev) {
+      var btn = ev.target.closest && ev.target.closest(".side-item > .side-link");
+      if (btn && !item.contains(btn)) item.classList.remove("open");
+    });
+    item.querySelector('[data-acao="atualizar"]').addEventListener("click", function (ev) { ev.preventDefault(); acaoAtualizacaoGeral(this); });
+    item.querySelector('[data-acao="backup"]').addEventListener("click", function (ev) {
+      ev.preventDefault();
+      acaoBackupGeral(this); // mesma rotina em todas as telas (inclui também Resultado Metas, Administração e auth-common.js)
+    });
+
+    // Tela inicial: o rodapé antigo (botão "…" com Atualização/Backup) fica
+    // escondido pro admin — as ações agora estão no grupo acima. O HTML
+    // continua na página porque a atualização automática da tela usa ele.
+    var rodapeAntigo = document.getElementById("side-footer-toggle");
+    if (rodapeAntigo && rodapeAntigo.closest(".side-footer")) rodapeAntigo.closest(".side-footer").style.display = "none";
   }
 
   // ── Fluxo principal ─────────────────────────────────────────────────────
