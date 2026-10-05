@@ -5591,25 +5591,67 @@ function renderComparativoMensal() {
   }
 
   /* Calcula os valores para cada período usando `base` (raw filtrado por loja se houver) */
+  /* Mesmas regras do DRE principal (renderDRE): no "DRE Gerencial" a
+     receita vem da Análise Comercial (filtro de Canal), impostos por
+     competência e CMV (Produto); no DFC, receita/impostos do raw e CMV
+     (Compra) do arquivo de Compras. Daí pra baixo, todas as linhas e
+     totalizadores iguais ao DRE, até o Resultado Líquido. */
+  const ger = dreView==='gerencial';
+  const doMes = (arr, ano, mes, comCanal) => (arr||[]).filter(r =>
+    Number(r.ano) === ano && Number(r.mes) === mes && passaLoja(r.loja) &&
+    !(comCanal && r.canal && canaisSelecionados.length && !canaisSelecionados.includes(r.canal)));
+  const somaV = arr => arr.reduce((a,r)=>a+(r.valor||0),0);
   const dados = (ano, mes) => {
     const rows = base.filter(r => r.ano === ano && r.mes === mes);
     const map = {};
     uniq(rows.map(r=>r.grupo)).forEach(g=>{const s=slugFromGrupo(g);if(s){if(!map[s])map[s]=[];map[s].push(g);}});
     const v = s => rows.filter(r=>(map[s]||[]).includes(r.grupo)).reduce((a,r)=>a+r.valor,0);
-    const rec=v('receita_operacional'), imp=v('impostos_vendas'), ded=v('deducoes_vendas'), cmv=v('cmv');
-    return {rec,imp,ded,rl:rec-imp-ded,cmv,lb:rec-imp-ded-cmv};
+    const rec = ger ? somaV(doMes(vendasRaw, ano, mes, true)) : v('receita_operacional');
+    const imp = ger ? somaV(doMes(impostosGerRaw, ano, mes)) : v('impostos_vendas');
+    const ded = v('deducoes_vendas');
+    const rl  = rec-imp-ded;
+    const cmv = ger ? somaV(doMes(custoProdutoRaw, ano, mes, true)) : somaV(doMes(comprasRaw, ano, mes));
+    const lb  = rl-cmv;
+    const dcom=v('despesas_comerciais'), dpes=v('despesas_pessoal'), dadm=v('despesas_administrativas'),
+          dfin=v('despesas_financeiras'), plab=v('pro_labore');
+    const rop = lb-dcom-dpes-dadm-dfin-plab;
+    const juros = rows.filter(r=>isJuros(r.subgrupo)||isJuros(r.plano)).reduce((a,r)=>a+r.valor,0);
+    const ebitda = rop+juros;
+    const dist=v('distribuicao_lucro'), ir=v('ir_csll');
+    const rir = rop-dist-ir;
+    const emp=v('emprestimos_financiamentos'), inv=v('investimento'), parc=v('parcelamento_impostos');
+    const rliq = rir-emp-inv-parc;
+    return {rec,imp,ded,rl,cmv,lb,dcom,dpes,dadm,dfin,plab,rop,ebitda,dist,ir,rir,emp,inv,parc,rliq};
   };
 
   const atu = dados(uP.ano, uP.mes), ant = dados(aP.ano, aP.mes);
+  // t:true = linha totalizadora (destacada). inv:true = conta de saída
+  // (custo/despesa): subir é ruim, então a cor da variação é invertida.
   const linhas = [
-    {l:'Receita Operacional',k:'rec'},{l:'Impostos s/ Vendas',k:'imp'},{l:'Deduções s/ Vendas',k:'ded'},
-    {l:'Receita Líquida',k:'rl'},{l:'CMV',k:'cmv'},{l:'Lucro Bruto',k:'lb'},
+    {l:'Receita Operacional',k:'rec'},
+    {l:'Impostos s/ Vendas',k:'imp',inv:true},{l:'Deduções s/ Vendas',k:'ded',inv:true},
+    {l:'Receita Líquida',k:'rl',t:true},
+    {l:ger?'CMV (Produto)':'CMV (Compra)',k:'cmv',inv:true},
+    {l:'Lucro Bruto',k:'lb',t:true},
+    {l:'Despesas Comerciais',k:'dcom',inv:true},{l:'Despesas com Pessoal',k:'dpes',inv:true},
+    {l:'Despesas Administrativas e Operacionais',k:'dadm',inv:true},
+    {l:'Despesas / Receitas Financeiras',k:'dfin',inv:true},{l:'Pró-labore',k:'plab',inv:true},
+    {l:'Resultado Operacional',k:'rop',t:true},
+    {l:'EBITDA',k:'ebitda',t:true},
+    {l:'Distribuição de Lucro',k:'dist',inv:true},{l:'IR + CSLL',k:'ir',inv:true},
+    {l:'Resultado Líquido após IR e CSLL',k:'rir',t:true},
+    {l:'Empréstimos e Financiamentos',k:'emp',inv:true},{l:'Investimentos',k:'inv',inv:true},
+    {l:'Parcelamento Impostos',k:'parc',inv:true},
+    {l:'Resultado Líquido',k:'rliq',t:true},
   ];
-  document.getElementById('compMensalBody').innerHTML = linhas.map(({l,k}) => {
-    const va=atu[k], vb=ant[k], dif=va-vb, pctDif=vb?(dif/vb*100):0;
-    return `<tr><td>${l}</td><td>${fmtBRL(va)}</td><td>${fmtBRL(vb)}</td>
-      <td class="${dif>0?'val-pos':dif<0?'val-neg':''}">${dif>0?'▲':dif<0?'▼':'—'} ${fmtBRL(Math.abs(dif))}</td>
-      <td class="${dif>0?'val-pos':dif<0?'val-neg':''}">${pctDif.toFixed(1)}%</td></tr>`;
+  document.getElementById('compMensalBody').innerHTML = linhas.map(({l,k,t,inv}) => {
+    const va=atu[k], vb=ant[k], dif=va-vb, pctDif=vb?(dif/Math.abs(vb)*100):0;
+    const bom = inv ? dif<0 : dif>0, ruim = inv ? dif>0 : dif<0;
+    const cls = bom?'val-pos':ruim?'val-neg':'';
+    const st = t ? ' style="font-weight:700;background:var(--bg-2)"' : '';
+    return `<tr${st}><td${t?' style="font-weight:700"':''}>${l}</td><td>${fmtBRL(va)}</td><td>${fmtBRL(vb)}</td>
+      <td class="${cls}">${dif>0?'▲':dif<0?'▼':'—'} ${fmtBRL(Math.abs(dif))}</td>
+      <td class="${cls}">${pctDif.toFixed(1)}%</td></tr>`;
   }).join('');
   const fmt = (p) => { const m = MES[p.mes]||p.mes; return m+'/'+String(p.ano); };
   document.getElementById('compMensalSub').textContent = avisoMesAberto
