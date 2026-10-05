@@ -627,7 +627,58 @@
     });
   }
 
+  // ── Rodapé do menu: nome/e-mail do usuário logado + "Sair" ────────────
+  // Padrão em todas as telas (para qualquer usuário). A tela de
+  // Administração já tem esse bloco próprio (#side-user), então lá não
+  // duplica.
+  var ICON_SAIR = '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>';
+  function escHtml(v) {
+    return String(v == null ? "" : v).replace(/[&<>"']/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c];
+    });
+  }
+  function injectUserFooter() {
+    if (!session) return;
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", injectUserFooter);
+      return;
+    }
+    if (document.getElementById("side-user") || document.getElementById("ag-user-footer")) return;
+    var sidebar = document.querySelector(".sidebar");
+    if (!sidebar) return;
+    if (!document.getElementById("ag-user-footer-styles")) {
+      var st = document.createElement("style");
+      st.id = "ag-user-footer-styles";
+      st.textContent =
+        "#ag-user-footer{flex-shrink:0;padding:10px 10px 12px;border-top:1px solid rgba(255,255,255,.08);}" +
+        "#ag-user-footer .ag-uf-info{padding:6px 11px 8px;overflow:hidden;}" +
+        "#ag-user-footer .ag-uf-n{font-family:'Syne','Epilogue',system-ui,sans-serif;font-size:12px;font-weight:600;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+        "#ag-user-footer .ag-uf-e{font-size:10.5px;color:rgba(255,255,255,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+        "#ag-user-footer .ag-uf-sair{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;cursor:pointer;" +
+        "color:rgba(255,255,255,.7);font-family:'Syne','Epilogue',system-ui,sans-serif;font-weight:600;font-size:13px;padding:9px 11px;border-radius:10px;text-align:left;}" +
+        "#ag-user-footer .ag-uf-sair:hover{background:rgba(255,255,255,.07);color:#fff;}" +
+        "#ag-user-footer .ag-uf-sair svg{width:18px;height:18px;flex-shrink:0;opacity:.85;}" +
+        // Menu recolhido (só ícones): esconde nome/e-mail e centraliza o "Sair"
+        ".sidebar.collapsed:not(.peek) #ag-user-footer .ag-uf-info," +
+        ".sidebar.collapsed:not(.peek) #ag-user-footer .ag-uf-sair span{display:none;}" +
+        ".sidebar.collapsed:not(.peek) #ag-user-footer .ag-uf-sair{justify-content:center;padding:11px 0;}";
+      document.head.appendChild(st);
+    }
+    var nome = session.name || session.email;
+    var div = document.createElement("div");
+    div.id = "ag-user-footer";
+    div.innerHTML =
+      '<div class="ag-uf-info" title="' + escHtml(session.email) + '">' +
+      '<div class="ag-uf-n">' + escHtml(nome) + "</div>" +
+      (nome !== session.email ? '<div class="ag-uf-e">' + escHtml(session.email) + "</div>" : "") +
+      "</div>" +
+      '<button type="button" class="ag-uf-sair" title="Sair">' + ICON_SAIR + "<span>Sair</span></button>";
+    div.querySelector(".ag-uf-sair").addEventListener("click", logout);
+    sidebar.appendChild(div);
+  }
+
   function injectAdminLink() {
+    injectUserFooter();
     if (!session || session.role !== "admin") return;
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", injectAdminLink);
