@@ -1168,6 +1168,16 @@ function parseMesNomeMetas(v) {
   const j = MESES.findIndex(m => m.toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').startsWith(u.slice(0,3)));
   return j >= 0 ? j + 1 : null;
 }
+// Metas mudam a qualquer momento (alguém salva na Elaboração, às vezes em
+// outro computador) — então, mesmo abrindo pelo cache, sempre busca as
+// metas atualizadas da planilha em segundo plano. Se a busca falhar,
+// mantém as metas do cache em vez de zerar.
+async function atualizarMetasEmSegundoPlano(render) {
+  const anteriores = Array.isArray(metasData) ? metasData : [];
+  try { await loadMetasData(); } catch(e) {}
+  if ((!metasData || !metasData.length) && anteriores.length) { metasData = anteriores; return; }
+  if (JSON.stringify(metasData) !== JSON.stringify(anteriores)) render();
+}
 async function loadMetasData() {
   if (!METAS_APPS_SCRIPT_URL) { metasData = []; return; }
   try {
@@ -1423,6 +1433,7 @@ async function loadData(forceRefresh = false, silent = false) {
       buildCanalOptions();
       renderResultado();
       if (existeAtualizacaoMaisRecenteZappas(cached.rawTs)) loadData(true, true);
+      else atualizarMetasEmSegundoPlano(renderResultado);
       return;
     }
   }

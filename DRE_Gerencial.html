@@ -1390,6 +1390,8 @@ a.side-brand:hover { opacity:.85; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
+.loja-card-consolidado{border-color:var(--gold,#C8961A) !important;box-shadow:0 0 0 1px var(--gold,#C8961A) inset, var(--shadow-sm, 0 1px 3px rgba(0,0,0,.06));}
+.loja-card-consolidado .loja-card-name{font-weight:800;}
 </style>
 </head>
 <body>
@@ -5387,11 +5389,20 @@ function renderLojas(){
         <div style="text-align:right"><span class="lj-foot-lbl">${l2}</span><span class="lj-foot-val neg">${n0(v2)}</span></div>
       </div>
     </div>`;
-  grid.innerHTML=sorted.map((d,i)=>`
-    <div class="loja-card">
+  // Card "Consolidado": soma de todas as lojas exibidas (mesmas regras de
+  // cada card de loja), no mesmo formato DFC × DRE. Vem primeiro.
+  const somaCampo = (bloco, campo) => sorted.reduce((t,d)=>t+d[bloco][campo], 0);
+  const consolidado = {
+    loja: 'Consolidado', consolidado: true,
+    dfc: { rec: somaCampo('dfc','rec'), desp: somaCampo('dfc','desp'), resLiq: somaCampo('dfc','resLiq') },
+    dre: { rec: somaCampo('dre','rec'), desp: somaCampo('dre','desp'), resLiq: somaCampo('dre','resLiq') },
+  };
+  const cards = [consolidado].concat(sorted);
+  grid.innerHTML=cards.map((d,i)=>`
+    <div class="loja-card${d.consolidado?' loja-card-consolidado':''}">
       <div class="loja-card-name">
-        <span class="loja-dot" style="background:${PALETTE[i%PALETTE.length]}"></span>
-        ${d.loja==='BELVEDER'?'BELVEDERE':d.loja}
+        <span class="loja-dot" style="background:${d.consolidado?'var(--ink, #16160F)':PALETTE[(i-1)%PALETTE.length]}"></span>
+        ${d.consolidado?'Consolidado':(d.loja==='BELVEDER'?'BELVEDERE':d.loja)}
       </div>
       <div class="lj-cols">
         ${coluna('DFC', d.dfc.resLiq, 'Saldo de caixa', 'Entradas', d.dfc.rec, 'Saídas', d.dfc.desp)}

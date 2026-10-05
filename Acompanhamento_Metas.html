@@ -1710,9 +1710,11 @@ async function loadData(forceRefresh = false, silent = false) {
       loadQuebrasMap().then(m => { quebrasMap = m.mensal; quebrasMapDia = m.diario; applyFilters(); }).catch(e => console.warn('Quebras (Recebidos) indisponível:', e.message));
 
       if (Array.isArray(cached.metas)) {
-        // Metas já vieram salvas junto com o cache — não precisa buscar de novo.
+        // Mostra na hora as metas do cache e confere a planilha em segundo
+        // plano (a meta pode ter sido alterada em outro computador).
         metasData = cached.metas;
         applyFilters();
+        if (!stale) atualizarMetasEmSegundoPlano(applyFilters);
       } else {
         // Cache antigo, sem metas salvas: busca só essa parte agora.
         applyFilters();
@@ -2085,6 +2087,16 @@ function parseMesNomeMetas(v) {
   return j >= 0 ? j + 1 : null;
 }
 
+// Metas mudam a qualquer momento (alguém salva na Elaboração, às vezes em
+// outro computador) — então, mesmo abrindo pelo cache, sempre busca as
+// metas atualizadas da planilha em segundo plano. Se a busca falhar,
+// mantém as metas do cache em vez de zerar.
+async function atualizarMetasEmSegundoPlano(render) {
+  const anteriores = Array.isArray(metasData) ? metasData : [];
+  try { await loadMetasData(); } catch(e) {}
+  if ((!metasData || !metasData.length) && anteriores.length) { metasData = anteriores; return; }
+  if (JSON.stringify(metasData) !== JSON.stringify(anteriores)) render();
+}
 async function loadMetasData() {
   if (!METAS_APPS_SCRIPT_URL || METAS_APPS_SCRIPT_URL.startsWith('COLE_AQUI')) {
     console.warn('METAS_APPS_SCRIPT_URL não configurado — metas virão só do localStorage deste navegador.');
