@@ -2692,7 +2692,11 @@ function parseCompras(text, lojaFallback){
   const exata = (...ns) => { for(const n of ns){ const i = rawHeaders.findIndex(h => normHeader(h) === normHeader(n)); if(i !== -1) return i; } return -1; };
   const iAno   = exata('ano','exercicio');
   const iMes   = exata('mes','mês','competencia','mes_ano','mesano');
-  const iData  = exata('data','dtentrada','dt_entrada','data_entrada','emissao','dtemissao','data_emissao');
+  // Base nova (out/2026) não tem mais "ano"/"mes": a data da compra vem em
+  // "dt_solicitado". Se o nome mudar de novo, cai em qualquer coluna que
+  // comece com "dt"/"data" (ex.: dt_pedido, data_compra).
+  let   iData  = exata('dt_solicitado','dtsolicitado','data_solicitado','data_solicitacao','data','dtentrada','dt_entrada','data_entrada','emissao','dtemissao','data_emissao');
+  if(iData < 0) iData = rawHeaders.findIndex(h => /^(dt|data)(_|$)/.test(normHeader(h)) || /^dt[a-z]/.test(normHeader(h)));
   let   iTotal = exata('total','valor_total','valortotal','vlr_total','vltotal','valor');
   const iCusto = exata('custofinal','custo');
   const iQtd   = exata('quant','qtd','quantidade');
@@ -2763,6 +2767,17 @@ function g0(lines, sep, idx){
 function parseDataBRSimples(s){
   if(!s) return null;
   s = String(s).trim();
+  // Formato do Google ("Date(2026,8,15)" — mês começa em 0)
+  let g = s.match(/^Date\((\d{4}),\s*(\d{1,2})/i);
+  if(g) return { mes: parseInt(g[2],10) + 1, ano: parseInt(g[1],10) };
+  // Data como número serial (planilha exportou sem formatar: 46280 = set/2026)
+  if(/^\d{5}(\.\d+)?$/.test(s)){
+    const d = new Date(Math.round((parseFloat(s) - 25569) * 86400000));
+    if(!isNaN(d)) return { mes: d.getUTCMonth() + 1, ano: d.getUTCFullYear() };
+  }
+  // Ano com 2 dígitos (15/09/26)
+  g = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})(?!\d)/);
+  if(g) return { mes: parseInt(g[2],10), ano: 2000 + parseInt(g[3],10) };
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if(m) return { mes: parseInt(m[2],10), ano: parseInt(m[3],10) };
   m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -2821,7 +2836,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v9';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v10'; // v10: Compras com data em "dt_solicitado"
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
