@@ -1076,9 +1076,8 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         <button class="rd-toggle-btn" id="rdTogTodas" onclick="setRdModo('todas')">Todas as lojas</button>
       </div>
       <select class="fb-select" id="rdLojaSelect" onchange="renderResumoDiario()"></select>
-      <button class="canal-dd-btn" onclick="copiarResumoDiarioTexto(this)">📄 Copiar como texto</button>
       <button class="canal-dd-btn" id="btnEnviarImagem" onclick="enviarResumoDiarioImagem(this)">📷 Enviar imagem (WhatsApp)</button>
-      <button class="canal-dd-btn" onclick="abrirContatosWhats()" title="Cadastrar o número de WhatsApp de cada loja">👤 Contatos</button>
+      <button class="canal-dd-btn" id="btnContatosWhats" style="display:none" onclick="abrirContatosWhats()" title="Cadastrar o número de WhatsApp de cada loja">👤 Contatos</button>
     </div>
     <div class="rd-modal-body" id="rdBody"></div>
   </div>
@@ -1243,6 +1242,7 @@ const STORE_LOJA_ALIASES = {
   anisio: ['ANISIO'], bady: ['BADY'], belvedere: ['BELVEDERE', 'BELVEDER'],
   damha: ['DAMHA'], havan: ['HAVAN'], muffato: ['MUFFATO']
 };
+let isAdminUser = false; // só administrador vê/edita os Contatos de WhatsApp
 let restrictedLoja = null; // ex.: 'anisio' — preenchido no login se o usuário não for admin e tiver loja definida
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
@@ -3151,6 +3151,7 @@ function rdRenderListaContatos() {
   }).join('');
 }
 async function abrirContatosWhats() {
+  if (!isAdminUser) return; // cadastro de contatos é só para administrador
   document.getElementById('rdCtStatus').textContent = rdPlanilhaContatosOk() ? 'Carregando da planilha…' : 'Salvo apenas neste navegador (planilha não configurada).';
   const app = rdAbrirEm();
   document.querySelectorAll('input[name="rdCtApp"]').forEach(r => { r.checked = r.value === app; });
@@ -3391,7 +3392,7 @@ async function enviarResumoDiarioImagem(btnEl) {
     if (e.name !== 'AbortError') { // usuário cancelou o compartilhamento — não é erro
       console.error('Erro ao gerar/enviar imagem:', e);
       if (e.message === 'TIMEOUT_GERACAO') {
-        alert('A geração da imagem demorou demais e foi cancelada (pode ser bloqueio de rede ao carregar a fonte). Tente novamente ou use "Copiar como texto".');
+        alert('A geração da imagem demorou demais e foi cancelada (pode ser bloqueio de rede ao carregar a fonte). Tente novamente.');
       } else {
         alert('Não foi possível gerar a imagem: ' + e.message);
       }
@@ -3438,6 +3439,9 @@ window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('acomp
   if (session && session.role !== 'admin' && session.loja) {
     restrictedLoja = session.loja;
   }
+  isAdminUser = !!(session && session.role === 'admin');
+  const btnCt = document.getElementById('btnContatosWhats');
+  if (btnCt) btnCt.style.display = isAdminUser ? '' : 'none';
   loadData();
 }));
 </script>
