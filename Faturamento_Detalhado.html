@@ -876,11 +876,41 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Mês</span>
-      <select class="ig-fselect" id="f-mes-grade"></select>
+      <div class="canal-wrap ms-wrap" id="mes-wrap">
+        <div class="canal-trigger" id="mes-trigger" onclick="toggleMs('mes',event)">
+          <span id="mes-trigger-txt">Todos</span>
+          <span class="canal-badge" id="mes-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="mes-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Meses</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllMs('mes')">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllMs('mes')">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="mes-dd-list"></div>
+        </div>
+      </div>
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Loja</span>
-      <select class="ig-fselect" id="f-loja"><option value="">Todas</option></select>
+      <div class="canal-wrap ms-wrap" id="loja-wrap">
+        <div class="canal-trigger" id="loja-trigger" onclick="toggleMs('loja',event)">
+          <span id="loja-trigger-txt">Todas</span>
+          <span class="canal-badge" id="loja-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="loja-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Lojas</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllMs('loja')">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllMs('loja')">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="loja-dd-list"></div>
+        </div>
+      </div>
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Canal</span>
@@ -934,7 +964,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         </div>
         <div>
           <div class="title">Faturamento Diário por Loja</div>
-          <div class="sub">Valor faturado em cada dia, separado por loja · use os filtros "Ano" e "Mês" acima</div>
+          <div class="sub">Valor faturado em cada dia, separado por loja · segue os filtros Ano, Mês, Loja e Canal</div>
         </div>
       </div>
     </div>
@@ -1216,14 +1246,20 @@ function ahBadge2(v) {
 let selectedCanais = new Set();
 
 function getF() {
-  return { loja: $('f-loja').value, canais: selectedCanais };
+  return {
+    loja:   MS.loja.sel,    // Set; vazio = todas
+    mes:    MS.mes.sel,     // Set ("1".."12"); vazio = todos
+    canais: selectedCanais  // Set; vazio = todos
+  };
 }
+// Canal: mesma regra do applyF() da Análise Comercial — com filtro ativo,
+// linha sem canal não entra.
+function passaCanal(r, canais) { return canais.size === 0 || canais.has(r.canal); }
+const mesKey = r => String(parseInt(r.mes,10));
 
 function populateFilters(data) {
   const lojas = [...new Set(data.map(r => r.loja))].filter(Boolean).sort();
-  const cur = $('f-loja').value;
-  $('f-loja').innerHTML = '<option value="">Todas</option>' + lojas.map(l => `<option value="${l}">${l==='BELVEDER'?'BELVEDERE':l}</option>`).join('');
-  if(lojas.includes(cur)) $('f-loja').value = cur;
+  populateMs('loja', lojas);
 
   const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(data.map(r => r.canal))].filter(Boolean).sort());
   populateCanalDropdown(canais);
@@ -1275,6 +1311,7 @@ function onCanalChange(cb) {
   if (selectedCanais.size === _allCanais.length) selectedCanais.clear();
   cb.closest('.canal-item').classList.toggle('checked', cb.checked && selectedCanais.size > 0);
   updateCanalTrigger();
+  renderGradeDiaria();
   renderSemanal2();
 }
 
@@ -1285,6 +1322,7 @@ function selectAllCanais() {
     cb.closest('.canal-item').classList.remove('checked');
   });
   updateCanalTrigger();
+  renderGradeDiaria();
   renderSemanal2();
 }
 
@@ -1295,6 +1333,7 @@ function clearAllCanais() {
     cb.closest('.canal-item').classList.remove('checked');
   });
   updateCanalTrigger();
+  renderGradeDiaria();
   renderSemanal2();
 }
 
@@ -1332,6 +1371,7 @@ function updateCanalTrigger() {
 
 function toggleCanalDropdown(e) {
   e.stopPropagation();
+  if (typeof closeAllMs === 'function') closeAllMs();
   const dd      = $('canal-dropdown');
   const trigger = $('canal-trigger');
   const isOpen  = dd.classList.toggle('open');
@@ -1353,43 +1393,129 @@ document.addEventListener('click', e => {
 // válida; senão, prioriza o ano/mês atual (calendário) se houver dados
 // nele — só cai para o mais recente disponível se o mês atual ainda
 // não tiver nenhum lançamento.
+let _mesInicialDefinido = false;
 function populateFiltroMesGrade(data) {
   const selAno = $('f-ano-grade');
-  const selMes = $('f-mes-grade');
   const curAno = selAno.value;
-  const curMes = selMes.value;
-
   const anos = [...new Set(data.map(r => r.ano))].filter(Boolean).sort();
-  // "mes" vem como número (1-12) nos dados — mesmo padrão usado nas
-  // demais páginas (Análise Comercial, Faturamento x Lucro etc.).
-  const mesesComDados = new Set(data.map(r => String(parseInt(r.mes,10))));
+  const mesesComDados = new Set(data.map(mesKey));
   const mesesNums = MONTHS.map((_,i) => String(i+1)).filter(n => mesesComDados.has(n));
 
   selAno.innerHTML = '<option value="">Todos</option>' + anos.map(a => `<option value="${a}">${a}</option>`).join('');
-  selMes.innerHTML = '<option value="">Todos</option>' +
-    MONTHS.map((nome,i) => `<option value="${i+1}">${nome}</option>`).join('');
-
   const hoje = new Date();
   const anoAtual = String(hoje.getFullYear());
   const mesAtual = String(hoje.getMonth() + 1);
-
   selAno.value = anos.includes(curAno) ? curAno : (anos.includes(anoAtual) ? anoAtual : (anos.length ? anos[anos.length-1] : ''));
-  selMes.value = mesesNums.includes(curMes) ? curMes : (mesesNums.includes(mesAtual) ? mesAtual : (mesesNums.length ? mesesNums[mesesNums.length-1] : ''));
+
+  // Na 1ª carga já abre no mês atual (ou o último com dados) — a grade é
+  // diária, então "Todos os meses" daria uma lista muito longa.
+  if (!_mesInicialDefinido && mesesNums.length) {
+    MS.mes.sel = new Set([mesesNums.includes(mesAtual) ? mesAtual : mesesNums[mesesNums.length-1]]);
+    _mesInicialDefinido = true;
+  }
+  populateMs('mes', mesesNums);
 }
+
+
+/* ── Mês / Loja multi-select — mesmo padrão (e mesmo código) da Análise
+   Comercial. Set vazio = todos. Valores guardados como texto. ── */
+const MS = {
+  mes:  { sel: new Set(), all: [], allTxt: 'Todos', plural: 'meses', label: m => MONTHS[+m-1] || m },
+  loja: { sel: new Set(), all: [], allTxt: 'Todas', plural: 'lojas', label: v => v === 'BELVEDER' ? 'BELVEDERE' : v },
+};
+function populateMs(key, vals) {
+  const s = MS[key];
+  vals = vals.map(String);
+  s.all = vals;
+  [...s.sel].forEach(v => { if (!vals.includes(v)) s.sel.delete(v); });
+  if (s.sel.size === vals.length) s.sel.clear();
+  const list = document.getElementById(key + '-dd-list');
+  list.innerHTML = '';
+  vals.forEach(v => {
+    const isChecked = s.sel.size === 0 ? true : s.sel.has(v);
+    const lbl = s.label(v);
+    const item = document.createElement('label');
+    item.className = 'canal-item' + (isChecked && s.sel.size > 0 ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${v}" ${isChecked ? 'checked' : ''} onchange="onMsChange('${key}')">
+      <span class="canal-item-label" title="${lbl}">${lbl}</span>`;
+    list.appendChild(item);
+  });
+  updateMsTrigger(key);
+}
+function onMsChange(key) {
+  const s = MS[key];
+  const cbs = [...document.getElementById(key + '-dd-list').querySelectorAll('input[type=checkbox]')];
+  s.sel = new Set(cbs.filter(cb => cb.checked).map(cb => cb.value));
+  if (s.sel.size === s.all.length) s.sel.clear();
+  cbs.forEach(cb => cb.closest('.canal-item').classList.toggle('checked', cb.checked && s.sel.size > 0));
+  updateMsTrigger(key);
+  renderGradeDiaria(); renderSemanal2();
+}
+function setAllMs(key, checked) {
+  MS[key].sel.clear();
+  document.getElementById(key + '-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = checked;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateMsTrigger(key);
+  renderGradeDiaria(); renderSemanal2();
+}
+function selectAllMs(key) { setAllMs(key, true); }
+function clearAllMs(key)  { setAllMs(key, false); }
+function updateMsTrigger(key) {
+  const s = MS[key], n = s.sel.size;
+  const badge = document.getElementById(key + '-badge'), txt = document.getElementById(key + '-trigger-txt'), trigger = document.getElementById(key + '-trigger');
+  if (n === 0) {
+    txt.textContent = s.allTxt; badge.style.display = 'none'; trigger.classList.remove('has-sel');
+  } else if (n === 1) {
+    const v = s.label([...s.sel][0]);
+    txt.textContent = v.length > 14 ? v.slice(0, 13) + '…' : v;
+    badge.style.display = 'none'; trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} ${s.plural}`; badge.textContent = n;
+    badge.style.display = 'inline-flex'; trigger.classList.add('has-sel');
+  }
+}
+function closeAllMs(except) {
+  Object.keys(MS).forEach(k => {
+    if (k === except) return;
+    document.getElementById(k + '-dropdown').classList.remove('open');
+    document.getElementById(k + '-trigger').classList.remove('open');
+  });
+}
+function toggleMs(key, e) {
+  e.stopPropagation();
+  closeAllMs(key);
+  document.getElementById('canal-dropdown').classList.remove('open');
+  document.getElementById('canal-trigger').classList.remove('open');
+  const isOpen = document.getElementById(key + '-dropdown').classList.toggle('open');
+  document.getElementById(key + '-trigger').classList.toggle('open', isOpen);
+}
+document.addEventListener('click', e => {
+  const w = e.target.closest('.ms-wrap');
+  closeAllMs(w ? w.id.replace('-wrap', '') : undefined);
+});
 
 /* ═══════════════════════════════════════════════════════
    RENDER — Faturamento Diário por Loja
 ═══════════════════════════════════════════════════════ */
 function renderGradeDiaria() {
   const anoSel = $('f-ano-grade').value;
-  const mesSel = $('f-mes-grade').value;
-
+  const f = getF();
+  // Ano, Mês, Loja e Canal — mesmas regras da Análise Comercial.
   const baseData = rawData.filter(r => {
     if(!r.data || isNaN(r.data)) return false;
     if(anoSel && r.ano !== anoSel) return false;
-    if(mesSel && String(parseInt(r.mes,10)) !== mesSel) return false;
+    if(f.mes.size && !f.mes.has(mesKey(r))) return false;
+    if(f.loja.size && !f.loja.has(r.loja)) return false;
+    if(!passaCanal(r, f.canais)) return false;
     return true;
   });
+  // Colunas: só as lojas selecionadas (todas, se nenhuma marcada).
+  const lojasGrade = f.loja.size
+    ? GRADE_LOJAS.filter(l => [...f.loja].some(x => normLojaKey(x) === normLojaKey(l)))
+    : GRADE_LOJAS;
 
   if(!baseData.length) {
     $('cth-diaria').innerHTML = '';
@@ -1402,7 +1528,7 @@ function renderGradeDiaria() {
   // por canal de venda, por exemplo).
   const porDia = new Map(); // ts -> { data:Date, lojas: {label: total} }
   baseData.forEach(r => {
-    const label = GRADE_LOJAS.find(l => normLojaKey(l) === normLojaKey(r.loja));
+    const label = lojasGrade.find(l => normLojaKey(l) === normLojaKey(r.loja));
     if(!label) return; // loja fora das 6 esperadas — ignora na grade
     const ts = new Date(r.data.getFullYear(), r.data.getMonth(), r.data.getDate()).getTime();
     if(!porDia.has(ts)) porDia.set(ts, { data: r.data, lojas: {} });
@@ -1421,12 +1547,12 @@ function renderGradeDiaria() {
   // Cabeçalho
   let h = `<tr>
     <th class="th-col left" style="min-width:110px">Data</th>`;
-  GRADE_LOJAS.forEach(l => { h += `<th class="th-col" style="text-align:center">${l}</th>`; });
+  lojasGrade.forEach(l => { h += `<th class="th-col" style="text-align:center">${l}</th>`; });
   h += `<th class="th-col tot-col" style="text-align:center;border-left:2px solid var(--border-2)">Total</th></tr>`;
   $('cth-diaria').innerHTML = h;
 
   // Corpo + totais por loja
-  const totaisLoja = {}; GRADE_LOJAS.forEach(l => totaisLoja[l] = 0);
+  const totaisLoja = {}; lojasGrade.forEach(l => totaisLoja[l] = 0);
   let totalGeral = 0;
   const diaSemanaCurto = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 
@@ -1436,7 +1562,7 @@ function renderGradeDiaria() {
     const diaSem  = diaSemanaCurto[d.data.getDay()];
     let totalDia = 0;
     body += `<tr><td class="td-metric">${dataFmt} <span style="color:var(--ink-4);font-weight:500">(${diaSem})</span></td>`;
-    GRADE_LOJAS.forEach(l => {
+    lojasGrade.forEach(l => {
       const v = d.lojas[l] || 0;
       totaisLoja[l] += v;
       totalDia += v;
@@ -1448,7 +1574,7 @@ function renderGradeDiaria() {
 
   body += `<tr class="total-row">
     <td class="td-metric" style="font-weight:800">Total</td>`;
-  GRADE_LOJAS.forEach(l => {
+  lojasGrade.forEach(l => {
     body += `<td style="text-align:center;font-weight:800">${fNum(totaisLoja[l])}</td>`;
   });
   body += `<td class="tot-col" style="text-align:center;font-weight:800;border-left:2px solid var(--border-2)">${fNum(totalGeral)}</td></tr>`;
@@ -1461,7 +1587,10 @@ function renderGradeDiaria() {
 ═══════════════════════════════════════════════════════ */
 function renderSemanal2() {
   const f = getF();
-  const baseDataS = rawData.filter(r=>(!f.loja||r.loja===f.loja) && (f.canais.size===0||f.canais.has(r.canal)));
+  const baseDataS = rawData.filter(r =>
+    (!f.loja.size || f.loja.has(r.loja)) &&
+    (!f.mes.size  || f.mes.has(mesKey(r))) &&
+    passaCanal(r, f.canais));
   const anos = [...new Set(baseDataS.map(r=>r.ano))].filter(Boolean).sort();
 
   if(!anos.length) {
@@ -1740,8 +1869,7 @@ window.addEventListener('storage', (e) => {
   }
 });
 
-['f-loja'].forEach(id => $(id).addEventListener('change', renderSemanal2));
-['f-ano-grade','f-mes-grade'].forEach(id => $(id).addEventListener('change', renderGradeDiaria));
+['f-ano-grade'].forEach(id => $(id).addEventListener('change', renderGradeDiaria));
 
 /* ═══════════════════════════════════════════════════════
    SIDEBAR (recolher/expandir, submenus)

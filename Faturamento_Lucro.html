@@ -496,11 +496,41 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Mês</span>
-      <select class="ig-fselect" id="f-mes"><option value="">Todos</option></select>
+      <div class="canal-wrap ms-wrap" id="mes-wrap">
+        <div class="canal-trigger" id="mes-trigger" onclick="toggleMs('mes',event)">
+          <span id="mes-trigger-txt">Todos</span>
+          <span class="canal-badge" id="mes-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="mes-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Meses</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllMs('mes')">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllMs('mes')">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="mes-dd-list"></div>
+        </div>
+      </div>
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Loja</span>
-      <select class="ig-fselect" id="f-loja"><option value="">Todas</option></select>
+      <div class="canal-wrap ms-wrap" id="loja-wrap">
+        <div class="canal-trigger" id="loja-trigger" onclick="toggleMs('loja',event)">
+          <span id="loja-trigger-txt">Todas</span>
+          <span class="canal-badge" id="loja-badge" style="display:none"></span>
+        </div>
+        <div class="canal-dropdown" id="loja-dropdown">
+          <div class="canal-dd-head">
+            <span class="canal-dd-title">Lojas</span>
+            <div class="canal-dd-actions">
+              <button class="canal-dd-btn" onclick="selectAllMs('loja')">Todos</button>
+              <button class="canal-dd-btn" onclick="clearAllMs('loja')">Limpar</button>
+            </div>
+          </div>
+          <div class="canal-dd-list" id="loja-dd-list"></div>
+        </div>
+      </div>
     </div>
     <div class="ig-fgroup">
       <span class="ig-flabel">Canal</span>
@@ -1298,8 +1328,8 @@ function populateFilters() {
   const meses = [...new Set(rawFat.map(r=>r.mes))].filter(m=>m>0).sort((a,b)=>a-b);
   const canais = ZAPPAS_CANAIS_EXTRAS([...new Set(rawFat.map(r=>r.canal))].filter(Boolean).sort());
   fillSel('f-ano',  anos,  'Todos', v=>v);
-  fillSel('f-loja', lojas, 'Todas', v=>v==='BELVEDER'?'BELVEDERE':v);
-  fillSel('f-mes',  meses, 'Todos', m=>MESES_NOME[m]||m);
+  populateMs('loja', lojas);
+  populateMs('mes',  meses);
   _allCanais = canais;
   populateCanalDropdown(canais);
   const selAno = document.getElementById('f-ano');
@@ -1323,26 +1353,28 @@ function fillSel(id, vals, placeholder, labelFn) {
 function getFilters() {
   return {
     ano:    document.getElementById('f-ano').value,
-    loja:   document.getElementById('f-loja').value,
-    mes:    parseInt(document.getElementById('f-mes').value)||0,
+    loja:   MS.loja.sel,   // Set; vazio = todas
+    mes:    MS.mes.sel,    // Set (texto "1".."12"); vazio = todos
     canais: selectedCanais
   };
 }
-function filterData(rows) {
-  // Faturamento: filtra por ano/loja/mes/canal
+// Faturamento: mesma regra do applyF() da Análise Comercial — com filtro
+// de canal ativo, linha sem canal NÃO entra.
+function passaCanalFat(r, canais) { return canais.size === 0 || canais.has(r.canal); }
+// CMV/base de produtos: mesma regra do passaCanal() da Curva ABC — linha
+// sem canal sempre entra (assim o CMV bate com o custo da Curva ABC).
+function passaCanalProd(r, canais) { return canais.size === 0 || !r.canal || canais.has(r.canal); }
+function _filtrar(rows, passaCanal) {
   const f = getFilters();
   return rows.filter(r =>
     (!f.ano  || r.ano  === f.ano)  &&
-    (!f.loja || r.loja === f.loja) &&
-    (!f.mes  || r.mes  === f.mes)  &&
-    (f.canais.size === 0 || !r.canal || f.canais.has(r.canal))
+    (!f.loja.size || f.loja.has(r.loja)) &&
+    (!f.mes.size  || f.mes.has(String(r.mes))) &&
+    passaCanal(r, f.canais)
   );
 }
-function filterDataCmv(rows) {
-  // CMV do produto: mesmos filtros do faturamento, inclusive canal
-  // (o custo é do item vendido naquele canal — igual à Curva ABC).
-  return filterData(rows);
-}
+function filterData(rows)    { return _filtrar(rows, passaCanalFat); }
+function filterDataCmv(rows) { return _filtrar(rows, passaCanalProd); }
 function applyFilters() { renderDashboard(); }
 
 // Canais pré-selecionados ao iniciar (comparação sem diferença de maiúsculas)
@@ -1441,6 +1473,7 @@ function updateCanalTrigger() {
 
 function toggleCanalDropdown(e) {
   e.stopPropagation();
+  if (typeof closeAllMs === 'function') closeAllMs();
   const dd = document.getElementById('canal-dropdown');
   const tr = document.getElementById('canal-trigger');
   const open = dd.classList.toggle('open');
@@ -1454,6 +1487,87 @@ document.addEventListener('click', e => {
     if (dd) dd.classList.remove('open');
     if (tr) tr.classList.remove('open');
   }
+});
+
+
+/* ── Mês / Loja multi-select — mesmo padrão (e mesmo código) da Análise
+   Comercial. Set vazio = todos. Valores guardados como texto. ── */
+const MS = {
+  mes:  { sel: new Set(), all: [], allTxt: 'Todos', plural: 'meses', label: m => MESES_FULL[+m] || m },
+  loja: { sel: new Set(), all: [], allTxt: 'Todas', plural: 'lojas', label: v => v === 'BELVEDER' ? 'BELVEDERE' : v },
+};
+function populateMs(key, vals) {
+  const s = MS[key];
+  vals = vals.map(String);
+  s.all = vals;
+  [...s.sel].forEach(v => { if (!vals.includes(v)) s.sel.delete(v); });
+  if (s.sel.size === vals.length) s.sel.clear();
+  const list = document.getElementById(key + '-dd-list');
+  list.innerHTML = '';
+  vals.forEach(v => {
+    const isChecked = s.sel.size === 0 ? true : s.sel.has(v);
+    const lbl = s.label(v);
+    const item = document.createElement('label');
+    item.className = 'canal-item' + (isChecked && s.sel.size > 0 ? ' checked' : '');
+    item.innerHTML = `
+      <input type="checkbox" value="${v}" ${isChecked ? 'checked' : ''} onchange="onMsChange('${key}')">
+      <span class="canal-item-label" title="${lbl}">${lbl}</span>`;
+    list.appendChild(item);
+  });
+  updateMsTrigger(key);
+}
+function onMsChange(key) {
+  const s = MS[key];
+  const cbs = [...document.getElementById(key + '-dd-list').querySelectorAll('input[type=checkbox]')];
+  s.sel = new Set(cbs.filter(cb => cb.checked).map(cb => cb.value));
+  if (s.sel.size === s.all.length) s.sel.clear();
+  cbs.forEach(cb => cb.closest('.canal-item').classList.toggle('checked', cb.checked && s.sel.size > 0));
+  updateMsTrigger(key);
+  renderDashboard();
+}
+function setAllMs(key, checked) {
+  MS[key].sel.clear();
+  document.getElementById(key + '-dd-list').querySelectorAll('input[type=checkbox]').forEach(cb => {
+    cb.checked = checked;
+    cb.closest('.canal-item').classList.remove('checked');
+  });
+  updateMsTrigger(key);
+  renderDashboard();
+}
+function selectAllMs(key) { setAllMs(key, true); }
+function clearAllMs(key)  { setAllMs(key, false); }
+function updateMsTrigger(key) {
+  const s = MS[key], n = s.sel.size;
+  const badge = document.getElementById(key + '-badge'), txt = document.getElementById(key + '-trigger-txt'), trigger = document.getElementById(key + '-trigger');
+  if (n === 0) {
+    txt.textContent = s.allTxt; badge.style.display = 'none'; trigger.classList.remove('has-sel');
+  } else if (n === 1) {
+    const v = s.label([...s.sel][0]);
+    txt.textContent = v.length > 14 ? v.slice(0, 13) + '…' : v;
+    badge.style.display = 'none'; trigger.classList.add('has-sel');
+  } else {
+    txt.textContent = `${n} ${s.plural}`; badge.textContent = n;
+    badge.style.display = 'inline-flex'; trigger.classList.add('has-sel');
+  }
+}
+function closeAllMs(except) {
+  Object.keys(MS).forEach(k => {
+    if (k === except) return;
+    document.getElementById(k + '-dropdown').classList.remove('open');
+    document.getElementById(k + '-trigger').classList.remove('open');
+  });
+}
+function toggleMs(key, e) {
+  e.stopPropagation();
+  closeAllMs(key);
+  document.getElementById('canal-dropdown').classList.remove('open');
+  document.getElementById('canal-trigger').classList.remove('open');
+  const isOpen = document.getElementById(key + '-dropdown').classList.toggle('open');
+  document.getElementById(key + '-trigger').classList.toggle('open', isOpen);
+}
+document.addEventListener('click', e => {
+  const w = e.target.closest('.ms-wrap');
+  closeAllMs(w ? w.id.replace('-wrap', '') : undefined);
 });
 
 // ── HELPERS
@@ -1751,23 +1865,22 @@ function ahBadge(v) {
 
 function buildTableComparativo(anos, lojas) {
   const [anoA, anoB] = anos;
-  const lojaSel = document.getElementById('f-loja').value;
-  const mesSel  = parseInt(document.getElementById('f-mes').value)||0;
+  const lojaSel = MS.loja.sel, mesSel = MS.mes.sel;
 
   function filtrar(anoVal) {
     return rawFat.filter(r =>
       r.ano === anoVal &&
-      (!lojaSel || r.loja === lojaSel) &&
-      (!mesSel  || r.mes  === mesSel)  &&
-      (selectedCanais.size === 0 || !r.canal || selectedCanais.has(r.canal))
+      (!lojaSel.size || lojaSel.has(r.loja)) &&
+      (!mesSel.size  || mesSel.has(String(r.mes))) &&
+      passaCanalFat(r, selectedCanais)
     );
   }
   function filtrarCmv(anoVal) {
     return rawCmv.filter(r =>
       r.ano === anoVal &&
-      (!lojaSel || r.loja === lojaSel) &&
-      (!mesSel  || r.mes === mesSel) &&
-      (selectedCanais.size === 0 || !r.canal || selectedCanais.has(r.canal))
+      (!lojaSel.size || lojaSel.has(r.loja)) &&
+      (!mesSel.size  || mesSel.has(String(r.mes))) &&
+      passaCanalProd(r, selectedCanais)
     );
   }
 
@@ -1897,7 +2010,7 @@ function buildTableComparativo(anos, lojas) {
    grupos excluídos na Curva ABC, descontos no cupom etc. */
 function buildConciliacao() {
   if (!rawProdTot.length) return null;
-  const fatF = filterData(rawFat), proF = filterData(rawProdTot);
+  const fatF = filterData(rawFat), proF = filterDataCmv(rawProdTot);
   const lojas = [...new Set([...fatF.map(r=>r.loja), ...proF.map(r=>r.loja)])].filter(Boolean).sort();
   const lbl = l => l==='BELVEDER' ? 'BELVEDERE' : l;
   let tF = 0, tP = 0;
@@ -2052,7 +2165,7 @@ function collapseSidebar(){
 })();
 
 // ── Filter event listeners ──
-['f-ano','f-loja','f-mes'].forEach(id => {
+['f-ano'].forEach(id => {
   const el = document.getElementById(id);
   if (el) el.addEventListener('change', renderDashboard);
 });

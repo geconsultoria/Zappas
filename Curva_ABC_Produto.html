@@ -1691,7 +1691,9 @@ const ORDEM_LOJAS = ['anisio','bady','damha','belvede','muffato','havan'];
 function populateLojaDropdown(lojas){
   const pos = l => { const n = normTxt(lojaLabel(l)); const i = ORDEM_LOJAS.findIndex(k => n.startsWith(k)); return i === -1 ? 99 : i; };
   lojasDisponiveis = [...lojas].sort((a,b)=>(pos(a)-pos(b)) || String(a).localeCompare(String(b)));
-  selectedLojas = new Set([...selectedLojas].filter(l => lojasDisponiveis.includes(l)));
+  // NÃO descarta a seleção quando a loja ainda não está na lista: na
+  // atualização a base chega loja por loja, e a 1ª renderização parcial
+  // (só a 1ª loja) apagava a loja escolhida — a tela voltava para "todas".
   renderLojaList(); updateLojaTrigger();
 }
 function renderLojaList(){
@@ -1708,7 +1710,7 @@ function onLojaChange(cb){
 }
 function selectAllLojas(){ selectedLojas = new Set(lojasDisponiveis); renderLojaList(); updateLojaTrigger(); applyFilters(); }
 function clearAllLojas(){ selectedLojas.clear(); renderLojaList(); updateLojaTrigger(); applyFilters(); }
-function lojaFiltroAtivo(){ return selectedLojas.size > 0 && selectedLojas.size < lojasDisponiveis.length; }
+function lojaFiltroAtivo(){ return selectedLojas.size > 0 && lojasDisponiveis.some(l => !selectedLojas.has(l)); }
 function passaLoja(r){ return !lojaFiltroAtivo() || selectedLojas.has(r.loja); }
 function updateLojaTrigger(){
   const n = selectedLojas.size, badge = $('lj-badge'), txt = $('lj-trigger-txt'), trigger = $('lj-trigger');
@@ -1752,8 +1754,9 @@ function populateCanalDropdown(){
   const pos = k => { const i = ORDEM_CANAIS.indexOf(k); return i === -1 ? 99 : i; };
   canaisDisponiveis = [...m].map(([key,label])=>({key,label}))
     .sort((a,b)=>(pos(a.key)-pos(b.key)) || a.label.localeCompare(b.label,'pt-BR'));
-  const keys = canaisDisponiveis.map(c=>c.key);
-  selectedCanais = new Set([...selectedCanais].filter(k => keys.includes(k)));
+  // NÃO descarta canais selecionados que ainda não apareceram: na carga
+  // loja por loja, a 1ª loja (sem Delivery, p.ex.) zerava a seleção
+  // Loja + Delivery e a tela passava a somar TODOS os canais.
   renderCanalList();
   updateCanalTrigger();
 }
