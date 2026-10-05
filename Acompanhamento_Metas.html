@@ -1084,23 +1084,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
   </div>
 </div>
 
-<!-- ════ Escolha de modelo ao enviar a imagem ════ -->
-<div class="rd-modelpick-overlay" id="rdModelPickOverlay" onclick="if(event.target===this) rdModelPickCancel()">
-  <div class="rd-modelpick-box">
-    <div class="rd-modelpick-title">Qual modelo enviar?</div>
-    <div class="rd-modelpick-sub">Escolha o layout do card pra essa imagem</div>
-    <button class="rd-modelpick-btn" onclick="rdModelPickChoose('v1')">
-      <div class="t">Modelo 1</div>
-      <div class="d">Meta Diária e Realizado lado a lado</div>
-    </button>
-    <button class="rd-modelpick-btn" onclick="rdModelPickChoose('v2')">
-      <div class="t">Modelo 2</div>
-      <div class="d">Realizado embaixo da Meta Diária</div>
-    </button>
-    <button class="rd-modelpick-cancel" onclick="rdModelPickCancel()">Cancelar</button>
-  </div>
-</div>
-
 <!-- ════ Cadastro de contatos de WhatsApp por loja ════ -->
 <div class="rd-ct-overlay" id="rdCtOverlay" onclick="if(event.target===this) fecharContatosWhats()">
   <div class="rd-ct-box">
@@ -1110,8 +1093,8 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     <div id="rdCtLista"></div>
     <div class="rd-ct-opt" id="rdCtOpcaoApp">
       <span style="font-weight:700">No computador, abrir em:</span>
-      <label><input type="radio" name="rdCtApp" value="app"> WhatsApp Desktop (aplicativo)</label>
       <label><input type="radio" name="rdCtApp" value="web"> WhatsApp Web (navegador)</label>
+      <label><input type="radio" name="rdCtApp" value="app"> WhatsApp Desktop (aplicativo instalado)</label>
     </div>
     <div class="rd-ct-actions">
       <span class="rd-ct-status" id="rdCtStatus"></span>
@@ -1129,6 +1112,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     <div class="rd-send-num" id="rdSendNum"></div>
     <img id="rdSendPreview" alt="Prévia da imagem">
     <button class="rd-btn-pri" id="rdSendBtn" onclick="rdEnvioDiretoConfirmar()">📤 Abrir conversa e enviar</button>
+    <a id="rdSendLink" class="rd-btn-sec" target="rd_whatsapp_web" rel="noopener" style="display:none;margin-top:8px;text-decoration:none" onclick="setTimeout(fecharEnvioDireto, 8000)">💬 Abrir a conversa</a>
     <div class="rd-send-hint" id="rdSendHint">A imagem é copiada e a conversa abre no WhatsApp. Lá, é só colar (<b>Ctrl+V</b>) e apertar <b>Enter</b>.</div>
     <div class="rd-send-links">
       <button onclick="rdEnvioDiretoOutro()">Enviar para outro contato</button>
@@ -1278,7 +1262,7 @@ const METAS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzmpNN6di
 // Contatos de WhatsApp por loja (Resumo Diário). Cole aqui a URL /exec do
 // Apps Script "Contatos_WhatsApp.gs" para os números valerem em qualquer
 // computador. Enquanto ficar vazio, os contatos são salvos só neste navegador.
-const CONTATOS_APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyMjH4OeBiWB_NbBe6OVotNDfsNvClVCPq8YlUYdStC537-kusVIhFNX0_1WZc3UGKU3g/exec";
+const CONTATOS_APPS_SCRIPT_URL = "";
 /* ════════════════════════════════════════════════════ */
 
 const MESES = ["Janeiro","Fevereiro","Março","Abril","Maio","Junho","Julho","Agosto","Setembro","Outubro","Novembro","Dezembro"];
@@ -3074,20 +3058,6 @@ async function copiarResumoDiarioTexto(btnEl) {
 // nativo de compartilhamento (o WhatsApp aparece como opção, já com a
 // imagem anexada). No computador, o WhatsApp Web não aceita imagem
 // pré-anexada por link — então baixa o PNG e orienta a anexar na mão.
-let _rdModelPickResolve = null;
-function abrirEscolhaModeloEnvio() {
-  document.getElementById('rdModelPickOverlay').classList.add('show');
-  return new Promise(resolve => { _rdModelPickResolve = resolve; });
-}
-function rdModelPickChoose(modelo) {
-  document.getElementById('rdModelPickOverlay').classList.remove('show');
-  if (_rdModelPickResolve) { _rdModelPickResolve(modelo); _rdModelPickResolve = null; }
-}
-function rdModelPickCancel() {
-  document.getElementById('rdModelPickOverlay').classList.remove('show');
-  if (_rdModelPickResolve) { _rdModelPickResolve(null); _rdModelPickResolve = null; }
-}
-
 /* ═══════════ CONTATOS DE WHATSAPP POR LOJA ═══════════
    Cada loja (e o envio "Todas as lojas") pode ter um número cadastrado.
    Fonte: planilha via Apps Script (CONTATOS_APPS_SCRIPT_URL), com cópia
@@ -3095,7 +3065,7 @@ function rdModelPickCancel() {
    o que estiver salvo neste navegador. */
 const RD_CHAVE_TODAS = '__TODAS__';
 const RD_CONTATOS_LS = 'rd_whatsapp_contatos';
-const RD_APP_LS = 'rd_whatsapp_abrir_em';
+const RD_APP_LS = 'rd_whatsapp_abrir_em_v2'; // v2: padrão passou a ser WhatsApp Web
 let rdContatos = {};
 try { rdContatos = JSON.parse(localStorage.getItem(RD_CONTATOS_LS) || '{}') || {}; } catch(e) { rdContatos = {}; }
 
@@ -3118,7 +3088,7 @@ function rdGetContato(chave) {
   return c && rdNumeroValido(c.numero) ? c : null;
 }
 function rdAbrirEm() {
-  try { return localStorage.getItem(RD_APP_LS) || 'app'; } catch(e) { return 'app'; }
+  try { return localStorage.getItem(RD_APP_LS) || 'web'; } catch(e) { return 'web'; }
 }
 function rdGuardarLocal() {
   try { localStorage.setItem(RD_CONTATOS_LS, JSON.stringify(rdContatos)); } catch(e) {}
@@ -3241,6 +3211,7 @@ function rdAbrirEnvioDireto(info) {
   document.getElementById('rdSendPreview').src = rdEnvioAtual.previewUrl;
   const btn = document.getElementById('rdSendBtn');
   btn.disabled = false; btn.textContent = '📤 Abrir conversa e enviar';
+  document.getElementById('rdSendLink').style.display = 'none';
   document.getElementById('rdSendHint').innerHTML = 'A imagem é copiada e a conversa abre no WhatsApp. Lá, é só colar (<b>Ctrl+V</b>) e apertar <b>Enter</b>.';
   document.getElementById('rdSendOverlay').classList.add('show');
 }
@@ -3271,18 +3242,37 @@ async function rdEnvioDiretoConfirmar() {
   if (!copiou) rdBaixarArquivo(blob, nomeArquivo);
 
   const n = contato.numero;
-  if (rdAbrirEm() === 'web') {
-    window.open('https://web.whatsapp.com/send?phone=' + n, 'whatsapp_web');
-  } else {
+  const urlWeb = 'https://web.whatsapp.com/send?phone=' + n;
+  const link = document.getElementById('rdSendLink');
+  link.href = urlWeb;
+  let abriu = true;
+  if (rdAbrirEm() === 'app') {
     window.location.href = 'whatsapp://send?phone=' + n;
+  } else {
+    // Nome fixo de aba: do 2º envio em diante reaproveita a MESMA aba do
+    // WhatsApp Web (só troca a conversa), em vez de abrir uma aba nova.
+    const w = window.open(urlWeb, 'rd_whatsapp_web');
+    abriu = !!w;
+    if (w) { try { w.focus(); } catch(e) {} }
   }
+  // Link de reserva sempre visível: se o navegador bloqueou a aba nova
+  // ou o aplicativo não abriu, um clique aqui abre a conversa no Web.
+  link.style.display = 'block';
 
   const btn = document.getElementById('rdSendBtn');
-  btn.textContent = copiou ? '✅ Imagem copiada — cole na conversa' : '✅ Imagem baixada';
-  document.getElementById('rdSendHint').innerHTML = copiou
-    ? 'Na conversa que abriu, aperte <b>Ctrl+V</b> e depois <b>Enter</b>. Se o WhatsApp não abriu, troque para "WhatsApp Web" em 👤 Contatos.'
-    : 'Este navegador não deixou copiar a imagem, então ela foi baixada (<b>' + rdEsc(nomeArquivo) + '</b>). Na conversa que abriu, clique no clipe 📎 e anexe o arquivo.';
-  setTimeout(() => { if (document.getElementById('rdSendOverlay').classList.contains('show')) fecharEnvioDireto(); }, 6000);
+  btn.textContent = copiou ? '✅ Imagem copiada' : '✅ Imagem baixada';
+  const passoAbrir = abriu
+    ? (rdAbrirEm() === 'app'
+        ? 'Se o aplicativo não abriu na conversa, clique em <b>💬 Abrir a conversa</b> (abre no WhatsApp Web).'
+        : 'Se o WhatsApp Web pedir, clique em <b>"Usar aqui"</b>.')
+    : '⚠️ O navegador bloqueou a abertura automática — clique em <b>💬 Abrir a conversa</b>.';
+  document.getElementById('rdSendHint').innerHTML = (copiou
+    ? 'Na conversa, aperte <b>Ctrl+V</b> e depois <b>Enter</b>. '
+    : 'O navegador não deixou copiar, então a imagem foi baixada (<b>' + rdEsc(nomeArquivo) + '</b>) — anexe pelo clipe 📎. ')
+    + passoAbrir;
+  if (abriu && rdAbrirEm() !== 'app') {
+    setTimeout(() => { if (document.getElementById('rdSendOverlay').classList.contains('show')) fecharEnvioDireto(); }, 8000);
+  }
 }
 async function rdEnvioDiretoOutro() {
   if (!rdEnvioAtual) return;
@@ -3307,8 +3297,9 @@ async function enviarResumoDiarioImagem(btnEl) {
   // A visualização na tela sempre usa o Modelo 1 — a escolha de qual
   // modelo mandar fica só pra hora de gerar a imagem, sem mudar o que
   // está sendo exibido no card ao vivo.
-  const modeloEscolhido = await abrirEscolhaModeloEnvio();
-  if (!modeloEscolhido) return; // cancelado
+  // Tela "Qual modelo enviar?" removida: a imagem sai sempre no Modelo 2
+  // (Realizado embaixo da Meta Diária).
+  const modeloEscolhido = 'v2';
 
   let lojas;
   if (rdModo === 'uma') {
