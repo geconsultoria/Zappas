@@ -2561,46 +2561,103 @@ function parseVendas(text, lojaFallback){
    loja/mês. Mesma fonte/colunas do Curva_ABC_Produto.html; aqui só
    precisamos do custo total, não do detalhe por produto.
 ══════════════════════════════════════════════════════════════ */
+// CMV (Produto) — MESMAS regras da Curva_ABC_Produto.html (e do
+// Faturamento x Lucro), para o custo bater nas três telas:
+//   • custo = custofinal × qtd; mês/ano pela coluna "data";
+//   • linha com qtd e total zerados é ignorada;
+//   • venda zero (total = 0) não entra no custo;
+//   • grupos "Despesa com Alimentação" e "Transferências Internas" saem,
+//     inclusive pelo nome mais recente do código do grupo (unificação);
+//   • canal com as regras VS/Fábrica (Central/Reembolso/descartada), e o
+//     filtro de Canal do topo passa a valer também para o CMV.
+const ABC_GRUPOS_EXCLUIDOS = ['despesa com alimentacao', 'transferencias internas'];
+function abcNorm(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').trim(); }
+function abcNum(v){
+  if(v===null||v===undefined) return 0;
+  let s = String(v).trim(); if(!s) return 0;
+  s = s.replace(/[^\d,.\-]/g,'');
+  if(/^-?\d{1,3}(\.\d{3})+(,\d+)?$/.test(s)) s = s.replace(/\./g,'').replace(',', '.');
+  else if(/^-?\d+,\d+$/.test(s)) s = s.replace(',', '.');
+  const x = parseFloat(s); return isNaN(x) ? 0 : x;
+}
+function abcCol(headers, ...names){
+  const n = h => String(h||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]/g,'');
+  const w = names.map(n); return headers.findIndex(h => w.includes(n(h)));
+}
+// Devolve linhas "cruas" (uma por item vendido, só os campos necessários),
+// marcadas com _raw — a soma é feita em consolidarCustoABC().
 function parseCurvaABC(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   const rows = [];
   if(!lines.length) return rows;
-
-  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iData  = findCol(rawHeaders,'data');
-  const iAno   = findCol(rawHeaders,'ano');
-  const iMes   = findCol(rawHeaders,'mes');
-  const iCusto = findCol(rawHeaders,'custofinal','custo','custounitario');
-  const iQtd   = findCol(rawHeaders,'qtd','quantidade');
-  const iLoja  = findCol(rawHeaders,'loja');
-  if(iCusto<0 || iQtd<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
+  const headers = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iData = abcCol(headers,'data');
+  const iNome = abcCol(headers,'nome','produto','nomeproduto');
+  const iGrupo = abcCol(headers,'grupo','codgrupo');
+  const iNomeGrp = abcCol(headers,'nomegrupo','grupodescricao','descricaogrupo');
+  const iCusto = abcCol(headers,'custofinal','custo','custounitario');
+  const iQtd = abcCol(headers,'qtd','quantidade');
+  const iTotal = abcCol(headers,'total','valortotal','valor');
+  const iLoja = abcCol(headers,'loja');
+  const exata = (...ns) => { for(const n of ns){ const i=headers.findIndex(h=>abcNorm(h)===n); if(i!==-1) return i; } return -1; };
+  let iCanal = exata('canais','canal','canais_semana');
+  if(iCanal<0) iCanal = headers.findIndex(h => abcNorm(h).includes('canal'));
+  let iVs = exata('vs'); if(iVs<0) iVs = headers.findIndex(h => /^vs\b|^vs_/.test(abcNorm(h)));
+  let iFab = exata('fabrica'); if(iFab<0) iFab = headers.findIndex(h => abcNorm(h).includes('fabrica'));
+  if(iNome<0 || iQtd<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
-    const line = lines[i].trim();
-    if(!line) continue;
-    const cells = splitLine(line,sep);
-    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
-
-    let ano = iAno>=0 ? parseInt(g(iAno),10) : null;
-    let mes = iMes>=0 ? (/^\d{1,2}$/.test(g(iMes)) ? parseInt(g(iMes),10) : parseMesAbr(g(iMes))) : null;
-    if((!ano || !mes) && iData>=0){
-      const dt = parseDataBRSimples(g(iData));
-      if(dt){ if(!ano) ano=dt.ano; if(!mes) mes=dt.mes; }
-    }
-    if(!ano || !mes) continue;
-
-    const qtd = parseNum(g(iQtd));
-    const custoUnit = parseNum(g(iCusto));
-    const valor = custoUnit * qtd;
-    if(!valor) continue;
-
+    const line = lines[i].trim(); if(!line) continue;
+    const c = splitLine(line,sep);
+    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
+    const qtd = abcNum(g(iQtd)), total = abcNum(g(iTotal));
+    if(!qtd && !total) continue;
+    if(Math.abs(total) < 0.005) continue;               // venda zero não entra no custo
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
-
-    rows.push({ mes, ano, loja, valor });
+    const nomegrupo = (iNomeGrp>=0 ? g(iNomeGrp) : '') || 'SEM GRUPO';
+    if(ABC_GRUPOS_EXCLUIDOS.includes(abcNorm(nomegrupo))) continue;
+    let canal = '';
+    if(iCanal>=0){
+      const t = g(iCanal);
+      if(abcNorm(t)==='distribuicao'){
+        const vs = RE_TRUE.test(g(iVs)), fab = RE_TRUE.test(g(iFab));
+        if(vs && fab) continue;                         // descartada (igual Curva ABC)
+      }
+      canal = t ? (classificarCanal(t, RE_TRUE.test(g(iVs)), RE_TRUE.test(g(iFab))) || normKey(t)) : '';
+    }
+    const m = g(iData).match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    if(!m) continue;
+    const dia = +m[1], mes = +m[2], ano = +m[3];
+    if(mes<1||mes>12||dia<1||dia>31) continue;
+    const valor = (iCusto>=0 ? abcNum(g(iCusto)) : 0) * (qtd||0);
+    rows.push({ _raw:1, ano, mes, ts: new Date(ano, mes-1, dia).getTime(), loja, canal,
+      cod: String(iGrupo>=0 ? g(iGrupo) : '').trim().replace(/\.0+$/,'').replace(/^0+(?=\d)/,''),
+      nomegrupo, valor });
   }
   return rows;
+}
+// Unificação do nome do grupo (igual unificarNomesGrupo da Curva ABC, sobre
+// todas as lojas juntas) + soma por ano×mês×loja×canal. Linhas que já vêm
+// somadas (cache de loja que falhou) passam direto.
+function consolidarCustoABC(rows){
+  const cruas = rows.filter(r => r && r._raw), prontas = rows.filter(r => r && !r._raw);
+  const ultimo = new Map();
+  cruas.forEach(r => {
+    if(!r.cod || !r.nomegrupo || r.nomegrupo==='SEM GRUPO') return;
+    const a = ultimo.get(r.cod);
+    if(!a || r.ts >= a.ts) ultimo.set(r.cod, { ts: r.ts, nome: r.nomegrupo });
+  });
+  const acc = {};
+  cruas.forEach(r => {
+    const u = ultimo.get(r.cod);
+    if(ABC_GRUPOS_EXCLUIDOS.includes(abcNorm(u ? u.nome : r.nomegrupo))) return;
+    const k = r.ano+'|'+r.mes+'|'+r.loja+'|'+r.canal;
+    const o = acc[k] || (acc[k] = { ano: r.ano, mes: r.mes, loja: r.loja, canal: r.canal, valor: 0 });
+    o.valor += r.valor;
+  });
+  return Object.values(acc).concat(prontas);
 }
 
 // ══════════════════════════════════════════════════════════════
@@ -2613,47 +2670,77 @@ function parseCurvaABC(text, lojaFallback){
 // aparecer com "total" ligeiramente diferente (preço promocional,
 // desconto etc.), então "total" é a fonte de verdade.
 // ══════════════════════════════════════════════════════════════
+// Diagnóstico do CMV (Compras) por loja — mostrado no subtítulo do DFC
+// quando nenhuma compra é lida (ex.: planilha sem as colunas esperadas,
+// mês em formato diferente), pra saber exatamente o motivo.
+let comprasDiag = {};
 function parseCompras(text, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
   const rows = [];
-  if(!lines.length) return rows;
+  const diag = comprasDiag[lojaFallback] = { linhas: 0, lidas: 0, motivo: '', colunas: '' };
+  if(!lines.length || !lines[0].trim()){ diag.motivo = 'arquivo vazio'; return rows; }
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iAno   = findCol(rawHeaders,'ano');
-  const iMes   = findCol(rawHeaders,'mes');
-  const iTotal = findCol(rawHeaders,'total');
-  const iNome  = findCol(rawHeaders,'nome','produto','descricao');
-  const iLoja  = findCol(rawHeaders,'loja');
-  if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
+  diag.colunas = rawHeaders.join(', ');
+  const exata = (...ns) => { for(const n of ns){ const i = rawHeaders.findIndex(h => normHeader(h) === normHeader(n)); if(i !== -1) return i; } return -1; };
+  const iAno   = exata('ano','exercicio');
+  const iMes   = exata('mes','mês','competencia','mes_ano','mesano');
+  const iData  = exata('data','dtentrada','dt_entrada','data_entrada','emissao','dtemissao','data_emissao');
+  let   iTotal = exata('total','valor_total','valortotal','vlr_total','vltotal','valor');
+  const iCusto = exata('custofinal','custo');
+  const iQtd   = exata('quant','qtd','quantidade');
+  const iNome  = exata('nome','produto','descricao');
+  const iLoja  = exata('loja');
+  if(iTotal<0 && !(iCusto>=0 && iQtd>=0)){ diag.motivo = 'sem coluna "total"'; return rows; }
+  if(iMes<0 && iData<0){ diag.motivo = 'sem coluna "mes" ou "data"'; return rows; }
 
   // OBS: o arquivo de Compras tem várias linhas com todas as colunas
   // idênticas (mesmo produto/mês/quantidade/total/"ent" repetidos). A
-  // princípio isso parecia duplicata de exportação, mas a soma de
-  // referência da planilha do usuário bate exatamente com a soma bruta
-  // do CSV (linhas repetidas incluídas) — ou seja, são compras válidas
-  // mesmo, não duplicata. Por isso NÃO filtra/deduplica aqui: soma tudo,
-  // igual à planilha de referência.
+  // soma de referência da planilha do usuário bate exatamente com a soma
+  // bruta do CSV (linhas repetidas incluídas) — são compras válidas, não
+  // duplicata. Por isso NÃO deduplica: soma tudo.
+  const limpaNum = v => String(v||'').trim().replace(/\.0+$/,''); // "9.0" → "9"
+  let semData = 0, semValor = 0;
   for(let i=1;i<lines.length;i++){
     const line = lines[i].trim();
     if(!line) continue;
+    diag.linhas++;
     const cells = splitLine(line,sep);
     const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
-    const ano = parseInt(g(iAno),10);
-    const mesRaw = g(iMes);
-    const mes = /^\d{1,2}$/.test(mesRaw) ? parseInt(mesRaw,10) : parseMesAbr(mesRaw);
-    if(!ano || !mes) continue;
+    // Mês/ano aceitam vários formatos: 9, 09, 9.0, "Set", "Setembro",
+    // "09/2026", "2026-09", "Set/2026"… e, se não houver, a coluna de data.
+    let mes = iMes>=0 ? parseMes(limpaNum(g(iMes))) : null;
+    let ano = iAno>=0 ? parseAno(limpaNum(g(iAno))) : null;
+    if(!ano && iMes>=0) ano = parseAno(g(iMes));
+    if((!ano || !mes) && iData>=0){
+      const dt = parseDataBRSimples(g(iData));
+      if(dt){ if(!ano) ano = dt.ano; if(!mes) mes = dt.mes; }
+    }
+    if(!ano || !mes){ semData++; continue; }
 
-    const valor = parseNum(g(iTotal));
-    if(!valor) continue;
+    const valor = iTotal>=0 ? parseNum(g(iTotal)) : parseNum(g(iCusto)) * parseNum(g(iQtd));
+    if(!valor){ semValor++; continue; }
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     if(!loja) continue;
 
     rows.push({ mes, ano, loja, valor, titulo: iNome>=0 ? g(iNome) : '' });
   }
+  diag.lidas = rows.length;
+  if(!rows.length){
+    diag.motivo = !diag.linhas ? 'planilha sem linhas'
+      : semData ? `mês/ano não reconhecido (ex.: "${iMes>=0 ? g0(lines,sep,iMes) : g0(lines,sep,iData)}")`
+      : semValor ? 'coluna "total" zerada ou em formato não reconhecido'
+      : 'sem compras';
+  }
   return rows;
+}
+// 1º valor (linha 2) de uma coluna — só pra exemplificar no diagnóstico.
+function g0(lines, sep, idx){
+  for(let i=1;i<lines.length;i++){ if(lines[i].trim()) return (splitLine(lines[i].trim(),sep)[idx]||'').replace(/^"|"$/g,'').trim(); }
+  return '';
 }
 
 // Parser simples de data dd/mm/aaaa (ou aaaa-mm-dd) — usado só pelo Curva
@@ -2719,7 +2806,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v5';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v6';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -2901,6 +2988,7 @@ async function carregarTudo(){
   //    o DFC continua funcionando normalmente com o CMV (Compra) de sempre).
   // ══════════════════════════════════════════════════════
   cmvFalhas = new Set();
+  comprasDiag = {};
   cmvProgresso = { CurvaABC: 0, Compras: 0 };
   let rowsCusto = [];
   const rowsCustoAnterior = custoProdutoRaw || [];
@@ -2929,13 +3017,13 @@ async function carregarTudo(){
         porLoja[k] = await carregaLoja(k);
         // Preenchimento progressivo: lojas que já chegaram + dado anterior das que faltam
         const prontas = new Set(porLoja.map((v,j)=>v?nomeLojaCorreto(CURVAABC_STORE_KEYS[j]):null).filter(Boolean));
-        custoProdutoRaw = porLoja.filter(Boolean).flat()
-          .concat(rowsCustoAnterior.filter(r => !prontas.has(nomeLojaCorreto(r.loja))));
+        custoProdutoRaw = consolidarCustoABC(porLoja.filter(Boolean).flat()
+          .concat(rowsCustoAnterior.filter(r => !prontas.has(nomeLojaCorreto(r.loja)))));
         cmvProgresso['CurvaABC'] = porLoja.filter(Boolean).length;
         if(typeof atualizarCmvParcial === 'function') atualizarCmvParcial();
       }));
     }
-    custoProdutoRaw = porLoja.flat();
+    custoProdutoRaw = consolidarCustoABC(porLoja.flat());
   })();
 
   // ══════════════════════════════════════════════════════
@@ -3389,6 +3477,14 @@ let cmvFalhas = new Set();
 function avisoCmv(){
   if(cmvCarregando) return ' · Carregando CMV (' + Math.min(cmvProgresso.CurvaABC, CURVAABC_URLS.length) + '/' + CURVAABC_URLS.length + ' lojas)…';
   if(cmvFalhas.size) return ' · CMV não atualizou: ' + [...cmvFalhas].join(', ');
+  if(dreView!=='gerencial' && !(comprasRaw||[]).length){
+    const d = Object.entries(comprasDiag).filter(([,v])=>v.motivo);
+    if(d.length){
+      const m = d[0][1];
+      return ' · CMV (Compras) sem dados — ' + m.motivo + (m.colunas ? ' · colunas recebidas: ' + m.colunas : '');
+    }
+    return ' · CMV (Compras) sem dados — o arquivo de Compras não respondeu';
+  }
   return '';
 }
 
@@ -3438,6 +3534,9 @@ function applyFilters(){
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(!passaLoja(r.loja)) return false;
+    // Canal: mesma regra da Receita (e da Curva ABC) — antes o CMV
+    // ignorava o canal e somava o custo de TODOS os canais.
+    if(r.canal && canaisSelecionados.length && !canaisSelecionados.includes(r.canal)) return false;
     return true;
   });
   filteredImpostosGer=impostosGerRaw.filter(r=>{
