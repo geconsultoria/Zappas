@@ -1553,11 +1553,8 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
-    <button class="btn-refresh" id="btnExport" onclick="exportarPlanilha()" title="Baixar o que está na tela (com os filtros atuais) em Excel">
-      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M10 3v10"/><path d="M6 9l4 4 4-4"/><path d="M3 15v2h14v-2"/>
-      </svg>
-      Exportar Planilha
+    <button class="btn-refresh" id="btnExport" onclick="exportarRelatorio()" style="display:none" title="Gera um arquivo HTML somente leitura com os dados atuais">
+      Exportar relatório
     </button>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -5505,175 +5502,76 @@ function renderMetas() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   EXPORTAR PLANILHA (Excel)
-   Gera um .xlsx com o que está na tela, já com os filtros aplicados:
-   - DRE/DFC (aba aberta), com TODAS as linhas (grupos, subgrupos e
-     itens, mesmo recolhidos) e os valores como número
-   - Comparativo Mês vs. Mês Anterior
-   - Break-Even por Loja
-   - Lançamentos (despesas/recebimentos filtrados)
-   - Compras (base do CMC no DFC)
+   EXPORTAR RELATÓRIO (somente leitura, sem login/servidor)
+   Mesmo esquema da Análise Comercial: gera um único .html com os dados
+   atuais embutidos. Quem recebe só consegue ver e navegar (filtros,
+   abas DFC / DRE Gerencial / DRE x DFC, expandir linhas); não há botão
+   de atualizar, login, menu nem acesso ao Apps Script/Drive.
 ══════════════════════════════════════════════════════════════ */
-const XLSX_CDN = 'https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
-function carregarXLSX(){
-  if(window.XLSX) return Promise.resolve(window.XLSX);
-  return new Promise((ok, erro) => {
-    const s = document.createElement('script');
-    s.src = XLSX_CDN;
-    s.onload = () => ok(window.XLSX);
-    s.onerror = () => erro(new Error('não foi possível carregar a biblioteca de Excel'));
-    document.head.appendChild(s);
-  });
-}
-// "1.234,56" → 1234.56 · "(1.234,56)" / "-1.234,56" → negativo · "12,5%" → 0.125
-// "▼ 1.234,56" (variação do comparativo) → negativo · "—" → 0
-function valorCelulaExport(txt){
-  let s = String(txt||'').replace(/ /g,' ').trim();
-  if(!s) return '';
-  if(s === '—' || s === '-') return 0;
-  let neg = false;
-  if(s.startsWith('▼')){ neg = true; }
-  s = s.replace(/^[▲▼—]\s*/,'').replace(/^R\$\s*/,'');
-  if(/^\(.*\)$/.test(s)){ neg = !neg; s = s.slice(1,-1); }
-  const pct = s.endsWith('%');
-  if(pct) s = s.slice(0,-1).trim();
-  if(!/^-?[\d.]*\d(,\d+)?$/.test(s)) return String(txt).trim();
-  let n = parseFloat(s.replace(/\./g,'').replace(',','.'));
-  if(isNaN(n)) return String(txt).trim();
-  if(neg) n = -Math.abs(n);
-  return pct ? { v: n/100, pct: true } : n;
-}
-function textoCelulaExport(td){
-  const c = td.cloneNode(true);
-  c.querySelectorAll('.expand-hint,.row-chevron,svg').forEach(e=>e.remove());
-  const sign = c.querySelector('.dre-sign');
-  if(sign) sign.textContent = sign.textContent.trim() + ' ';
-  return c.textContent.replace(/\s+/g,' ').trim();
-}
-// Lê uma <table> da tela e devolve as linhas prontas pro Excel. Cabeçalhos
-// com colspan são repetidos (ex.: "Jan" sobre Gerencial/DFC/Diferença).
-function tabelaParaLinhas(table, opts){
-  opts = opts || {};
-  const linhas = [];
-  if(!table) return linhas;
-  const thead = table.tHead;
-  if(thead){
-    [...thead.rows].forEach(tr => {
-      const l = [];
-      [...tr.cells].forEach(th => {
-        const t = textoCelulaExport(th);
-        const span = th.colSpan || 1;
-        for(let i=0;i<span;i++) l.push(i===0 ? t : '');
-      });
-      linhas.push({ cel: l, header: true });
-    });
+function buildSnapshotHtml(src, dados, rotulo, chartJs) {
+  const A = '<script src="auth-common.js"><' + '/script>';
+  const B = 'async function loadData(forceRefresh, silent){';
+  if (src.indexOf(A) < 0 || src.indexOf(B) < 0) throw new Error('Estrutura da página mudou; não foi possível gerar o relatório.');
+
+  const json = JSON.stringify(Object.assign({}, dados, { rotulo: rotulo || '' })).replace(/</g, '\\u003c');
+
+  const dataScript =
+    '<script>\n' +
+    'window.AuthGuard={requireScreen:function(k,cb){cb({role:"viewer"});},logout:function(){},getSession:function(){return null;}};\n' +
+    'window.__SNAP__=' + json + ';\n' +
+    '<\/script>';
+
+  const novoLoadData =
+    'async function loadData(){\n' +
+    '  const S=window.__SNAP__;\n' +
+    '  raw=S.raw||[]; vendasRaw=S.vendas||[]; custoProdutoRaw=S.custo||[]; comprasRaw=S.compras||[];\n' +
+    '  if(S.recon){ reconciliacao=S.recon; reconciliacaoPronta=true; }\n' +
+    '  cmvCarregando=false;\n' +
+    '  corrigirNomesLojas(); recalcImpostosGer();\n' +
+    '  document.getElementById("mainArea").style.display="block";\n' +
+    '  populateFilters(); applyFilters(); toggleFixHeader(true);\n' +
+    '  document.getElementById("lastUpdate").textContent="Relatório · somente leitura · "+S.rotulo;\n' +
+    '  document.getElementById("overlay").classList.add("hidden");\n' +
+    '}\n' +
+    'async function loadData_ORIG(forceRefresh, silent){';
+
+  const css =
+    '<style>\n' +
+    'html{--side-w:0px !important;--side-w-collapsed:0px !important;}\n' +
+    '.sidebar,.side-toggle,.side-overlay,#btnExport,#btnRefresh,.update-overlay{display:none !important;}\n' +
+    '.page-content{margin-left:0 !important;}\n' +
+    '</style>\n';
+
+  let out = src;
+  out = out.replace(A, function () { return dataScript; });
+  // Gráficos: embute a biblioteca no arquivo para funcionar sem internet.
+  if (chartJs) {
+    const tagChart = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><' + '/script>';
+    out = out.replace(tagChart, function () { return '<script>' + chartJs.replace(/<\/script/gi, '<\\/script') + '<' + '/script>'; });
   }
-  [...table.tBodies].forEach(tb => [...tb.rows].forEach(tr => {
-    const cls = tr.className || '';
-    if(/row-sep|row-lanc|row-vazia/.test(cls)) return;
-    if(tr.cells.length === 1 && tr.cells[0].colSpan > 1) return; // avisos
-    const nivel = /row-item/.test(cls) ? 2 : /row-subgroup/.test(cls) ? 1 : 0;
-    const l = [...tr.cells].map((td,i) => {
-      const t = textoCelulaExport(td);
-      if(i===0) return (opts.indent ? '    '.repeat(nivel) : '') + t;
-      return valorCelulaExport(t);
-    });
-    linhas.push({ cel: l, total: /row-resultado/.test(cls) || tr.style.fontWeight==='700', grupo: /row-group/.test(cls) });
-  }));
-  return linhas;
+  out = out.replace(B, function () { return novoLoadData; });
+  out = out.replace('</head>', function () { return css + '</head>'; });
+  return out;
 }
-function linhasParaSheet(X, titulo, sub, linhas){
-  const aoa = [[titulo], [sub||''], []];
-  linhas.forEach(l => aoa.push(l.cel.map(v => (v && typeof v==='object' && 'v' in v) ? v.v : v)));
-  const ws = X.utils.aoa_to_sheet(aoa);
-  // Formatos: R$ com 2 casas e % — linha a linha
-  linhas.forEach((l, i) => {
-    l.cel.forEach((v, j) => {
-      const ref = X.utils.encode_cell({ r: i+3, c: j });
-      const cell = ws[ref];
-      if(!cell || cell.t !== 'n') return;
-      cell.z = (v && typeof v==='object' && v.pct) ? '0.00%' : '#,##0.00;[Red]-#,##0.00';
-    });
-  });
-  const nCols = Math.max(1, ...linhas.map(l=>l.cel.length));
-  ws['!cols'] = [{ wch: 48 }, ...Array.from({length:nCols-1}, () => ({ wch: 15 }))];
-  return ws;
-}
-function descricaoFiltrosExport(){
-  const ano = document.getElementById('fAno')?.value || 'Todos os anos';
-  const meses = (mesesSelecionados||[]).length ? mesesSelecionados.map(m=>MES[m]||m).join(', ') : 'Todos os meses';
-  const lojas = (typeof lojasSelecionadas!=='undefined' && lojasSelecionadas.length) ? lojasSelecionadas.join(', ') : 'Todas as lojas';
-  return `Filtros: ${ano} · ${meses} · ${lojas}`;
-}
-function nomeAbaExport(s){ return String(s).replace(/[\\\/\?\*\[\]:]/g,' ').slice(0,31); }
 
-async function exportarPlanilha(){
-  const btn = document.getElementById('btnExport');
-  const rotulo = btn ? btn.innerHTML : '';
-  try{
-    if(!raw || !raw.length){ alertaExport('Ainda não há dados carregados para exportar.'); return; }
-    if(btn){ btn.disabled = true; btn.style.opacity = '.6'; }
-    const X = await carregarXLSX();
-    const wb = X.utils.book_new();
-    const filtros = descricaoFiltrosExport();
-    const visao = { dfc:'DFC', gerencial:'DRE Gerencial', consolidado:'DRE x DFC' }[dreView] || 'DRE';
-
-    // 1. Demonstração (aba aberta na tela)
-    const tituloDre = document.getElementById('dreCardTitle')?.textContent.trim() || visao;
-    X.utils.book_append_sheet(wb,
-      linhasParaSheet(X, tituloDre, filtros, tabelaParaLinhas(document.getElementById('dreTable'), { indent: true })),
-      nomeAbaExport(visao));
-
-    // 2. Comparativo Mês vs. Mês Anterior
-    const comp = document.querySelector('#compMensalWrap table');
-    const linComp = tabelaParaLinhas(comp);
-    if(linComp.length > 1){
-      const per = document.getElementById('compMensalSub')?.textContent.trim() || '';
-      X.utils.book_append_sheet(wb, linhasParaSheet(X, 'Comparativo Mês vs. Mês Anterior — ' + visao, per + ' · ' + filtros, linComp), 'Comparativo Mensal');
-    }
-
-    // 3. Break-Even
-    const linBe = tabelaParaLinhas(document.querySelector('.breakeven-table'));
-    if(linBe.length > 1)
-      X.utils.book_append_sheet(wb, linhasParaSheet(X, 'Break-Even (Ponto de Equilíbrio) por Loja', filtros, linBe), 'Break-Even');
-
-    // 4. Lançamentos filtrados (base do DFC)
-    const lanc = [['Ano','Mês','Loja','Grupo','Subgrupo','Plano de Contas','Valor (R$)']]
-      .concat((filtered||[]).map(r => [Number(r.ano)||r.ano, MES[r.mes]||r.mes, r.loja, r.grupo||'', r.subgrupo||'', r.plano||'', Number(r.valor)||0]));
-    const wsL = X.utils.aoa_to_sheet(lanc);
-    for(let i=1;i<lanc.length;i++){ const c = wsL[X.utils.encode_cell({r:i,c:6})]; if(c) c.z = '#,##0.00;[Red]-#,##0.00'; }
-    wsL['!cols'] = [{wch:6},{wch:6},{wch:14},{wch:34},{wch:34},{wch:40},{wch:15}];
-    wsL['!autofilter'] = { ref: X.utils.encode_range({s:{r:0,c:0}, e:{r:lanc.length-1, c:6}}) };
-    X.utils.book_append_sheet(wb, wsL, 'Lançamentos');
-
-    // 5. Compras (CMC do DFC)
-    if((filteredCompras||[]).length){
-      const comp2 = [['Ano','Mês','Loja','Produto','Valor (R$)']]
-        .concat(filteredCompras.map(r => [Number(r.ano)||r.ano, MES[r.mes]||r.mes, r.loja, r.titulo||'', Number(r.valor)||0]));
-      const wsC = X.utils.aoa_to_sheet(comp2);
-      for(let i=1;i<comp2.length;i++){ const c = wsC[X.utils.encode_cell({r:i,c:4})]; if(c) c.z = '#,##0.00;[Red]-#,##0.00'; }
-      wsC['!cols'] = [{wch:6},{wch:6},{wch:14},{wch:50},{wch:15}];
-      wsC['!autofilter'] = { ref: X.utils.encode_range({s:{r:0,c:0}, e:{r:comp2.length-1, c:4}}) };
-      X.utils.book_append_sheet(wb, wsC, 'Compras (CMC)');
-    }
-
-    const hoje = new Date();
-    const dt = hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0') + '-' + String(hoje.getDate()).padStart(2,'0');
-    X.writeFile(wb, `DRE_Gerencial_${visao.replace(/\s+/g,'_')}_${dt}.xlsx`);
-  }catch(e){
-    console.error(e);
-    alertaExport('Não foi possível exportar: ' + e.message);
-  }finally{
-    if(btn){ btn.disabled = false; btn.style.opacity = ''; btn.innerHTML = rotulo; }
-  }
-}
-// Aviso discreto no próprio cabeçalho (sem alert(), que trava a página).
-function alertaExport(msg){
-  const el = document.getElementById('lastUpdate');
-  if(!el) return;
-  const antes = el.textContent;
-  el.textContent = msg;
-  setTimeout(() => { if(el.textContent === msg) el.textContent = antes; }, 5000);
+async function exportarRelatorio() {
+  try {
+    if (!raw || !raw.length) { alert('Aguarde os dados carregarem antes de exportar.'); return; }
+    if (cmvCarregando) { alert('Aguarde o CMV/CMC terminar de carregar antes de exportar.'); return; }
+    const src = await (await fetch(location.href.split('#')[0], { cache: 'no-store' })).text();
+    const agora = new Date();
+    const rotulo = 'Posição de ' + agora.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    let chartJs = '';
+    try { chartJs = await (await fetch('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js')).text(); } catch (e) { console.warn('Chart.js não embutido:', e.message); }
+    const dados = { raw: raw, vendas: vendasRaw, custo: custoProdutoRaw, compras: comprasRaw, recon: reconciliacaoPronta ? reconciliacao : null };
+    const html = buildSnapshotHtml(src, dados, rotulo, chartJs);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Relatorio_DRE_Gerencial_' + agora.toISOString().slice(0, 10) + '.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { console.error(e); alert('Não foi possível gerar o relatório: ' + e.message); }
 }
 
 /* ══════════════════════════════════════════════════════════════
@@ -6016,7 +5914,11 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(){ loadData(); }));
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(session){
+  // Botão "Exportar relatório" só para administradores (igual à Análise Comercial).
+  if (session && session.role === 'admin') { var be = document.getElementById('btnExport'); if (be) be.style.display = ''; }
+  loadData();
+}));
 
 // Se outra página do painel (ex.: GestaoZappas) disparar uma
 // "Atualização Geral" enquanto esta aba já estiver aberta, esta também
