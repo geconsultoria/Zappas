@@ -586,6 +586,9 @@ tr.loja-click td.td-metric { cursor:pointer; user-select:none; }
 
 tr.exp-sub td { background:var(--surf-2); font-size:11.5px; color:var(--ink-3); }
 tr.exp-sub td.td-metric { padding-left:30px; font-weight:500; color:var(--ink-3); cursor:default; }
+/* Loja e Delivery compõem o faturamento do mês: em negrito e mais escuras */
+tr.exp-sub.exp-sub-fat td { font-weight:700; color:var(--ink); }
+tr.exp-sub.exp-sub-fat td.td-metric { font-weight:700; color:var(--ink); }
 
 /* AV% column */
 .comp-table td.av-col {
@@ -2663,7 +2666,9 @@ function renderComparative(data) {
         EXP_CANAIS.forEach(([ck, cn]) => {
           const vc = (loja) => _cidx[mes+'|'+loja+'|'+ck] || 0;
           let tot = 0;
-          html += `<tr class="exp-sub loja-click" data-exp="${eid}" data-key="${ck}" data-mes="${mes}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleDiaCanal(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
+          // Loja e Delivery = faturamento do mês → linhas em negrito.
+          const fatMes = ck === 'loja' || ck === 'delivery';
+          html += `<tr class="exp-sub loja-click${fatMes ? ' exp-sub-fat' : ''}" data-exp="${eid}" data-key="${ck}" data-mes="${mes}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleDiaCanal(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
           lojas.forEach(loja => {
             const v = vc(loja); tot += v;
             const av = totMesAll > 0 ? v / totMesAll * 100 : 0;
