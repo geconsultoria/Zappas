@@ -658,6 +658,8 @@
         "color:rgba(255,255,255,.7);font-family:'Syne','Epilogue',system-ui,sans-serif;font-weight:600;font-size:13px;padding:9px 11px;border-radius:10px;text-align:left;}" +
         "#ag-user-footer .ag-uf-sair:hover{background:rgba(255,255,255,.07);color:#fff;}" +
         "#ag-user-footer .ag-uf-sair svg{width:18px;height:18px;flex-shrink:0;opacity:.85;}" +
+        "#ag-user-footer .ag-uf-atualizar{color:#E9C46A;}" +
+        "#ag-user-footer .ag-uf-atualizar.ag-busy{opacity:.55;pointer-events:none;}" +
         // Menu recolhido (só ícones): esconde nome/e-mail e centraliza o "Sair"
         ".sidebar.collapsed:not(.peek) #ag-user-footer .ag-uf-info," +
         ".sidebar.collapsed:not(.peek) #ag-user-footer .ag-uf-sair span{display:none;}" +
@@ -672,8 +674,19 @@
       '<div class="ag-uf-n">' + escHtml(nome) + "</div>" +
       (nome !== session.email ? '<div class="ag-uf-e">' + escHtml(session.email) + "</div>" : "") +
       "</div>" +
+      (session.role !== "admin"
+        ? '<button type="button" class="ag-uf-sair ag-uf-atualizar" title="Atualização Geral">' + ICON_REFRESH + "<span>Atualização Geral</span></button>"
+        : "") +
       '<button type="button" class="ag-uf-sair" title="Sair">' + ICON_SAIR + "<span>Sair</span></button>";
-    div.querySelector(".ag-uf-sair").addEventListener("click", logout);
+    div.querySelector(".ag-uf-sair:not(.ag-uf-atualizar)").addEventListener("click", logout);
+    // Tela inicial: esconde o rodapé antigo (botão "…" com Atualização /
+    // Backup) para todos — Atualização Geral agora fica neste rodapé (ou no
+    // grupo Administração, para admins) e Backup Geral é só de admin. O
+    // HTML antigo continua na página porque a atualização automática usa.
+    var rodapeAntigo = document.getElementById("side-footer-toggle");
+    if (rodapeAntigo && rodapeAntigo.closest(".side-footer")) rodapeAntigo.closest(".side-footer").style.display = "none";
+    var btnAtu = div.querySelector(".ag-uf-atualizar");
+    if (btnAtu) btnAtu.addEventListener("click", function () { injectAdminStyles(); acaoAtualizacaoGeral(btnAtu); });
     sidebar.appendChild(div);
   }
 
@@ -781,14 +794,29 @@
     // Tela inicial: o rodapé antigo (botão "…" com Atualização/Backup) fica
     // escondido pro admin — as ações agora estão no grupo acima. O HTML
     // continua na página porque a atualização automática da tela usa ele.
-    var rodapeAntigo = document.getElementById("side-footer-toggle");
-    if (rodapeAntigo && rodapeAntigo.closest(".side-footer")) rodapeAntigo.closest(".side-footer").style.display = "none";
   }
 
   // ── Fluxo principal ─────────────────────────────────────────────────────
 
+  // ── Atualização automática diária ──────────────────────────────────────
+  // As telas guardam os dados no navegador e só buscam de novo quando
+  // alguém roda "Atualização Geral" NESTE navegador. Usuário de loja nunca
+  // passa pela tela inicial, então ficava vendo dados antigos. Agora, na
+  // primeira tela aberta de cada dia, marcamos "há dado novo": cada tela
+  // atualiza sozinha uma vez naquele dia (em segundo plano).
+  var DAILY_KEY = "zappas_auto_daily_refresh";
+  function marcarAtualizacaoDiaria() {
+    try {
+      var hoje = new Date().toLocaleDateString("pt-BR");
+      if (localStorage.getItem(DAILY_KEY) === hoje) return;
+      localStorage.setItem(DAILY_KEY, hoje);
+      localStorage.setItem(GLOBAL_REFRESH_KEY_ADM, String(Date.now()));
+    } catch (e) {}
+  }
+
   function proceedAfterAuth() {
     if (!pendingScreenKey) return;
+    marcarAtualizacaoDiaria();
     var key = pendingScreenKey;
     var cb = pendingCallback;
     pendingScreenKey = null;
