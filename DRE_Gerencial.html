@@ -1924,7 +1924,7 @@ const DRE_STRUCTURE = [
   { slug:'deducoes_vendas',            label:'DEDUÇÕES S/ VENDAS',                    sign:'(-)', type:'group',     style:'' },
   { slug:'__rec_liq__',                label:'RECEITA OPERACIONAL LÍQUIDA',           sign:'(=)', type:'resultado', style:'light' },
   { slug:'sep1', type:'sep' },
-  { slug:'cmv',                        label:'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)', sign:'(-)', type:'group',     style:'' },
+  { slug:'cmv',                        label:'CMC — CUSTO MERCADORIA COMPRADA', sign:'(-)', type:'group',     style:'' },
   { slug:'__lucro_bruto__',            label:'LUCRO BRUTO',                           sign:'(=)', type:'resultado', style:'green' },
   { slug:'sep2', type:'sep' },
   { slug:'despesas_comerciais',        label:'DESPESAS COMERCIAIS',                   sign:'(-)', type:'group',     style:'' },
@@ -3511,9 +3511,9 @@ function avisoCmv(){
     const d = Object.entries(comprasDiag).filter(([,v])=>v.motivo);
     if(d.length){
       const m = d[0][1];
-      return ' · CMV (Compras) sem dados — ' + m.motivo + (m.colunas ? ' · colunas recebidas: ' + m.colunas : '');
+      return ' · CMC (Compras) sem dados — ' + m.motivo + (m.colunas ? ' · colunas recebidas: ' + m.colunas : '');
     }
-    return ' · CMV (Compras) sem dados — o arquivo de Compras não respondeu';
+    return ' · CMC (Compras) sem dados — o arquivo de Compras não respondeu';
   }
   return '';
 }
@@ -3951,8 +3951,27 @@ function renderCharts(){
 
 function renderChartMensal(){
   destroyChart(cMensal);
-  const byMes=groupBy(filtered,'mes');
+  // Com 1 mês só no filtro, o gráfico de evolução ficaria com uma barra —
+  // então mostra TODOS os meses do ano (mantendo ano e loja) e destaca o
+  // mês escolhido. Com 2+ meses (ou nenhum), segue a seleção do filtro.
+  const meses = mesesSelecionados || [];
+  let base = filtered, mesDestaque = null, anoUsado = document.getElementById('fAno').value;
+  if(meses.length === 1){
+    mesDestaque = Number(meses[0]);
+    if(!anoUsado){
+      // Sem ano no filtro: usa o ano mais recente que tem o mês escolhido.
+      const anos = raw.filter(r=>Number(r.mes)===mesDestaque && passaLoja(r.loja)).map(r=>Number(r.ano)).filter(Boolean);
+      anoUsado = anos.length ? String(Math.max(...anos)) : '';
+    }
+    base = raw.filter(r => (!anoUsado || String(r.ano)===anoUsado) && passaLoja(r.loja));
+  }
+  const sub = document.querySelector('#cMensal')?.closest('.chart-card')?.querySelector('.chart-card-sub');
+  if(sub) sub.textContent = mesDestaque
+    ? `Todos os meses${anoUsado ? ' de '+anoUsado : ''} · ${MES[mesDestaque]||mesDestaque} em destaque`
+    : 'Total acumulado por mês no período selecionado';
+  const byMes=groupBy(base,'mes');
   const keys=Object.keys(byMes).map(Number).sort((a,b)=>a-b);
+  const cor = m => (mesDestaque && m!==mesDestaque) ? PALETTE[0]+'55' : PALETTE[0]+'CC';
   cMensal=new Chart(document.getElementById('cMensal'),{
     type:'bar',
     data:{
@@ -3960,7 +3979,7 @@ function renderChartMensal(){
       datasets:[{
         label:'Total (R$)',
         data:keys.map(m=>byMes[m]),
-        backgroundColor:PALETTE[0]+'CC',
+        backgroundColor:keys.map(cor),
         borderColor:PALETTE[0],
         borderWidth:1.5,
         borderRadius:5,
@@ -4374,7 +4393,7 @@ function renderDRE(){
       const cmvTot=rowTotal(cmv);
       const cmvLabel = dreView==='gerencial'
         ? 'CMV — CUSTO MERCADORIA VENDIDA (PRODUTO)'
-        : 'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)';
+        : 'CMC — CUSTO MERCADORIA COMPRADA';
       html+=`<tr class="row-group" style="cursor:default">
         <td><span class="dre-sign">${slot.sign}</span>${cmvLabel}</td>
         ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
@@ -5631,7 +5650,7 @@ function renderComparativoMensal() {
     {l:'Receita Operacional',k:'rec'},
     {l:'Impostos s/ Vendas',k:'imp',inv:true},{l:'Deduções s/ Vendas',k:'ded',inv:true},
     {l:'Receita Líquida',k:'rl',t:true},
-    {l:ger?'CMV (Produto)':'CMV (Compra)',k:'cmv',inv:true},
+    {l:ger?'CMV (Produto)':'CMC — Custo Mercadoria Comprada',k:'cmv',inv:true},
     {l:'Lucro Bruto',k:'lb',t:true},
     {l:'Despesas Comerciais',k:'dcom',inv:true},{l:'Despesas com Pessoal',k:'dpes',inv:true},
     {l:'Despesas Administrativas e Operacionais',k:'dadm',inv:true},
