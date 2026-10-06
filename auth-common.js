@@ -284,7 +284,7 @@
       '<path stroke-linecap="round" stroke-linejoin="round" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg></div>' +
       '<div class="ag-title">Acesso não autorizado</div>' +
       '<div class="ag-sub">Sua conta não tem permissão para acessar' + (tela ? " “" + tela.label + "”" : " esta tela") + ".<br>Fale com um administrador do painel se precisar de acesso.</div>" +
-      '<a class="ag-back" href="GestaoZappas.html">Voltar ao início</a>' +
+      '<a class="ag-back" href="' + (primeiraTelaLiberada() || "GestaoZappas.html") + '">Voltar ao início</a>' +
       "</div>";
     document.body.appendChild(wrap);
   }
@@ -677,8 +677,66 @@
     sidebar.appendChild(div);
   }
 
+  // ── Menu mostra só as telas liberadas para o usuário ──────────────────
+  // Administrador vê tudo. Para os demais: some cada link de tela sem
+  // permissão, os itens "(em breve)" e o grupo inteiro (Comercial,
+  // Financeiro, Metas) quando não sobrar nenhuma tela dentro dele.
+  function telaKeyDoHref(href) {
+    var arq = String(href || "").split("?")[0].split("#")[0].split("/").pop().toLowerCase();
+    if (!arq) return null;
+    for (var k in TELAS) {
+      if (TELAS.hasOwnProperty(k) && TELAS[k].href.toLowerCase() === arq) return k;
+    }
+    return null;
+  }
+  // Primeira tela que o usuário pode abrir (usada quando ele não tem
+  // acesso à tela inicial: login, logo "Dashboards" e "Voltar ao início").
+  function primeiraTelaLiberada() {
+    if (!session) return null;
+    if (session.role === "admin" || (session.permissoes || {}).home) return TELAS.home.href;
+    for (var k in TELAS) {
+      if (TELAS.hasOwnProperty(k) && k !== "home" && session.permissoes[k]) return TELAS[k].href;
+    }
+    return null;
+  }
+
+  function filtrarMenuPorPermissao() {
+    if (!session) return;
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", filtrarMenuPorPermissao);
+      return;
+    }
+    var admin = session.role === "admin";
+    var perms = session.permissoes || {};
+    document.querySelectorAll(".sidebar .side-nav .side-item").forEach(function (item) {
+      if (item.getAttribute("data-menu") === "admin") return;
+      var links = item.querySelectorAll(".side-sub a");
+      if (!links.length) return;
+      var visiveis = 0;
+      links.forEach(function (a) {
+        var key = telaKeyDoHref(a.getAttribute("href"));
+        var pode = admin || (key && !!perms[key]);
+        a.style.display = pode ? "" : "none";
+        if (pode) visiveis++;
+      });
+      item.style.display = visiveis ? "" : "none";
+    });
+    // Logo "Dashboards / Painel de Gestão": sem acesso à tela inicial,
+    // leva para a primeira tela liberada em vez de cair em "acesso negado".
+    var destino = primeiraTelaLiberada();
+    document.querySelectorAll('.sidebar a.side-brand, a.side-brand').forEach(function (a) {
+      if (destino) a.setAttribute("href", destino);
+    });
+    // Links soltos de tela direto no menu (fora de grupos)
+    document.querySelectorAll(".sidebar .side-nav > a.side-link").forEach(function (a) {
+      var key = telaKeyDoHref(a.getAttribute("href"));
+      if (key && key !== "home") a.style.display = (admin || perms[key]) ? "" : "none";
+    });
+  }
+
   function injectAdminLink() {
     injectUserFooter();
+    filtrarMenuPorPermissao();
     if (!session || session.role !== "admin") return;
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", injectAdminLink);
@@ -740,6 +798,13 @@
     logAcesso(session.email, key, session.role === "admin" ? "admin_override" : (autorizado ? "permitido" : "negado"));
 
     if (!autorizado) {
+      // Usuário sem acesso à tela inicial (ex.: só Metas da loja dele):
+      // em vez de "acesso negado", vai direto para a primeira tela liberada.
+      var destino = primeiraTelaLiberada();
+      if (key === "home" && destino && destino !== TELAS.home.href) {
+        location.replace(destino);
+        return;
+      }
       showDeniedOverlay(key);
       return;
     }
@@ -763,6 +828,7 @@
           session.role = data.role;
           session.loja = data.loja || "";
           session.permissoes = data.permissoes || {};
+          filtrarMenuPorPermissao(); // permissões podem ter mudado desde o último login
           saveSessionToStorage(session);
         }
       }).catch(function () {});
