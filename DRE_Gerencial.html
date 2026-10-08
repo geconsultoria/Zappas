@@ -816,6 +816,11 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 .dre-table tr.row-lanc {
   display: none;
 }
+/* Marcador de conta com reembolso deduzido */
+.re-badge { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-left:6px;
+  border-radius:4px; background:#f5d98b; color:#6b4500; font-size:9.5px; font-weight:800; font-style:normal; vertical-align:middle; }
+#dreTbody.so-re > tr:not(.has-re):not(.row-break):not(.row-lanc) { display:none !important; }
+#btnSoReembolso.is-active { background:#f5d98b; color:#6b4500; border-color:#e2b84a; }
 /* Quebra da conta em "Pago" x "(−) Reembolso", alinhada às colunas */
 .dre-table tr.row-break { display: none; }
 .dre-table tr.row-break td { font-size: 11.5px; color: var(--ink-3); background: var(--surface-tint); font-style: italic; }
@@ -1697,6 +1702,7 @@ a.side-brand:hover { opacity:.85; }
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
         <button class="btn-av-toggle" id="btnAV" onclick="toggleAV()">% AV</button>
         <button class="btn-av-toggle" id="btnFixHeader" onclick="toggleFixHeader()" title="Fixar o cabeçalho da tabela ao rolar a tela">📌 Fixar Cabeçalho</button>
+        <button class="btn-av-toggle" id="btnSoReembolso" onclick="toggleSoReembolso()" title="Mostrar só as contas que tiveram reembolso da Distribuição deduzido">R  Só contas com reembolso</button>
         <button class="btn-toggle-all" onclick="toggleAll(true)">▼ Expandir tudo</button>
         <button class="btn-toggle-all" onclick="toggleAll(false)">▲ Recolher tudo</button>
       </div>
@@ -4587,8 +4593,8 @@ function renderDRE(){
             const pTot=rowTotal(pVals);
             const iId=uid();
             const itensP=itensDoPlano(filteredImpostosGer,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-            html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+            html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
               <td>${cellVal(pTot)}</td>
               ${avCell(pTot,rowTotal(rec))}
@@ -4643,8 +4649,8 @@ function renderDRE(){
           const pTot=rowTotal(pVals);
           const iId=uid();
           const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
@@ -4690,8 +4696,8 @@ function renderDRE(){
           const pTot=rowTotal(pVals);
           const iId=uid();
           const itensP=itensDoPlano(filtered,g,sub,plano); const lId=registrarLanc(itensP);
-          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
@@ -5115,9 +5121,9 @@ function renderDREConsolidado(){
           Object.keys(treeImpGer[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=treeImpGer[grupoReal][sub][plano]||{};
             const iId=uid();
-            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
-            html+=`<tr class="row-item has-lanc" data-parent="${sIdGer}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+            const itensP=itensDoPlano(filteredImpostosGer,grupoReal,sub,plano); const lId=registrarLanc(itensP);
+            html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sIdGer}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(pVals[c]||0,0,cellVal)).join('')}
               ${triple(rowTotal(pVals),0,cellVal)}
             </tr>`;
@@ -5138,9 +5144,9 @@ function renderDREConsolidado(){
           Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=tree[grupoReal][sub][plano]||{};
             const iId=uid();
-            const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
-            html+=`<tr class="row-item has-lanc" data-parent="${sIdDfc}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+            const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
+            html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sIdDfc}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
               ${triple(0,rowTotal(pVals),cellVal)}
             </tr>`;
@@ -5190,9 +5196,9 @@ function renderDREConsolidado(){
         Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
           const pVals=tree[grupoReal][sub][plano]||{};
           const iId=uid();
-          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
-          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+          const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
+          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
             ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
@@ -5230,9 +5236,9 @@ function renderDREConsolidado(){
         Object.keys(tree[g][sub]).sort().forEach(plano=>{
           const pVals=tree[g][sub][plano]||{};
           const iId=uid();
-          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
-          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+          const itensP=itensDoPlano(filtered,g,sub,plano); const lId=registrarLanc(itensP);
+          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
             ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
@@ -5410,6 +5416,59 @@ function fecharDescendentes(tbody, parentId){
    aqui dentro da própria tabela do DRE. Montado sob demanda (só quando o
    usuário abre a conta) pra não gerar HTML de tudo de uma vez. */
 let _lancStore = {};
+/* ── Contas com reembolso da Distribuição ──
+   Marca com "R" a conta que teve reembolso deduzido, e também o sub-grupo
+   e o grupo acima dela. O botão "Só contas com reembolso" esconde o resto
+   da tabela e abre só esse caminho. */
+const RE_BADGE = '<span class="re-badge" title="Conta com reembolso da Distribuição deduzido">R</span>';
+function temRe(itens){ return (itens||[]).some(r=>r.reembolso); }
+let soReembolso = false;
+function marcarReembolsoDRE(){
+  const tbody = document.getElementById('dreTbody');
+  if(!tbody) return;
+  tbody.querySelectorAll('tr.row-item.has-re').forEach(item=>{
+    const sub = tbody.querySelector(`tr[data-sid="${item.dataset.parent}"]`);
+    if(!sub) return;
+    if(!sub.classList.contains('has-re')){
+      sub.classList.add('has-re');
+      const td = sub.querySelector('td'); const hint = td && td.querySelector('.expand-hint');
+      if(td) hint ? hint.insertAdjacentHTML('beforebegin', RE_BADGE) : td.insertAdjacentHTML('beforeend', RE_BADGE);
+    }
+    const grp = tbody.querySelector(`tr[data-gid="${sub.dataset.parent}"]`);
+    if(grp && !grp.classList.contains('has-re')){
+      grp.classList.add('has-re');
+      const td = grp.querySelector('td'); if(td) td.insertAdjacentHTML('beforeend', RE_BADGE);
+    }
+  });
+  const qtd = tbody.querySelectorAll('tr.row-item.has-re').length;
+  const btn = document.getElementById('btnSoReembolso');
+  if(btn){
+    btn.textContent = (soReembolso ? '✕ Mostrar todas as contas' : 'R  Só contas com reembolso') + ' (' + qtd + ')';
+    btn.classList.toggle('is-active', soReembolso);
+    btn.disabled = !qtd && !soReembolso;
+  }
+  tbody.classList.toggle('so-re', soReembolso);
+  if(soReembolso) abrirCaminhoReembolso();
+}
+function abrirCaminhoReembolso(){
+  const tbody = document.getElementById('dreTbody');
+  tbody.querySelectorAll('tr.row-item.has-re').forEach(item=>{
+    item.classList.add('visible');
+    const sub = tbody.querySelector(`tr[data-sid="${item.dataset.parent}"]`);
+    if(sub){ sub.classList.add('visible','is-open');
+      const grp = tbody.querySelector(`tr[data-gid="${sub.dataset.parent}"]`);
+      if(grp) grp.classList.add('is-open'); }
+  });
+}
+function toggleSoReembolso(){
+  soReembolso = !soReembolso;
+  if(!soReembolso){ toggleAll(false); }
+  marcarReembolsoDRE();
+}
+// Toda vez que a tabela é redesenhada (filtro, aba, % AV), remarca as contas.
+const _renderDREBase = renderDRE;
+renderDRE = function(){ _renderDREBase(); try{ marcarReembolsoDRE(); }catch(e){ console.warn('marcarReembolsoDRE:', e); } };
+
 function registrarLanc(itens){
   const lId = 'lanc-'+Object.keys(_lancStore).length+'-'+Math.random().toString(36).slice(2,7);
   _lancStore[lId] = itens || [];
