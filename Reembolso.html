@@ -1068,8 +1068,8 @@ function getFiltered(){
     if(ano && r.ano !== ano) return false;
     if(mes && r.mes !== mes) return false;
     if(loja && r.loja !== loja) return false;
-    if(st === 'nl' && r.status !== 'nl') return false;
-    if(st === 'loc' && r.status === 'nl') return false;
+    if(st === 'nl' && !pendente(r)) return false;
+    if(st === 'loc' && pendente(r)) return false;
     return true;
   });
 }
@@ -1124,6 +1124,8 @@ const COLS = {
   ],
 };
 const STATUS_ORD = { nl:0, fora:1, rev:2, ok:3 };
+// Pendente = não pode ser deduzido do DRE/DFC (sem código ou código inexistente no plano).
+function pendente(r){ return r.status === 'nl' || r.status === 'fora'; }
 const collator = new Intl.Collator('pt-BR', { numeric:true, sensitivity:'base' });
 
 // Valor usado na comparação de cada coluna.
@@ -1179,7 +1181,7 @@ function ordenarPor(tabela, key){
 
 function renderNaoLocalizados(data){
   $('cth-nl').innerHTML = headerHtml('nl');
-  const nl = ordenarLista(data.filter(r => r.status === 'nl'), 'nl');
+  const nl = ordenarLista(data.filter(pendente), 'nl');
   const totalNl = nl.reduce((s,r)=>s+r.total,0);
   $('sec-count-nl').textContent = fN(nl.length) + ' registros';
   const alertEl = $('nl-alert');
@@ -1191,12 +1193,12 @@ function renderNaoLocalizados(data){
   }
   const tipos = [...new Set(nl.map(r=>r.pnome))];
   alertEl.className = 'nl-alert';
-  alertEl.innerHTML = `⚠️ <span><b>${fN(nl.length)}</b> lançamento(s), somando <b>${fBRL(totalNl)}</b>, não foram localizados no Plano de Contas: ${tipos.map(escHtml).join(', ')}. Eles não devem ser deduzidos do DRE/DFC até receberem um CodCentro.</span>`;
+  alertEl.innerHTML = `⚠️ <span><b>${fN(nl.length)}</b> lançamento(s), somando <b>${fBRL(totalNl)}</b>, estão sem CodCentro válido no Plano de Contas: ${tipos.map(escHtml).join(', ')}. Eles não devem ser deduzidos do DRE/DFC até receberem um CodCentro.</span>`;
   $('ctb-nl').innerHTML = nl.map(r => `
     <tr class="row-nl">
       <td>${escHtml(r.dataLabel)}</td>
       <td>${lojaLabel(r.loja)}</td>
-      <td>${escHtml(r.pnome)}</td>
+      <td>${escHtml(r.pnome)}${r.status==='fora' ? ` <span class="st-badge st-rev">cód. ${escHtml(r.codcentro)} fora do plano</span>` : ''}</td>
       <td class="num">${fBRL(r.total)}</td>
     </tr>`).join('') +
     `<tr class="total-row"><td colspan="3">Total não localizado</td><td class="num">${fBRL(totalNl)}</td></tr>`;
@@ -1260,7 +1262,7 @@ function renderTabela(data){
   const ordenado = ordenarLista([...grupos.values()], 'main');
   const totalGeral = data.reduce((s,r)=>s+r.total,0);
   $('ctb-reembolso').innerHTML = ordenado.map(g => `
-    <tr${g.status==='nl' ? ' class="row-nl"' : ''}>
+    <tr${pendente(g) ? ' class="row-nl"' : ''}>
       <td>${g.ano}</td>
       <td>${g.mes ? MONTHS[g.mes-1] : '—'}</td>
       <td>${lojaLabel(g.loja)}</td>
