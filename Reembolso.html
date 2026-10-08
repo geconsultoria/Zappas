@@ -316,6 +316,10 @@ a.side-brand:hover { opacity:.85; }
   white-space: nowrap;
 }
 .comp-table thead th.num { text-align: right; }
+.comp-table thead th.sortable { cursor: pointer; user-select: none; }
+.comp-table thead th.sortable:hover { color: var(--blue); }
+.comp-table thead th .sort-ic { display:inline-block; width:10px; margin-left:4px; opacity:.35; font-size:9px; }
+.comp-table thead th.sorted .sort-ic { opacity:1; color: var(--blue); }
 .comp-table tbody tr { border-bottom: 1px solid #F0EDE5; transition: background .12s; }
 .comp-table tbody tr:hover td { background: var(--bg); }
 .comp-table td { padding: 9px 12px; color: var(--ink-2); white-space: nowrap; }
@@ -574,7 +578,7 @@ a.side-brand:hover { opacity:.85; }
   <div class="comp-card">
     <div class="comp-scroll">
       <table class="comp-table" id="ct-nl">
-        <thead><tr><th>Data</th><th>Loja</th><th>Lançamento</th><th class="num">Total</th></tr></thead>
+        <thead id="cth-nl"></thead>
         <tbody id="ctb-nl"></tbody>
       </table>
     </div>
@@ -885,6 +889,10 @@ async function carregarTudo(){
       const lojaKey = STORE_KEYS[idx];
       try{
         const text = await fetchCSV(url);
+        // Se o Apps Script ainda não tiver o tipo "reembolso", ele devolve o faturamento
+        // comum (sem a coluna pnome). Nesse caso a resposta é descartada.
+        const cab = text.split(/\r?\n/)[0].toLowerCase();
+        if(!/(^|[;,\t])"?pnome"?([;,\t]|$)/.test(cab)) throw new Error('resposta sem a coluna pnome (Apps Script sem o tipo "reembolso"?)');
         rows = rows.concat(parseReembolso(text, lojaKey.toUpperCase()));
       }catch(e){ console.warn('Base de reembolso indisponível ('+lojaKey+'):', e.message); falhas.push(lojaKey.toUpperCase()); if(lojaKey==='bady' || !ultimoErro) ultimoErro = e.message; }
     }));
@@ -1044,8 +1052,91 @@ function stBadge(s){
 }
 function escHtml(s){ return String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
+/* ══════════════════════════════════════════════════════════════
+   ORDENAÇÃO POR CLIQUE NO CABEÇALHO
+   Ano / Mês / Data ordenam em ordem cronológica (ano → mês → dia).
+   1º clique: ordem crescente (mais antigo primeiro); 2º clique inverte.
+══════════════════════════════════════════════════════════════ */
+const SORT = {
+  main: { key: 'periodo', dir: 'desc' },  // padrão: mais recente primeiro
+  nl:   { key: 'data',    dir: 'asc'  },
+};
+const COLS = {
+  main: [
+    { key:'ano',       label:'Ano' },
+    { key:'mes',       label:'Mês' },
+    { key:'loja',      label:'Loja' },
+    { key:'pnome',     label:'Lançamento' },
+    { key:'codcentro', label:'CodCentro' },
+    { key:'descricao', label:'Descrição' },
+    { key:'status',    label:'Status' },
+    { key:'qtd',       label:'Qtd.',  num:true },
+    { key:'total',     label:'Total', num:true },
+  ],
+  nl: [
+    { key:'data',  label:'Data' },
+    { key:'loja',  label:'Loja' },
+    { key:'pnome', label:'Lançamento' },
+    { key:'total', label:'Total', num:true },
+  ],
+};
+const STATUS_ORD = { nl:0, rev:1, ok:2 };
+const collator = new Intl.Collator('pt-BR', { numeric:true, sensitivity:'base' });
+
+// Valor usado na comparação de cada coluna.
+function sortVal(row, key){
+  switch(key){
+    case 'periodo':
+    case 'ano':
+    case 'mes':  return (row.ano||0)*100 + (row.mes||0);      // cronológico
+    case 'data': return row.dataTs != null ? row.dataTs : ((row.ano||0)*100 + (row.mes||0));
+    case 'loja': return lojaLabel(row.loja||'');
+    case 'codcentro': return row.codcentro == null || row.codcentro === '' ? null : row.codcentro;
+    case 'status': return STATUS_ORD[row.status] ?? 9;
+    default: return row[key];
+  }
+}
+function cmpVal(a, b){
+  if(a == null && b == null) return 0;
+  if(a == null) return 1;            // vazios (ex.: CodCentro não localizado) sempre no fim
+  if(b == null) return -1;
+  if(typeof a === 'number' && typeof b === 'number') return a - b;
+  const na = Number(a), nb = Number(b);
+  if(!isNaN(na) && !isNaN(nb) && String(a).trim() !== '' && String(b).trim() !== '') return na - nb;
+  return collator.compare(String(a), String(b));
+}
+function ordenarLista(lista, tabela){
+  const { key, dir } = SORT[tabela];
+  const sinal = dir === 'asc' ? 1 : -1;
+  return lista.slice().sort((a, b) => {
+    const va = sortVal(a, key), vb = sortVal(b, key);
+    if(va == null || vb == null){ const c = cmpVal(va, vb); if(c) return c; }  // nulos no fim nos dois sentidos
+    else { const c = cmpVal(va, vb) * sinal; if(c) return c; }
+    // desempate: cronológico, depois loja e lançamento
+    return cmpVal(sortVal(a,'data'), sortVal(b,'data')) * sinal
+        || collator.compare(lojaLabel(a.loja||''), lojaLabel(b.loja||''))
+        || collator.compare(String(a.pnome||''), String(b.pnome||''));
+  });
+}
+function headerHtml(tabela){
+  const st = SORT[tabela];
+  const ativo = st.key === 'periodo' ? 'ano' : st.key;
+  return '<tr>' + COLS[tabela].map(c => {
+    const on = c.key === ativo || (st.key === 'periodo' && c.key === 'mes');
+    const ic = on ? (st.dir === 'asc' ? '▲' : '▼') : '⇅';
+    return `<th class="sortable${c.num?' num':''}${on?' sorted':''}" onclick="ordenarPor('${tabela}','${c.key}')" title="Clique para ordenar">${c.label}<span class="sort-ic">${ic}</span></th>`;
+  }).join('') + '</tr>';
+}
+function ordenarPor(tabela, key){
+  const st = SORT[tabela];
+  if(key === st.key) st.dir = st.dir === 'asc' ? 'desc' : 'asc';      // mesmo cabeçalho: inverte
+  else { st.key = key; st.dir = (key === 'qtd' || key === 'total') ? 'desc' : 'asc'; }
+  applyFilters();
+}
+
 function renderNaoLocalizados(data){
-  const nl = data.filter(r => r.status === 'nl').sort((a,b) => (a.dataTs||0) - (b.dataTs||0));
+  $('cth-nl').innerHTML = headerHtml('nl');
+  const nl = ordenarLista(data.filter(r => r.status === 'nl'), 'nl');
   const totalNl = nl.reduce((s,r)=>s+r.total,0);
   $('sec-count-nl').textContent = fN(nl.length) + ' registros';
   const alertEl = $('nl-alert');
@@ -1108,9 +1199,7 @@ function renderPorLoja(data){
 
 function renderTabela(data){
   $('sec-count').textContent = fN(data.length) + ' registros';
-  $('cth-reembolso').innerHTML = `<tr>
-    <th>Ano</th><th>Mês</th><th>Loja</th><th>Lançamento</th><th>CodCentro</th><th>Descrição</th><th>Status</th><th class="num">Qtd.</th><th class="num">Total</th>
-  </tr>`;
+  $('cth-reembolso').innerHTML = headerHtml('main');
   if(!data.length){
     $('ctb-reembolso').innerHTML = '<tr><td colspan="9" class="nd">Nenhum reembolso (Canal DISTRIBUIÇÃO + VS = True) encontrado para os filtros selecionados</td></tr>';
     return;
@@ -1125,7 +1214,7 @@ function renderTabela(data){
     cur.total += r.total;
     grupos.set(key, cur);
   });
-  const ordenado = [...grupos.values()].sort((a,b) => (b.ano - a.ano) || (b.mes - a.mes) || a.loja.localeCompare(b.loja) || String(a.codcentro??'zz').localeCompare(String(b.codcentro??'zz')) || a.pnome.localeCompare(b.pnome));
+  const ordenado = ordenarLista([...grupos.values()], 'main');
   const totalGeral = data.reduce((s,r)=>s+r.total,0);
   $('ctb-reembolso').innerHTML = ordenado.map(g => `
     <tr${g.status==='nl' ? ' class="row-nl"' : ''}>
