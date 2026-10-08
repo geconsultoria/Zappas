@@ -541,7 +541,7 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="info-banner">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>
-    <span>Esta tela lista os <b>reembolsos gerados pelas lojas</b>, lidos da base <b>FATURAMENTO_RE_&lt;LOJA&gt;.csv</b> no Google Drive (Canal = <b>DISTRIBUIÇÃO</b> e <b>VS</b> = True). Cada lançamento recebe o <b>CodCentro</b> e a <b>Descrição</b> do Plano de Contas por de-para; os que não têm correspondência aparecem como <b>Não localizado</b> e não devem ser deduzidos do DRE/DFC até serem classificados.</span>
+    <span>Esta tela lista os <b>reembolsos gerados pelas lojas</b>, lidos da base <b>FATURAMENTO_RE_&lt;LOJA&gt;.csv</b> no Google Drive (Canal = <b>DISTRIBUIÇÃO</b> e <b>VS</b> = True). O <b>CodCentro</b> vem da coluna <b>cod_pl</b> da própria base e a <b>Descrição</b> é buscada no Plano de Contas por esse código (bases sem cod_pl usam o de-para); os que não têm correspondência aparecem como <b>Não localizado</b> e não devem ser deduzidos do DRE/DFC até serem classificados.</span>
   </div>
 
   <div class="sec"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
@@ -635,6 +635,39 @@ const DE_PARA = {
   'SAUDE CAP TITULO RESGATE':  { cod: null, desc: '', status: 'nl' },
   'UNIVERSE GAMES MAQUINAS DE BOLINHAS': { cod: null, desc: '', status: 'nl' },
 };
+/* ══════════════════════════════════════════════════════════════
+   PLANO DE CONTAS  Cod_PL → Conta_PL
+   Quando a base já traz a coluna cod_pl, a Descrição vem daqui (pelo código).
+   A tela lê o plano atualizado pelo Apps Script (?tipo=planocontas); se não
+   conseguir, usa esta cópia embutida (Plano de Contas Zappas de 08/10/2026).
+══════════════════════════════════════════════════════════════ */
+const PLANO_FALLBACK = {"11012": "13o. Salário", "11008": "ADIANTAMENTOS E VALES / Salários (Fopag 05 + vale 20)", "20024": "Água e Esgoto", "20035": "AGUAS, SUCOS, REFRIGERANTES E ETC / Produtos para Revenda", "11021": "Alimentação", "30006": "Aluguel / Aluguel de Imóveis", "70119": "Aluguel de Imóveis", "13009": "Amostra Grátis", "50098": "Anuidade Cartão Crédito", "60003": "Aplicação Financeira", "17001": "Assinatura de Jornais e Revistas", "17002": "Assinatura de Jornais e Revistas", "12034": "Associações", "40006": "Baixas e Perdas Mercadorias", "120211": "Benefícios Funcionários", "12007": "Bolsa Auxílio Estágio", "12020": "Brindes e Homenagens", "11023": "Brindes e Homenagens", "50010": "Campanhas Promocionais", "70205": "Cartório", "30014": "Cartório", "2020": "COFINS", "18001": "Combustíveis", "20020": "Combustíveis", "18002": "Combustíveis", "20003": "Comissão por Produtividade", "13008": "Comissão por Produtividade", "30011": "Condomínio", "11101": "Confraternização de Funcionários", "50096": "Consulta ao Crédito SPC Serasa", "12036": "Consultoria de RH", "12037": "Consultoria Empresarial", "30077": "Consultoria Jurídica", "30010": "Consultoria Jurídica", "12039": "Consultoria Organizacional", "40005": "Consultoria Técnica de Produção", "40004": "Contribuição Sindical Patronal", "11015": "Contribuições Sindicais", "12002": "Convênios", "11010": "Convênios", "30015": "Correios", "80001": "CSLL", "2010": "CSLL", "12015": "Custas Processuais Trabalhistas", "14001": "Descarte de Resíduos", "14002": "Descarte de Resíduos", "12043": "Desenvolvimento de Softwares", "13006": "Devolução de Mercadorias", "12058": "DISTRIBUIÇÃO RESERVA FOLHA / Pró-Labore Sócio", "20013": "Diversas Desp Adm", "50035": "Doações e Campanhas Sociais", "14005": "Doações e Campanhas Sociais", "30017": "Doações e Campanhas Sociais", "11001": "Dobras e Extras", "20040": "Embalagens de Produtos", "12006": "Empréstimos Consignados", "11002": "Empréstimos Consignados", "70209": "Endivid. Empréstimos", "50007": "Endivid. Empréstimos", "70006": "Endivid. Garantida", "100014": "Endivid. Imóveis - Consórcio", "2026": "Endivid. Parcelam.  INSS/DESONERAÇÃO", "2022": "Endivid. Parcelam. Inss direto", "2024": "Endivid. Parcelam. Refis / PARCELAMENTO-COFINS", "2025": "Endivid. Parcelam. Refis", "2027": "Endivid. Parcelamento ICMS", "2028": "Endivid. Parcelamento Simples", "20004": "Endivid. Veículos - Consórcio", "12051": "Endividamento Folha", "20018": "Energia Elétrica", "60010": "Equipamentos de Informática", "12008": "Equipamentos de Segurança (EPI)", "14003": "Equipamentos de Segurança (EPI)", "30008": "Escritorio Contabilidade", "18003": "Estacionamento", "60004": "Estrutura", "11005": "Exames Médicos", "50031": "Feiras, Eventos e Desp. Viagens", "11006": "Férias", "11009": "FGTS", "20007": "Frete sobre Compras", "13015": "Frete sobre Vendas", "20025": "Gás", "12013": "Gastos com Acidentes de Trabalho", "2007": "GNRE/GARE / ICMS", "11051": "Hora Extra 100%", "11050": "Hora Extra 55%", "2006": "ICMS", "40061": "Impostos de Serviços Tomados (NFSe)", "18005": "Impostos s/Veículos-IPVA", "160003": "Impostos s/Veículos-IPVA", "70112": "INSS", "20027": "INSS", "30013": "Internet/TV", "50003": "IOF", "17000": "IPTU", "20062": "IRPJ", "2012": "ISS", "13012": "Juros Antecip. Cartão Receb.", "12022": "Juros Bancários", "12021": "Juros de Cartão de Crédito", "12010": "Laudos Técnicos e Clínicos", "20051": "Leite / Produtos para Revenda", "20064": "Licenciamento de Veículos", "18007": "Licenciamento de Veículos", "12042": "Locação de Equipamentos de Informática", "13011": "Locação de Máq de Cartão de Crédito", "20043": "Locação de Máquinas e Equipamentos", "13014": "Locação de Utensílios Coffee break", "18000": "Locação de Veículos", "40003": "Manutenção de Equipamentos de Informática", "20008": "Manutenção de Máquinas e Equipamentos", "12033": "Manutenção de Móveis e Utensílios", "18004": "Manutenção de Veículos", "20042": "Manutenção de Veículos", "20017": "Manutenção Predial", "70208": "Máquinas e Equipamentos", "100013": "Máquinas e Equipamentos", "12050": "Mat. p/Cafés e Confraterminzações", "20001": "Matéria Prima e Insumos", "20002": "Matéria Prima e Insumos", "70099": "Matéria Prima e Insumos", "12031": "Materiais de Consumo", "70114": "Materiais de Escritório", "20023": "Materiais de Escritório", "12029": "Materiais de Informática", "20028": "Materiais de Limpeza", "12030": "Materiais de Manutenção Predial", "12038": "Materiais Gráficos", "20060": "Materiais Gráficos", "50012": "Material Publicitário", "12009": "Medicamentos de Primeiros Socorros", "20009": "Móveis", "70113": "Multas de Trânsito", "18006": "Multas de Trânsito", "11100": "Multas e Infrações Trabalhistas", "30012": "Multas Fiscais", "2011": "PARCELAMENTO-IRPJ", "2023": "PARCELAMENTO-PIS", "11011": "Participação nos Resultados", "70212": "PIS", "2008": "PIS", "11022": "Pró-Labore Sócio", "60009": "Pró-Labore Sócio", "70010": "Pró-Labore Sócio", "30004": "RETIRADA SOCIOS", "11025": "Processos Trabalhistas", "20032": "Produtos para Revenda", "20029": "Produtos para Revenda", "20030": "Produtos para Revenda", "20031": "Produtos para Revenda", "20037": "Produtos para Revenda", "20038": "Produtos para Revenda", "20050": "Produtos para Revenda", "20033": "Produtos para Revenda", "20034": "Produtos para Revenda", "20039": "Produtos para Revenda", "20036": "Produtos para Revenda", "20045": "Produtos para Revenda", "20048": "Produtos para Revenda", "70211": "Propaganda e Publicidade", "50009": "Propaganda e Publicidade", "50011": "Propaganda e Publicidade", "12044": "Provedor e Domínio do Site", "11024": "Recolhimento de IR", "12014": "Recrutamento e Seleção", "200181": "Reforma", "100015": "Reforma", "11003": "Rescisões Trabalhistas", "70000": "Reserva p/ 13o. Salário", "60007": "Retirada de Sócios", "40002": "Salários (Fopag 05 + vale 20)", "12035": "Segurança Patrimonial", "160001": "Seguro de Veículos", "18008": "Seguro de Veículos", "12005": "Seguro de Vida", "11013": "Seguro de Vida", "20006": "Seguro Imóvel/Equipamentos", "12032": "Serviços de Limpeza e Higienização", "12019": "Serviços de Limpeza e Higienização", "12045": "Serviços Externos Eventos", "70221": "Simples Nacional", "12041": "Software", "50099": "Tarifa Seguro Empréstimo", "13010": "Tarifa Transf.Receb.", "12027": "Tarifas Bancárias", "50001": "Tarifas Bancárias", "13013": "Taxas Cartões/Recebíveis", "30016": "Taxas Diversas / Taxas Municipais", "50004": "Taxas Municipais", "12040": "Tecnologia e Comunicação", "70111": "Telefonia", "30009": "Telefonia", "565670": "Título de Capitalização", "50033": "Transf. Numerários/Mútuo", "12018": "Treinamentos", "11020": "Treinamentos", "70117": "Uniformes", "11016": "Uniformes", "70118": "Utensílios", "20022": "Utensílios", "11004": "Vale Transporte", "60006": "Veículos", "20065": "Viagens/Hospedagem para Treinamento", "20044": "Bonificações e Trocas"};
+let PLANO = Object.assign({}, PLANO_FALLBACK);
+function normCod(v){
+  let s = String(v ?? '').trim().replace(/^"|"$/g,'');
+  if(!s || s.startsWith('#')) return '';
+  if(/^-?\d+([.,]0+)?$/.test(s)) s = String(parseInt(s, 10));   // "11012.0" → "11012"
+  return s;
+}
+async function carregarPlano(){
+  try{
+    const txt = await fetchCSV(`${APPS_SCRIPT_URL}?tipo=planocontas`);
+    const linhas = txt.replace(/\r/g,'').split('\n').filter(Boolean);
+    const sep = detectSepExt(txt);
+    const hdr = splitLine(linhas[0], sep);
+    const iC = findCol(hdr, 'cod_pl','codpl','codigo'), iN = findCol(hdr, 'conta_pl','contapl','conta','descricao');
+    if(iC < 0 || iN < 0) return;
+    const m = {};
+    for(let i=1;i<linhas.length;i++){
+      const c = splitLine(linhas[i], sep);
+      const cod = normCod(c[iC]); const nome = String(c[iN]||'').trim();
+      if(!cod || !nome) continue;
+      m[cod] = m[cod] ? (m[cod].split(' / ').includes(nome) ? m[cod] : m[cod] + ' / ' + nome) : nome;
+    }
+    if(Object.keys(m).length > 20) PLANO = m;
+  }catch(e){ console.warn('Plano de Contas pelo Apps Script indisponível; usando cópia embutida.', e.message); }
+}
+
 function normPnome(v){
   return String(v||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
 }
@@ -785,8 +818,8 @@ function parseReembolso(text, lojaFallback){
   const iVs    = findCol(headers, 'vs');
   const iPnome = findCol(headers, 'pnome','lancamento','historico','descricao_lancamento');
   // Se a base um dia já vier com codcentro/descrição, eles têm prioridade sobre o de-para.
-  const iCod   = findCol(headers, 'codcentro','cod_centro','cod_pl');
-  const iDesc  = findCol(headers, 'descricao','conta_pl');
+  const iCod   = findCol(headers, 'cod_pl','codpl','codcentro','cod_centro','cod_conta','codconta');
+  const iDesc  = findCol(headers, 'conta_pl','contapl','descricao','desc_pl');
 
   if(iTotal<0 || iCanal<0 || iVs<0) return rows; // arquivo sem as colunas necessárias
 
@@ -813,9 +846,16 @@ function parseReembolso(text, lojaFallback){
     if(!ano || !loja) continue;
 
     const pnome = iPnome>=0 ? normPnome(g(iPnome)) : '';
-    let dp = lookupDePara(pnome);
-    const codArq = iCod>=0 ? g(iCod) : '';
-    if(codArq) dp = { cod: codArq, desc: (iDesc>=0 ? g(iDesc) : '') || dp.desc, status: 'ok' };
+    let dp;
+    if(iCod >= 0){
+      // Base já vem com o código: ele é a fonte oficial; o de-para não é usado.
+      const cod = normCod(g(iCod));
+      if(!cod)              dp = { cod: null, desc: '', status: 'nl' };
+      else if(PLANO[cod])   dp = { cod, desc: PLANO[cod], status: 'ok' };
+      else                  dp = { cod, desc: (iDesc>=0 ? g(iDesc) : ''), status: 'fora' };
+    } else {
+      dp = lookupDePara(pnome);   // bases antigas, sem coluna de código
+    }
 
     rows.push({
       ano,
@@ -836,7 +876,7 @@ function parseReembolso(text, lojaFallback){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v2_re_codcentro';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v3_codpl';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -876,6 +916,7 @@ let rawData = [];
    LOAD
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
+  await carregarPlano();
   let rows = [];
   const falhas = [];
   let ultimoErro = '';
@@ -971,6 +1012,7 @@ async function loadData(forceRefresh){
 // o(s) arquivo(s) FATURAMENTO_RE_<LOJA>.csv do computador.
 async function carregarCSVManual(files){
   if(!files || !files.length) return;
+  await carregarPlano();
   let rows = [];
   for(const f of files){
     const m = f.name.toUpperCase().match(/FATURAMENTO_RE_([A-Z]+)/);
@@ -1048,6 +1090,7 @@ function applyFilters(){
 function stBadge(s){
   if(s === 'nl')  return '<span class="st-badge st-nl">Não localizado</span>';
   if(s === 'rev') return '<span class="st-badge st-rev" title="O Plano de Contas tem mais de um código para esta conta">Revisar código</span>';
+  if(s === 'fora') return '<span class="st-badge st-rev" title="O código veio na base, mas não existe no Plano de Contas">Código fora do plano</span>';
   return '<span class="st-badge st-ok">Localizado</span>';
 }
 function escHtml(s){ return String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
@@ -1080,7 +1123,7 @@ const COLS = {
     { key:'total', label:'Total', num:true },
   ],
 };
-const STATUS_ORD = { nl:0, rev:1, ok:2 };
+const STATUS_ORD = { nl:0, fora:1, rev:2, ok:3 };
 const collator = new Intl.Collator('pt-BR', { numeric:true, sensitivity:'base' });
 
 // Valor usado na comparação de cada coluna.
