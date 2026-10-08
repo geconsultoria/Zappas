@@ -588,19 +588,12 @@ a.side-brand:hover { opacity:.85; }
    (compartilhado como "Qualquer pessoa com o link → Leitor").
    Para incluir outra loja, basta acrescentar { loja, fileId } abaixo.
 ══════════════════════════════════════════════════════════════ */
-// O Google Drive bloqueia a leitura direta do arquivo pelo navegador (CORS),
-// por isso a leitura passa por um Apps Script (ReembolsoBase.gs).
-// Depois de implantar o script, cole aqui a URL do app da Web (termina em /exec):
-const RE_APPS_SCRIPT_URL = "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
-
-const RE_FILES = [
-  { loja: 'bady', fileId: '1UQ0vAqi8Ll1VFJkjx_yc74Wk329yEuxb' }, // FATURAMENTO_RE_BADY.csv
-];
-const RE_SCRIPT_OK = /^https:\/\/script\.google\.com\/.+\/exec$/.test(RE_APPS_SCRIPT_URL);
-const STORE_KEYS = RE_FILES.map(f => f.loja);
-const CSV_URLS = RE_FILES.map(f => RE_SCRIPT_OK
-  ? `${RE_APPS_SCRIPT_URL}?id=${f.fileId}`
-  : `https://drive.google.com/uc?export=download&id=${f.fileId}`);
+// Mesmo Apps Script das demais telas. O parâmetro tipo=reembolso faz o script
+// buscar, na pasta do Drive, o arquivo cujo nome contém "FATURAMENTO_RE_<LOJA>".
+// Lojas que ainda não têm esse arquivo são ignoradas.
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
+const STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=reembolso&loja=${k}`);
 
 /* ══════════════════════════════════════════════════════════════
    DE-PARA  pnome (base)  →  CodCentro / Descrição (Plano de Contas Zappas)
@@ -881,6 +874,7 @@ let rawData = [];
 async function carregarTudo(){
   let rows = [];
   const falhas = [];
+  let ultimoErro = '';
   const BATCH = 2;
   for(let i=0;i<CSV_URLS.length;i+=BATCH){
     const grupo = CSV_URLS.slice(i, i+BATCH);
@@ -892,12 +886,11 @@ async function carregarTudo(){
       try{
         const text = await fetchCSV(url);
         rows = rows.concat(parseReembolso(text, lojaKey.toUpperCase()));
-      }catch(e){ console.warn('Base de reembolso indisponível ('+lojaKey+'):', e.message); falhas.push(lojaKey.toUpperCase()); }
+      }catch(e){ console.warn('Base de reembolso indisponível ('+lojaKey+'):', e.message); falhas.push(lojaKey.toUpperCase()); if(lojaKey==='bady' || !ultimoErro) ultimoErro = e.message; }
     }));
   }
-  if(falhas.length === CSV_URLS.length) throw new Error(RE_SCRIPT_OK
-    ? 'Não foi possível ler a base de reembolso pelo Apps Script ('+falhas.join(', ')+'). Confira a implantação do script (Executar como: Eu · Acesso: Qualquer pessoa).'
-    : 'A URL do Apps Script da base de reembolso ainda não foi configurada (RE_APPS_SCRIPT_URL). Enquanto isso, use o botão "Carregar CSV manualmente".');
+  if(falhas.length === CSV_URLS.length) throw new Error(
+    'Nenhuma base de reembolso foi encontrada pelo Apps Script. Confira se o script foi atualizado com o tipo "reembolso" (nova versão implantada) e se o arquivo FATURAMENTO_RE_<LOJA>.csv está na pasta do Drive. Detalhe: ' + ultimoErro);
   rawData = rows; // pode ser vazio: significa que não há reembolsos no período disponível
 }
 
