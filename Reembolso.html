@@ -337,6 +337,12 @@ a.side-brand:hover { opacity:.85; }
 .nl-alert.ok { background:#e6f4ea; color:#1e7b34; }
 .btn-upload { margin-left:12px; padding:5px 12px; border-radius:8px; border:1px solid currentColor; background:#fff; color:inherit; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
 .btn-upload:hover { background:rgba(255,255,255,.6); }
+.btn-export { padding:6px 12px; border-radius:8px; border:1px solid var(--border, #d9d4c7); background:#fff; color:var(--ink-2, #333);
+  font:inherit; font-size:11.5px; font-weight:700; cursor:pointer; white-space:nowrap; }
+.btn-export:hover { background:#f4f1ea; }
+.btn-export-nl { border-color:#e8b4ae; color:#b3261e; background:#fff6f5; }
+.btn-export-nl:hover { background:#fde4e1; }
+.btn-export:disabled { opacity:.45; cursor:default; }
 
 /* Category / store bars */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -560,6 +566,7 @@ a.side-brand:hover { opacity:.85; }
   <div class="sec">
     <span class="sec-title">Lançamentos de Reembolso por Mês</span><span class="sec-line"></span>
     <span class="sec-count" id="sec-count">0 registros</span>
+    <button type="button" class="btn-export" onclick="exportarReembolsos('todos')" title="Baixa todos os reembolsos do filtro atual (abre no Excel)">⬇ Exportar todos</button>
   </div>
   <div class="comp-card">
     <div class="comp-scroll">
@@ -573,6 +580,7 @@ a.side-brand:hover { opacity:.85; }
   <div class="sec">
     <span class="sec-title">Lançamentos sem CodCentro no Plano de Contas</span><span class="sec-line"></span>
     <span class="sec-count" id="sec-count-nl">0 registros</span>
+    <button type="button" class="btn-export btn-export-nl" id="btn-export-nl" onclick="exportarReembolsos('sem_codigo')" title="Baixa a relação dos reembolsos sem código válido no Plano de Contas (abre no Excel)">⬇ Baixar relação sem código</button>
   </div>
   <div id="nl-alert" class="nl-alert"></div>
   <div class="comp-card">
@@ -1032,6 +1040,59 @@ async function carregarCSVManual(files){
   $('csv-manual').value = '';
 }
 
+/* ══════════════════════════════════════════════════════════════
+   RELATÓRIO — exporta em CSV (separador ";", vírgula decimal e BOM UTF-8,
+   para abrir direto no Excel com acentos e números corretos).
+   'sem_codigo' = só os pendentes (sem cod_pl ou código fora do plano);
+   'todos'      = todos os reembolsos do filtro atual.
+   Respeita os filtros de Ano, Mês e Loja da tela.
+══════════════════════════════════════════════════════════════ */
+function exportarReembolsos(tipo){
+  const ano = $('f-ano').value ? +$('f-ano').value : null;
+  const mes = $('f-mes').value ? +$('f-mes').value : null;
+  const loja = $('f-loja').value || null;
+  let lista = rawData.filter(r => (!ano || r.ano===ano) && (!mes || r.mes===mes) && (!loja || r.loja===loja));
+  if(tipo === 'sem_codigo') lista = lista.filter(pendente);
+  lista = lista.slice().sort((a,b) => collator.compare(lojaLabel(a.loja), lojaLabel(b.loja)) || ((a.dataTs||0)-(b.dataTs||0)) || collator.compare(a.pnome, b.pnome));
+  if(!lista.length){
+    const el = $('nl-alert'); if(el){ el.className='nl-alert ok'; el.textContent='Nada para exportar com os filtros atuais.'; }
+    return;
+  }
+  const num = v => (Math.round((v||0)*100)/100).toFixed(2).replace('.', ',');
+  const esc = v => { const t = String(v ?? ''); return /[;"\n]/.test(t) ? '"' + t.replace(/"/g,'""') + '"' : t; };
+  const motivo = r => r.status==='nl' ? 'Sem cod_pl na planilha FATURAMENTO_RE_'
+                    : r.status==='fora' ? 'cod_pl não existe no Plano de Contas'
+                    : r.status==='rev' ? 'Localizado (revisar código)' : 'Localizado';
+  const cab = ['Loja','Data','Ano','Mês','Lançamento (pnome)','cod_pl informado','Descrição (Plano de Contas)','Situação','Valor (R$)'];
+  const linhas = lista.map(r => [
+    lojaLabel(r.loja), r.dataLabel||'', r.ano||'', r.mes ? MONTHS[r.mes-1] : '',
+    r.pnome||'', r.codcentro ?? '', r.descricao||'', motivo(r), num(r.total)
+  ].map(esc).join(';'));
+  const total = lista.reduce((t,r)=>t+r.total,0);
+  linhas.push(['TOTAL','','','','','','', lista.length + ' lançamento(s)', num(total)].map(esc).join(';'));
+
+  // Resumo por lançamento (pnome) — ajuda a corrigir de uma vez na planilha
+  const porNome = new Map();
+  lista.forEach(r => { const k = r.pnome + '|' + (r.codcentro ?? ''); const c = porNome.get(k) || { pnome:r.pnome, cod:r.codcentro ?? '', st:motivo(r), qtd:0, tot:0 }; c.qtd++; c.tot += r.total; porNome.set(k, c); });
+  const resumo = [...porNome.values()].sort((a,b)=>b.tot-a.tot)
+    .map(c => ['', '', '', '', c.pnome, c.cod, '', c.st + ' — ' + c.qtd + ' lanç.', num(c.tot)].map(esc).join(';'));
+
+  const filtro = [ano||'todos os anos', mes ? MONTHS[mes-1] : 'todos os meses', loja ? lojaLabel(loja) : 'todas as lojas'].join(' · ');
+  const titulo = tipo==='sem_codigo' ? 'Reembolsos sem código no Plano de Contas' : 'Reembolsos (FATURAMENTO_RE_)';
+  const conteudo = [
+    titulo, 'Filtro: ' + filtro, 'Gerado em: ' + new Date().toLocaleString('pt-BR'), '',
+    cab.join(';'), ...linhas, '', 'RESUMO POR LANÇAMENTO', ...resumo
+  ].join('\r\n');
+
+  const blob = new Blob(['\ufeff' + conteudo], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a');
+  const stamp = new Date().toISOString().slice(0,10);
+  a.href = URL.createObjectURL(blob);
+  a.download = (tipo==='sem_codigo' ? 'Reembolsos_sem_codigo_' : 'Reembolsos_') + (loja ? lojaLabel(loja)+'_' : '') + (ano ? ano+'_' : '') + stamp + '.csv';
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
 window.addEventListener('storage', (e) => {
   if(e.key === GLOBAL_REFRESH_KEY && e.newValue) loadData(true);
 });
@@ -1182,6 +1243,7 @@ function renderNaoLocalizados(data){
   const nl = ordenarLista(data.filter(pendente), 'nl');
   const totalNl = nl.reduce((s,r)=>s+r.total,0);
   $('sec-count-nl').textContent = fN(nl.length) + ' registros';
+  if($('btn-export-nl')) $('btn-export-nl').disabled = !nl.length;
   const alertEl = $('nl-alert');
   if(!nl.length){
     alertEl.className = 'nl-alert ok';
