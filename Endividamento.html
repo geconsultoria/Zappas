@@ -385,8 +385,15 @@ table.tight tbody tr:hover td { background:var(--bg); }
       <div class="card-head"><div><div class="card-title">Nova operação</div><div class="card-sub">Cadastro dos dados do contrato / empréstimo</div></div><span class="pill p-blue">Cadastro</span></div>
       <div style="padding:14px 18px 16px;">
         <div class="r4">
-          <div><label for="edEmpresa">Empresa / Loja</label><input id="edEmpresa" placeholder="Ex: Zappas Havan"></div>
-          <div><label for="edBanco">Banco</label><input id="edBanco" placeholder="Ex: Banco Alfa"></div>
+          <div><label for="edEmpresa">Empresa / Loja</label><select id="edEmpresa"><option value="">Selecione a loja</option></select></div>
+          <div>
+            <label for="edBanco">Banco</label>
+            <div style="display:flex; gap:6px;">
+              <select id="edBanco" style="flex:1; min-width:0;"><option value="">Selecione o banco</option></select>
+              <button class="btn btn-ghost btn-sm" type="button" id="btnBancoAdd" title="Adicionar banco que não está na lista" style="flex:none; padding:0 11px; font-weight:800; font-size:15px;">+</button>
+              <button class="btn btn-ghost btn-sm" type="button" id="btnBancoDel" title="Remover banco adicionado" style="flex:none; padding:0 11px; font-weight:800; font-size:15px;">−</button>
+            </div>
+          </div>
           <div><label for="edConta">Conta / Contrato</label><input id="edConta" placeholder="Nº do contrato"></div>
           <div>
             <label for="edModalidade">Modalidade</label>
@@ -456,7 +463,7 @@ table.tight tbody tr:hover td { background:var(--bg); }
 <!-- Modal: nova modalidade -->
 <div class="modal-overlay" id="modOverlay">
   <div class="modal-card">
-    <div class="modal-head"><div class="modal-title">Nova modalidade</div><div class="modal-sub">Fica disponível na lista para todas as operações</div></div>
+    <div class="modal-head"><div class="modal-title" id="modTitulo">Nova modalidade</div><div class="modal-sub">Fica disponível na lista para todas as pessoas</div></div>
     <div class="modal-body"><label for="modNome">Nome</label><input id="modNome" placeholder="Ex: Cheque especial"></div>
     <div class="modal-foot">
       <button class="btn btn-ghost" type="button" data-fechar-modal>Cancelar</button>
@@ -485,10 +492,10 @@ table.tight tbody tr:hover td { background:var(--bg); }
    Os dados ficam na planilha Google "ENDIVIDAMENTO_ZAPPAS", lida e
    gravada pelo mesmo Apps Script de dados das outras telas — todo mundo
    que abre a tela vê e altera a mesma base.
-     GET  ?tipo=endividamento                          → {ok, operacoes, modalidades}
+     GET  ?tipo=endividamento                          → {ok, operacoes, modalidades, bancos}
      POST {tipo:'endividamento', acao:'salvar',  colecao, item, token, email}
      POST {tipo:'endividamento', acao:'remover', colecao, id,   token, email}
-   colecao = 'operacoes' | 'modalidades'. POST vai como text/plain
+   colecao = 'operacoes' | 'modalidades' | 'bancos'. POST vai como text/plain
    (sem preflight de CORS). Cada operação é gravada sozinha, então duas
    pessoas mexendo ao mesmo tempo não apagam o que a outra fez.
    Se ENDIV_API_URL ficar vazio, a tela volta para o modo local
@@ -503,7 +510,16 @@ const ENDIV_API_URL = 'https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8Mz
 
 const LS_ED  = 'zappas_endividamento';
 const LS_MOD = 'zappas_endividamento_modalidades';
+const LS_BANCOS = 'zappas_endividamento_bancos';
 const MODALIDADES_PADRAO = ['EMPRÉSTIMO','CAPITAL DE GIRO','CONTA GARANTIDA','DESCONTO DE TÍTULO','FINANCIAMENTO','FIDC'];
+/* Mesmas 6 lojas usadas no resto do painel (BACKUP_STORE_KEYS). */
+const LOJAS = ['ANISIO','BADY','BELVEDERE','DAMHA','HAVAN','MUFFATO'];
+/* Principais bancos/cooperativas do Brasil. O que faltar, adicione pelo
+   botão "+" ao lado do campo — fica salvo na planilha para todos. */
+const BANCOS_PADRAO = ['ABC BRASIL','BANCO DA AMAZÔNIA','BANCO DO BRASIL','BANCO DO NORDESTE','BANESTES','BANRISUL',
+  'BNDES','BRADESCO','BRB','BTG PACTUAL','C6 BANK','CAIXA ECONÔMICA FEDERAL','CORA','CRESOL','DAYCOVAL','INTER',
+  'ITAÚ','MERCADO PAGO','MERCANTIL DO BRASIL','NUBANK','ORIGINAL','PAGBANK','PINE','SAFRA','SANTANDER','SICOOB',
+  'SICREDI','SOFISA','STONE','UNICRED','XP'];
 
 const $ = id => document.getElementById(id);
 const esc = v => String(v==null?'':v).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -559,16 +575,13 @@ const Store = {
   remoto: !!ENDIV_API_URL,
   async listar(){
     if(!this.remoto){
-      let ops=[], mods=[];
-      try{ ops=JSON.parse(localStorage.getItem(LS_ED)||'[]'); }catch(e){}
-      try{ mods=JSON.parse(localStorage.getItem(LS_MOD)||'[]'); }catch(e){}
-      return {operacoes:ops, modalidades:mods};
+      return {operacoes:this._lsGet('operacoes'), modalidades:this._lsGet('modalidades'), bancos:this._lsGet('bancos')};
     }
     const res=await fetch(ENDIV_API_URL+'?tipo=endividamento&_='+Date.now(), {cache:'no-store'});
     const txt=await res.text();
     let j; try{ j=JSON.parse(txt); }catch(e){ throw new Error('o Apps Script ainda não tem a parte do Endividamento (publique a nova versão)'); }
     if(!j.ok) throw new Error(j.erro||'Falha ao listar');
-    return {operacoes:j.operacoes||[], modalidades:j.modalidades||[]};
+    return {operacoes:j.operacoes||[], modalidades:j.modalidades||[], bancos:j.bancos||[]};
   },
   async _post(body){
     const sess=(window.AuthGuard && AuthGuard.getSession && AuthGuard.getSession())||{};
@@ -579,7 +592,7 @@ const Store = {
     if(!j.ok) throw new Error(j.erro||'Falha ao gravar');
     return j;
   },
-  _lsKey(colecao){ return colecao==='modalidades' ? LS_MOD : LS_ED; },
+  _lsKey(colecao){ return {modalidades:LS_MOD, bancos:LS_BANCOS}[colecao] || LS_ED; },
   _lsGet(colecao){ try{ return JSON.parse(localStorage.getItem(this._lsKey(colecao))||'[]'); }catch(e){ return []; } },
   _lsSet(colecao, arr){ localStorage.setItem(this._lsKey(colecao), JSON.stringify(arr)); },
   async salvar(colecao, item){
@@ -596,7 +609,8 @@ const Store = {
   }
 };
 
-let operacoesEd=[], modalidadesExtra=[];
+let operacoesEd=[];
+const extras={modalidades:[], bancos:[]};   // itens adicionados pelo "+" (vêm da planilha)
 let edPage=0, edSelected=null, edTabPage=0;
 
 /* Se alguém já tinha cadastrado operações no "Modo local" deste
@@ -621,43 +635,64 @@ async function recarregar(silencioso){
   try{
     let d=await Store.listar();
     if(await migrarLocalParaPlanilha(d)) d=await Store.listar();
-    operacoesEd=d.operacoes; modalidadesExtra=d.modalidades;
+    operacoesEd=d.operacoes; extras.modalidades=d.modalidades; extras.bancos=d.bancos;
     if(Store.remoto) setBadge('Sincronizado com a equipe','ok');
   }catch(e){
     console.error(e);
     if(Store.remoto) setBadge('Sem conexão com a planilha','warn');
     if(!silencioso) toast('Não foi possível carregar os dados: '+e.message);
   }
-  renderModalidadeSelect();
+  renderListas();
   renderTudo();
 }
 
-/* ---------- modalidades ---------- */
-function listaModalidades(){ return [...MODALIDADES_PADRAO, ...modalidadesExtra.map(m=>m.nome)]; }
-function renderModalidadeSelect(selecionar){
-  const sel=$('edModalidade');
+/* ---------- listas de seleção (lojas, bancos, modalidades) ----------
+   Bancos e modalidades: lista padrão + itens extras adicionados pelo "+"
+   (gravados na planilha, abas "bancos" e "modalidades"). */
+const LISTAS={
+  bancos:      {sel:'edBanco',      padrao:BANCOS_PADRAO,      vazio:'Selecione o banco',  titulo:'Novo banco',      ex:'Ex: Banco Rendimento', nomeSing:'banco',      ordenar:true},
+  modalidades: {sel:'edModalidade', padrao:MODALIDADES_PADRAO, vazio:'Selecione',          titulo:'Nova modalidade', ex:'Ex: Cheque especial',  nomeSing:'modalidade', ordenar:false},
+};
+function itensLista(k){
+  const L=LISTAS[k], todos=[...L.padrao, ...extras[k].map(m=>m.nome)];
+  const unicos=[...new Set(todos)];
+  return L.ordenar ? unicos.sort((a,b)=>a.localeCompare(b,'pt-BR')) : unicos;
+}
+function preencherSelect(sel, itens, vazio, selecionar){
   const atual = selecionar!==undefined ? selecionar : sel.value;
-  sel.innerHTML='<option value="">Selecione</option>'+listaModalidades().map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
+  sel.innerHTML=`<option value="">${vazio}</option>`+itens.map(m=>`<option value="${esc(m)}">${esc(m)}</option>`).join('');
   sel.value=atual||'';
+}
+function renderListaSel(k, selecionar){ const L=LISTAS[k]; preencherSelect($(L.sel), itensLista(k), L.vazio, selecionar); }
+function renderListas(){
+  preencherSelect($('edEmpresa'), LOJAS, 'Selecione a loja');
+  renderListaSel('bancos'); renderListaSel('modalidades');
 }
 function abrirModal(id){ $(id).classList.add('show'); }
 function fecharModais(){ document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show')); baixaPendente=null; rmPendente=null; }
-async function confirmarModalidade(){
-  const nome=up(($('modNome').value||'').trim());
-  if(!nome){ toast('Digite o nome da modalidade.'); return; }
-  if(listaModalidades().some(m=>m.toUpperCase()===nome)){ toast('Essa modalidade já existe.'); renderModalidadeSelect(nome); fecharModais(); return; }
-  try{ const item=await Store.salvar('modalidades',{nome}); modalidadesExtra.push(item); }
-  catch(e){ toast('Não foi possível adicionar: '+e.message); return; }
-  renderModalidadeSelect(nome); fecharModais(); toast('Modalidade adicionada.');
+let listaNova=null;
+function pedirNovoItem(k){
+  listaNova=k; const L=LISTAS[k];
+  $('modTitulo').textContent=L.titulo; $('modNome').placeholder=L.ex; $('modNome').value='';
+  abrirModal('modOverlay'); $('modNome').focus();
 }
-async function removerModalidadeSelecionada(){
-  const atual=$('edModalidade').value;
-  if(!atual){ toast('Selecione uma modalidade para remover.'); return; }
-  const item=modalidadesExtra.find(m=>m.nome===atual);
-  if(!item){ toast('As modalidades padrão não podem ser removidas.'); return; }
-  try{ await Store.remover('modalidades', item.id); }catch(e){ toast('Não foi possível remover: '+e.message); return; }
-  modalidadesExtra=modalidadesExtra.filter(m=>m.id!==item.id);
-  renderModalidadeSelect(''); toast('Modalidade removida.');
+async function confirmarNovoItem(){
+  const k=listaNova; if(!k) return; const L=LISTAS[k];
+  const nome=up(($('modNome').value||'').trim());
+  if(!nome){ toast('Digite o nome.'); return; }
+  if(itensLista(k).some(m=>m.toUpperCase()===nome)){ toast('Esse '+L.nomeSing+' já está na lista.'); renderListaSel(k, nome); fecharModais(); return; }
+  try{ const item=await Store.salvar(k,{nome}); extras[k].push(item); }
+  catch(e){ toast('Não foi possível adicionar: '+e.message); return; }
+  renderListaSel(k, nome); fecharModais(); toast(L.nomeSing[0].toUpperCase()+L.nomeSing.slice(1)+' adicionado(a).');
+}
+async function removerItemSelecionado(k){
+  const L=LISTAS[k], atual=$(L.sel).value;
+  if(!atual){ toast('Selecione o '+L.nomeSing+' para remover.'); return; }
+  const item=extras[k].find(m=>m.nome===atual);
+  if(!item){ toast('Os itens padrão da lista não podem ser removidos.'); return; }
+  try{ await Store.remover(k, item.id); }catch(e){ toast('Não foi possível remover: '+e.message); return; }
+  extras[k]=extras[k].filter(m=>m.id!==item.id);
+  renderListaSel(k, ''); toast('Removido da lista.');
 }
 
 /* ---------- cálculo (tabela Price) ---------- */
@@ -689,10 +724,10 @@ function calcularSaldos(op){
 const valorParcelaOp = (o,r) => o.valorParcela || (r.parcelas[0] ? r.parcelas[0].parcela : 0);
 
 /* ---------- cadastro ---------- */
-const CAMPOS_FORM=['edEmpresa','edBanco','edConta','edDataOperacao','edDataCredito','edDataTermino','edValor','edTaxaAm','edTaxaCet','edGarantia','edPrazo','edCarencia','edParcela','edVencimento','edPagas','edSaldoBanco'];
+const CAMPOS_FORM=['edConta','edDataOperacao','edDataCredito','edDataTermino','edValor','edTaxaAm','edTaxaCet','edGarantia','edPrazo','edCarencia','edParcela','edVencimento','edPagas','edSaldoBanco'];
 async function cadastrarOperacao(){
   const dados={
-    empresa:up($('edEmpresa').value.trim()), banco:up($('edBanco').value.trim()), conta:up($('edConta').value.trim()),
+    empresa:$('edEmpresa').value, banco:$('edBanco').value, conta:up($('edConta').value.trim()),
     modalidade:$('edModalidade').value,
     dataOperacao:$('edDataOperacao').value, dataCredito:$('edDataCredito').value, dataTermino:$('edDataTermino').value,
     valorContratado:valorMoeda($('edValor')), taxaAm:parseFloat($('edTaxaAm').value), taxaCet:parseFloat($('edTaxaCet').value)||0,
@@ -703,14 +738,14 @@ async function cadastrarOperacao(){
     pagamentos:[]
   };
   if(!dados.empresa||!dados.banco||!(dados.valorContratado>0)||!(dados.taxaAm>=0)||!(dados.prazo>0)||!dados.vencimento){
-    toast('Preencha ao menos empresa, banco, valor contratado, taxa a.m., prazo e próximo vencimento.'); return;
+    toast('Preencha ao menos loja, banco, valor contratado, taxa a.m., prazo e próximo vencimento.'); return;
   }
   if(!dados.dataTermino) dados.dataTermino=addMeses(dataPrimeiraParcela(dados), dados.prazo-1);
   const btn=$('btnAddEd'); btn.disabled=true;
   try{ const item=await Store.salvar('operacoes', dados); operacoesEd.push(item); }
   catch(e){ toast('Não foi possível cadastrar: '+e.message); btn.disabled=false; return; }
   btn.disabled=false;
-  CAMPOS_FORM.forEach(id=>$(id).value=''); $('edModalidade').value='';
+  CAMPOS_FORM.forEach(id=>$(id).value=''); ['edEmpresa','edBanco','edModalidade'].forEach(id=>$(id).value='');
   renderTudo(); toast('Operação cadastrada.');
 }
 
@@ -889,10 +924,12 @@ function renderTudo(){ renderPainel(); renderLista(); }
 function ligarEventos(){
   maskMoeda($('edValor')); maskMoeda($('edParcela')); maskMoeda($('baixaValor')); maskMoeda($('edSaldoBanco'));
   $('btnAddEd').addEventListener('click', cadastrarOperacao);
-  $('btnModAdd').addEventListener('click', ()=>{ $('modNome').value=''; abrirModal('modOverlay'); $('modNome').focus(); });
-  $('btnModDel').addEventListener('click', removerModalidadeSelecionada);
-  $('modConfirmar').addEventListener('click', confirmarModalidade);
-  $('modNome').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmarModalidade(); });
+  $('btnModAdd').addEventListener('click', ()=>pedirNovoItem('modalidades'));
+  $('btnModDel').addEventListener('click', ()=>removerItemSelecionado('modalidades'));
+  $('btnBancoAdd').addEventListener('click', ()=>pedirNovoItem('bancos'));
+  $('btnBancoDel').addEventListener('click', ()=>removerItemSelecionado('bancos'));
+  $('modConfirmar').addEventListener('click', confirmarNovoItem);
+  $('modNome').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmarNovoItem(); });
   $('baixaConfirmar').addEventListener('click', confirmarBaixa);
   $('rmConfirmar').addEventListener('click', confirmarRemocao);
   $('fVencerDias').addEventListener('change', renderParcelasVencer);
