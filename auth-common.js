@@ -58,6 +58,7 @@
     banco_declaracao: { label: "Banco", href: "Banco_Declaracao.html" },
     reembolso: { label: "Reembolso entre Lojas", href: "Reembolso.html" },
     ciclo_financeiro: { label: "Ciclo Financeiro", href: "Ciclo_Financeiro.html" },
+    endividamento: { label: "Controle de Endividamento", href: "Endividamento.html" },
     elaboracao_metas: { label: "Elaboração de Metas", href: "Elaboracao_Metas.html" },
     resultado_meta: { label: "Resultado Metas", href: "Resultado_Meta.html" },
     acompanhamento_metas: { label: "Acompanhamento de Metas", href: "Acompanhamento_Metas.html" }
@@ -463,7 +464,7 @@
   var BACKUP_APP_FILES = [
     "GestaoZappas.html", "Administracao.html", "auth-common.js",
     "Analise_Comercial.html", "Faturamento_Lucro.html", "Faturamento_Detalhado.html", "Curva_ABC_Produto.html",
-    "DRE_Gerencial.html", "Contas_a_Pagar.html", "Banco_Declaracao.html", "Reembolso.html", "Ciclo_Financeiro.html",
+    "DRE_Gerencial.html", "Contas_a_Pagar.html", "Banco_Declaracao.html", "Reembolso.html", "Ciclo_Financeiro.html", "Endividamento.html",
     "Elaboracao_Metas.html", "Acompanhamento_Metas.html", "Resultado_Meta.html"
   ];
 
@@ -585,6 +586,7 @@
     });
     tarefas.push(["dados/plano_de_contas.csv", DATA_APPS_SCRIPT_URL + "?tipo=planocontas", "Plano de Contas"]);
     tarefas.push(["dados/metas.csv", METAS_APPS_SCRIPT_URL_BK, "Metas"]);
+    tarefas.push(["dados/endividamento.json", DATA_APPS_SCRIPT_URL + "?tipo=endividamento", "Endividamento"]);
     BACKUP_APP_FILES.forEach(function (f) { tarefas.push(["app/" + f, f, "Tela " + f]); });
 
     carregarJSZip().then(function () {
@@ -602,7 +604,7 @@
           "BACKUP GERAL — GESTÃO ZAPPAS",
           "Gerado em: " + agora.toLocaleString("pt-BR"),
           "",
-          "  /dados → CSVs de Faturamento, Contas a Pagar, Recebidos, De-Para, Plano de Contas e Metas.",
+          "  /dados → CSVs de Faturamento, Contas a Pagar, Recebidos, De-Para, Plano de Contas e Metas, e o Endividamento (JSON).",
           "  /app   → cópia das telas do painel (HTML) e do auth-common.js, como publicadas.",
           "",
           "O código do Apps Script não entra aqui: faça a cópia dele em script.google.com (Arquivo → Fazer uma cópia).",

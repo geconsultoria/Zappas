@@ -479,6 +479,10 @@ body {
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
+        <a href="Endividamento.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
+          Controle de Endividamento
+        </a>
       </div>
     </div>
 
@@ -836,13 +840,13 @@ async function gerarResumoMensal(avisar = true) {
 // ?tipo=depara, ?tipo=planocontas) — e o endpoint separado de Metas.
 const BACKUP_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const BACKUP_METAS_URL = 'https://script.google.com/macros/s/AKfycbzmpNN6di1R7wrW4bE-9BJ0EWZ4Hmt_9E4PesSdj8CgRLZFdApQsbUDJyFzXYOvvcWl/exec';
-// As 12 telas do painel, publicadas junto no mesmo endereço (GitHub
+// As 13 telas do painel, publicadas junto no mesmo endereço (GitHub
 // Pages) — buscadas por caminho relativo pra entrar no backup.
 const BACKUP_APP_FILES = [
   'GestaoZappas.html','Acompanhamento_Metas.html','Analise_Comercial.html',
   'Banco_Declaracao.html','Contas_a_Pagar.html','Curva_ABC_Produto.html','DRE_Gerencial.html',
   'Elaboracao_Metas.html','Faturamento_Detalhado.html','Faturamento_Lucro.html',
-  'Reembolso.html','Ciclo_Financeiro.html'
+  'Reembolso.html','Ciclo_Financeiro.html','Endividamento.html'
 ];
 
 let _jszipPromise = null;
@@ -963,7 +967,7 @@ async function backupGeral() {
       '  /dados  → CSVs de Faturamento, Contas a Pagar, Recebidos, De-Para,',
       '            Plano de Contas e Metas, exatamente como os dashboards',
       '            leem hoje (mesmos endpoints do Apps Script).',
-      '  /app    → cópia das 11 telas HTML do painel, como publicadas.',
+      '  /app    → cópia das 13 telas HTML do painel, como publicadas.',
       '',
       'O QUE NÃO ESTÁ NESTE BACKUP:',
       '  O código-fonte do Apps Script (o script que roda no Google e lê',
