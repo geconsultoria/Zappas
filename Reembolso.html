@@ -294,6 +294,12 @@ a.side-brand:hover { opacity:.85; }
 .kpi-val { font-family: var(--font-num); font-size: 23px; font-weight: 700; color: var(--ink); letter-spacing: -.02em; line-height: 1; }
 .kpi-foot { font-size: 10.5px; color: var(--ink-4); margin-top: 8px; }
 .kpi-foot b { color: var(--ink-3); font-weight: 600; }
+/* Layout dos indicadores: título no canto superior esquerdo, valor no
+   centro e o rodapé no canto inferior direito. */
+.kpi { min-height: 118px; }
+.kpi-lbl { text-align: left; align-self: flex-start; }
+.kpi-val { flex: 1; display: flex; align-items: center; justify-content: center; text-align: center; padding: 4px 0; }
+.kpi-foot { text-align: right; align-self: flex-end; margin-top: 4px; }
 
 /* CARD / TABLE */
 .comp-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); overflow: hidden; margin-bottom: 16px; }
