@@ -340,6 +340,14 @@ a.side-brand:hover { opacity:.85; }
 .rk-badge { justify-self: end; }
 .rk-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
 /* Card "Sua Meta" — usuário de uma loja só: barra + quanto falta p/ cada faixa */
+.rk-click { cursor: pointer; border-radius: 8px; transition: background .12s ease; }
+.rk-click:hover { background: #F6F8FC; }
+.rk-chev { display:inline-block; width: 12px; color: var(--muted); font-size: 10px; transition: transform .15s ease; }
+.rk-click.open .rk-chev { transform: rotate(90deg); }
+.rk-hint { font-size: 11px; color: var(--muted); }
+.rk-detail { display:none; padding: 6px 0 12px 42px; }
+.rk-detail.open { display:block; }
+.rk-detail .mf-grid { margin-top: 8px; }
 .mf-sub { font-size: 11.5px; color: var(--muted); margin: -8px 0 12px; }
 .mf-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
 .mf-tile { border:1px solid var(--border); border-radius: 10px; padding: 10px 12px; background:#FAFBFD; border-top: 3px solid var(--c); }
@@ -1578,21 +1586,10 @@ function findLojaValue(key) {
 /* Ranking da Meta: lojas ordenadas pelo % da Meta (maior → menor), com
    barra de progresso e a faixa atingida — 100% Meta, 105% Super Meta,
    110% Desafio (ou "Abaixo da Meta"). Mesmas regras/cores do grid. */
-// Usuário de uma loja só: mesma barra do ranking (só a loja dele) +
-// quanto falta para Meta (100%), Super Meta (105%) e Desafio (110%),
-// quanto precisa vender por dia nos dias que restam e se a projeção de
-// fechamento alcança cada faixa.
-function metaFaixasLojaHTML(r, ano, mes){
-  const titulo = `Sua Meta · ${r.loja}`;
-  if (!r || !(r.metaAtual > 0)) {
-    return `<div class="rk-card"><div class="rk-head"><div class="rk-title">${titulo}</div></div><div class="rk-empty">Meta ainda não informada para o período.</div></div>`;
-  }
-  const pct = r.pctMetaConcluida || 0;
-  const escala = Math.max(120, Math.ceil(pct / 10) * 10);
-  const pos = v => (Math.min(v, escala) / escala * 100).toFixed(2) + '%';
-  const fx = faixaClass(pct) || 'fx-abaixo';
-  const nomeFaixa = c => c==='fx-desafio' ? 'Desafio' : c==='fx-super' ? 'Super Meta' : c==='fx-meta' ? 'Meta' : 'Abaixo da Meta';
-
+// Quadros "quanto falta" para Meta (100%), Super Meta (105%) e Desafio
+// (110%) de UMA loja — usados no painel "Sua Meta" e ao abrir uma loja
+// no Ranking.
+function faixasTilesHTML(r, ano, mes){
   const hoje = new Date();
   const mesCorrente = ano === hoje.getFullYear() && mes === hoje.getMonth() + 1;
   const mesFuturo = ano > hoje.getFullYear() || (ano === hoje.getFullYear() && mes > hoje.getMonth() + 1);
@@ -1607,7 +1604,7 @@ function metaFaixasLojaHTML(r, ano, mes){
     { p: 105, nome: 'Super Meta', cor: '#F5A653' },
     { p: 110, nome: 'Desafio',    cor: '#2FB67A' },
   ];
-  const tiles = faixas.map(f => {
+  return faixas.map(f => {
     const alvo = r.metaAtual * f.p / 100;
     const falta = alvo - r.vAtual;
     const ok = falta <= 0;
@@ -1623,6 +1620,32 @@ function metaFaixasLojaHTML(r, ano, mes){
       ${!ok && mesCorrente ? `<div class="mf-prev ${prevOk ? 'pos' : 'neg'}">${prevOk ? 'No ritmo atual, alcança' : 'No ritmo atual, não alcança'}</div>` : ''}
     </div>`;
   }).join('');
+}
+
+// Usuário de uma loja só: mesma barra do ranking (só a loja dele) +
+// quanto falta para Meta (100%), Super Meta (105%) e Desafio (110%),
+// quanto precisa vender por dia nos dias que restam e se a projeção de
+// fechamento alcança cada faixa.
+function rkToggle(row){
+  const det = row.nextElementSibling;
+  if (!det || !det.classList.contains('rk-detail')) return;
+  const abrir = !det.classList.contains('open');
+  det.classList.toggle('open', abrir);
+  row.classList.toggle('open', abrir);
+}
+
+function metaFaixasLojaHTML(r, ano, mes){
+  const titulo = `Sua Meta · ${r.loja}`;
+  if (!r || !(r.metaAtual > 0)) {
+    return `<div class="rk-card"><div class="rk-head"><div class="rk-title">${titulo}</div></div><div class="rk-empty">Meta ainda não informada para o período.</div></div>`;
+  }
+  const pct = r.pctMetaConcluida || 0;
+  const escala = Math.max(120, Math.ceil(pct / 10) * 10);
+  const pos = v => (Math.min(v, escala) / escala * 100).toFixed(2) + '%';
+  const fx = faixaClass(pct) || 'fx-abaixo';
+  const nomeFaixa = c => c==='fx-desafio' ? 'Desafio' : c==='fx-super' ? 'Super Meta' : c==='fx-meta' ? 'Meta' : 'Abaixo da Meta';
+
+  const tiles = faixasTilesHTML(r, ano, mes);
 
   return `<div class="rk-card">
     <div class="rk-head"><div class="rk-title">${titulo}</div>
@@ -1645,7 +1668,7 @@ function metaFaixasLojaHTML(r, ano, mes){
   </div>`;
 }
 
-function rankingMetaHTML(linhas){
+function rankingMetaHTML(linhas, ano, mes){
   const itens = (linhas||[]).filter(r => r.pctMetaConcluida !== null && r.pctMetaConcluida !== undefined && !isNaN(r.pctMetaConcluida))
     .sort((a,b) => b.pctMetaConcluida - a.pctMetaConcluida);
   const legenda = `<div class="rk-legend">
@@ -1661,9 +1684,9 @@ function rankingMetaHTML(linhas){
   const nomeFaixa = c => c==='fx-desafio' ? 'Desafio' : c==='fx-super' ? 'Super Meta' : c==='fx-meta' ? 'Meta' : 'Abaixo da Meta';
   const linhasHTML = itens.map((r,i) => {
     const fx = faixaClass(r.pctMetaConcluida) || 'fx-abaixo';
-    return `<div class="rk-row${i===0?' first':''}">
+    return `<div class="rk-row rk-click${i===0?' first':''}" onclick="rkToggle(this)" title="Clique para ver quanto falta para cada faixa">
       <div class="rk-pos">${i+1}º</div>
-      <div class="rk-loja">${r.loja}</div>
+      <div class="rk-loja"><span class="rk-chev">▸</span>${r.loja}</div>
       <div class="rk-bar">
         <div class="rk-fill ${fx}" style="width:${pos(r.pctMetaConcluida)}"></div>
         <div class="rk-mark" style="left:${pos(100)}">${i===0?'<span>100%</span>':''}</div>
@@ -1672,10 +1695,11 @@ function rankingMetaHTML(linhas){
       </div>
       <div class="rk-pct">${Pct(r.pctMetaConcluida).replace('+','')}</div>
       <div class="rk-badge"><span class="rk-pill ${fx}">${nomeFaixa(fx)}</span></div>
-    </div>`;
+    </div>
+    <div class="rk-detail"><div class="mf-sub" style="margin:0 0 2px">Realizado ${R0(r.vAtual)} de ${R0(r.metaAtual)} · Previsão de fechamento ${R0(r.prevFat)}</div><div class="mf-grid">${faixasTilesHTML(r, ano, mes)}</div></div>`;
   }).join('');
   return `<div class="rk-card">
-    <div class="rk-head"><div class="rk-title">Ranking da Meta · % da Meta por loja</div>${legenda}</div>
+    <div class="rk-head"><div class="rk-title">Ranking da Meta · % da Meta por loja</div><span class="rk-hint">Clique na loja para ver quanto falta</span>${legenda}</div>
     ${linhasHTML}
   </div>`;
 }
@@ -1791,7 +1815,7 @@ function renderResultado() {
     </div>
   </div>
 
-  ${restrictedLoja ? metaFaixasLojaHTML(linhas[0], ano, mes) : rankingMetaHTML(linhas)}
+  ${restrictedLoja ? metaFaixasLojaHTML(linhas[0], ano, mes) : rankingMetaHTML(linhas, ano, mes)}
 
   <div class="tbl-card">
     <div class="tbl-head">
