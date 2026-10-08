@@ -541,7 +541,7 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="info-banner">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>
-    <span>Esta tela lista os <b>reembolsos gerados pelas lojas</b>, lidos da base <b>FATURAMENTO_RE_&lt;LOJA&gt;.csv</b> no Google Drive (Canal = <b>DISTRIBUIÇÃO</b> e <b>VS</b> = True). O <b>CodCentro</b> vem da coluna <b>cod_pl</b> da própria base e a <b>Descrição</b> é buscada no Plano de Contas por esse código (bases sem cod_pl usam o de-para); os que não têm correspondência aparecem como <b>Não localizado</b> e não devem ser deduzidos do DRE/DFC até serem classificados.</span>
+    <span>Esta tela lista os <b>reembolsos gerados pelas lojas</b>, lidos <b>somente das planilhas FATURAMENTO_RE_&lt;LOJA&gt;.csv</b> no Google Drive — todas as linhas de cada planilha entram, e a loja é a do nome do arquivo. O <b>CodCentro</b> vem da coluna <b>cod_pl</b> da própria base e a <b>Descrição</b> é buscada no Plano de Contas por esse código (bases sem cod_pl usam o de-para); os que não têm correspondência aparecem como <b>Não localizado</b> e não devem ser deduzidos do DRE/DFC até serem classificados.</span>
   </div>
 
   <div class="sec"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
@@ -799,7 +799,8 @@ async function fetchCSV(url){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   PARSE — Faturamento, filtrando Canal = DISTRIBUICAO + VS = True
+   PARSE — base FATURAMENTO_RE_<LOJA>: todas as linhas entram (sem filtro
+   de Canal/VS); a loja vem do nome do arquivo.
    Colunas trazidas para a tela: Ano, Loja, Data, Total.
 ══════════════════════════════════════════════════════════════ */
 function parseReembolso(text, lojaFallback){
@@ -821,22 +822,19 @@ function parseReembolso(text, lojaFallback){
   const iCod   = findCol(headers, 'cod_pl','codpl','codcentro','cod_centro','cod_conta','codconta');
   const iDesc  = findCol(headers, 'conta_pl','contapl','descricao','desc_pl');
 
-  if(iTotal<0 || iCanal<0 || iVs<0) return rows; // arquivo sem as colunas necessárias
+  if(iTotal<0) return rows; // arquivo sem a coluna de valor
 
   for(let i=1;i<lines.length;i++){
     const line = lines[i].trim(); if(!line) continue;
     const c = splitLine(line, sep);
     const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
-    const canalVal = g(iCanal);
-    const vsVal = g(iVs);
-    // Regra do Reembolso: só entram linhas de Canal = DISTRIBUICAO com VS = True.
-    if(normCanal(canalVal) !== 'DISTRIBUICAO' || !parseVS(vsVal)) continue;
 
     const total = parseNum(g(iTotal));
     if(!total) continue;
 
-    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    // Loja = a do nome do arquivo (FATURAMENTO_RE_<LOJA>); a coluna "loja" só é usada se o nome não for conhecido.
+    const loja = lojaFallback || (iLoja>=0 ? g(iLoja) : '');
     const dt = iData>=0 ? parseDataFlex(g(iData)) : null;
     const anoCol = iAno>=0 ? parseInt(g(iAno)) : null;
     const mesCol = iMes>=0 ? parseMesCol(g(iMes)) : null;
@@ -876,7 +874,7 @@ function parseReembolso(text, lojaFallback){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v3_codpl';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v4_so_re';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -933,7 +931,7 @@ async function carregarTudo(){
         // Se o Apps Script ainda não tiver o tipo "reembolso", ele devolve o faturamento
         // comum (sem a coluna pnome). Nesse caso a resposta é descartada.
         const cab = text.split(/\r?\n/)[0].toLowerCase();
-        if(!/(^|[;,\t])"?pnome"?([;,\t]|$)/.test(cab)) throw new Error('resposta sem a coluna pnome (Apps Script sem o tipo "reembolso"?)');
+        if(!/(^|[;,\t])"?(pnome|cod_?pl)"?([;,\t]|$)/.test(cab)) throw new Error('resposta não é uma planilha FATURAMENTO_RE_ (Apps Script sem o tipo "reembolso"?)');
         rows = rows.concat(parseReembolso(text, lojaKey.toUpperCase()));
       }catch(e){ console.warn('Base de reembolso indisponível ('+lojaKey+'):', e.message); falhas.push(lojaKey.toUpperCase()); if(lojaKey==='bady' || !ultimoErro) ultimoErro = e.message; }
     }));
@@ -1246,7 +1244,7 @@ function renderTabela(data){
   $('sec-count').textContent = fN(data.length) + ' registros';
   $('cth-reembolso').innerHTML = headerHtml('main');
   if(!data.length){
-    $('ctb-reembolso').innerHTML = '<tr><td colspan="9" class="nd">Nenhum reembolso (Canal DISTRIBUIÇÃO + VS = True) encontrado para os filtros selecionados</td></tr>';
+    $('ctb-reembolso').innerHTML = '<tr><td colspan="9" class="nd">Nenhum reembolso encontrado nas planilhas FATURAMENTO_RE_ para os filtros selecionados</td></tr>';
     return;
   }
   // Agrupa por Ano + Mês + Loja + Lançamento (cada lançamento leva o seu CodCentro).

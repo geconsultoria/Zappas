@@ -1702,7 +1702,7 @@ a.side-brand:hover { opacity:.85; }
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
         <button class="btn-av-toggle" id="btnAV" onclick="toggleAV()">% AV</button>
         <button class="btn-av-toggle" id="btnFixHeader" onclick="toggleFixHeader()" title="Fixar o cabeçalho da tabela ao rolar a tela">📌 Fixar Cabeçalho</button>
-        <button class="btn-av-toggle" id="btnSoReembolso" onclick="toggleSoReembolso()" title="Mostrar só as contas que tiveram reembolso da Distribuição deduzido">R  Só contas com reembolso</button>
+        <button class="btn-av-toggle" id="btnSoReembolso" onclick="toggleSoReembolso()" title="Mostrar só as contas que tiveram reembolso deduzido">R  Só contas com reembolso</button>
         <button class="btn-toggle-all" onclick="toggleAll(true)">▼ Expandir tudo</button>
         <button class="btn-toggle-all" onclick="toggleAll(false)">▲ Recolher tudo</button>
       </div>
@@ -1799,7 +1799,7 @@ const CURVAABC_URLS = CURVAABC_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=
 const COMPRAS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const COMPRAS_URLS = COMPRAS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=compras&loja=${k}`);
 
-// Reembolsos da Distribuição (FATURAMENTO_RE_<LOJA>.csv) — deduzidos das
+// Reembolsos (FATURAMENTO_RE_) (FATURAMENTO_RE_<LOJA>.csv) — deduzidos das
 // despesas no DRE/DFC, na mesma conta (cod_pl) da despesa reembolsada.
 // Mesma base da tela Reembolso.html. Lojas sem arquivo são ignoradas.
 const DEDUZIR_REEMBOLSO = true;
@@ -2482,9 +2482,9 @@ function parseContasPagar(text, planoMap, lojaFallback){
 }
 
 /* ══════════════════════════════════════════════════════════════
-   REEMBOLSO DA DISTRIBUIÇÃO — dedução das despesas
-   Cada linha da base FATURAMENTO_RE_<LOJA>.csv (Canal DISTRIBUIÇÃO +
-   VS = True) é uma despesa da loja que foi reembolsada. Ela entra no DRE/DFC
+   REEMBOLSO (FATURAMENTO_RE_) — dedução das despesas
+   Cada linha da planilha FATURAMENTO_RE_<LOJA>.csv é uma despesa da loja
+   que foi reembolsada (todas as linhas entram; a loja é a do nome do arquivo). Ela entra no DRE/DFC
    com valor NEGATIVO, na mesma conta do Plano de Contas (cod_pl → grupo /
    sub-grupo / conta), abatendo a despesa paga no Contas a Pagar.
    • Código: coluna cod_pl da base. Se a base ainda não tiver essa coluna,
@@ -2511,11 +2511,9 @@ function parseReembolsoDRE(text, planoMap, lojaFallback){
   const iLoja  = findColExata(rawHeaders,'loja');
   const iData  = findColExata(rawHeaders,'data');
   const iTotal = findColExata(rawHeaders,'total');
-  const iCanal = findColExata(rawHeaders,'canal','canais');
-  const iVs    = findColExata(rawHeaders,'vs');
   const iPnome = findColExata(rawHeaders,'pnome');
   const iCod   = findColExata(rawHeaders,'cod_pl','codpl','codcentro','cod_centro');
-  if(iTotal<0 || iPnome<0) return { rows, linhas };   // não é a base de reembolso (ex.: loja sem arquivo)
+  if(iTotal<0 || (iPnome<0 && iCod<0)) return { rows, linhas };   // não é uma planilha FATURAMENTO_RE_ (ex.: loja sem arquivo)
 
   for(let i=1;i<lines.length;i++){
     const line = lines[i].trim();
@@ -2523,9 +2521,7 @@ function parseReembolsoDRE(text, planoMap, lojaFallback){
     const cells = splitLine(line,sep);
     const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
-    // Mesma regra da tela Reembolso: Canal DISTRIBUIÇÃO + VS = True
-    if(iCanal>=0 && normKey(g(iCanal))!=='distribuicao') continue;
-    if(iVs>=0 && !RE_TRUE.test(g(iVs))) continue;
+    // Todas as linhas da planilha FATURAMENTO_RE_ entram (sem filtro de Canal/VS).
 
     const valor = parseNum(g(iTotal));
     if(!valor) continue;
@@ -2533,18 +2529,18 @@ function parseReembolsoDRE(text, planoMap, lojaFallback){
     const ano = parseInt(g(iAno),10) || parseAno(dataRaw);
     const mes = parseInt(g(iMes),10) || parseMes(dataRaw);
     if(!ano || !mes) continue;
-    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+    const loja = lojaFallback || (iLoja>=0 ? g(iLoja) : '');   // loja = nome do arquivo FATURAMENTO_RE_<LOJA>
 
     const pnome = g(iPnome).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
     let cod = iCod>=0 ? g(iCod) : String(REEMBOLSO_DEPARA[pnome] || '');
     const codNum = String(parseInt(cod,10) || '');
     const info = cod ? (planoMap.get(cod) || planoMap.get(codNum)) : null;
-    const titulo = '(−) Reembolso Distribuição — ' + (pnome || 'sem descrição');
+    const titulo = '(−) Reembolso — ' + (pnome || 'sem descrição');
 
     if(!info || !info.grupo){
       linhas.push({ tipo:'despesa', mes, ano, loja, valor, status:'erro',
         codigo: cod || '(vazio)',
-        motivo: 'Reembolso da Distribuição sem cod_pl válido no Plano de Contas — não deduzido',
+        motivo: 'Reembolso (FATURAMENTO_RE_) sem cod_pl válido no Plano de Contas — não deduzido',
         titulo, dataRaw });
       continue;
     }
@@ -2938,7 +2934,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11'; // v11: dedução dos reembolsos da Distribuição (v10: Compras com data em "dt_solicitado")
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v12'; // v12: reembolso só das planilhas FATURAMENTO_RE_ (v11: dedução dos reembolsos) (v10: Compras com data em "dt_solicitado")
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -3202,7 +3198,7 @@ async function carregarTudo(){
   })();
 
   // ══════════════════════════════════════════════════════
-  // 8. Reembolsos da Distribuição (por loja) — espera só o Plano de Contas.
+  // 8. Reembolsos (FATURAMENTO_RE_) (por loja) — espera só o Plano de Contas.
   //    Entram como despesa NEGATIVA na mesma conta (cod_pl), abatendo o
   //    Contas a Pagar. Lojas sem arquivo FATURAMENTO_RE_ são ignoradas.
   // ══════════════════════════════════════════════════════
@@ -4443,9 +4439,9 @@ function renderDRE(){
     if(!avVisible) return '';
     return `<td class="av-col">${fmtAV(v,base)}</td>`;
   }
-  /* Conta com reembolso da Distribuição: ao abrir, mostra duas linhas
+  /* Conta com reembolso: ao abrir, mostra duas linhas
      alinhadas às colunas (mês ou loja) — "Pago (Contas a Pagar)" e
-     "(−) Reembolso Distribuição" — que somadas dão o valor da conta. */
+     "(−) Reembolso" — que somadas dão o valor da conta. */
   function breakRowsHTML(itens, iId, rec){
     const re = (itens||[]).filter(r=>r.reembolso);
     if(!re.length) return '';
@@ -4458,7 +4454,7 @@ function renderDRE(){
       ${avCell(rowTotal(vals),rowTotal(rec||{}))}
     </tr>`;
     return linha('Pago (Contas a Pagar)', somaCols(pago), 'brk-pago')
-         + linha('(−) Reembolso Distribuição', somaCols(re), 'brk-re')
+         + linha('(−) Reembolso', somaCols(re), 'brk-re')
          + linha('= Realizado', somaCols(itens), 'brk-tot');
   }
 
@@ -5416,11 +5412,11 @@ function fecharDescendentes(tbody, parentId){
    aqui dentro da própria tabela do DRE. Montado sob demanda (só quando o
    usuário abre a conta) pra não gerar HTML de tudo de uma vez. */
 let _lancStore = {};
-/* ── Contas com reembolso da Distribuição ──
+/* ── Contas com reembolso ──
    Marca com "R" a conta que teve reembolso deduzido, e também o sub-grupo
    e o grupo acima dela. O botão "Só contas com reembolso" esconde o resto
    da tabela e abre só esse caminho. */
-const RE_BADGE = '<span class="re-badge" title="Conta com reembolso da Distribuição deduzido">R</span>';
+const RE_BADGE = '<span class="re-badge" title="Conta com reembolso deduzido">R</span>';
 function temRe(itens){ return (itens||[]).some(r=>r.reembolso); }
 let soReembolso = false;
 function marcarReembolsoDRE(){
@@ -5513,7 +5509,7 @@ function toggleItem(iId, lId, e){
       body.innerHTML = itens.length
         ? itens.map(it=>{
             const dataFmt = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
-            const tituloFmt = it.titulo ? it.titulo : (it.reembolso ? '(−) Reembolso Distribuição' : 'Pago (Contas a Pagar)');
+            const tituloFmt = it.titulo ? it.titulo : (it.reembolso ? '(−) Reembolso' : 'Pago (Contas a Pagar)');
             const lojaFmt = it.loja ? ` <span style="color:var(--ink-4);font-size:10.5px">— ${it.loja}</span>` : '';
             const st = it.reembolso ? ' class="lanc-re"' : '';
             return `<tr${st}><td>${dataFmt}</td><td>${tituloFmt}${lojaFmt}</td><td class="num">${fmtBRL(it.valor||0)}</td></tr>`;
