@@ -331,6 +331,8 @@ a.side-brand:hover { opacity:.85; }
 .comp-table tr.row-nl td.cod { color:#b3261e; }
 .nl-alert { display:flex; gap:10px; align-items:center; margin:0 0 14px; padding:10px 14px; border-radius:10px; background:#fde4e1; color:#8c1d18; font-size:12.5px; }
 .nl-alert.ok { background:#e6f4ea; color:#1e7b34; }
+.btn-upload { margin-left:12px; padding:5px 12px; border-radius:8px; border:1px solid currentColor; background:#fff; color:inherit; font:inherit; font-size:12px; font-weight:700; cursor:pointer; }
+.btn-upload:hover { background:rgba(255,255,255,.6); }
 
 /* Category / store bars */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -528,7 +530,10 @@ a.side-brand:hover { opacity:.85; }
 
 <!-- CONTENT -->
 <div class="content hidden" id="content">
-  <div class="err-banner" id="err-banner">⚠️ <span id="err-msg"></span></div>
+  <div class="err-banner" id="err-banner">⚠️ <span id="err-msg"></span>
+    <button type="button" class="btn-upload" onclick="document.getElementById('csv-manual').click()">Carregar CSV manualmente</button>
+  </div>
+  <input type="file" id="csv-manual" accept=".csv,text/csv" multiple style="display:none" onchange="carregarCSVManual(this.files)">
 
   <div class="info-banner">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>
@@ -583,11 +588,19 @@ a.side-brand:hover { opacity:.85; }
    (compartilhado como "Qualquer pessoa com o link → Leitor").
    Para incluir outra loja, basta acrescentar { loja, fileId } abaixo.
 ══════════════════════════════════════════════════════════════ */
+// O Google Drive bloqueia a leitura direta do arquivo pelo navegador (CORS),
+// por isso a leitura passa por um Apps Script (ReembolsoBase.gs).
+// Depois de implantar o script, cole aqui a URL do app da Web (termina em /exec):
+const RE_APPS_SCRIPT_URL = "COLE_AQUI_A_URL_DO_APPS_SCRIPT";
+
 const RE_FILES = [
   { loja: 'bady', fileId: '1UQ0vAqi8Ll1VFJkjx_yc74Wk329yEuxb' }, // FATURAMENTO_RE_BADY.csv
 ];
+const RE_SCRIPT_OK = /^https:\/\/script\.google\.com\/.+\/exec$/.test(RE_APPS_SCRIPT_URL);
 const STORE_KEYS = RE_FILES.map(f => f.loja);
-const CSV_URLS = RE_FILES.map(f => `https://drive.google.com/uc?export=download&id=${f.fileId}`);
+const CSV_URLS = RE_FILES.map(f => RE_SCRIPT_OK
+  ? `${RE_APPS_SCRIPT_URL}?id=${f.fileId}`
+  : `https://drive.google.com/uc?export=download&id=${f.fileId}`);
 
 /* ══════════════════════════════════════════════════════════════
    DE-PARA  pnome (base)  →  CodCentro / Descrição (Plano de Contas Zappas)
@@ -742,8 +755,12 @@ async function fetchCSV(url){
   const errs=[];
   try{
     const r = await fetchComTimeout(url + (url.includes('?')?'&':'?') + '_=' + Date.now(), { cache:'no-store' });
-    if(r.ok){ const t = await r.text(); if(t && !t.trim().startsWith('<')) return t; }
-  }catch(e){ errs.push('direct:'+e.message); }
+    if(r.ok){
+      const t = await r.text();
+      if(t && t.trim().startsWith('ERRO:')) throw new Error(t.trim());
+      if(t && !t.trim().startsWith('<')) return t;
+    }
+  }catch(e){ if(String(e.message).startsWith('ERRO:')) throw e; errs.push('direct:'+e.message); }
   try{
     const r = await fetchComTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(url+(url.includes('?')?'&':'?')+'_='+Date.now()), { cache:'no-store' });
     if(r.ok){ const j = await r.json(); if(j?.contents && !j.contents.trim().startsWith('<')) return j.contents; }
@@ -878,7 +895,9 @@ async function carregarTudo(){
       }catch(e){ console.warn('Base de reembolso indisponível ('+lojaKey+'):', e.message); falhas.push(lojaKey.toUpperCase()); }
     }));
   }
-  if(falhas.length === CSV_URLS.length) throw new Error('Não foi possível ler a base de reembolso no Google Drive ('+falhas.join(', ')+'). Confira se o arquivo está compartilhado como "Qualquer pessoa com o link".');
+  if(falhas.length === CSV_URLS.length) throw new Error(RE_SCRIPT_OK
+    ? 'Não foi possível ler a base de reembolso pelo Apps Script ('+falhas.join(', ')+'). Confira a implantação do script (Executar como: Eu · Acesso: Qualquer pessoa).'
+    : 'A URL do Apps Script da base de reembolso ainda não foi configurada (RE_APPS_SCRIPT_URL). Enquanto isso, use o botão "Carregar CSV manualmente".');
   rawData = rows; // pode ser vazio: significa que não há reembolsos no período disponível
 }
 
@@ -945,6 +964,31 @@ async function loadData(forceRefresh){
     btn.classList.remove('spin');
     $('loader').classList.add('out');
   }
+}
+
+// Alternativa enquanto o Apps Script não estiver configurado: o usuário escolhe
+// o(s) arquivo(s) FATURAMENTO_RE_<LOJA>.csv do computador.
+async function carregarCSVManual(files){
+  if(!files || !files.length) return;
+  let rows = [];
+  for(const f of files){
+    const m = f.name.toUpperCase().match(/FATURAMENTO_RE_([A-Z]+)/);
+    const lojaFallback = m ? m[1] : 'LOJA';
+    const buf = await f.arrayBuffer();
+    let text = new TextDecoder('utf-8').decode(buf);
+    if(text.includes('�')) text = new TextDecoder('windows-1252').decode(buf);
+    rows = rows.concat(parseReembolso(text, lojaFallback));
+  }
+  rawData = rows;
+  populateFilters();
+  applyFilters();
+  $('err-banner').classList.remove('show');
+  $('content').classList.remove('hidden');
+  const tsDate = new Date();
+  const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) + ' (arquivo local)';
+  $('fb-ts').textContent = ts;
+  saveCache(rawData, ts, tsDate.getTime());
+  $('csv-manual').value = '';
 }
 
 window.addEventListener('storage', (e) => {
