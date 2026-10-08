@@ -322,6 +322,15 @@ a.side-brand:hover { opacity:.85; }
 .comp-table td.num { text-align: right; font-family: var(--font-num); font-weight: 600; }
 .comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
 .comp-table .nd { text-align: center; padding: 40px 20px; color: var(--ink-4); }
+.comp-table td.cod { font-family: var(--font-num); font-weight: 700; }
+.st-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:700; letter-spacing:.02em; }
+.st-ok   { background:#e6f4ea; color:#1e7b34; }
+.st-rev  { background:#fdf1dc; color:#a05a00; }
+.st-nl   { background:#fde4e1; color:#b3261e; }
+.comp-table tr.row-nl td { background:#fff6f5; }
+.comp-table tr.row-nl td.cod { color:#b3261e; }
+.nl-alert { display:flex; gap:10px; align-items:center; margin:0 0 14px; padding:10px 14px; border-radius:10px; background:#fde4e1; color:#8c1d18; font-size:12.5px; }
+.nl-alert.ok { background:#e6f4ea; color:#1e7b34; }
 
 /* Category / store bars */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -503,6 +512,9 @@ a.side-brand:hover { opacity:.85; }
     <div class="ig-fgroup"><span class="ig-flabel">Ano</span><select class="ig-fselect" id="f-ano"></select></div>
     <div class="ig-fgroup"><span class="ig-flabel">Mês</span><select class="ig-fselect" id="f-mes"><option value="">Todos</option></select></div>
     <div class="ig-fgroup"><span class="ig-flabel">Loja</span><select class="ig-fselect" id="f-loja"><option value="">Todas</option></select></div>
+    <div class="ig-fgroup"><span class="ig-flabel">CodCentro</span><select class="ig-fselect" id="f-status">
+      <option value="">Todos</option><option value="loc">Localizados</option><option value="nl">Não localizados</option>
+    </select></div>
   </div>
 
   <div class="fb-right">
@@ -520,7 +532,7 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="info-banner">
     <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16v-4m0-4h.01"/></svg>
-    <span>Esta tela lista os <b>reembolsos gerados pelas lojas</b>: lançamentos de Faturamento com Canal = <b>DISTRIBUIÇÃO</b> e a coluna <b>VS</b> marcada como <b>True</b>. Os dados vêm diretamente das planilhas de Faturamento salvas no Google Drive.</span>
+    <span>Esta tela lista os <b>reembolsos gerados pelas lojas</b>, lidos da base <b>FATURAMENTO_RE_&lt;LOJA&gt;.csv</b> no Google Drive (Canal = <b>DISTRIBUIÇÃO</b> e <b>VS</b> = True). Cada lançamento recebe o <b>CodCentro</b> e a <b>Descrição</b> do Plano de Contas por de-para; os que não têm correspondência aparecem como <b>Não localizado</b> e não devem ser deduzidos do DRE/DFC até serem classificados.</span>
   </div>
 
   <div class="sec"><span class="sec-title">Resumo do Período</span><span class="sec-line"></span></div>
@@ -548,17 +560,78 @@ a.side-brand:hover { opacity:.85; }
       </table>
     </div>
   </div>
+
+  <div class="sec">
+    <span class="sec-title">Lançamentos sem CodCentro no Plano de Contas</span><span class="sec-line"></span>
+    <span class="sec-count" id="sec-count-nl">0 registros</span>
+  </div>
+  <div id="nl-alert" class="nl-alert"></div>
+  <div class="comp-card">
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-nl">
+        <thead><tr><th>Data</th><th>Loja</th><th>Lançamento</th><th class="num">Total</th></tr></thead>
+        <tbody id="ctb-nl"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <script>
 /* ══════════════════════════════════════════════════════════════
-   CONFIGURAÇÃO
-   Mesma fonte de dados das telas de Faturamento (Apps Script lendo
-   os arquivos de Faturamento salvos no Google Drive, um CSV por loja).
+   CONFIGURAÇÃO — NOVA BASE DE REEMBOLSO
+   Um arquivo FATURAMENTO_RE_<LOJA>.csv por loja no Google Drive
+   (compartilhado como "Qualquer pessoa com o link → Leitor").
+   Para incluir outra loja, basta acrescentar { loja, fileId } abaixo.
 ══════════════════════════════════════════════════════════════ */
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
-const STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
-const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
+const RE_FILES = [
+  { loja: 'bady', fileId: '1UQ0vAqi8Ll1VFJkjx_yc74Wk329yEuxb' }, // FATURAMENTO_RE_BADY.csv
+];
+const STORE_KEYS = RE_FILES.map(f => f.loja);
+const CSV_URLS = RE_FILES.map(f => `https://drive.google.com/uc?export=download&id=${f.fileId}`);
+
+/* ══════════════════════════════════════════════════════════════
+   DE-PARA  pnome (base)  →  CodCentro / Descrição (Plano de Contas Zappas)
+   status: 'ok' = localizado | 'rev' = localizado, mas o plano tem mais
+   de um código para a mesma conta (revisar) | 'nl' = não localizado.
+   Para classificar um item não localizado, preencha cod/desc e mude o
+   status para 'ok'.
+══════════════════════════════════════════════════════════════ */
+const DE_PARA = {
+  '130 SALARIO':               { cod: 11012,  desc: '13o. Salário',                  status: 'ok'  },
+  'BENEFICIOS':                { cod: 120211, desc: 'Benefícios Funcionários',       status: 'ok'  },
+  'CESTA BASICA':              { cod: 11021,  desc: 'Alimentação',                   status: 'ok'  },
+  'CONTRIBUIGCO SINDICAL':     { cod: 11015,  desc: 'Contribuições Sindicais',       status: 'ok'  },
+  'CONVENIO FARMACIA':         { cod: 11010,  desc: 'Convênios',                     status: 'rev' },
+  'CONVENIO MEDICO':           { cod: 11010,  desc: 'Convênios',                     status: 'rev' },
+  'EMPRESTIMO CONSIGNADOS':    { cod: 11002,  desc: 'Empréstimos Consignados',       status: 'rev' },
+  'FERIAS':                    { cod: 11006,  desc: 'Férias',                        status: 'ok'  },
+  'FGTS':                      { cod: 11009,  desc: 'FGTS',                          status: 'ok'  },
+  'ICMS':                      { cod: 2006,   desc: 'ICMS',                          status: 'rev' },
+  'ICMS-PARCELAMENTO':         { cod: 2027,   desc: 'Endivid. Parcelamento ICMS',    status: 'ok'  },
+  'INSS':                      { cod: 20027,  desc: 'INSS',                          status: 'rev' },
+  'IR SOBRE FOLHA':            { cod: 11024,  desc: 'Recolhimento de IR',            status: 'ok'  },
+  'IRPJ':                      { cod: 20062,  desc: 'IRPJ',                          status: 'ok'  },
+  'PARTICIPAGCO DE LUCROS':    { cod: 11011,  desc: 'Participação nos Resultados',   status: 'ok'  },
+  'PROPAGANDA E PUBLICIDADE':  { cod: 50009,  desc: 'Propaganda e Publicidade',      status: 'rev' },
+  'RESCISUES TRABALHISTAS':    { cod: 11003,  desc: 'Rescisões Trabalhistas',        status: 'ok'  },
+  'SALARIOS':                  { cod: 11008,  desc: 'Salários (Fopag 05 + vale 20)', status: 'rev' },
+  'SEGURO FUNCIONARIOS':       { cod: 11013,  desc: 'Seguro de Vida',                status: 'rev' },
+  'UNIFORME':                  { cod: 11016,  desc: 'Uniformes',                     status: 'rev' },
+  'VALE TRANSPORTES':          { cod: 11004,  desc: 'Vale Transporte',               status: 'ok'  },
+  // ── Não localizados no Plano de Contas ──
+  'PREMIACOES E BONIFICACOES': { cod: null, desc: '', status: 'nl' },
+  'EQUIPAMENTO':               { cod: null, desc: '', status: 'nl' },
+  'EMPRESTIMO':                { cod: null, desc: '', status: 'nl' },
+  'SAUDE CAP TITULO RESGATE':  { cod: null, desc: '', status: 'nl' },
+  'UNIVERSE GAMES MAQUINAS DE BOLINHAS': { cod: null, desc: '', status: 'nl' },
+};
+function normPnome(v){
+  return String(v||'').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/\s+/g,' ');
+}
+// Lançamentos novos que ainda não estão no DE_PARA caem como "não localizado".
+function lookupDePara(pnome){
+  return DE_PARA[normPnome(pnome)] || { cod: null, desc: '', status: 'nl' };
+}
 
 /* ── Evita "tela congelada" ao usar o botão Voltar do navegador ── */
 window.addEventListener('pageshow', function(e){ if (e.persisted) window.location.reload(); });
@@ -696,6 +769,10 @@ function parseReembolso(text, lojaFallback){
   const iCanal = findCol(headers, 'canais','canal','channel','canal_venda','canal_distribuicao','categoria');
   const iTotal = findCol(headers, 'total_venda','totalvenda','venda','vendas','faturamento','receita','total','valor_venda','vlr_venda','fat');
   const iVs    = findCol(headers, 'vs');
+  const iPnome = findCol(headers, 'pnome','lancamento','historico','descricao_lancamento');
+  // Se a base um dia já vier com codcentro/descrição, eles têm prioridade sobre o de-para.
+  const iCod   = findCol(headers, 'codcentro','cod_centro','cod_pl');
+  const iDesc  = findCol(headers, 'descricao','conta_pl');
 
   if(iTotal<0 || iCanal<0 || iVs<0) return rows; // arquivo sem as colunas necessárias
 
@@ -721,6 +798,11 @@ function parseReembolso(text, lojaFallback){
     const mes = mesCol || (dt ? dt.mes : null);
     if(!ano || !loja) continue;
 
+    const pnome = iPnome>=0 ? normPnome(g(iPnome)) : '';
+    let dp = lookupDePara(pnome);
+    const codArq = iCod>=0 ? g(iCod) : '';
+    if(codArq) dp = { cod: codArq, desc: (iDesc>=0 ? g(iDesc) : '') || dp.desc, status: 'ok' };
+
     rows.push({
       ano,
       loja: loja.toUpperCase(),
@@ -728,6 +810,10 @@ function parseReembolso(text, lojaFallback){
       dataLabel: dt ? dt.label : (iData>=0 ? g(iData) : '—'),
       dataTs: dt ? dt.ts : null,
       total,
+      pnome: pnome || '—',
+      codcentro: dp.cod,
+      descricao: dp.desc,
+      status: dp.status,
     });
   }
   return rows;
@@ -736,7 +822,7 @@ function parseReembolso(text, lojaFallback){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v2_re_codcentro';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -777,20 +863,22 @@ let rawData = [];
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
   let rows = [];
+  const falhas = [];
   const BATCH = 2;
   for(let i=0;i<CSV_URLS.length;i+=BATCH){
     const grupo = CSV_URLS.slice(i, i+BATCH);
     const lbl = document.getElementById('ld-txt');
-    if(lbl) lbl.textContent = 'Carregando faturamento ('+Math.min(i+BATCH,CSV_URLS.length)+'/'+CSV_URLS.length+')…';
+    if(lbl) lbl.textContent = 'Carregando base de reembolso ('+Math.min(i+BATCH,CSV_URLS.length)+'/'+CSV_URLS.length+')…';
     await Promise.all(grupo.map(async (url,j) => {
       const idx = i+j;
       const lojaKey = STORE_KEYS[idx];
       try{
         const text = await fetchCSV(url);
         rows = rows.concat(parseReembolso(text, lojaKey.toUpperCase()));
-      }catch(e){ console.warn('Faturamento indisponível ('+lojaKey+'):', e.message); }
+      }catch(e){ console.warn('Base de reembolso indisponível ('+lojaKey+'):', e.message); falhas.push(lojaKey.toUpperCase()); }
     }));
   }
+  if(falhas.length === CSV_URLS.length) throw new Error('Não foi possível ler a base de reembolso no Google Drive ('+falhas.join(', ')+'). Confira se o arquivo está compartilhado como "Qualquer pessoa com o link".');
   rawData = rows; // pode ser vazio: significa que não há reembolsos no período disponível
 }
 
@@ -887,16 +975,19 @@ function getFiltered(){
   const ano = $('f-ano').value ? +$('f-ano').value : null;
   const mes = $('f-mes').value ? +$('f-mes').value : null;
   const loja = $('f-loja').value || null;
+  const st = $('f-status').value || null;
 
   return rawData.filter(r => {
     if(ano && r.ano !== ano) return false;
     if(mes && r.mes !== mes) return false;
     if(loja && r.loja !== loja) return false;
+    if(st === 'nl' && r.status !== 'nl') return false;
+    if(st === 'loc' && r.status === 'nl') return false;
     return true;
   });
 }
 
-['f-ano','f-mes','f-loja'].forEach(id => $(id).addEventListener('change', applyFilters));
+['f-ano','f-mes','f-loja','f-status'].forEach(id => $(id).addEventListener('change', applyFilters));
 
 /* ══════════════════════════════════════════════════════════════
    RENDER
@@ -906,6 +997,38 @@ function applyFilters(){
   renderKPIs(data);
   renderPorLoja(data);
   renderTabela(data);
+  renderNaoLocalizados(data);
+}
+
+function stBadge(s){
+  if(s === 'nl')  return '<span class="st-badge st-nl">Não localizado</span>';
+  if(s === 'rev') return '<span class="st-badge st-rev" title="O Plano de Contas tem mais de um código para esta conta">Revisar código</span>';
+  return '<span class="st-badge st-ok">Localizado</span>';
+}
+function escHtml(s){ return String(s??'').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function renderNaoLocalizados(data){
+  const nl = data.filter(r => r.status === 'nl').sort((a,b) => (a.dataTs||0) - (b.dataTs||0));
+  const totalNl = nl.reduce((s,r)=>s+r.total,0);
+  $('sec-count-nl').textContent = fN(nl.length) + ' registros';
+  const alertEl = $('nl-alert');
+  if(!nl.length){
+    alertEl.className = 'nl-alert ok';
+    alertEl.textContent = '✓ Todos os lançamentos do filtro têm CodCentro no Plano de Contas.';
+    $('ctb-nl').innerHTML = '<tr><td colspan="4" class="nd">Nenhum lançamento sem CodCentro</td></tr>';
+    return;
+  }
+  const tipos = [...new Set(nl.map(r=>r.pnome))];
+  alertEl.className = 'nl-alert';
+  alertEl.innerHTML = `⚠️ <span><b>${fN(nl.length)}</b> lançamento(s), somando <b>${fBRL(totalNl)}</b>, não foram localizados no Plano de Contas: ${tipos.map(escHtml).join(', ')}. Eles não devem ser deduzidos do DRE/DFC até receberem um CodCentro.</span>`;
+  $('ctb-nl').innerHTML = nl.map(r => `
+    <tr class="row-nl">
+      <td>${escHtml(r.dataLabel)}</td>
+      <td>${lojaLabel(r.loja)}</td>
+      <td>${escHtml(r.pnome)}</td>
+      <td class="num">${fBRL(r.total)}</td>
+    </tr>`).join('') +
+    `<tr class="total-row"><td colspan="3">Total não localizado</td><td class="num">${fBRL(totalNl)}</td></tr>`;
 }
 
 function renderKPIs(data){
@@ -949,33 +1072,37 @@ function renderPorLoja(data){
 function renderTabela(data){
   $('sec-count').textContent = fN(data.length) + ' registros';
   $('cth-reembolso').innerHTML = `<tr>
-    <th>Ano</th><th>Mês</th><th>Loja</th><th class="num">Qtd.</th><th class="num">Total</th>
+    <th>Ano</th><th>Mês</th><th>Loja</th><th>Lançamento</th><th>CodCentro</th><th>Descrição</th><th>Status</th><th class="num">Qtd.</th><th class="num">Total</th>
   </tr>`;
   if(!data.length){
-    $('ctb-reembolso').innerHTML = '<tr><td colspan="5" class="nd">Nenhum reembolso (Canal DISTRIBUIÇÃO + VS = True) encontrado para os filtros selecionados</td></tr>';
+    $('ctb-reembolso').innerHTML = '<tr><td colspan="9" class="nd">Nenhum reembolso (Canal DISTRIBUIÇÃO + VS = True) encontrado para os filtros selecionados</td></tr>';
     return;
   }
-  // Agrupa por Ano + Mês + Loja (em vez de listar lançamento por lançamento/dia).
+  // Agrupa por Ano + Mês + Loja + Lançamento (cada lançamento leva o seu CodCentro).
   const grupos = new Map();
   data.forEach(r => {
     const mesNum = r.mes || 0;
-    const key = r.ano + '|' + mesNum + '|' + r.loja;
-    const cur = grupos.get(key) || { ano: r.ano, mes: mesNum, loja: r.loja, qtd: 0, total: 0 };
+    const key = r.ano + '|' + mesNum + '|' + r.loja + '|' + r.pnome;
+    const cur = grupos.get(key) || { ano: r.ano, mes: mesNum, loja: r.loja, pnome: r.pnome, codcentro: r.codcentro, descricao: r.descricao, status: r.status, qtd: 0, total: 0 };
     cur.qtd += 1;
     cur.total += r.total;
     grupos.set(key, cur);
   });
-  const ordenado = [...grupos.values()].sort((a,b) => (b.ano - a.ano) || (b.mes - a.mes) || a.loja.localeCompare(b.loja));
+  const ordenado = [...grupos.values()].sort((a,b) => (b.ano - a.ano) || (b.mes - a.mes) || a.loja.localeCompare(b.loja) || String(a.codcentro??'zz').localeCompare(String(b.codcentro??'zz')) || a.pnome.localeCompare(b.pnome));
   const totalGeral = data.reduce((s,r)=>s+r.total,0);
   $('ctb-reembolso').innerHTML = ordenado.map(g => `
-    <tr>
+    <tr${g.status==='nl' ? ' class="row-nl"' : ''}>
       <td>${g.ano}</td>
       <td>${g.mes ? MONTHS[g.mes-1] : '—'}</td>
       <td>${lojaLabel(g.loja)}</td>
+      <td>${escHtml(g.pnome)}</td>
+      <td class="cod">${g.codcentro ? escHtml(g.codcentro) : 'NÃO LOCALIZADO'}</td>
+      <td>${escHtml(g.descricao) || '—'}</td>
+      <td>${stBadge(g.status)}</td>
       <td class="num">${fN(g.qtd)}</td>
       <td class="num">${fBRL(g.total)}</td>
     </tr>`).join('') +
-    `<tr class="total-row"><td colspan="3">Total do período</td><td class="num">${fN(data.length)}</td><td class="num">${fBRL(totalGeral)}</td></tr>`;
+    `<tr class="total-row"><td colspan="7">Total do período</td><td class="num">${fN(data.length)}</td><td class="num">${fBRL(totalGeral)}</td></tr>`;
 }
 
 /* ══════════════════════════════════════════════════════════════
