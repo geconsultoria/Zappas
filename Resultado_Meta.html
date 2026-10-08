@@ -339,6 +339,24 @@ a.side-brand:hover { opacity:.85; }
 .rk-pct { font-family: 'Inter', system-ui, sans-serif; font-size: 13px; font-weight: 700; text-align: right; color: var(--ink); }
 .rk-badge { justify-self: end; }
 .rk-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
+/* Card "Sua Meta" — usuário de uma loja só: barra + quanto falta p/ cada faixa */
+.mf-sub { font-size: 11.5px; color: var(--muted); margin: -8px 0 12px; }
+.mf-grid { display:grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 14px; }
+.mf-tile { border:1px solid var(--border); border-radius: 10px; padding: 10px 12px; background:#FAFBFD; border-top: 3px solid var(--c); }
+.mf-tile.ok { background: #F1FBF5; }
+.mf-lbl { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.mf-alvo { font-size: 11px; color: var(--muted); margin-top: 1px; }
+.mf-val { font-family: 'Inter', system-ui, sans-serif; font-size: 17px; font-weight: 800; color: var(--ink); margin-top: 4px; }
+.mf-tile.ok .mf-val { color: #0A7C5C; }
+.mf-dia { font-size: 11.5px; color: var(--ink); margin-top: 2px; }
+.mf-dia b { font-family: 'Inter', system-ui, sans-serif; }
+.mf-prev { font-size: 11px; margin-top: 4px; font-weight: 600; }
+.mf-prev.pos { color: #0A7C5C; } .mf-prev.neg { color: #C8281E; }
+@media (max-width: 720px) {
+  .mf-grid { grid-template-columns: 1fr; }
+  .rk-row { grid-template-columns: 24px 80px 1fr 60px; }
+  .rk-row .rk-badge { display:none; }
+}
 
 .rm-sum-row {
   display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;
@@ -1560,6 +1578,73 @@ function findLojaValue(key) {
 /* Ranking da Meta: lojas ordenadas pelo % da Meta (maior → menor), com
    barra de progresso e a faixa atingida — 100% Meta, 105% Super Meta,
    110% Desafio (ou "Abaixo da Meta"). Mesmas regras/cores do grid. */
+// Usuário de uma loja só: mesma barra do ranking (só a loja dele) +
+// quanto falta para Meta (100%), Super Meta (105%) e Desafio (110%),
+// quanto precisa vender por dia nos dias que restam e se a projeção de
+// fechamento alcança cada faixa.
+function metaFaixasLojaHTML(r, ano, mes){
+  const titulo = `Sua Meta · ${r.loja}`;
+  if (!r || !(r.metaAtual > 0)) {
+    return `<div class="rk-card"><div class="rk-head"><div class="rk-title">${titulo}</div></div><div class="rk-empty">Meta ainda não informada para o período.</div></div>`;
+  }
+  const pct = r.pctMetaConcluida || 0;
+  const escala = Math.max(120, Math.ceil(pct / 10) * 10);
+  const pos = v => (Math.min(v, escala) / escala * 100).toFixed(2) + '%';
+  const fx = faixaClass(pct) || 'fx-abaixo';
+  const nomeFaixa = c => c==='fx-desafio' ? 'Desafio' : c==='fx-super' ? 'Super Meta' : c==='fx-meta' ? 'Meta' : 'Abaixo da Meta';
+
+  const hoje = new Date();
+  const mesCorrente = ano === hoje.getFullYear() && mes === hoje.getMonth() + 1;
+  const mesFuturo = ano > hoje.getFullYear() || (ano === hoje.getFullYear() && mes > hoje.getMonth() + 1);
+  // Dias que ainda dá pra vender: no mês corrente, conta a partir de hoje
+  // (hoje entra se ainda não teve venda lançada).
+  let diasRest = 0;
+  if (mesCorrente) diasRest = Math.max(0, r.dias - (r.diasVendidos >= hoje.getDate() ? hoje.getDate() : hoje.getDate() - 1));
+  else if (mesFuturo) diasRest = r.dias;
+
+  const faixas = [
+    { p: 100, nome: 'Meta',       cor: '#F2D24B' },
+    { p: 105, nome: 'Super Meta', cor: '#F5A653' },
+    { p: 110, nome: 'Desafio',    cor: '#2FB67A' },
+  ];
+  const tiles = faixas.map(f => {
+    const alvo = r.metaAtual * f.p / 100;
+    const falta = alvo - r.vAtual;
+    const ok = falta <= 0;
+    const porDia = !ok && diasRest > 0 ? falta / diasRest : null;
+    const prevOk = r.prevFat >= alvo;
+    return `<div class="mf-tile${ok ? ' ok' : ''}" style="--c:${f.cor}">
+      <div class="mf-lbl">${f.p}% · ${f.nome}</div>
+      <div class="mf-alvo">Alvo ${R0(alvo)}</div>
+      <div class="mf-val">${ok ? '✓ Atingida' : 'Faltam ' + R0(falta)}</div>
+      ${ok ? `<div class="mf-dia">Passou ${R0(-falta)} do alvo</div>`
+           : (porDia !== null ? `<div class="mf-dia"><b>${R0(porDia)}</b>/dia nos ${diasRest} dia${diasRest>1?'s':''} restantes</div>`
+                              : `<div class="mf-dia">Mês encerrado</div>`)}
+      ${!ok && mesCorrente ? `<div class="mf-prev ${prevOk ? 'pos' : 'neg'}">${prevOk ? 'No ritmo atual, alcança' : 'No ritmo atual, não alcança'}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  return `<div class="rk-card">
+    <div class="rk-head"><div class="rk-title">${titulo}</div>
+      <div class="rk-legend"><span class="rk-pill fx-meta">100% · Meta</span><span class="rk-pill fx-super">105% · Super Meta</span><span class="rk-pill fx-desafio">110% · Desafio</span></div>
+    </div>
+    <div class="mf-sub">Realizado ${R0(r.vAtual)} de ${R0(r.metaAtual)} · Previsão de fechamento ${R0(r.prevFat)}</div>
+    <div class="rk-row first">
+      <div class="rk-pos">—</div>
+      <div class="rk-loja">${r.loja}</div>
+      <div class="rk-bar">
+        <div class="rk-fill ${fx}" style="width:${pos(pct)}"></div>
+        <div class="rk-mark" style="left:${pos(100)}"><span>100%</span></div>
+        <div class="rk-mark" style="left:${pos(105)}"><span>105%</span></div>
+        <div class="rk-mark" style="left:${pos(110)}"><span>110%</span></div>
+      </div>
+      <div class="rk-pct">${Pct(pct).replace('+','')}</div>
+      <div class="rk-badge"><span class="rk-pill ${fx}">${nomeFaixa(fx)}</span></div>
+    </div>
+    <div class="mf-grid">${tiles}</div>
+  </div>`;
+}
+
 function rankingMetaHTML(linhas){
   const itens = (linhas||[]).filter(r => r.pctMetaConcluida !== null && r.pctMetaConcluida !== undefined && !isNaN(r.pctMetaConcluida))
     .sort((a,b) => b.pctMetaConcluida - a.pctMetaConcluida);
@@ -1706,7 +1791,7 @@ function renderResultado() {
     </div>
   </div>
 
-  ${restrictedLoja ? '' : rankingMetaHTML(linhas)}
+  ${restrictedLoja ? metaFaixasLojaHTML(linhas[0], ano, mes) : rankingMetaHTML(linhas)}
 
   <div class="tbl-card">
     <div class="tbl-head">
