@@ -1780,6 +1780,13 @@ const CURVAABC_URLS = CURVAABC_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=
 // substitui a classificação via Contas a Pagar + Plano de Contas.
 const COMPRAS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const COMPRAS_URLS = COMPRAS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=compras&loja=${k}`);
+
+// Reembolsos da Distribuição (FATURAMENTO_RE_<LOJA>.csv) — deduzidos das
+// despesas no DRE/DFC, na mesma conta (cod_pl) da despesa reembolsada.
+// Mesma base da tela Reembolso.html. Lojas sem arquivo são ignoradas.
+const DEDUZIR_REEMBOLSO = true;
+const REEMBOLSO_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const REEMBOLSO_URLS = REEMBOLSO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=reembolso&loja=${k}`);
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -2456,6 +2463,80 @@ function parseContasPagar(text, planoMap, lojaFallback){
   return { rows, linhas };
 }
 
+/* ══════════════════════════════════════════════════════════════
+   REEMBOLSO DA DISTRIBUIÇÃO — dedução das despesas
+   Cada linha da base FATURAMENTO_RE_<LOJA>.csv (Canal DISTRIBUIÇÃO +
+   VS = True) é uma despesa da loja que foi reembolsada. Ela entra no DRE/DFC
+   com valor NEGATIVO, na mesma conta do Plano de Contas (cod_pl → grupo /
+   sub-grupo / conta), abatendo a despesa paga no Contas a Pagar.
+   • Código: coluna cod_pl da base. Se a base ainda não tiver essa coluna,
+     usa o mesmo de-para por descrição (pnome) da tela Reembolso.html.
+   • Período: ano/mês da própria linha (data do reembolso).
+   • Sem código válido no Plano de Contas → NÃO é deduzido e aparece na
+     Conciliação como "sem classificar".
+══════════════════════════════════════════════════════════════ */
+const REEMBOLSO_DEPARA = {
+  '130 SALARIO':11012, 'BENEFICIOS':120211, 'CESTA BASICA':11021, 'CONTRIBUIGCO SINDICAL':11015,
+  'CONVENIO FARMACIA':11010, 'CONVENIO MEDICO':11010, 'EMPRESTIMO CONSIGNADOS':11002, 'FERIAS':11006,
+  'FGTS':11009, 'ICMS':2006, 'ICMS-PARCELAMENTO':2027, 'INSS':20027, 'IR SOBRE FOLHA':11024, 'IRPJ':20062,
+  'PARTICIPAGCO DE LUCROS':11011, 'PROPAGANDA E PUBLICIDADE':50009, 'RESCISUES TRABALHISTAS':11003,
+  'SALARIOS':11008, 'SEGURO FUNCIONARIOS':11013, 'UNIFORME':11016, 'VALE TRANSPORTES':11004,
+};
+function parseReembolsoDRE(text, planoMap, lojaFallback){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = [], linhas = [];
+  if(!lines.length) return { rows, linhas };
+  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iAno   = findColExata(rawHeaders,'ano');
+  const iMes   = findColExata(rawHeaders,'mes');
+  const iLoja  = findColExata(rawHeaders,'loja');
+  const iData  = findColExata(rawHeaders,'data');
+  const iTotal = findColExata(rawHeaders,'total');
+  const iCanal = findColExata(rawHeaders,'canal','canais');
+  const iVs    = findColExata(rawHeaders,'vs');
+  const iPnome = findColExata(rawHeaders,'pnome');
+  const iCod   = findColExata(rawHeaders,'cod_pl','codpl','codcentro','cod_centro');
+  if(iTotal<0 || iPnome<0) return { rows, linhas };   // não é a base de reembolso (ex.: loja sem arquivo)
+
+  for(let i=1;i<lines.length;i++){
+    const line = lines[i].trim();
+    if(!line) continue;
+    const cells = splitLine(line,sep);
+    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
+
+    // Mesma regra da tela Reembolso: Canal DISTRIBUIÇÃO + VS = True
+    if(iCanal>=0 && normKey(g(iCanal))!=='distribuicao') continue;
+    if(iVs>=0 && !RE_TRUE.test(g(iVs))) continue;
+
+    const valor = parseNum(g(iTotal));
+    if(!valor) continue;
+    const dataRaw = g(iData);
+    const ano = parseInt(g(iAno),10) || parseAno(dataRaw);
+    const mes = parseInt(g(iMes),10) || parseMes(dataRaw);
+    if(!ano || !mes) continue;
+    const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
+
+    const pnome = g(iPnome).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
+    let cod = iCod>=0 ? g(iCod) : String(REEMBOLSO_DEPARA[pnome] || '');
+    const codNum = String(parseInt(cod,10) || '');
+    const info = cod ? (planoMap.get(cod) || planoMap.get(codNum)) : null;
+    const titulo = '(−) Reembolso Distribuição — ' + (pnome || 'sem descrição');
+
+    if(!info || !info.grupo){
+      linhas.push({ tipo:'despesa', mes, ano, loja, valor, status:'erro',
+        codigo: cod || '(vazio)',
+        motivo: 'Reembolso da Distribuição sem cod_pl válido no Plano de Contas — não deduzido',
+        titulo, dataRaw });
+      continue;
+    }
+    linhas.push({ tipo:'despesa', mes, ano, loja, valor:-valor, status:'ok' });
+    rows.push({ mes, ano, loja, valor: -valor, grupo: info.grupo, subgrupo: info.sub_grupo,
+                plano: info.conta_pl, cod_grupo: info.cod_grupo, reembolso: true, titulo, dataRaw });
+  }
+  return { rows, linhas };
+}
+
 // Canais que compõem o Faturamento usado na Análise Comercial: Loja,
 // Delivery e Central (Central = DISTRIBUICAO + VS False + Fabrica True,
 // ver classificarCanal). Distribuição e Reembolso NÃO entram.
@@ -2839,7 +2920,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v10'; // v10: Compras com data em "dt_solicitado"
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11'; // v11: dedução dos reembolsos da Distribuição (v10: Compras com data em "dt_solicitado")
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -3102,7 +3183,27 @@ async function carregarTudo(){
     comprasRaw = porLoja.flat();
   })();
 
-  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento]);
+  // ══════════════════════════════════════════════════════
+  // 8. Reembolsos da Distribuição (por loja) — espera só o Plano de Contas.
+  //    Entram como despesa NEGATIVA na mesma conta (cod_pl), abatendo o
+  //    Contas a Pagar. Lojas sem arquivo FATURAMENTO_RE_ são ignoradas.
+  // ══════════════════════════════════════════════════════
+  let rowsReembolso = [];
+  const pReembolso = !DEDUZIR_REEMBOLSO ? Promise.resolve() : pPlanoContas.then(() => (async () => {
+    await Promise.all(REEMBOLSO_URLS.map(async (url, idx) => {
+      const lojaKey = REEMBOLSO_STORE_KEYS[idx];
+      try {
+        const text = await fetchCSV(url);
+        const { rows, linhas } = parseReembolsoDRE(text, planoMap, lojaKey.toUpperCase());
+        rowsReembolso = rowsReembolso.concat(rows);
+        reconciliacao.linhas.push(...linhas);
+      } catch(e) {
+        console.warn('Reembolso indisponível (' + lojaKey + '):', e.message);
+      }
+    }));
+  })());
+
+  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento, pReembolso]);
   // Custo (Curva ABC) e Compras continuam carregando em segundo plano —
   // a tela já aparece, e o CMV é preenchido assim que terminarem.
   cmvCarregando = true;
@@ -3111,7 +3212,7 @@ async function carregarTudo(){
   document.getElementById('loaderMsg').textContent='Processando dados…';
 
   /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
-  const rowsDespSemReceita = rowsDespesas.filter(r => {
+  const rowsDespSemReceita = rowsDespesas.concat(rowsReembolso).filter(r => {
     const slug = slugFromGrupo(r.grupo);
     return slug !== 'receita_operacional';
   });
