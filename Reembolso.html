@@ -325,6 +325,10 @@ a.side-brand:hover { opacity:.85; }
 .comp-table td { padding: 9px 12px; color: var(--ink-2); white-space: nowrap; }
 .comp-table td.num { text-align: right; font-family: var(--font-num); font-weight: 600; }
 .comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
+/* Listagens limitadas a 10 linhas visíveis: o resto rola dentro da tabela,
+   com cabeçalho fixo em cima e a linha de total fixa embaixo. */
+.comp-table tbody tr.total-row td { position: sticky; bottom: 0; z-index: 1; }
+.lista-hint { font-size: 10.5px; color: var(--ink-4); margin: 6px 4px 0; text-align: right; }
 .comp-table .nd { text-align: center; padding: 40px 20px; color: var(--ink-4); }
 .comp-table td.cod { font-family: var(--font-num); font-weight: 700; }
 .st-badge { display:inline-block; padding:2px 8px; border-radius:10px; font-size:10.5px; font-weight:700; letter-spacing:.02em; }
@@ -1144,7 +1148,33 @@ function applyFilters(){
   renderPorLoja(data);
   renderTabela(data);
   renderNaoLocalizados(data);
+  // espera o próximo quadro: a área pode ainda estar oculta (carregamento pelo cache)
+  requestAnimationFrame(() => { limitarLinhas('ct-reembolso', 10); limitarLinhas('ct-nl', 10); });
 }
+
+// Ajusta a altura da caixa da tabela para mostrar exatamente N linhas
+// (+ cabeçalho e total). Com mais linhas que isso, aparece a rolagem.
+function limitarLinhas(tableId, n){
+  const tb = document.getElementById(tableId);
+  if(!tb) return;
+  const box = tb.closest('.comp-scroll');
+  const linhas = [...tb.tBodies[0].rows].filter(r => !r.classList.contains('total-row'));
+  const total = [...tb.tBodies[0].rows].find(r => r.classList.contains('total-row'));
+  let hint = box.parentElement.querySelector('.lista-hint');
+  if(linhas.length <= n){
+    box.style.maxHeight = 'none';
+    if(hint) hint.remove();
+    return;
+  }
+  const h = (tb.tHead ? tb.tHead.offsetHeight : 0)
+          + linhas.slice(0, n).reduce((t, r) => t + r.offsetHeight, 0)
+          + (total ? total.offsetHeight : 0) + 2;
+  box.style.maxHeight = h + 'px';
+  box.scrollTop = 0;
+  if(!hint){ hint = document.createElement('div'); hint.className = 'lista-hint'; box.parentElement.appendChild(hint); }
+  hint.textContent = 'Mostrando 10 de ' + linhas.length.toLocaleString('pt-BR') + ' linhas — role a tabela para ver o restante.';
+}
+window.addEventListener('resize', () => { limitarLinhas('ct-reembolso', 10); limitarLinhas('ct-nl', 10); });
 
 function stBadge(s){
   if(s === 'nl')  return '<span class="st-badge st-nl">Não localizado</span>';
