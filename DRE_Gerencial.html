@@ -816,8 +816,17 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 .dre-table tr.row-lanc {
   display: none;
 }
+/* Quebra da conta em "Pago" x "(−) Reembolso", alinhada às colunas */
+.dre-table tr.row-break { display: none; }
+.dre-table tr.row-break td { font-size: 11.5px; color: var(--ink-3); background: var(--surface-tint); font-style: italic; }
+.dre-table tr.row-break td:first-child { padding-left: 76px; }
+.dre-table tr.row-break.brk-re td { color: #8a5a00; }
+.dre-table tr.row-break.brk-re td:first-child::before { content: '↳ '; font-style: normal; opacity: .6; }
+.dre-table tr.row-break.brk-pago td:first-child::before { content: '↳ '; font-style: normal; opacity: .6; }
+.dre-table tr.row-break.brk-tot td { font-style: normal; font-weight: 700; color: var(--ink-2); border-top: 1px solid var(--border); }
 .dre-table tr.row-subgroup.visible,
 .dre-table tr.row-item.visible,
+.dre-table tr.row-break.visible,
 .dre-table tr.row-lanc.visible {
   display: table-row;
   animation: rowIn .18s ease forwards;
@@ -832,6 +841,8 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
   white-space: normal;
 }
 .dre-lanc-wrap {
+  position: sticky; left: 68px;
+  max-width: 900px;
   max-height: 260px;
   overflow-y: auto;
   border: 1px solid var(--border);
@@ -851,6 +862,7 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 .dre-lanc-wrap th.num, .dre-lanc-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-numeric); }
 .dre-lanc-wrap td { padding: 5px 10px; border-bottom: 1px solid #F0EDE6; color: var(--ink-2); white-space: normal; }
 .dre-lanc-wrap tr:last-child td { border-bottom: none; }
+.dre-lanc-wrap tr.lanc-re td { background: #fdf6e7 !important; color: #8a5a00; }
 @keyframes rowIn {
   from { opacity: 0; transform: translateY(-3px); }
   to   { opacity: 1; transform: none; }
@@ -3631,7 +3643,8 @@ function recalcImpostosGer(){
       // Mantém grupo/subgrupo/plano (não só o total) pra dar pra expandir
       // a linha de Impostos no DRE Gerencial/Consolidado e mostrar de
       // qual imposto vem cada valor, igual ao DFC.
-      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano };
+      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano,
+               reembolso:r.reembolso, titulo:r.titulo, dataRaw:r.dataRaw };
     });
 }
 
@@ -4424,6 +4437,24 @@ function renderDRE(){
     if(!avVisible) return '';
     return `<td class="av-col">${fmtAV(v,base)}</td>`;
   }
+  /* Conta com reembolso da Distribuição: ao abrir, mostra duas linhas
+     alinhadas às colunas (mês ou loja) — "Pago (Contas a Pagar)" e
+     "(−) Reembolso Distribuição" — que somadas dão o valor da conta. */
+  function breakRowsHTML(itens, iId, rec){
+    const re = (itens||[]).filter(r=>r.reembolso);
+    if(!re.length) return '';
+    const pago = itens.filter(r=>!r.reembolso);
+    const somaCols = arr => { const o={}; arr.forEach(r=>{ const k = modoMensal ? r.mes : r.loja; o[k]=(o[k]||0)+r.valor; }); return o; };
+    const linha = (label, vals, cls) => `<tr class="row-break ${cls}" data-parent="${iId}">
+      <td>${label}</td>
+      ${cols.map(c=>`<td>${cellVal(vals[c]||0)}</td>${avCell(vals[c]||0,(rec||{})[c]||0)}`).join('')}
+      <td>${cellVal(rowTotal(vals))}</td>
+      ${avCell(rowTotal(vals),rowTotal(rec||{}))}
+    </tr>`;
+    return linha('Pago (Contas a Pagar)', somaCols(pago), 'brk-pago')
+         + linha('(−) Reembolso Distribuição', somaCols(re), 'brk-re')
+         + linha('= Realizado', somaCols(itens), 'brk-tot');
+  }
 
   let _uid=0;
   const uid=()=>'dre-'+(++_uid);
@@ -4555,13 +4586,14 @@ function renderDRE(){
             const pVals=treeImp[grupoReal][sub][plano]||{};
             const pTot=rowTotal(pVals);
             const iId=uid();
-            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
+            const itensP=itensDoPlano(filteredImpostosGer,grupoReal,sub,plano); const lId=registrarLanc(itensP);
             html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
               <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
               <td>${cellVal(pTot)}</td>
               ${avCell(pTot,rowTotal(rec))}
             </tr>`;
+            html+=breakRowsHTML(itensP,iId,rec);
             html+=lancDetailRowHTML(iId,lId,totalCols());
           });
         });
@@ -4610,14 +4642,15 @@ function renderDRE(){
           const pVals=tree[grupoReal][sub][plano]||{};
           const pTot=rowTotal(pVals);
           const iId=uid();
-          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+          const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
           html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
             <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
           </tr>`;
-          html+=lancDetailRowHTML(iId,lId,totalCols());
+          html+=breakRowsHTML(itensP,iId,rec);
+            html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -4656,14 +4689,15 @@ function renderDRE(){
           const pVals=tree[g][sub][plano]||{};
           const pTot=rowTotal(pVals);
           const iId=uid();
-          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
+          const itensP=itensDoPlano(filtered,g,sub,plano); const lId=registrarLanc(itensP);
           html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
             <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
           </tr>`;
-          html+=lancDetailRowHTML(iId,lId,totalCols());
+          html+=breakRowsHTML(itensP,iId,rec);
+            html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -5400,21 +5434,30 @@ function toggleItem(iId, lId, e){
   const lancRow=document.getElementById('lancRow_'+lId);
   if(!itemRow || !lancRow) return;
   const isOpen=itemRow.classList.contains('is-open');
+  const brk = tbody.querySelectorAll(`tr.row-break[data-parent="${iId}"]`);
   if(isOpen){
     itemRow.classList.remove('is-open');
     lancRow.classList.remove('visible');
+    brk.forEach(r=>r.classList.remove('visible'));
   } else {
     itemRow.classList.add('is-open');
+    brk.forEach(r=>r.classList.add('visible'));
     lancRow.classList.add('visible');
     const body=document.getElementById('lancBody_'+lId);
     if(body && !body.dataset.built){
-      const itens=(_lancStore[lId]||[]).slice().sort((a,b)=>(b.valor||0)-(a.valor||0));
+      // Ordem cronológica (mês a mês); no mesmo mês, o pagamento vem antes
+      // do reembolso que o abate.
+      const diaDe = it => { const m=String(it.dataRaw||'').match(/^(\d{1,2})\//); return m ? +m[1] : 0; };
+      const itens=(_lancStore[lId]||[]).slice().sort((a,b)=>
+        ((a.ano||0)-(b.ano||0)) || ((a.mes||0)-(b.mes||0)) ||
+        ((a.reembolso?1:0)-(b.reembolso?1:0)) || (diaDe(a)-diaDe(b)) || ((b.valor||0)-(a.valor||0)));
       body.innerHTML = itens.length
         ? itens.map(it=>{
             const dataFmt = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
-            const tituloFmt = it.titulo ? it.titulo : '<span style="color:var(--ink-4)">(sem título/descrição na planilha de origem)</span>';
+            const tituloFmt = it.titulo ? it.titulo : (it.reembolso ? '(−) Reembolso Distribuição' : 'Pago (Contas a Pagar)');
             const lojaFmt = it.loja ? ` <span style="color:var(--ink-4);font-size:10.5px">— ${it.loja}</span>` : '';
-            return `<tr><td>${dataFmt}</td><td>${tituloFmt}${lojaFmt}</td><td class="num">${fmtBRL(it.valor||0)}</td></tr>`;
+            const st = it.reembolso ? ' class="lanc-re"' : '';
+            return `<tr${st}><td>${dataFmt}</td><td>${tituloFmt}${lojaFmt}</td><td class="num">${fmtBRL(it.valor||0)}</td></tr>`;
           }).join('')
         : `<tr><td colspan="3" style="text-align:center;color:var(--ink-4);padding:10px">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
       body.dataset.built='1';
@@ -5440,7 +5483,7 @@ function toggleAll(open){
   } else {
     /* Fechar tudo */
     tbody.querySelectorAll('tr.is-open').forEach(r=>r.classList.remove('is-open'));
-    tbody.querySelectorAll('tr.row-subgroup,tr.row-item,tr.row-lanc').forEach(r=>r.classList.remove('visible'));
+    tbody.querySelectorAll('tr.row-subgroup,tr.row-item,tr.row-break,tr.row-lanc').forEach(r=>r.classList.remove('visible'));
   }
 }
 
