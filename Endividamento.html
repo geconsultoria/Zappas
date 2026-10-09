@@ -643,11 +643,32 @@ const Store = {
   async _post(body){
     const sess=(window.AuthGuard && AuthGuard.getSession && AuthGuard.getSession())||{};
     body={tipo:'endividamento', token:window.__AUTH_TOKEN__||'', email:sess.email||'', ...body};
-    const res=await fetch(ENDIV_API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body)});
-    const txt=await res.text();
+    /* O Apps Script às vezes grava na planilha mas demora (ou nunca
+       devolve) a confirmação. Sem limite de tempo a tela ficava parada
+       esperando; agora desiste em 15s e quem chamou confere na planilha. */
+    const ctrl=new AbortController(), t=setTimeout(()=>ctrl.abort(), 15000);
+    let res, txt;
+    try{
+      res=await fetch(ENDIV_API_URL, {method:'POST', headers:{'Content-Type':'text/plain;charset=utf-8'}, body:JSON.stringify(body), signal:ctrl.signal});
+      txt=await res.text();
+    }catch(e){ const err=new Error(e.name==='AbortError'?'o Google demorou para responder':'falha de conexão'); err.semResposta=true; throw err; }
+    finally{ clearTimeout(t); }
     let j; try{ j=JSON.parse(txt); }catch(e){ throw new Error('resposta inválida do Apps Script'); }
     if(!j.ok) throw new Error(j.erro||'Falha ao gravar');
     return j;
+  },
+  /* Relê a planilha (até 3 vezes, com intervalo) e testa a condição. */
+  async _conferir(colecao, id, cond){
+    for(let i=0;i<3;i++){
+      await new Promise(r=>setTimeout(r, 2500));
+      try{ const d=await this.listar(); if(cond((d[colecao]||[]).find(x=>x.id===id))) return true; }catch(e){}
+    }
+    return false;
+  },
+  _mesmo(a,b){
+    const campos=['nome','empresa','banco','valorContratado','prazo','parcelasPagas','valorParcela','taxaAm','dataPrimeiraParcela'];
+    return campos.every(c=>{ const x=a[c], y=b[c]; if(y===undefined||y===null||y==='') return true;
+      return typeof y==='number' ? Math.abs((+x||0)-y)<0.005 : String(x??'')===String(y); });
   },
   _lsKey(colecao){ return {modalidades:LS_MOD, bancos:LS_BANCOS}[colecao] || LS_ED; },
   _lsGet(colecao){ try{ return JSON.parse(localStorage.getItem(this._lsKey(colecao))||'[]'); }catch(e){ return []; } },
@@ -655,13 +676,28 @@ const Store = {
   async salvar(colecao, item){
     if(!item.id) item.id=novoId();
     item.atualizadoEm=new Date().toISOString();
-    if(this.remoto){ const j=await this._post({acao:'salvar', colecao, item}); return j.item||item; }
+    if(this.remoto){
+      try{ const j=await this._post({acao:'salvar', colecao, item}); return j.item||item; }
+      catch(e){
+        if(!e.semResposta) throw e;
+        /* sem resposta: confere se a gravação chegou na planilha */
+        if(await this._conferir(colecao, item.id, x=>x && this._mesmo(x,item))) return item;
+        throw new Error(e.message+' e a gravação não foi confirmada. Tente de novo');
+      }
+    }
     const arr=this._lsGet(colecao); const i=arr.findIndex(x=>x.id===item.id);
     if(i>=0) arr[i]=item; else arr.push(item);
     this._lsSet(colecao, arr); return item;
   },
   async remover(colecao, id){
-    if(this.remoto){ await this._post({acao:'remover', colecao, id}); return; }
+    if(this.remoto){
+      try{ await this._post({acao:'remover', colecao, id}); return; }
+      catch(e){
+        if(!e.semResposta) throw e;
+        if(await this._conferir(colecao, id, x=>!x)) return;
+        throw new Error(e.message+' e a exclusão não foi confirmada. Tente de novo');
+      }
+    }
     this._lsSet(colecao, this._lsGet(colecao).filter(x=>x.id!==id));
   }
 };
@@ -925,12 +961,12 @@ async function salvarOperacao(){
     registro={...dados, pagamentos:[]};
   }
 
-  const btn=$('btnAddEd'); btn.disabled=true;
+  const btn=$('btnAddEd'); if(btn.disabled) return; btn.disabled=true; btn.textContent='Salvando…';
   try{
     const item=await Store.salvar('operacoes', registro);
     if(editandoId){ const i=operacoesEd.findIndex(x=>x.id===editandoId); operacoesEd[i]=item; }
     else operacoesEd.push(item);
-  }catch(e){ toast('Não foi possível salvar: '+e.message); btn.disabled=false; return; }
+  }catch(e){ toast('Não foi possível salvar: '+e.message+'.'); btn.disabled=false; modoFormulario(!!editandoId); return; }
   btn.disabled=false;
   const eraAlteracao=!!editandoId;
   editandoId=null; limparFormulario(); modoFormulario(false);
@@ -946,7 +982,8 @@ function pedirRemocao(id){
 }
 async function confirmarRemocao(){
   const id=rmPendente; if(!id) return;
-  try{ await Store.remover('operacoes', id); }catch(e){ toast('Não foi possível excluir: '+e.message); return; }
+  if($('rmConfirmar').disabled) return;
+  try{ await comBotao($('rmConfirmar'), 'Excluindo…', ()=>Store.remover('operacoes', id)); }catch(e){ toast('Não foi possível excluir: '+e.message+'.'); return; }
   operacoesEd=operacoesEd.filter(o=>o.id!==id);
   if(edSelected===id) edSelected=null;
   if(editandoId===id) cancelarAlteracao();
@@ -978,7 +1015,9 @@ async function confirmarBaixa(){
   const valor=valorMoeda($('baixaValor'))||(o.valorParcela||0);
   const primeira=dataPrimeiraParcela(o);
   const atualizado={...o, dataPrimeiraParcela:primeira, parcelasPagas:n, vencimento:addMeses(primeira,n), pagamentos:[...(o.pagamentos||[]), {n, data, valor}]};
-  try{ await Store.salvar('operacoes', atualizado); }catch(e){ toast('Não foi possível baixar: '+e.message); return; }
+  if($('baixaConfirmar').disabled) return;
+  try{ await comBotao($('baixaConfirmar'), 'Salvando…', ()=>Store.salvar('operacoes', atualizado)); }
+  catch(e){ toast('Não foi possível baixar: '+e.message+'.'); return; }
   Object.assign(o, atualizado);
   fecharModais(); renderTudo(); toast('Parcela '+n+'/'+prazo+' baixada.');
 }
@@ -989,6 +1028,11 @@ async function confirmarBaixa(){
    parcela e recalcula o próximo vencimento. Para desfazer mais de uma,
    é só estornar de novo. Fica registrado no histórico da planilha. */
 let estPendente=null;
+/* Botão de ação com estado "Salvando…" enquanto a gravação não termina. */
+async function comBotao(btn, textoSalvando, fn){
+  const orig=btn.textContent; btn.disabled=true; btn.textContent=textoSalvando;
+  try{ return await fn(); } finally{ btn.disabled=false; btn.textContent=orig; }
+}
 function pedirEstorno(opId){
   const o=operacoesEd.find(x=>x.id===opId); if(!o) return;
   const r=calcularSaldos(o);
@@ -1008,9 +1052,9 @@ async function confirmarEstorno(){
   const primeira=dataPrimeiraParcela(o), pagas=n-1;
   const atualizado={...o, dataPrimeiraParcela:primeira, parcelasPagas:pagas, vencimento:addMeses(primeira,pagas),
     pagamentos:(o.pagamentos||[]).filter(p=>p.n<n)};
-  const btn=$('estConfirmar'); btn.disabled=true;
-  try{ await Store.salvar('operacoes', atualizado); }catch(e){ btn.disabled=false; toast('Não foi possível estornar: '+e.message); return; }
-  btn.disabled=false;
+  if($('estConfirmar').disabled) return;
+  try{ await comBotao($('estConfirmar'), 'Salvando…', ()=>Store.salvar('operacoes', atualizado)); }
+  catch(e){ toast('Não foi possível estornar: '+e.message+'.'); return; }
   Object.assign(o, atualizado);
   if(editandoId===opId) iniciarAlteracao(opId);
   fecharModais(); renderTudo(); toast('Baixa da parcela '+n+'/'+prazo+' estornada.');
