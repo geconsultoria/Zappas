@@ -436,12 +436,12 @@ table.tight tbody tr:hover td { background:var(--bg); }
           <div><label for="edPrimeira">Data inicial (1ª parcela)</label><input id="edPrimeira" type="date"></div>
           <div><label for="edDataTermino">Data término</label><input id="edDataTermino" type="date"><div class="hint" id="hintTermino"></div></div>
           <div><label for="edValor">Valor contratado (R$)</label><input id="edValor" type="text" inputmode="decimal" placeholder="0,00"></div>
-          <div><label for="edTaxaAm">Taxa a.m. (%)</label><input id="edTaxaAm" type="number" step="0.01" placeholder="1,90"></div>
-          <div><label for="edTaxaCet">Taxa CET a.a. (%)</label><input id="edTaxaCet" type="number" step="0.01" placeholder="28,50"></div>
+          <div><label for="edTaxaAm">Taxa a.m. (%)</label><input id="edTaxaAm" type="number" step="any" placeholder="1,90" title="Use a taxa exata do contrato, com todas as casas decimais"></div>
+          <div><label for="edTaxaCet">Taxa CET a.a. (%)</label><input id="edTaxaCet" type="number" step="any" placeholder="28,50"></div>
         </div>
         <div class="r7">
-          <div><label for="edPrazo">Prazo (parcelas)</label><input id="edPrazo" type="number" step="1" min="1" placeholder="24"></div>
-          <div><label for="edCarencia">Carência (meses)</label><input id="edCarencia" type="number" step="1" min="0" placeholder="0"></div>
+          <div><label for="edPrazo">Prazo total (meses)</label><input id="edPrazo" type="number" step="1" min="1" placeholder="24" title="Prazo do contrato em meses, já incluindo a carência"><div class="hint" id="hintPrazo"></div></div>
+          <div><label for="edCarencia">Carência (meses)</label><input id="edCarencia" type="number" step="1" min="0" placeholder="0" title="Meses sem pagamento antes da 1ª parcela (os juros desse período somam no saldo)"><div class="hint">dentro do prazo total</div></div>
           <div><label for="edParcela">Valor da parcela (R$)</label><input id="edParcela" type="text" inputmode="decimal" placeholder="0,00"><div class="hint" id="hintParcela"></div></div>
           <div><label for="edTarifa">Tarifa contratação (R$)</label><input id="edTarifa" type="text" inputmode="decimal" placeholder="0,00"></div>
           <div><label for="edIof">IOF (R$)</label><input id="edIof" type="text" inputmode="decimal" placeholder="0,00"></div>
@@ -800,12 +800,22 @@ const valorParcelaOp = (o,r) => o.valorParcela || (r.parcelas[0] ? r.parcelas[0]
 const CAMPOS_TEXTO=['edAgencia','edContaBanc','edConta','edDataOperacao','edDataCredito','edPrimeira','edDataTermino','edValor','edTaxaAm','edTaxaCet','edGarantia','edPrazo','edCarencia','edParcela','edTarifa','edIof','edVencimento','edPagas','edSaldoBanco'];
 const CAMPOS_SELECT=['edEmpresa','edBanco','edModalidade'];
 let editandoId=null;
+/* O prazo informado é o TOTAL do contrato em meses, já com a carência
+   (ex.: 48 meses com 11 de carência = 37 parcelas). Internamente "prazo"
+   continua sendo o nº de parcelas, que é o que o cálculo usa. */
+function parcelasDoForm(){
+  const total=parseInt($('edPrazo').value,10)||0, car=parseInt($('edCarencia').value,10)||0;
+  return Math.max(0, total-car);
+}
 
 /* Mantém "Próx. vencimento", a sugestão de parcelas pagas e a data de
    término coerentes com a data da 1ª parcela enquanto o formulário é
    preenchido. */
 function atualizarCamposCalculados(){
-  const primeira=$('edPrimeira').value, prazo=parseInt($('edPrazo').value,10)||0;
+  const primeira=$('edPrimeira').value, prazo=parcelasDoForm();
+  const total=parseInt($('edPrazo').value,10)||0, car=parseInt($('edCarencia').value,10)||0;
+  const hpz=$('hintPrazo'); hpz.classList.toggle('alerta', total>0 && prazo<1);
+  hpz.textContent = !total ? '' : (prazo<1 ? 'precisa ser maior que a carência' : (car ? '= '+prazo+' parcelas ('+total+' − '+car+' de carência)' : '= '+prazo+' parcelas'));
   const pagas=parseInt($('edPagas').value,10)||0;
   $('edVencimento').value = primeira ? (pagas>=prazo && prazo>0 ? '' : addMeses(primeira, pagas)) : '';
   const venc=parcelasVencidasAte(primeira, prazo, hojeISO());
@@ -841,7 +851,7 @@ function lerFormulario(){
     dataPrimeiraParcela:primeira, dataTermino:$('edDataTermino').value,
     valorContratado:valorMoeda($('edValor')), taxaAm:parseFloat($('edTaxaAm').value), taxaCet:parseFloat($('edTaxaCet').value)||0,
     garantia:up($('edGarantia').value.trim()),
-    prazo:parseInt($('edPrazo').value,10), carencia:parseInt($('edCarencia').value,10)||0, valorParcela:valorMoeda($('edParcela')),
+    prazoTotal:parseInt($('edPrazo').value,10)||0, prazo:parcelasDoForm(), carencia:parseInt($('edCarencia').value,10)||0, valorParcela:valorMoeda($('edParcela')),
     tarifaContratacao:valorMoeda($('edTarifa')), iof:valorMoeda($('edIof')), encargosFinanciados:$('edFinanciados').checked,
     parcelasPagas:pagas, vencimento: primeira ? addMeses(primeira, pagas) : '',
     saldoBanco: $('edSaldoBanco').value.trim() ? valorMoeda($('edSaldoBanco')) : null,
@@ -873,7 +883,7 @@ function iniciarAlteracao(id){
   $('edDataOperacao').value=o.dataOperacao||''; $('edDataCredito').value=o.dataCredito||'';
   $('edPrimeira').value=dataPrimeiraParcela(o)||''; $('edDataTermino').value=o.dataTermino||'';
   setValorMoeda($('edValor'), o.valorContratado); $('edTaxaAm').value=o.taxaAm??''; $('edTaxaCet').value=o.taxaCet||'';
-  $('edGarantia').value=o.garantia||''; $('edPrazo').value=o.prazo||''; $('edCarencia').value=o.carencia||'';
+  $('edGarantia').value=o.garantia||''; $('edPrazo').value=o.prazoTotal||((o.prazo||0)+(o.carencia||0))||''; $('edCarencia').value=o.carencia||'';
   setValorMoeda($('edParcela'), o.valorParcela); setValorMoeda($('edTarifa'), o.tarifaContratacao); setValorMoeda($('edIof'), o.iof);
   $('edFinanciados').checked=ehFinanciado(o);
   $('edPagas').value=o.parcelasPagas||0;
@@ -887,9 +897,9 @@ function cancelarAlteracao(){ editandoId=null; limparFormulario(); modoFormulari
 async function salvarOperacao(){
   const dados=lerFormulario();
   if(!dados.empresa||!dados.banco||!(dados.valorContratado>0)||!(dados.taxaAm>=0)||!(dados.prazo>0)||!dados.dataPrimeiraParcela){
-    toast('Preencha ao menos loja, banco, valor contratado, taxa a.m., prazo e data inicial (1ª parcela).'); return;
+    toast(dados.prazoTotal>0 && !(dados.prazo>0) ? 'O prazo total precisa ser maior que a carência.' : 'Preencha ao menos loja, banco, valor contratado, taxa a.m., prazo e data inicial (1ª parcela).'); return;
   }
-  if(dados.parcelasPagas>dados.prazo){ toast('Parcelas pagas não pode ser maior que o prazo.'); return; }
+  if(dados.parcelasPagas>dados.prazo){ toast('Parcelas pagas não pode ser maior que o nº de parcelas ('+dados.prazo+').'); return; }
   if(!dados.dataTermino) dados.dataTermino=addMeses(dados.dataPrimeiraParcela, dados.prazo-1);
 
   let registro;
@@ -1031,8 +1041,8 @@ function renderDetalheHTML(o){
     ehFinanciado(o) ? it('Valor financiado (crédito + tarifa + IOF)',fmt(principalFinanciado(o))) : it('Valor líquido creditado',fmt((o.valorContratado||0)-(o.tarifaContratacao||0)-(o.iof||0))),
     it('Total a pagar (parcelas)',fmt(valorParcelaOp(o,r)*r.prazo)), it('Juros totais',fmt(valorParcelaOp(o,r)*r.prazo-principalFinanciado(o))),
     it('Data operação',fmtData(o.dataOperacao)), it('Data crédito',fmtData(o.dataCredito)), it('Data término',fmtData(o.dataTermino)), it('Garantia',esc(o.garantia||'—')),
-    it('Valor contratado',fmt(o.valorContratado)), it('Taxa a.m.',pct(o.taxaAm)), it('Taxa CET a.a.',pct(o.taxaCet)), it('Prazo',r.prazo+' meses'),
-    it('Carência',(o.carencia||0)+' meses'), it('Valor da parcela',fmt(valorParcelaOp(o,r))), it('Próx. vencimento',fmtData(o.vencimento)),
+    it('Valor contratado',fmt(o.valorContratado)), it('Taxa a.m.',(o.taxaAm||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:6})+'%'), it('Taxa CET a.a.',pct(o.taxaCet)), it('Prazo',((o.carencia||0) ? (r.prazo+(o.carencia||0))+' meses ('+(o.carencia)+' de carência + '+r.prazo+' parcelas)' : r.prazo+' parcelas')),
+ it('Valor da parcela',fmt(valorParcelaOp(o,r))), it('Próx. vencimento',fmtData(o.vencimento)),
   ].join('');
   const temBanco=o.saldoBanco!=null && !isNaN(o.saldoBanco);
   const diff=temBanco?(r.saldoPorParcelas-o.saldoBanco):null;
