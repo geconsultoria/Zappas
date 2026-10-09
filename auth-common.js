@@ -53,6 +53,7 @@
     analise_comercial: { label: "Análise Comercial", href: "Analise_Comercial.html" },
     faturamento_lucro: { label: "Faturamento x Lucro", href: "Faturamento_Lucro.html" },
     faturamento_detalhado: { label: "Faturamento Detalhado", href: "Faturamento_Detalhado.html" },
+    curva_abc_produto: { label: "Curva ABC Produto", href: "Curva_ABC_Produto.html" },
     dre_gerencial: { label: "Demonstrativo de Resultado", href: "DRE_Gerencial.html" },
     contas_a_pagar: { label: "Contas a Pagar", href: "Contas_a_Pagar.html" },
     banco_declaracao: { label: "Banco", href: "Banco_Declaracao.html" },
@@ -715,12 +716,53 @@
     return null;
   }
 
+  // ── Links de telas novas no menu de TODAS as páginas ─────────────────
+  // Cada tela tem a própria cópia do menu lateral no HTML. Em vez de editar
+  // todas a cada tela nova, os links listados aqui são incluídos sozinhos
+  // no grupo certo (se a página ainda não tiver o link), logo depois do
+  // item indicado em "depoisDe". Depois disso, o filtro de permissão abaixo
+  // esconde o link de quem não tem acesso, igual aos demais.
+  var MENU_EXTRA = [
+    {
+      grupo: "financeiro",
+      href: "Endividamento.html",
+      label: "Controle de Endividamento",
+      depoisDe: "Ciclo_Financeiro.html",
+      icone: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>'
+    }
+  ];
+  function garantirLinksDoMenu() {
+    var atual = paginaAtual();
+    MENU_EXTRA.forEach(function (m) {
+      var sub = document.querySelector('.sidebar .side-item[data-menu="' + m.grupo + '"] .side-sub');
+      if (!sub) return;
+      var hrefLower = m.href.toLowerCase();
+      var jaTem = Array.prototype.some.call(sub.querySelectorAll("a"), function (a) {
+        return String(a.getAttribute("href") || "").split("?")[0].toLowerCase() === hrefLower;
+      });
+      if (jaTem) return;
+      var a = document.createElement("a");
+      a.setAttribute("href", m.href);
+      a.innerHTML = m.icone + escHtml(m.label);
+      if (atual === hrefLower) a.className = "active";
+      var ref = null;
+      if (m.depoisDe) {
+        Array.prototype.forEach.call(sub.querySelectorAll("a"), function (x) {
+          if (String(x.getAttribute("href") || "").split("?")[0].toLowerCase() === m.depoisDe.toLowerCase()) ref = x;
+        });
+      }
+      if (ref && ref.nextSibling) sub.insertBefore(a, ref.nextSibling);
+      else sub.appendChild(a);
+    });
+  }
+
   function filtrarMenuPorPermissao() {
     if (!session) return;
     if (document.readyState === "loading") {
       document.addEventListener("DOMContentLoaded", filtrarMenuPorPermissao);
       return;
     }
+    garantirLinksDoMenu();
     var admin = session.role === "admin";
     var perms = session.permissoes || {};
     document.querySelectorAll(".sidebar .side-nav .side-item").forEach(function (item) {
