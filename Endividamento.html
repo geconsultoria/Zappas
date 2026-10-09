@@ -152,6 +152,9 @@ input[readonly] { background:var(--surf-2); color:var(--ink-3); }
 .form-acoes .btn-ghost { flex:none; padding:9px 14px; }
 .card.editando { border-color:var(--gold); box-shadow:0 0 0 3px rgba(200,150,26,.18), var(--sh); }
 .p-gold { background:rgba(200,150,26,.12); color:#9a7210; border:1px solid rgba(200,150,26,.35); }
+.chk { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--ink-2); font-weight:600; cursor:pointer; margin:0; padding:8px 10px; border:1px dashed var(--border-2); border-radius:var(--r); background:var(--surf-2); }
+.chk input { width:16px; height:16px; flex:none; accent-color:var(--blue-mid); }
+.hint.alerta { color:var(--rust); font-weight:600; }
 .hint { font-size:10.5px; color:var(--ink-4); margin-top:3px; min-height:14px; }
 
 /* Menu "Ações" da lista de operações — fixo na tela (position:fixed) pra
@@ -369,7 +372,7 @@ table.tight tbody tr:hover td { background:var(--bg); }
       <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Saldo atual (calculado)</div><div class="kpi-val" id="kv-saldo-calc">—</div><div class="kpi-foot">tabela Price, pelas parcelas pagas</div></div>
       <div class="kpi"><div class="kpi-accent ac-teal"></div><div class="kpi-lbl">Saldo atual (bancos)</div><div class="kpi-val" id="kv-saldo-banco">—</div><div class="kpi-foot">informado por operação</div></div>
       <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Diferença calc. × banco</div><div class="kpi-val" id="kv-diferenca">—</div><div class="kpi-foot">só operações com saldo do banco</div></div>
-      <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Já amortizado</div><div class="kpi-val" id="kv-amortizado">—</div><div class="kpi-foot">contratado menos saldo calculado</div></div>
+      <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Já amortizado</div><div class="kpi-val" id="kv-amortizado">—</div><div class="kpi-foot">principal já pago nas parcelas</div></div>
     </div>
 
     <div class="row c2" style="margin-top:14px;">
@@ -439,7 +442,7 @@ table.tight tbody tr:hover td { background:var(--bg); }
         <div class="r7">
           <div><label for="edPrazo">Prazo (parcelas)</label><input id="edPrazo" type="number" step="1" min="1" placeholder="24"></div>
           <div><label for="edCarencia">Carência (meses)</label><input id="edCarencia" type="number" step="1" min="0" placeholder="0"></div>
-          <div><label for="edParcela">Valor da parcela (R$)</label><input id="edParcela" type="text" inputmode="decimal" placeholder="0,00"></div>
+          <div><label for="edParcela">Valor da parcela (R$)</label><input id="edParcela" type="text" inputmode="decimal" placeholder="0,00"><div class="hint" id="hintParcela"></div></div>
           <div><label for="edTarifa">Tarifa contratação (R$)</label><input id="edTarifa" type="text" inputmode="decimal" placeholder="0,00"></div>
           <div><label for="edIof">IOF (R$)</label><input id="edIof" type="text" inputmode="decimal" placeholder="0,00"></div>
           <div><label for="edGarantia">Garantia</label><input id="edGarantia" placeholder="Ex: Duplicatas, imóvel..."></div>
@@ -448,7 +451,11 @@ table.tight tbody tr:hover td { background:var(--bg); }
         <div class="r7">
           <div><label for="edPagas">Parcelas pagas</label><input id="edPagas" type="number" step="1" min="0" placeholder="0"><div class="hint" id="hintPagas"></div></div>
           <div><label for="edVencimento">Próx. vencimento</label><input id="edVencimento" type="date" readonly tabindex="-1" title="Calculado pela data da 1ª parcela + parcelas pagas"><div class="hint">calculado automaticamente</div></div>
-          <div></div><div></div><div></div>
+          <div style="grid-column:span 2; display:flex; flex-direction:column; justify-content:flex-end;">
+            <label class="chk" for="edFinanciados" title="Marque quando a tarifa e o IOF foram somados ao valor emprestado (o banco cobra nas parcelas). Desmarque quando foram descontados do valor creditado."><input type="checkbox" id="edFinanciados"> Tarifa e IOF financiados (somados ao valor)</label>
+            <div class="hint" id="hintFinanciado"></div>
+          </div>
+          <div></div>
           <div class="form-acoes">
             <button class="btn btn-ghost" type="button" id="btnCancelEd" style="display:none;">Cancelar</button>
             <button class="btn btn-primary" type="button" id="btnAddEd">Cadastrar operação</button>
@@ -733,17 +740,37 @@ async function removerItemSelecionado(k){
 }
 
 /* ---------- cálculo (tabela Price) ---------- */
-function calcularSchedule(valor, taxaAmPct, prazo, carencia){
+/* Valor sobre o qual correm os juros: o crédito + tarifa + IOF quando eles
+   foram financiados (somados à dívida, como no Itaú), ou só o crédito
+   quando foram descontados do valor liberado. */
+const ehFinanciado = o => o.encargosFinanciados===true || o.encargosFinanciados==='true' || o.encargosFinanciados==='TRUE';
+const principalFinanciado = o => (o.valorContratado||0) + (ehFinanciado(o) ? (o.tarifaContratacao||0)+(o.iof||0) : 0);
+const pmtPrice = (pv,i,n) => i>0 ? pv*i/(1-Math.pow(1+i,-n)) : pv/n;
+
+/* Tabela Price. Se a parcela do contrato foi informada, ela manda: o
+   cronograma usa exatamente esse valor e o saldo inicial é o valor
+   presente das parcelas na taxa do contrato. Isso absorve a diferença de
+   dias até a 1ª parcela (juros pró-rata) que os bancos embutem na parcela,
+   e o saldo termina zerado na última. Sem parcela informada, calcula pelo
+   valor financiado (com a carência capitalizando juros). */
+function calcularSchedule(valor, taxaAmPct, prazo, carencia, pmtInformado){
   const i=taxaAmPct/100;
-  let saldo=valor;
-  for(let c=0;c<(carencia||0);c++) saldo*=(1+i);   // juros da carência capitalizam
-  const pmt = i>0 ? saldo*i/(1-Math.pow(1+i,-prazo)) : saldo/prazo;
+  let saldo=valor, pmt;
+  if(pmtInformado>0){
+    pmt=pmtInformado;
+    saldo = i>0 ? pmt*(1-Math.pow(1+i,-prazo))/i : pmt*prazo;
+  } else {
+    for(let c=0;c<(carencia||0);c++) saldo*=(1+i);   // juros da carência capitalizam
+    pmt=pmtPrice(saldo,i,prazo);
+  }
+  const saldoInicial=saldo;
   const parcelas=[];
   for(let n=1;n<=prazo;n++){
     const juros=saldo*i, amort=pmt-juros;
     saldo=Math.max(0, saldo-amort);
     parcelas.push({n, parcela:pmt, juros, amort, saldo});
   }
+  parcelas.saldoInicial=saldoInicial;
   return parcelas;
 }
 /* Data da 1ª parcela: vem do campo "Data inicial (1ª parcela)". Operações
@@ -757,14 +784,15 @@ function parcelasVencidasAte(primeira, prazo, ate){
 }
 function calcularSaldos(op){
   const prazo=Math.max(1, op.prazo||1);
-  const parcelas=calcularSchedule(op.valorContratado||0, op.taxaAm||0, prazo, op.carencia||0);
+  const parcelas=calcularSchedule(principalFinanciado(op), op.taxaAm||0, prazo, op.carencia||0, op.valorParcela||0);
+  const s0=parcelas.saldoInicial;
   const pagas=Math.min(Math.max(op.parcelasPagas||0,0), prazo);
-  const saldoPorParcelas = pagas>0 ? parcelas[pagas-1].saldo : (op.valorContratado||0);
+  const saldoPorParcelas = pagas>0 ? parcelas[pagas-1].saldo : s0;
   const dataInicio=dataPrimeiraParcela(op);
   let mp=mesesEntre(dataInicio, hojeISO())+1;   // parcelas cujo vencimento já chegou
   mp=Math.min(Math.max(mp,0), prazo);
-  const saldoPorData = mp>0 ? parcelas[mp-1].saldo : (op.valorContratado||0);
-  return {parcelas, saldoPorParcelas, saldoPorData, dataInicio, pagas, prazo};
+  const saldoPorData = mp>0 ? parcelas[mp-1].saldo : s0;
+  return {parcelas, saldoPorParcelas, saldoPorData, dataInicio, pagas, prazo, saldoInicial:s0};
 }
 const valorParcelaOp = (o,r) => o.valorParcela || (r.parcelas[0] ? r.parcelas[0].parcela : 0);
 
@@ -783,6 +811,23 @@ function atualizarCamposCalculados(){
   const venc=parcelasVencidasAte(primeira, prazo, hojeISO());
   $('hintPagas').textContent = primeira && prazo ? ('vencidas até hoje: '+venc) : '';
   $('hintTermino').textContent = primeira && prazo ? ('última parcela: '+fmtData(addMeses(primeira, prazo-1))) : '';
+
+  /* Conferência: parcela que a tabela Price daria x parcela do contrato */
+  const valor=valorMoeda($('edValor')), tarifa=valorMoeda($('edTarifa')), iof=valorMoeda($('edIof'));
+  const fin=$('edFinanciados').checked, taxa=parseFloat($('edTaxaAm').value);
+  const pv=valor+(fin?tarifa+iof:0), carencia=parseInt($('edCarencia').value,10)||0;
+  $('hintFinanciado').textContent = valor>0 ? ((fin?'valor financiado: ':'valor liberado: ')+fmt(fin?pv:valor-tarifa-iof)) : '';
+  const hp=$('hintParcela'); hp.classList.remove('alerta'); hp.textContent='';
+  if(pv>0 && prazo>0 && taxa>=0){
+    let base=pv; for(let c=0;c<carencia;c++) base*=(1+taxa/100);
+    const calc=pmtPrice(base, taxa/100, prazo), inf=valorMoeda($('edParcela'));
+    if(!inf) hp.textContent='calculada: '+fmt(calc);
+    else {
+      const dif=(inf-calc)/calc;
+      hp.textContent='calculada: '+fmt(calc)+(Math.abs(dif)>0.005?' ('+(dif>0?'+':'')+(dif*100).toFixed(1).replace('.',',')+'%)':' ✓');
+      if(Math.abs(dif)>0.03){ hp.classList.add('alerta'); hp.textContent+=' — confira taxa, prazo e se tarifa/IOF são financiados'; }
+    }
+  }
 }
 
 function lerFormulario(){
@@ -797,14 +842,14 @@ function lerFormulario(){
     valorContratado:valorMoeda($('edValor')), taxaAm:parseFloat($('edTaxaAm').value), taxaCet:parseFloat($('edTaxaCet').value)||0,
     garantia:up($('edGarantia').value.trim()),
     prazo:parseInt($('edPrazo').value,10), carencia:parseInt($('edCarencia').value,10)||0, valorParcela:valorMoeda($('edParcela')),
-    tarifaContratacao:valorMoeda($('edTarifa')), iof:valorMoeda($('edIof')),
+    tarifaContratacao:valorMoeda($('edTarifa')), iof:valorMoeda($('edIof')), encargosFinanciados:$('edFinanciados').checked,
     parcelasPagas:pagas, vencimento: primeira ? addMeses(primeira, pagas) : '',
     saldoBanco: $('edSaldoBanco').value.trim() ? valorMoeda($('edSaldoBanco')) : null,
   };
 }
 
 function limparFormulario(){
-  CAMPOS_TEXTO.forEach(id=>$(id).value=''); CAMPOS_SELECT.forEach(id=>$(id).value='');
+  CAMPOS_TEXTO.forEach(id=>$(id).value=''); CAMPOS_SELECT.forEach(id=>$(id).value=''); $('edFinanciados').checked=false;
   atualizarCamposCalculados();
 }
 
@@ -830,6 +875,7 @@ function iniciarAlteracao(id){
   setValorMoeda($('edValor'), o.valorContratado); $('edTaxaAm').value=o.taxaAm??''; $('edTaxaCet').value=o.taxaCet||'';
   $('edGarantia').value=o.garantia||''; $('edPrazo').value=o.prazo||''; $('edCarencia').value=o.carencia||'';
   setValorMoeda($('edParcela'), o.valorParcela); setValorMoeda($('edTarifa'), o.tarifaContratacao); setValorMoeda($('edIof'), o.iof);
+  $('edFinanciados').checked=ehFinanciado(o);
   $('edPagas').value=o.parcelasPagas||0;
   if(o.saldoBanco!=null && !isNaN(o.saldoBanco)) setValorMoeda($('edSaldoBanco'), o.saldoBanco); else $('edSaldoBanco').value='';
   atualizarCamposCalculados();
@@ -935,7 +981,8 @@ function renderPainel(){
   const dif=calcComBanco-totalBanco, kd=$('kv-diferenca');
   kd.textContent=temBanco?fmt(dif):'—';
   kd.style.color=!temBanco?'':(dif>0.5?'var(--rust)':(dif<-0.5?'var(--green)':'var(--ink)'));
-  $('kv-amortizado').textContent=fmt(Math.max(0,totalContratado-totalCalc));
+  const totalFinanciado=operacoesEd.reduce((s,o)=>s+calcularSaldos(o).saldoInicial,0);
+  $('kv-amortizado').textContent=fmt(Math.max(0,totalFinanciado-totalCalc));
 
   const bars=(obj,elId)=>{
     const e=Object.entries(obj).filter(([,v])=>v>0.005).sort((a,b)=>b[1]-a[1]);
@@ -980,7 +1027,9 @@ function renderDetalheHTML(o){
     it('Agência / Conta',esc([o.agencia,o.contaBancaria].filter(Boolean).join(' / ')||'—')), it('Nº do contrato',esc(o.conta||'—')),
     it('Modalidade',esc(o.modalidade||'—')), it('Data inicial (1ª parcela)',fmtData(r.dataInicio)),
     it('Tarifa contratação',fmt(o.tarifaContratacao)), it('IOF',fmt(o.iof)),
-    it('Custo de contratação (tarifa + IOF)',fmt((o.tarifaContratacao||0)+(o.iof||0))), it('Valor líquido creditado',fmt((o.valorContratado||0)-(o.tarifaContratacao||0)-(o.iof||0))),
+    it('Custo de contratação (tarifa + IOF)',fmt((o.tarifaContratacao||0)+(o.iof||0))+(ehFinanciado(o)?' · financiados':' · descontados')),
+    ehFinanciado(o) ? it('Valor financiado (crédito + tarifa + IOF)',fmt(principalFinanciado(o))) : it('Valor líquido creditado',fmt((o.valorContratado||0)-(o.tarifaContratacao||0)-(o.iof||0))),
+    it('Total a pagar (parcelas)',fmt(valorParcelaOp(o,r)*r.prazo)), it('Juros totais',fmt(valorParcelaOp(o,r)*r.prazo-principalFinanciado(o))),
     it('Data operação',fmtData(o.dataOperacao)), it('Data crédito',fmtData(o.dataCredito)), it('Data término',fmtData(o.dataTermino)), it('Garantia',esc(o.garantia||'—')),
     it('Valor contratado',fmt(o.valorContratado)), it('Taxa a.m.',pct(o.taxaAm)), it('Taxa CET a.a.',pct(o.taxaCet)), it('Prazo',r.prazo+' meses'),
     it('Carência',(o.carencia||0)+' meses'), it('Valor da parcela',fmt(valorParcelaOp(o,r))), it('Próx. vencimento',fmtData(o.vencimento)),
@@ -1051,7 +1100,7 @@ function ligarEventos(){
   $('btnAddEd').addEventListener('click', salvarOperacao);
   $('btnCancelEd').addEventListener('click', cancelarAlteracao);
   maskMoeda($('edTarifa')); maskMoeda($('edIof'));
-  ['edPrimeira','edPrazo','edPagas'].forEach(id=>$(id).addEventListener('input', atualizarCamposCalculados));
+  ['edPrimeira','edPrazo','edPagas','edValor','edTarifa','edIof','edTaxaAm','edCarencia','edParcela','edFinanciados'].forEach(id=>{ $(id).addEventListener('input', atualizarCamposCalculados); $(id).addEventListener('change', atualizarCamposCalculados); });
   /* menu Ações */
   let acoesId=null;
   const menu=$('acoesMenu');
