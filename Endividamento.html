@@ -144,9 +144,30 @@ input[type=text]::placeholder, input:not([type])::placeholder { text-transform:n
 input:focus, select:focus { border-color:var(--blue-mid); outline:none; }
 .r4 { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:10px; }
 .r7 { display:grid; grid-template-columns:repeat(7,minmax(0,1fr)); gap:8px; margin-bottom:10px; }
-.r4:last-child, .r7:last-child { margin-bottom:0; }
+.r6b { display:grid; grid-template-columns:1fr 1.5fr .65fr .85fr 1fr 1.5fr; gap:10px; margin-bottom:10px; }
+.r4:last-child, .r7:last-child, .r6b:last-child { margin-bottom:0; }
+@media (max-width:1200px){ .r6b{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
+input[readonly] { background:var(--surf-2); color:var(--ink-3); }
+.form-acoes { grid-column:span 2; display:flex; align-items:flex-end; gap:8px; }
+.form-acoes .btn-ghost { flex:none; padding:9px 14px; }
+.card.editando { border-color:var(--gold); box-shadow:0 0 0 3px rgba(200,150,26,.18), var(--sh); }
+.p-gold { background:rgba(200,150,26,.12); color:#9a7210; border:1px solid rgba(200,150,26,.35); }
+.hint { font-size:10.5px; color:var(--ink-4); margin-top:3px; min-height:14px; }
+
+/* Menu "Ações" da lista de operações — fixo na tela (position:fixed) pra
+   não ser cortado pela rolagem horizontal da tabela. */
+.btn-acoes { display:inline-flex; align-items:center; gap:5px; background:var(--surface); border:1px solid var(--border-2); color:var(--ink-2); padding:5px 10px; font-size:12px; font-weight:600; border-radius:7px; cursor:pointer; font-family:var(--font-body); }
+.btn-acoes:hover, .btn-acoes.on { background:var(--blue-xl); border-color:var(--blue-lt); color:var(--blue-mid); }
+.btn-acoes svg { width:12px; height:12px; }
+.acoes-menu { position:fixed; z-index:450; min-width:150px; background:var(--surface); border:1px solid var(--border); border-radius:10px; box-shadow:var(--sh-md); padding:5px; display:none; }
+.acoes-menu.show { display:block; }
+.acoes-menu button { display:flex; align-items:center; gap:9px; width:100%; background:none; border:0; padding:8px 10px; border-radius:7px; font-family:var(--font-body); font-size:12.5px; font-weight:500; color:var(--ink-2); cursor:pointer; text-align:left; }
+.acoes-menu button:hover { background:var(--bg); }
+.acoes-menu button svg { width:15px; height:15px; flex:none; }
+.acoes-menu button.perigo { color:var(--rust); }
+.acoes-menu button.perigo:hover { background:var(--rust-lt); }
 @media (max-width:1200px){ .r7{ grid-template-columns:repeat(3,minmax(0,1fr)); } }
-@media (max-width:900px){ .r4, .r7{ grid-template-columns:1fr 1fr; } }
+@media (max-width:900px){ .r4, .r7, .r6b{ grid-template-columns:1fr 1fr; } .form-acoes{ grid-column:1 / -1; } }
 
 .btn { border:0; border-radius:var(--r); padding:9px 14px; font-family:var(--font-body); font-weight:700; font-size:12.5px; letter-spacing:.01em; cursor:pointer; }
 .btn-primary { background:var(--blue-mid); color:#fff; width:100%; }
@@ -381,10 +402,10 @@ table.tight tbody tr:hover td { background:var(--bg); }
     </div>
 
     <div class="sec"><span class="sec-title">Operações de crédito</span><span class="sec-line"></span></div>
-    <div class="card">
-      <div class="card-head"><div><div class="card-title">Nova operação</div><div class="card-sub">Cadastro dos dados do contrato / empréstimo</div></div><span class="pill p-blue">Cadastro</span></div>
+    <div class="card" id="cardForm">
+      <div class="card-head"><div><div class="card-title" id="formTitulo">Nova operação</div><div class="card-sub" id="formSub">Cadastro dos dados do contrato / empréstimo</div></div><span class="pill p-blue" id="formPill">Cadastro</span></div>
       <div style="padding:14px 18px 16px;">
-        <div class="r4">
+        <div class="r6b">
           <div><label for="edEmpresa">Empresa / Loja</label><select id="edEmpresa"><option value="">Selecione a loja</option></select></div>
           <div>
             <label for="edBanco">Banco</label>
@@ -394,7 +415,9 @@ table.tight tbody tr:hover td { background:var(--bg); }
               <button class="btn btn-ghost btn-sm" type="button" id="btnBancoDel" title="Remover banco adicionado" style="flex:none; padding:0 11px; font-weight:800; font-size:15px;">−</button>
             </div>
           </div>
-          <div><label for="edConta">Conta / Contrato</label><input id="edConta" placeholder="Nº do contrato"></div>
+          <div><label for="edAgencia">Agência</label><input id="edAgencia" placeholder="0000"></div>
+          <div><label for="edContaBanc">Conta</label><input id="edContaBanc" placeholder="00000-0"></div>
+          <div><label for="edConta">Nº do contrato</label><input id="edConta" placeholder="Nº do contrato"></div>
           <div>
             <label for="edModalidade">Modalidade</label>
             <div style="display:flex; gap:6px;">
@@ -407,20 +430,29 @@ table.tight tbody tr:hover td { background:var(--bg); }
         <div class="r7">
           <div><label for="edDataOperacao">Data operação</label><input id="edDataOperacao" type="date"></div>
           <div><label for="edDataCredito">Data crédito</label><input id="edDataCredito" type="date"></div>
-          <div><label for="edDataTermino">Data término</label><input id="edDataTermino" type="date"></div>
+          <div><label for="edPrimeira">Data inicial (1ª parcela)</label><input id="edPrimeira" type="date"></div>
+          <div><label for="edDataTermino">Data término</label><input id="edDataTermino" type="date"><div class="hint" id="hintTermino"></div></div>
           <div><label for="edValor">Valor contratado (R$)</label><input id="edValor" type="text" inputmode="decimal" placeholder="0,00"></div>
           <div><label for="edTaxaAm">Taxa a.m. (%)</label><input id="edTaxaAm" type="number" step="0.01" placeholder="1,90"></div>
           <div><label for="edTaxaCet">Taxa CET a.a. (%)</label><input id="edTaxaCet" type="number" step="0.01" placeholder="28,50"></div>
-          <div><label for="edGarantia">Garantia</label><input id="edGarantia" placeholder="Ex: Duplicatas, imóvel..."></div>
         </div>
         <div class="r7">
-          <div><label for="edPrazo">Prazo (meses)</label><input id="edPrazo" type="number" step="1" min="1" placeholder="24"></div>
+          <div><label for="edPrazo">Prazo (parcelas)</label><input id="edPrazo" type="number" step="1" min="1" placeholder="24"></div>
           <div><label for="edCarencia">Carência (meses)</label><input id="edCarencia" type="number" step="1" min="0" placeholder="0"></div>
           <div><label for="edParcela">Valor da parcela (R$)</label><input id="edParcela" type="text" inputmode="decimal" placeholder="0,00"></div>
-          <div><label for="edVencimento">Próx. vencimento</label><input id="edVencimento" type="date"></div>
-          <div><label for="edPagas">Parcelas pagas</label><input id="edPagas" type="number" step="1" min="0" placeholder="0"></div>
+          <div><label for="edTarifa">Tarifa contratação (R$)</label><input id="edTarifa" type="text" inputmode="decimal" placeholder="0,00"></div>
+          <div><label for="edIof">IOF (R$)</label><input id="edIof" type="text" inputmode="decimal" placeholder="0,00"></div>
+          <div><label for="edGarantia">Garantia</label><input id="edGarantia" placeholder="Ex: Duplicatas, imóvel..."></div>
           <div><label for="edSaldoBanco">Saldo atual banco (R$)</label><input id="edSaldoBanco" type="text" inputmode="decimal" placeholder="opcional"></div>
-          <div style="display:flex; align-items:flex-end;"><button class="btn btn-primary" type="button" id="btnAddEd">Cadastrar operação</button></div>
+        </div>
+        <div class="r7">
+          <div><label for="edPagas">Parcelas pagas</label><input id="edPagas" type="number" step="1" min="0" placeholder="0"><div class="hint" id="hintPagas"></div></div>
+          <div><label for="edVencimento">Próx. vencimento</label><input id="edVencimento" type="date" readonly tabindex="-1" title="Calculado pela data da 1ª parcela + parcelas pagas"><div class="hint">calculado automaticamente</div></div>
+          <div></div><div></div><div></div>
+          <div class="form-acoes">
+            <button class="btn btn-ghost" type="button" id="btnCancelEd" style="display:none;">Cancelar</button>
+            <button class="btn btn-primary" type="button" id="btnAddEd">Cadastrar operação</button>
+          </div>
         </div>
       </div>
     </div>
@@ -442,6 +474,11 @@ table.tight tbody tr:hover td { background:var(--bg); }
     </div>
   </div>
 </main>
+
+<div class="acoes-menu" id="acoesMenu" role="menu">
+  <button type="button" data-acao="alterar"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Alterar</button>
+  <button type="button" data-acao="excluir" class="perigo"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0116.14 21H7.86a2 2 0 01-1.99-1.86L5 7m5 4v6m4-6v6M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>Excluir</button>
+</div>
 
 <div class="toast" id="toast" role="status"></div>
 
@@ -475,11 +512,11 @@ table.tight tbody tr:hover td { background:var(--bg); }
 <!-- Modal: confirmar remoção -->
 <div class="modal-overlay" id="rmOverlay">
   <div class="modal-card">
-    <div class="modal-head"><div class="modal-title">Remover operação</div><div class="modal-sub" id="rmSub">—</div></div>
+    <div class="modal-head"><div class="modal-title">Excluir operação</div><div class="modal-sub" id="rmSub">—</div></div>
     <div class="modal-body" style="font-size:12.5px; color:var(--ink-2);">A operação e o histórico de parcelas baixadas serão apagados. Essa ação não pode ser desfeita.</div>
     <div class="modal-foot">
       <button class="btn btn-ghost" type="button" data-fechar-modal>Cancelar</button>
-      <button class="btn btn-danger-solid" type="button" id="rmConfirmar">Remover</button>
+      <button class="btn btn-danger-solid" type="button" id="rmConfirmar">Excluir</button>
     </div>
   </div>
 </div>
@@ -709,7 +746,15 @@ function calcularSchedule(valor, taxaAmPct, prazo, carencia){
   }
   return parcelas;
 }
-function dataPrimeiraParcela(op){ return addMeses(op.vencimento, -(op.parcelasPagas||0)); }
+/* Data da 1ª parcela: vem do campo "Data inicial (1ª parcela)". Operações
+   antigas, cadastradas antes desse campo, continuam calculando pelo
+   "Próx. vencimento" menos as parcelas pagas. */
+function dataPrimeiraParcela(op){ return op.dataPrimeiraParcela || addMeses(op.vencimento, -(op.parcelasPagas||0)); }
+/* Quantas parcelas já venceram até hoje, contando a partir da 1ª. */
+function parcelasVencidasAte(primeira, prazo, ate){
+  if(!primeira || ate<primeira) return 0;
+  return Math.min(prazo||0, mesesEntre(primeira, ate)+1);
+}
 function calcularSaldos(op){
   const prazo=Math.max(1, op.prazo||1);
   const parcelas=calcularSchedule(op.valorContratado||0, op.taxaAm||0, prazo, op.carencia||0);
@@ -723,30 +768,104 @@ function calcularSaldos(op){
 }
 const valorParcelaOp = (o,r) => o.valorParcela || (r.parcelas[0] ? r.parcelas[0].parcela : 0);
 
-/* ---------- cadastro ---------- */
-const CAMPOS_FORM=['edConta','edDataOperacao','edDataCredito','edDataTermino','edValor','edTaxaAm','edTaxaCet','edGarantia','edPrazo','edCarencia','edParcela','edVencimento','edPagas','edSaldoBanco'];
-async function cadastrarOperacao(){
-  const dados={
-    empresa:$('edEmpresa').value, banco:$('edBanco').value, conta:up($('edConta').value.trim()),
-    modalidade:$('edModalidade').value,
-    dataOperacao:$('edDataOperacao').value, dataCredito:$('edDataCredito').value, dataTermino:$('edDataTermino').value,
+/* ---------- cadastro / alteração ---------- */
+const CAMPOS_TEXTO=['edAgencia','edContaBanc','edConta','edDataOperacao','edDataCredito','edPrimeira','edDataTermino','edValor','edTaxaAm','edTaxaCet','edGarantia','edPrazo','edCarencia','edParcela','edTarifa','edIof','edVencimento','edPagas','edSaldoBanco'];
+const CAMPOS_SELECT=['edEmpresa','edBanco','edModalidade'];
+let editandoId=null;
+
+/* Mantém "Próx. vencimento", a sugestão de parcelas pagas e a data de
+   término coerentes com a data da 1ª parcela enquanto o formulário é
+   preenchido. */
+function atualizarCamposCalculados(){
+  const primeira=$('edPrimeira').value, prazo=parseInt($('edPrazo').value,10)||0;
+  const pagas=parseInt($('edPagas').value,10)||0;
+  $('edVencimento').value = primeira ? (pagas>=prazo && prazo>0 ? '' : addMeses(primeira, pagas)) : '';
+  const venc=parcelasVencidasAte(primeira, prazo, hojeISO());
+  $('hintPagas').textContent = primeira && prazo ? ('vencidas até hoje: '+venc) : '';
+  $('hintTermino').textContent = primeira && prazo ? ('última parcela: '+fmtData(addMeses(primeira, prazo-1))) : '';
+}
+
+function lerFormulario(){
+  const primeira=$('edPrimeira').value;
+  const pagas=parseInt($('edPagas').value,10)||0;
+  return {
+    empresa:$('edEmpresa').value, banco:$('edBanco').value,
+    agencia:up($('edAgencia').value.trim()), contaBancaria:up($('edContaBanc').value.trim()),
+    conta:up($('edConta').value.trim()), modalidade:$('edModalidade').value,
+    dataOperacao:$('edDataOperacao').value, dataCredito:$('edDataCredito').value,
+    dataPrimeiraParcela:primeira, dataTermino:$('edDataTermino').value,
     valorContratado:valorMoeda($('edValor')), taxaAm:parseFloat($('edTaxaAm').value), taxaCet:parseFloat($('edTaxaCet').value)||0,
     garantia:up($('edGarantia').value.trim()),
     prazo:parseInt($('edPrazo').value,10), carencia:parseInt($('edCarencia').value,10)||0, valorParcela:valorMoeda($('edParcela')),
-    vencimento:$('edVencimento').value, parcelasPagas:parseInt($('edPagas').value,10)||0,
+    tarifaContratacao:valorMoeda($('edTarifa')), iof:valorMoeda($('edIof')),
+    parcelasPagas:pagas, vencimento: primeira ? addMeses(primeira, pagas) : '',
     saldoBanco: $('edSaldoBanco').value.trim() ? valorMoeda($('edSaldoBanco')) : null,
-    pagamentos:[]
   };
-  if(!dados.empresa||!dados.banco||!(dados.valorContratado>0)||!(dados.taxaAm>=0)||!(dados.prazo>0)||!dados.vencimento){
-    toast('Preencha ao menos loja, banco, valor contratado, taxa a.m., prazo e próximo vencimento.'); return;
+}
+
+function limparFormulario(){
+  CAMPOS_TEXTO.forEach(id=>$(id).value=''); CAMPOS_SELECT.forEach(id=>$(id).value='');
+  atualizarCamposCalculados();
+}
+
+function modoFormulario(editando){
+  $('cardForm').classList.toggle('editando', !!editando);
+  $('formTitulo').textContent = editando ? 'Alterar operação' : 'Nova operação';
+  $('formSub').textContent = editando ? 'Altere os campos e clique em "Salvar alteração"' : 'Cadastro dos dados do contrato / empréstimo';
+  $('formPill').textContent = editando ? 'Alteração' : 'Cadastro';
+  $('formPill').className = 'pill '+(editando?'p-gold':'p-blue');
+  $('btnAddEd').textContent = editando ? 'Salvar alteração' : 'Cadastrar operação';
+  $('btnCancelEd').style.display = editando ? '' : 'none';
+}
+
+function iniciarAlteracao(id){
+  const o=operacoesEd.find(x=>x.id===id); if(!o) return;
+  editandoId=id;
+  /* garante que banco/modalidade antigos (fora da lista) apareçam no select */
+  const garantirOpcao=(selId,val)=>{ const sel=$(selId); if(val && ![...sel.options].some(op=>op.value===val)){ const op=document.createElement('option'); op.value=op.textContent=val; sel.appendChild(op); } sel.value=val||''; };
+  garantirOpcao('edEmpresa', o.empresa); garantirOpcao('edBanco', o.banco); garantirOpcao('edModalidade', o.modalidade);
+  $('edAgencia').value=o.agencia||''; $('edContaBanc').value=o.contaBancaria||''; $('edConta').value=o.conta||'';
+  $('edDataOperacao').value=o.dataOperacao||''; $('edDataCredito').value=o.dataCredito||'';
+  $('edPrimeira').value=dataPrimeiraParcela(o)||''; $('edDataTermino').value=o.dataTermino||'';
+  setValorMoeda($('edValor'), o.valorContratado); $('edTaxaAm').value=o.taxaAm??''; $('edTaxaCet').value=o.taxaCet||'';
+  $('edGarantia').value=o.garantia||''; $('edPrazo').value=o.prazo||''; $('edCarencia').value=o.carencia||'';
+  setValorMoeda($('edParcela'), o.valorParcela); setValorMoeda($('edTarifa'), o.tarifaContratacao); setValorMoeda($('edIof'), o.iof);
+  $('edPagas').value=o.parcelasPagas||0;
+  if(o.saldoBanco!=null && !isNaN(o.saldoBanco)) setValorMoeda($('edSaldoBanco'), o.saldoBanco); else $('edSaldoBanco').value='';
+  atualizarCamposCalculados();
+  modoFormulario(true);
+  $('cardForm').scrollIntoView({behavior:'smooth', block:'start'});
+}
+function cancelarAlteracao(){ editandoId=null; limparFormulario(); modoFormulario(false); }
+
+async function salvarOperacao(){
+  const dados=lerFormulario();
+  if(!dados.empresa||!dados.banco||!(dados.valorContratado>0)||!(dados.taxaAm>=0)||!(dados.prazo>0)||!dados.dataPrimeiraParcela){
+    toast('Preencha ao menos loja, banco, valor contratado, taxa a.m., prazo e data inicial (1ª parcela).'); return;
   }
-  if(!dados.dataTermino) dados.dataTermino=addMeses(dataPrimeiraParcela(dados), dados.prazo-1);
+  if(dados.parcelasPagas>dados.prazo){ toast('Parcelas pagas não pode ser maior que o prazo.'); return; }
+  if(!dados.dataTermino) dados.dataTermino=addMeses(dados.dataPrimeiraParcela, dados.prazo-1);
+
+  let registro;
+  if(editandoId){
+    const orig=operacoesEd.find(x=>x.id===editandoId);
+    if(!orig){ toast('Essa operação não existe mais (pode ter sido excluída por outra pessoa).'); cancelarAlteracao(); return; }
+    /* mantém o histórico de baixas só das parcelas que continuam pagas */
+    registro={...orig, ...dados, pagamentos:(orig.pagamentos||[]).filter(p=>p.n<=dados.parcelasPagas)};
+  } else {
+    registro={...dados, pagamentos:[]};
+  }
+
   const btn=$('btnAddEd'); btn.disabled=true;
-  try{ const item=await Store.salvar('operacoes', dados); operacoesEd.push(item); }
-  catch(e){ toast('Não foi possível cadastrar: '+e.message); btn.disabled=false; return; }
+  try{
+    const item=await Store.salvar('operacoes', registro);
+    if(editandoId){ const i=operacoesEd.findIndex(x=>x.id===editandoId); operacoesEd[i]=item; }
+    else operacoesEd.push(item);
+  }catch(e){ toast('Não foi possível salvar: '+e.message); btn.disabled=false; return; }
   btn.disabled=false;
-  CAMPOS_FORM.forEach(id=>$(id).value=''); ['edEmpresa','edBanco','edModalidade'].forEach(id=>$(id).value='');
-  renderTudo(); toast('Operação cadastrada.');
+  const eraAlteracao=!!editandoId;
+  editandoId=null; limparFormulario(); modoFormulario(false);
+  renderTudo(); toast(eraAlteracao ? 'Alteração salva.' : 'Operação cadastrada.');
 }
 
 let rmPendente=null;
@@ -758,10 +877,11 @@ function pedirRemocao(id){
 }
 async function confirmarRemocao(){
   const id=rmPendente; if(!id) return;
-  try{ await Store.remover('operacoes', id); }catch(e){ toast('Não foi possível remover: '+e.message); return; }
+  try{ await Store.remover('operacoes', id); }catch(e){ toast('Não foi possível excluir: '+e.message); return; }
   operacoesEd=operacoesEd.filter(o=>o.id!==id);
   if(edSelected===id) edSelected=null;
-  fecharModais(); renderTudo(); toast('Operação removida.');
+  if(editandoId===id) cancelarAlteracao();
+  fecharModais(); renderTudo(); toast('Operação excluída.');
 }
 function abrirOperacao(id){ edSelected=(edSelected===id)?null:id; edTabPage=0; renderLista(); }
 
@@ -787,7 +907,8 @@ async function confirmarBaixa(){
   const data=$('baixaData').value;
   if(!data){ toast('Informe a data do pagamento.'); return; }
   const valor=valorMoeda($('baixaValor'))||(o.valorParcela||0);
-  const atualizado={...o, parcelasPagas:n, vencimento:addMeses(o.vencimento,1), pagamentos:[...(o.pagamentos||[]), {n, data, valor}]};
+  const primeira=dataPrimeiraParcela(o);
+  const atualizado={...o, dataPrimeiraParcela:primeira, parcelasPagas:n, vencimento:addMeses(primeira,n), pagamentos:[...(o.pagamentos||[]), {n, data, valor}]};
   try{ await Store.salvar('operacoes', atualizado); }catch(e){ toast('Não foi possível baixar: '+e.message); return; }
   Object.assign(o, atualizado);
   fecharModais(); renderTudo(); toast('Parcela '+n+'/'+prazo+' baixada.');
@@ -855,7 +976,11 @@ function renderDetalheHTML(o){
   const r=calcularSaldos(o);
   const it=(l,v)=>`<div><div class="l">${l}</div><div class="v">${v}</div></div>`;
   const dados=[
-    it('Empresa',esc(o.empresa||'—')), it('Banco',esc(o.banco||'—')), it('Conta / Contrato',esc(o.conta||'—')), it('Modalidade',esc(o.modalidade||'—')),
+    it('Empresa / Loja',esc(o.empresa||'—')), it('Banco',esc(o.banco||'—')),
+    it('Agência / Conta',esc([o.agencia,o.contaBancaria].filter(Boolean).join(' / ')||'—')), it('Nº do contrato',esc(o.conta||'—')),
+    it('Modalidade',esc(o.modalidade||'—')), it('Data inicial (1ª parcela)',fmtData(r.dataInicio)),
+    it('Tarifa contratação',fmt(o.tarifaContratacao)), it('IOF',fmt(o.iof)),
+    it('Custo de contratação (tarifa + IOF)',fmt((o.tarifaContratacao||0)+(o.iof||0))), it('Valor líquido creditado',fmt((o.valorContratado||0)-(o.tarifaContratacao||0)-(o.iof||0))),
     it('Data operação',fmtData(o.dataOperacao)), it('Data crédito',fmtData(o.dataCredito)), it('Data término',fmtData(o.dataTermino)), it('Garantia',esc(o.garantia||'—')),
     it('Valor contratado',fmt(o.valorContratado)), it('Taxa a.m.',pct(o.taxaAm)), it('Taxa CET a.a.',pct(o.taxaCet)), it('Prazo',r.prazo+' meses'),
     it('Carência',(o.carencia||0)+' meses'), it('Valor da parcela',fmt(valorParcelaOp(o,r))), it('Próx. vencimento',fmtData(o.vencimento)),
@@ -906,7 +1031,7 @@ function renderLista(){
       <td class="num">${fmtNum(o.valorContratado)}</td><td class="num">${pct(o.taxaAm)}</td><td class="num">${r.prazo}x</td>
       <td class="num">${fmtNum(valorParcelaOp(o,r))}</td><td class="num">${Math.max(0,r.prazo-r.pagas)}/${r.prazo}</td>
       <td class="num">${fmtNum(r.saldoPorData)}</td><td>${fmtData(o.dataTermino)}</td>
-      <td><span class="op-actions"><button class="btn-danger" type="button" data-rmed="${esc(o.id)}">Remover</button>
+      <td><span class="op-actions"><button class="btn-acoes" type="button" data-acoes="${esc(o.id)}" aria-haspopup="menu">Ações <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
       <svg class="chev3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></td>
     </tr>`+(aberto?`<tr class="op-detail-row"><td colspan="10">${renderDetalheHTML(o)}</td></tr>`:'');
   }).join(''):'<tr><td colspan="10" class="nd">Nenhuma operação cadastrada.</td></tr>';
@@ -923,7 +1048,36 @@ function renderTudo(){ renderPainel(); renderLista(); }
 /* ---------- eventos ---------- */
 function ligarEventos(){
   maskMoeda($('edValor')); maskMoeda($('edParcela')); maskMoeda($('baixaValor')); maskMoeda($('edSaldoBanco'));
-  $('btnAddEd').addEventListener('click', cadastrarOperacao);
+  $('btnAddEd').addEventListener('click', salvarOperacao);
+  $('btnCancelEd').addEventListener('click', cancelarAlteracao);
+  maskMoeda($('edTarifa')); maskMoeda($('edIof'));
+  ['edPrimeira','edPrazo','edPagas'].forEach(id=>$(id).addEventListener('input', atualizarCamposCalculados));
+  /* menu Ações */
+  let acoesId=null;
+  const menu=$('acoesMenu');
+  const fecharMenu=()=>{ menu.classList.remove('show'); document.querySelectorAll('.btn-acoes.on').forEach(b=>b.classList.remove('on')); acoesId=null; };
+  window.fecharMenuAcoes=fecharMenu;
+  menu.addEventListener('click', e=>{
+    const b=e.target.closest('[data-acao]'); if(!b||!acoesId) return;
+    e.stopPropagation(); const id=acoesId; fecharMenu();
+    if(b.dataset.acao==='alterar') iniciarAlteracao(id); else pedirRemocao(id);
+  });
+  document.addEventListener('click', e=>{
+    const b=e.target.closest('[data-acoes]');
+    if(!b){ if(!e.target.closest('#acoesMenu')) fecharMenu(); return; }
+    e.stopPropagation();
+    if(acoesId===b.dataset.acoes){ fecharMenu(); return; }
+    fecharMenu(); acoesId=b.dataset.acoes; b.classList.add('on');
+    const r=b.getBoundingClientRect(); menu.classList.add('show');
+    const mh=menu.offsetHeight, mw=menu.offsetWidth;
+    menu.style.left=Math.max(8, Math.min(r.right-mw, innerWidth-mw-8))+'px';
+    menu.style.top=(r.bottom+4+mh>innerHeight ? r.top-mh-4 : r.bottom+4)+'px';
+  }, true);
+  let scrollAoAbrir=0;
+  new MutationObserver(()=>{ if(menu.classList.contains('show')) scrollAoAbrir=$('page').scrollTop; }).observe(menu,{attributes:true, attributeFilter:['class']});
+  $('page').addEventListener('scroll', ()=>{ if(menu.classList.contains('show') && Math.abs($('page').scrollTop-scrollAoAbrir)>40) window.fecharMenuAcoes(); }, {passive:true});
+  document.addEventListener('keydown', e=>{ if(e.key==='Escape') window.fecharMenuAcoes(); });
+  window.addEventListener('resize', ()=>window.fecharMenuAcoes());
   $('btnModAdd').addEventListener('click', ()=>pedirNovoItem('modalidades'));
   $('btnModDel').addEventListener('click', ()=>removerItemSelecionado('modalidades'));
   $('btnBancoAdd').addEventListener('click', ()=>pedirNovoItem('bancos'));
@@ -938,7 +1092,7 @@ function ligarEventos(){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') fecharModais(); });
   document.addEventListener('click', e=>{
     const bx=e.target.closest('[data-baixar]'); if(bx){ e.stopPropagation(); baixarParcela(bx.dataset.baixar); return; }
-    const rm=e.target.closest('[data-rmed]'); if(rm){ e.stopPropagation(); pedirRemocao(rm.dataset.rmed); return; }
+    if(e.target.closest('[data-acoes]')) return;
     const t=e.target.closest('[data-edt]'); if(t){ edTabPage+=parseInt(t.dataset.edt,10); renderLista(); return; }
     const p=e.target.closest('[data-edp]'); if(p){ edPage+=parseInt(p.dataset.edp,10); renderLista(); return; }
     if(e.target.closest('[data-eddet]')) return;
