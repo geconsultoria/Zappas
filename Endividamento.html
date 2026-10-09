@@ -484,6 +484,7 @@ table.tight tbody tr:hover td { background:var(--bg); }
 
 <div class="acoes-menu" id="acoesMenu" role="menu">
   <button type="button" data-acao="alterar"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M11 4H6a2 2 0 00-2 2v12a2 2 0 002 2h12a2 2 0 002-2v-5M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>Alterar</button>
+  <button type="button" data-acao="estornar"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 14l-4-4 4-4"/><path stroke-linecap="round" stroke-linejoin="round" d="M5 10h11a4 4 0 010 8h-1"/></svg>Estornar última baixa</button>
   <button type="button" data-acao="excluir" class="perigo"><svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.87 12.14A2 2 0 0116.14 21H7.86a2 2 0 01-1.99-1.86L5 7m5 4v6m4-6v6M4 7h16M9 7V4a1 1 0 011-1h4a1 1 0 011 1v3"/></svg>Excluir</button>
 </div>
 
@@ -512,6 +513,18 @@ table.tight tbody tr:hover td { background:var(--bg); }
     <div class="modal-foot">
       <button class="btn btn-ghost" type="button" data-fechar-modal>Cancelar</button>
       <button class="btn btn-primary" type="button" id="modConfirmar">Adicionar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Modal: estornar baixa -->
+<div class="modal-overlay" id="estOverlay">
+  <div class="modal-card">
+    <div class="modal-head"><div class="modal-title">Estornar baixa</div><div class="modal-sub" id="estSub">—</div></div>
+    <div class="modal-body" style="font-size:12.5px; color:var(--ink-2);" id="estTexto">—</div>
+    <div class="modal-foot">
+      <button class="btn btn-ghost" type="button" data-fechar-modal>Cancelar</button>
+      <button class="btn btn-danger-solid" type="button" id="estConfirmar">Estornar</button>
     </div>
   </div>
 </div>
@@ -713,7 +726,7 @@ function renderListas(){
   renderListaSel('bancos'); renderListaSel('modalidades');
 }
 function abrirModal(id){ $(id).classList.add('show'); }
-function fecharModais(){ document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show')); baixaPendente=null; rmPendente=null; }
+function fecharModais(){ document.querySelectorAll('.modal-overlay.show').forEach(m=>m.classList.remove('show')); baixaPendente=null; rmPendente=null; estPendente=null; }
 let listaNova=null;
 function pedirNovoItem(k){
   listaNova=k; const L=LISTAS[k];
@@ -970,6 +983,39 @@ async function confirmarBaixa(){
   fecharModais(); renderTudo(); toast('Parcela '+n+'/'+prazo+' baixada.');
 }
 
+/* ---------- estorno de baixa ----------
+   Desfaz a ÚLTIMA parcela baixada (as baixas são sempre em sequência):
+   volta "parcelas pagas" em 1, apaga o registro de data/valor pagos dessa
+   parcela e recalcula o próximo vencimento. Para desfazer mais de uma,
+   é só estornar de novo. Fica registrado no histórico da planilha. */
+let estPendente=null;
+function pedirEstorno(opId){
+  const o=operacoesEd.find(x=>x.id===opId); if(!o) return;
+  const r=calcularSaldos(o);
+  if(r.pagas<1){ toast('Essa operação não tem nenhuma parcela baixada.'); return; }
+  const n=r.pagas, pg=(o.pagamentos||[]).find(x=>x.n===n);
+  estPendente={opId, n, prazo:r.prazo};
+  $('estSub').textContent=(o.empresa||'—')+' · '+(o.banco||'—')+' · parcela '+n+'/'+r.prazo;
+  $('estTexto').innerHTML='A parcela <b>'+n+'/'+r.prazo+'</b>'+(pg?' (paga em '+fmtData(pg.data)+', '+fmt(pg.valor)+')':'')+
+    ' volta a ficar em aberto, com vencimento em <b>'+fmtData(addMeses(r.dataInicio,n-1))+'</b>.';
+  abrirModal('estOverlay');
+}
+async function confirmarEstorno(){
+  if(!estPendente) return;
+  const {opId, n, prazo}=estPendente;
+  const o=operacoesEd.find(x=>x.id===opId);
+  if(!o){ fecharModais(); return; }
+  const primeira=dataPrimeiraParcela(o), pagas=n-1;
+  const atualizado={...o, dataPrimeiraParcela:primeira, parcelasPagas:pagas, vencimento:addMeses(primeira,pagas),
+    pagamentos:(o.pagamentos||[]).filter(p=>p.n<n)};
+  const btn=$('estConfirmar'); btn.disabled=true;
+  try{ await Store.salvar('operacoes', atualizado); }catch(e){ btn.disabled=false; toast('Não foi possível estornar: '+e.message); return; }
+  btn.disabled=false;
+  Object.assign(o, atualizado);
+  if(editandoId===opId) iniciarAlteracao(opId);
+  fecharModais(); renderTudo(); toast('Baixa da parcela '+n+'/'+prazo+' estornada.');
+}
+
 /* ---------- painel ---------- */
 function renderPainel(){
   const totalContratado=operacoesEd.reduce((s,o)=>s+(o.valorContratado||0),0);
@@ -1059,7 +1105,7 @@ function renderDetalheHTML(o){
     const paga=p.n<=r.pagas;
     const pg=(o.pagamentos||[]).find(x=>x.n===p.n);
     const dataCol=pg?fmtData(pg.data)+' (pago)':fmtData(addMeses(r.dataInicio,p.n-1));
-    const acao=paga?'✓':(p.n===r.pagas+1?`<button class="btn btn-ghost btn-sm" type="button" data-baixar="${esc(o.id)}">Baixar</button>`:'—');
+    const acao=paga?(p.n===r.pagas?`<span style="color:var(--green)">✓</span> <button class="btn btn-ghost btn-sm" type="button" data-estornar="${esc(o.id)}" title="Desfazer a baixa desta parcela">Estornar</button>`:'✓'):(p.n===r.pagas+1?`<button class="btn btn-ghost btn-sm" type="button" data-baixar="${esc(o.id)}">Baixar</button>`:'—');
     return `<tr${paga?' style="color:var(--ink-4)"':''}><td class="num">${p.n}/${r.prazo}</td><td>${dataCol}</td><td class="num">${fmt(pg?pg.valor:p.parcela)}</td><td class="num">${fmt(p.juros)}</td><td class="num">${fmt(p.amort)}</td><td class="num">${fmt(p.saldo)}</td><td class="num">${acao}</td></tr>`;
   }).join('');
   const pager=pages>1?`<button class="btn btn-ghost btn-sm" type="button" data-edt="-1" ${edTabPage===0?'disabled':''}>‹</button><span>${edTabPage+1} / ${pages}</span><button class="btn btn-ghost btn-sm" type="button" data-edt="1" ${edTabPage>=pages-1?'disabled':''}>›</button>`:'';
@@ -1119,7 +1165,7 @@ function ligarEventos(){
   menu.addEventListener('click', e=>{
     const b=e.target.closest('[data-acao]'); if(!b||!acoesId) return;
     e.stopPropagation(); const id=acoesId; fecharMenu();
-    if(b.dataset.acao==='alterar') iniciarAlteracao(id); else pedirRemocao(id);
+    if(b.dataset.acao==='alterar') iniciarAlteracao(id); else if(b.dataset.acao==='estornar') pedirEstorno(id); else pedirRemocao(id);
   });
   document.addEventListener('click', e=>{
     const b=e.target.closest('[data-acoes]');
@@ -1144,6 +1190,7 @@ function ligarEventos(){
   $('modConfirmar').addEventListener('click', confirmarNovoItem);
   $('modNome').addEventListener('keydown', e=>{ if(e.key==='Enter') confirmarNovoItem(); });
   $('baixaConfirmar').addEventListener('click', confirmarBaixa);
+  $('estConfirmar').addEventListener('click', confirmarEstorno);
   $('rmConfirmar').addEventListener('click', confirmarRemocao);
   $('fVencerDias').addEventListener('change', renderParcelasVencer);
   document.querySelectorAll('[data-fechar-modal]').forEach(b=>b.addEventListener('click', fecharModais));
@@ -1151,6 +1198,7 @@ function ligarEventos(){
   document.addEventListener('keydown', e=>{ if(e.key==='Escape') fecharModais(); });
   document.addEventListener('click', e=>{
     const bx=e.target.closest('[data-baixar]'); if(bx){ e.stopPropagation(); baixarParcela(bx.dataset.baixar); return; }
+    const es=e.target.closest('[data-estornar]'); if(es){ e.stopPropagation(); pedirEstorno(es.dataset.estornar); return; }
     if(e.target.closest('[data-acoes]')) return;
     const t=e.target.closest('[data-edt]'); if(t){ edTabPage+=parseInt(t.dataset.edt,10); renderLista(); return; }
     const p=e.target.closest('[data-edp]'); if(p){ edPage+=parseInt(p.dataset.edp,10); renderLista(); return; }
