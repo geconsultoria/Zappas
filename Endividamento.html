@@ -105,7 +105,8 @@ body { font-family:var(--font-body); background:var(--bg); color:var(--ink); -we
 .sec-line { flex:1; height:1px; background:var(--border-2); min-width:20px; }
 
 /* KPIs — mesmo desenho dos cards da home */
-.kpi-row { display:grid; grid-template-columns:repeat(5,1fr); gap:14px; }
+.kpi-row { display:grid; grid-template-columns:repeat(6,1fr); gap:12px; }
+@media (max-width:1350px){ .kpi-row .kpi-val{ font-size:18px; } }
 @media (max-width:1100px){ .kpi-row{ grid-template-columns:1fr 1fr 1fr; } }
 @media (max-width:700px){ .kpi-row{ grid-template-columns:1fr 1fr; } }
 @media (max-width:460px){ .kpi-row{ grid-template-columns:1fr; } }
@@ -381,6 +382,7 @@ table.tight tbody tr:hover td { background:var(--bg); }
       <div class="kpi"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Saldo atual (calculado)</div><div class="kpi-val" id="kv-saldo-calc">—</div><div class="kpi-foot">tabela Price, pelas parcelas pagas</div></div>
       <div class="kpi"><div class="kpi-accent ac-teal"></div><div class="kpi-lbl">Saldo atual (bancos)</div><div class="kpi-val" id="kv-saldo-banco">—</div><div class="kpi-foot">informado por operação</div></div>
       <div class="kpi"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Diferença calc. × banco</div><div class="kpi-val" id="kv-diferenca">—</div><div class="kpi-foot">só operações com saldo do banco</div></div>
+      <div class="kpi"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Quitação hoje (estimada)</div><div class="kpi-val" id="kv-quitacao">—</div><div class="kpi-foot">saldo + juros até hoje, sem juros futuros</div></div>
       <div class="kpi"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Já amortizado</div><div class="kpi-val" id="kv-amortizado">—</div><div class="kpi-foot">principal já pago nas parcelas</div></div>
     </div>
 
@@ -479,7 +481,7 @@ table.tight tbody tr:hover td { background:var(--bg); }
         <div class="table-wrap">
           <table class="comp-table op-table">
             <thead><tr>
-              <th>Empresa</th><th>Banco</th><th class="num">Contratado (R$)</th><th class="num">Taxa a.m.</th><th class="num">Prazo</th><th class="num">Parcela (R$)</th><th class="num">A vencer</th><th class="num">Saldo hoje (R$)</th><th>Término</th><th></th>
+              <th>Empresa</th><th>Banco</th><th class="num">Contratado (R$)</th><th class="num">Taxa a.m.</th><th class="num">Prazo</th><th class="num">Parcela (R$)</th><th class="num">A vencer</th><th class="num" title="Valor estimado para quitar hoje: saldo + juros proporcionais até hoje, sem juros futuros">Quitação hoje (R$)</th><th>Término</th><th></th>
             </tr></thead>
             <tbody id="edLista"></tbody>
             <tfoot id="edListaFoot"></tfoot>
@@ -854,6 +856,30 @@ function calcularSaldos(op){
 }
 const valorParcelaOp = (o,r) => o.valorParcela || (r.parcelas[0] ? r.parcelas[0].parcela : 0);
 
+/* VALOR PARA QUITAÇÃO (liquidação antecipada) numa data:
+   saldo devedor logo após a última parcela paga + juros do contrato
+   proporcionais aos dias corridos desde aquele vencimento (base 30 dias,
+   capitalizado) — sem nenhum juro futuro. Matematicamente é o mesmo que
+   trazer as parcelas restantes a valor presente na taxa do contrato.
+   Com parcelas vencidas não pagas, os juros seguem correndo na taxa do
+   contrato (multa e mora de atraso NÃO entram). Estimativa: o banco pode
+   usar outra convenção de dias e cobrar tarifa/IOF complementar. */
+function valorQuitacao(o, r, dataRef){
+  r=r||calcularSaldos(o); dataRef=dataRef||hojeISO();
+  if(r.pagas>=r.prazo) return {valor:0, saldoBase:0, dataBase:null, dias:0, juros:0, vencidas:0};
+  let saldoBase = r.pagas>0 ? r.parcelas[r.pagas-1].saldo : r.saldoInicial;
+  let dataBase = addMeses(r.dataInicio, r.pagas-1);             // último vencimento pago (ou 1 mês antes da 1ª parcela)
+  /* Nenhuma parcela paga ainda (ex.: em carência): os juros correm desde
+     o dia do crédito sobre o valor financiado. */
+  if(r.pagas===0 && o.dataCredito && o.dataCredito<=dataRef){ saldoBase=principalFinanciado(o); dataBase=o.dataCredito; }
+  const dias = Math.round((new Date(dataRef+'T00:00')-new Date(dataBase+'T00:00'))/86400000);
+  const i=(o.taxaAm||0)/100;
+  let valor=saldoBase*Math.pow(1+i, dias/30);
+  if(r.pagas===0) valor=Math.max(valor, principalFinanciado(o));  // nunca abaixo do que foi emprestado
+  let vencidas=0; for(let n=r.pagas+1;n<=r.prazo;n++){ if(addMeses(r.dataInicio,n-1)<dataRef) vencidas++; else break; }
+  return {valor, saldoBase, dataBase, dias, juros:valor-saldoBase, vencidas};
+}
+
 /* ---------- cadastro / alteração ---------- */
 const CAMPOS_TEXTO=['edAgencia','edContaBanc','edConta','edDataOperacao','edDataCredito','edPrimeira','edDataTermino','edValor','edTaxaAm','edTaxaCet','edGarantia','edPrazo','edCarencia','edParcela','edTarifa','edIof','edVencimento','edPagas','edSaldoBanco'];
 const CAMPOS_SELECT=['edEmpresa','edBanco','edModalidade'];
@@ -1092,6 +1118,7 @@ function renderPainel(){
   kd.style.color=!temBanco?'':(dif>0.5?'var(--rust)':(dif<-0.5?'var(--green)':'var(--ink)'));
   const totalFinanciado=operacoesEd.reduce((s,o)=>s+calcularSaldos(o).saldoInicial,0);
   $('kv-amortizado').textContent=fmt(Math.max(0,totalFinanciado-totalCalc));
+  $('kv-quitacao').textContent=fmt(operacoesEd.reduce((s,o)=>s+valorQuitacao(o).valor,0));
 
   const bars=(obj,elId)=>{
     const e=Object.entries(obj).filter(([,v])=>v>0.005).sort((a,b)=>b[1]-a[1]);
@@ -1148,8 +1175,8 @@ function renderDetalheHTML(o){
   const resumo=`
     <div class="res-box"><div class="l">Parcelas pagas</div><div class="v">${r.pagas} / ${r.prazo}</div></div>
     <div class="res-box"><div class="l">Parcelas a vencer</div><div class="v">${Math.max(0,r.prazo-r.pagas)} / ${r.prazo}</div></div>
-    <div class="res-box"><div class="l">Saldo calculado (parcelas pagas)</div><div class="v">${fmt(r.saldoPorParcelas)}</div></div>
-    <div class="res-box"><div class="l">Saldo calculado (data de hoje)</div><div class="v">${fmt(r.saldoPorData)}</div></div>
+    <div class="res-box"><div class="l">Saldo devedor (após última parcela paga)</div><div class="v">${fmt(r.saldoPorParcelas)}</div></div>
+    ${(()=>{ const q=valorQuitacao(o,r); return `<div class="res-box" style="border-color:var(--blue-lt); background:var(--blue-xl);" title="Saldo após a última parcela paga + juros do contrato proporcionais aos dias até hoje. Não inclui juros futuros, multa/mora de atraso nem tarifas de liquidação."><div class="l">Valor para quitação hoje (estimado)</div><div class="v">${fmt(q.valor)}</div><div class="l" style="margin-top:4px;">${!q.dataBase?'operação quitada':(q.dias>=0?fmt(q.saldoBase)+' + '+fmt(q.juros)+' de juros ('+q.dias+' dias)':fmt(q.saldoBase)+' − '+fmt(-q.juros)+' de juros ainda não corridos')}${q.vencidas?' · <span class="diff-pos">'+q.vencidas+' parcela'+(q.vencidas>1?'s':'')+' vencida'+(q.vencidas>1?'s':'')+'</span>':''}</div></div>`; })()}
     <div class="res-box"><div class="l">Saldo informado pelo banco</div><div class="v">${temBanco?fmt(o.saldoBanco):'—'}</div>${diff==null?'':`<div class="l" style="margin-top:4px;">Diferença: <span class="${diff>0.5?'diff-pos':(diff<-0.5?'diff-neg':'diff-zero')}">${fmt(diff)}</span></div>`}</div>`;
 
   const ps=pageSize(520), pages=Math.max(1,Math.ceil(r.parcelas.length/ps));
@@ -1188,7 +1215,7 @@ function renderLista(){
       <td class="nm">${esc(o.empresa||'—')}</td><td>${esc(o.banco||'—')}</td>
       <td class="num">${fmtNum(o.valorContratado)}</td><td class="num">${pct(o.taxaAm)}</td><td class="num">${r.prazo}x</td>
       <td class="num">${fmtNum(valorParcelaOp(o,r))}</td><td class="num">${Math.max(0,r.prazo-r.pagas)}/${r.prazo}</td>
-      <td class="num">${fmtNum(r.saldoPorData)}</td><td>${fmtData(o.dataTermino)}</td>
+      <td class="num">${fmtNum(valorQuitacao(o,r).valor)}</td><td>${fmtData(o.dataTermino)}</td>
       <td><span class="op-actions"><button class="btn-acoes" type="button" data-acoes="${esc(o.id)}" aria-haspopup="menu">Ações <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></button>
       <svg class="chev3" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg></span></td>
     </tr>`+(aberto?`<tr class="op-detail-row"><td colspan="10">${renderDetalheHTML(o)}</td></tr>`:'');
@@ -1197,7 +1224,7 @@ function renderLista(){
   $('edPager').innerHTML=pages>1?`<button class="btn btn-ghost btn-sm" type="button" data-edp="-1" ${edPage===0?'disabled':''}>‹</button><span>${edPage+1} / ${pages}</span><button class="btn btn-ghost btn-sm" type="button" data-edp="1" ${edPage>=pages-1?'disabled':''}>›</button>`:'';
 
   let tC=0,tP=0,tS=0;
-  ord.forEach(o=>{ const r=calcularSaldos(o); tC+=o.valorContratado||0; tP+=valorParcelaOp(o,r); tS+=r.saldoPorData; });
+  ord.forEach(o=>{ const r=calcularSaldos(o); tC+=o.valorContratado||0; tP+=valorParcelaOp(o,r); tS+=valorQuitacao(o,r).valor; });
   $('edListaFoot').innerHTML=ord.length?`<tr><td colspan="2">Total (${ord.length})</td><td class="num">${fmtNum(tC)}</td><td></td><td></td><td class="num">${fmtNum(tP)}</td><td></td><td class="num">${fmtNum(tS)}</td><td></td><td></td></tr>`:'';
 }
 
@@ -1218,7 +1245,7 @@ function dadosRelatorio(){
       const p=r.parcelas[n-1];
       futuras.push({n, data:addMeses(r.dataInicio,n-1), parcela:p.parcela, juros:p.juros, amort:p.amort, saldoApos:p.saldo});
     }
-    return {o, r, saldo:r.saldoPorParcelas, parcela:valorParcelaOp(o,r), restantes:r.prazo-r.pagas, futuras,
+    return {o, r, quit:valorQuitacao(o,r).valor, saldo:r.saldoPorParcelas, parcela:valorParcelaOp(o,r), restantes:r.prazo-r.pagas, futuras,
       atrasadas:futuras.filter(f=>f.data<hoje), quitada:r.pagas>=r.prazo};
   });
   const ativas=ops.filter(x=>!x.quitada);
@@ -1264,6 +1291,7 @@ function dadosRelatorio(){
   return {hoje, ops, ativas, saldo, contratado, financiado, jurosRest, taxaPond, prazoPond, parcelaMensal, meses, listaAnos,
     porBanco:agrupar('banco'), porLoja:agrupar('empresa'), atrasadas, proximas, comBanco, termino,
     custoContratacao:soma(ops,x=>(x.o.tarifaContratacao||0)+(x.o.iof||0)),
+    quitacao:soma(ativas,x=>x.quit),
     prox12:soma(meses,m=>m.amort+m.juros), juros12:soma(meses,m=>m.juros)};
 }
 
@@ -1283,6 +1311,7 @@ function htmlRelatorio(D){
   if(D.ativas.length){
     dest.push(`O saldo devedor é de <b>${R(D.saldo)}</b>, em <b>${D.ativas.length}</b> ${D.ativas.length===1?'operação ativa':'operações ativas'} com <b>${D.porBanco.length}</b> ${D.porBanco.length===1?'instituição':'instituições'}${b1?`; a maior exposição é com <b>${esc(b1.nome)}</b> (${P(b1.saldo/D.saldo*100)} do saldo)`:''}.`);
     dest.push(`Nos próximos 12 meses estão previstos <b>${R(D.prox12)}</b> em parcelas, dos quais <b>${R(D.juros12)}</b> são juros. O comprometimento mensal atual é de <b>${R(D.parcelaMensal)}</b>.`);
+    dest.push(`Para quitar todas as operações hoje seriam necessários aproximadamente <b>${R(D.quitacao)}</b> (saldo + juros proporcionais até hoje, sem juros futuros), o que evitaria <b>${R(Math.max(0,D.jurosRest-(D.quitacao-D.saldo)))}</b> de juros.`);
     dest.push(`A taxa média ponderada pelo saldo é de <b>${N(D.taxaPond)}% a.m.</b> (${N(taxaAA)}% a.a.), com prazo médio remanescente de <b>${D.prazoPond.toLocaleString('pt-BR',{maximumFractionDigits:1})} meses</b>; a última parcela vence em <b>${mesAno(D.termino)}</b>.`);
     if(D.atrasadas.length) dest.push(`<span class="alerta">Atenção: ${D.atrasadas.length} ${D.atrasadas.length===1?'parcela vencida não baixada':'parcelas vencidas não baixadas'}, somando ${R(D.atrasadas.reduce((s,a)=>s+a.f.parcela,0))} (ver quadro de vencimentos).</span>`);
     if(D.comBanco.length){
@@ -1315,8 +1344,8 @@ function htmlRelatorio(D){
   const linhasOps=D.ops.slice().sort((a,b)=>b.saldo-a.saldo).map(x=>`<tr${x.quitada?' class="quit"':''}>
     <td>${esc(x.o.empresa||'—')}</td><td>${esc(x.o.banco||'—')}</td><td>${esc(x.o.modalidade||'—')}</td><td>${esc(x.o.conta||'—')}</td>
     <td class="n">${N(x.o.taxaAm)}%</td><td class="n">${N(x.o.valorContratado)}</td><td class="n">${N(x.parcela)}</td>
-    <td class="n">${x.r.pagas}/${x.r.prazo}</td><td class="n"><b>${x.quitada?'quitada':N(x.saldo)}</b></td><td>${mesAno(x.futuras.length?x.futuras[x.futuras.length-1].data:x.o.dataTermino)}</td></tr>`).join('');
-  const totOps=`<tr class="tot"><td colspan="5">Total (${D.ops.length})</td><td class="n">${N(D.contratado)}</td><td class="n">${N(D.parcelaMensal)}</td><td></td><td class="n">${N(D.saldo)}</td><td></td></tr>`;
+    <td class="n">${x.r.pagas}/${x.r.prazo}</td><td class="n"><b>${x.quitada?'quitada':N(x.saldo)}</b></td><td class="n">${x.quitada?'—':N(x.quit)}</td><td>${mesAno(x.futuras.length?x.futuras[x.futuras.length-1].data:x.o.dataTermino)}</td></tr>`).join('');
+  const totOps=`<tr class="tot"><td colspan="5">Total (${D.ops.length})</td><td class="n">${N(D.contratado)}</td><td class="n">${N(D.parcelaMensal)}</td><td></td><td class="n">${N(D.saldo)}</td><td class="n">${N(D.quitacao)}</td><td></td></tr>`;
 
   const linhasAnos=D.listaAnos.map(a=>`<tr><td>${a.ano}</td><td class="n">${a.qtd}</td><td class="n">${N(a.parcelas)}</td><td class="n">${N(a.amort)}</td><td class="n">${N(a.juros)}</td><td class="n">${N(a.saldoFim)}</td></tr>`).join('');
   const totAnos=D.listaAnos.length?`<tr class="tot"><td>Total</td><td class="n">${D.listaAnos.reduce((s,a)=>s+a.qtd,0)}</td><td class="n">${N(D.listaAnos.reduce((s,a)=>s+a.parcelas,0))}</td><td class="n">${N(D.listaAnos.reduce((s,a)=>s+a.amort,0))}</td><td class="n">${N(D.jurosRest)}</td><td></td></tr>`:'';
@@ -1436,8 +1465,8 @@ tr.quit td{color:#9a9a8c;} tr.atr td{color:#A23B2E;font-weight:600;}
   <tbody>${linhasAnos||'<tr><td colspan="6" class="vazio">Sem parcelas futuras.</td></tr>'}${totAnos}</tbody></table>
 
   <h2>Operações de crédito</h2>
-  <table><thead><tr><th>Loja</th><th>Banco</th><th>Modalidade</th><th>Contrato</th><th class="n">Taxa a.m.</th><th class="n">Contratado</th><th class="n">Parcela</th><th class="n">Pagas</th><th class="n">Saldo devedor</th><th>Término</th></tr></thead>
-  <tbody>${linhasOps||'<tr><td colspan="10" class="vazio">Nenhuma operação cadastrada.</td></tr>'}${D.ops.length?totOps:''}</tbody></table>
+  <table><thead><tr><th>Loja</th><th>Banco</th><th>Modalidade</th><th>Contrato</th><th class="n">Taxa a.m.</th><th class="n">Contratado</th><th class="n">Parcela</th><th class="n">Pagas</th><th class="n">Saldo devedor</th><th class="n">Quitação hoje</th><th>Término</th></tr></thead>
+  <tbody>${linhasOps||'<tr><td colspan="11" class="vazio">Nenhuma operação cadastrada.</td></tr>'}${D.ops.length?totOps:''}</tbody></table>
 
   <h2>Vencimentos · em atraso e próximos 30 dias</h2>
   <table><thead><tr><th>Vencimento</th><th>Loja</th><th>Banco</th><th class="n">Parcela</th><th class="n">Valor (R$)</th></tr></thead>
