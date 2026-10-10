@@ -132,6 +132,9 @@ body { font-family:var(--font-body); background:var(--bg); color:var(--ink); -we
 .comp-table tfoot td { border-top:2px solid var(--border-2); border-bottom:none; background:var(--surf-2); font-family:var(--font-numeric); font-weight:800; color:var(--ink); }
 .table-wrap { overflow-x:auto; }
 
+.btn-rel { display:inline-flex; align-items:center; gap:7px; background:var(--gold); color:var(--ink); border:0; border-radius:var(--r); padding:8px 14px; font-family:var(--font-body); font-weight:700; font-size:12.5px; cursor:pointer; }
+.btn-rel:hover { background:#DBA82A; }
+.btn-rel svg { width:15px; height:15px; }
 .badge { display:inline-flex; align-items:center; padding:4px 11px; border-radius:20px; font-size:11px; font-weight:700; white-space:nowrap; }
 .badge.ok { background:rgba(14,164,114,.18); color:#7FE0B8; border:1px solid rgba(127,224,184,.35); }
 .badge.warn { background:rgba(249,115,22,.16); color:#FFC59A; border:1px solid rgba(255,197,154,.35); }
@@ -362,7 +365,13 @@ table.tight tbody tr:hover td { background:var(--bg); }
 <main class="page" id="page">
   <div class="page-head">
     <div class="page-title">Controle de Endividamento</div>
-    <span class="badge wait" id="modeBadge">Conectando…</span>
+    <div style="display:flex; align-items:center; gap:10px;">
+      <button class="btn-rel" type="button" id="btnRelatorio" title="Relatório para a diretoria, pronto para salvar em PDF">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M12 18v-6m-3 3l3 3 3-3"/></svg>
+        Relatório PDF
+      </button>
+      <span class="badge wait" id="modeBadge">Conectando…</span>
+    </div>
   </div>
 
   <div class="page-inner">
@@ -1194,10 +1203,272 @@ function renderLista(){
 
 function renderTudo(){ renderPainel(); renderLista(); }
 
+/* ══════════════════════════════════════════════════════════════
+   RELATÓRIO PARA A DIRETORIA (PDF)
+   Monta, com os dados atuais da planilha, um relatório A4 numa aba
+   nova e abre a janela de impressão — lá é só escolher "Salvar como
+   PDF". Tudo vetorial (texto e gráficos), então o PDF fica nítido.
+══════════════════════════════════════════════════════════════ */
+function dadosRelatorio(){
+  const hoje=hojeISO(), mesAtual=hoje.slice(0,7);
+  const ops=operacoesEd.map(o=>{
+    const r=calcularSaldos(o);
+    const futuras=[];
+    for(let n=r.pagas+1;n<=r.prazo;n++){
+      const p=r.parcelas[n-1];
+      futuras.push({n, data:addMeses(r.dataInicio,n-1), parcela:p.parcela, juros:p.juros, amort:p.amort, saldoApos:p.saldo});
+    }
+    return {o, r, saldo:r.saldoPorParcelas, parcela:valorParcelaOp(o,r), restantes:r.prazo-r.pagas, futuras,
+      atrasadas:futuras.filter(f=>f.data<hoje), quitada:r.pagas>=r.prazo};
+  });
+  const ativas=ops.filter(x=>!x.quitada);
+  const soma=(arr,f)=>arr.reduce((s,x)=>s+(f(x)||0),0);
+  const saldo=soma(ativas,x=>x.saldo);
+  const contratado=soma(ops,x=>x.o.valorContratado);
+  const financiado=soma(ops,x=>x.r.saldoInicial);
+  const jurosRest=soma(ativas,x=>soma(x.futuras,f=>f.juros));
+  const taxaPond=saldo>0 ? soma(ativas,x=>(x.o.taxaAm||0)*x.saldo)/saldo : 0;
+  const prazoPond=saldo>0 ? soma(ativas,x=>x.restantes*x.saldo)/saldo : 0;
+  const parcelaMensal=soma(ativas,x=>x.parcela);
+
+  /* 12 meses a partir do mês atual (parcelas em atraso entram no mês atual) */
+  const meses=[]; const base=new Date(mesAtual+'-01T00:00');
+  for(let k=0;k<12;k++){ const d=new Date(base.getFullYear(), base.getMonth()+k, 1); meses.push({chave:isoLocal(d).slice(0,7), d, amort:0, juros:0}); }
+  ativas.forEach(x=>x.futuras.forEach(f=>{
+    const ch=f.data.slice(0,7)<mesAtual ? mesAtual : f.data.slice(0,7);
+    const m=meses.find(mm=>mm.chave===ch); if(m){ m.amort+=f.amort; m.juros+=f.juros; }
+  }));
+
+  /* visão anual até a última parcela */
+  const anos={};
+  ativas.forEach(x=>x.futuras.forEach(f=>{
+    const a=f.data.slice(0,4)<hoje.slice(0,4) ? hoje.slice(0,4) : f.data.slice(0,4);
+    (anos[a]=anos[a]||{ano:a, parcelas:0, amort:0, juros:0, qtd:0});
+    anos[a].parcelas+=f.parcela; anos[a].amort+=f.amort; anos[a].juros+=f.juros; anos[a].qtd++;
+  }));
+  const listaAnos=Object.values(anos).sort((a,b)=>a.ano.localeCompare(b.ano));
+  listaAnos.forEach(a=>{
+    a.saldoFim=soma(ativas,x=>{ const ult=x.futuras.filter(f=>f.data.slice(0,4)<=a.ano).pop(); return ult?ult.saldoApos:x.saldo; });
+  });
+
+  const agrupar=chave=>{
+    const g={}; ativas.forEach(x=>{ const k=x.o[chave]||'—'; (g[k]=g[k]||{nome:k, saldo:0, qtd:0, parcela:0}); g[k].saldo+=x.saldo; g[k].qtd++; g[k].parcela+=x.parcela; });
+    return Object.values(g).sort((a,b)=>b.saldo-a.saldo);
+  };
+  const atrasadas=[]; ativas.forEach(x=>x.atrasadas.forEach(f=>atrasadas.push({x,f})));
+  const limite30=addDias(hoje,30), proximas=[];
+  ativas.forEach(x=>x.futuras.forEach(f=>{ if(f.data>=hoje && f.data<=limite30) proximas.push({x,f}); }));
+  proximas.sort((a,b)=>a.f.data.localeCompare(b.f.data)); atrasadas.sort((a,b)=>a.f.data.localeCompare(b.f.data));
+  const comBanco=ativas.filter(x=>x.o.saldoBanco!=null && !isNaN(x.o.saldoBanco) && x.o.saldoBanco!=='');
+  const termino=ativas.map(x=>x.futuras.length?x.futuras[x.futuras.length-1].data:null).filter(Boolean).sort().pop();
+  return {hoje, ops, ativas, saldo, contratado, financiado, jurosRest, taxaPond, prazoPond, parcelaMensal, meses, listaAnos,
+    porBanco:agrupar('banco'), porLoja:agrupar('empresa'), atrasadas, proximas, comBanco, termino,
+    custoContratacao:soma(ops,x=>(x.o.tarifaContratacao||0)+(x.o.iof||0)),
+    prox12:soma(meses,m=>m.amort+m.juros), juros12:soma(meses,m=>m.juros)};
+}
+
+function htmlRelatorio(D){
+  const R=v=>fmt(v), P=v=>(isFinite(v)?v:0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})+'%';
+  const N=v=>(v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const curto=v=>{ const a=Math.abs(v); return a>=1e6 ? (v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' mi' : a>=1e3 ? Math.round(v/1e3).toLocaleString('pt-BR')+' mil' : Math.round(v).toLocaleString('pt-BR'); };
+  const MES=['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const mesAno=iso=>{ if(!iso) return '—'; const [a,m]=iso.split('-'); return MES[+m-1]+'/'+a; };
+  const taxaAA=(Math.pow(1+D.taxaPond/100,12)-1)*100;
+  const amortPct=D.financiado>0 ? (1-D.saldo/D.financiado)*100 : 0;
+  const sessao=JSON.parse(localStorage.getItem('zappas_session')||'null')||{};
+
+  /* destaques em texto */
+  const b1=D.porBanco[0];
+  const dest=[];
+  if(D.ativas.length){
+    dest.push(`O saldo devedor é de <b>${R(D.saldo)}</b>, em <b>${D.ativas.length}</b> ${D.ativas.length===1?'operação ativa':'operações ativas'} com <b>${D.porBanco.length}</b> ${D.porBanco.length===1?'instituição':'instituições'}${b1?`; a maior exposição é com <b>${esc(b1.nome)}</b> (${P(b1.saldo/D.saldo*100)} do saldo)`:''}.`);
+    dest.push(`Nos próximos 12 meses estão previstos <b>${R(D.prox12)}</b> em parcelas, dos quais <b>${R(D.juros12)}</b> são juros. O comprometimento mensal atual é de <b>${R(D.parcelaMensal)}</b>.`);
+    dest.push(`A taxa média ponderada pelo saldo é de <b>${N(D.taxaPond)}% a.m.</b> (${N(taxaAA)}% a.a.), com prazo médio remanescente de <b>${D.prazoPond.toLocaleString('pt-BR',{maximumFractionDigits:1})} meses</b>; a última parcela vence em <b>${mesAno(D.termino)}</b>.`);
+    if(D.atrasadas.length) dest.push(`<span class="alerta">Atenção: ${D.atrasadas.length} ${D.atrasadas.length===1?'parcela vencida não baixada':'parcelas vencidas não baixadas'}, somando ${R(D.atrasadas.reduce((s,a)=>s+a.f.parcela,0))} (ver quadro de vencimentos).</span>`);
+    if(D.comBanco.length){
+      const dif=D.comBanco.reduce((s,x)=>s+x.saldo-x.o.saldoBanco,0);
+      if(Math.abs(dif)>1) dest.push(`${D.comBanco.length===1?'Na operação':'Nas '+D.comBanco.length+' operações'} com saldo informado pelo banco, o saldo calculado difere em <b>${R(dif)}</b> do extrato.`);
+    }
+  } else dest.push('Não há operações ativas cadastradas.');
+
+  /* gráfico: desembolso mensal (amortização + juros, empilhado) */
+  const W=700, H=230, ml=56, mr=8, mt=26, mb=30, cw=W-ml-mr, ch=H-mt-mb;
+  const maxV=Math.max(1,...D.meses.map(m=>m.amort+m.juros));
+  const passo=(()=>{ const bruto=maxV/3, pot=Math.pow(10,Math.floor(Math.log10(bruto))); return [1,2,2.5,5,10].map(k=>k*pot).find(k=>k>=bruto); })();
+  const topo=passo*Math.ceil(maxV/passo), y=v=>mt+ch-(v/topo)*ch, bw=cw/12, larg=Math.min(34,bw*0.6);
+  let svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Desembolso mensal previsto nos próximos 12 meses">`;
+  for(let v=0; v<=topo+0.5; v+=passo){ svg+=`<line x1="${ml}" x2="${W-mr}" y1="${y(v)}" y2="${y(v)}" stroke="${v===0?'#B9B7AE':'#ECEAE3'}" stroke-width="1"/><text x="${ml-8}" y="${y(v)+3.5}" text-anchor="end" class="ax">${curto(v)}</text>`; }
+  D.meses.forEach((m,k)=>{
+    const x=ml+bw*k+(bw-larg)/2, tot=m.amort+m.juros;
+    if(tot>0){
+      const ya=y(m.amort), yj=y(tot);
+      svg+=`<rect x="${x}" y="${ya}" width="${larg}" height="${Math.max(0,y(0)-ya)}" fill="#1a56db"/>`;
+      if(m.juros>0){ const hj=Math.max(0,ya-yj-2); svg+=`<path d="M${x},${ya-2} v${-Math.max(0,hj-3)} q0,-3 3,-3 h${larg-6} q3,0 3,3 v${Math.max(0,hj-3)} z" fill="#C8961A"/>`; }
+      svg+=`<text x="${x+larg/2}" y="${yj-5}" text-anchor="middle" class="val">${curto(tot)}</text>`;
+    }
+    svg+=`<text x="${ml+bw*k+bw/2}" y="${H-mb+15}" text-anchor="middle" class="ax">${MES[m.d.getMonth()]}${m.d.getMonth()===0||k===0?'/'+String(m.d.getFullYear()).slice(2):''}</text>`;
+  });
+  svg+='</svg>';
+
+  const barras=lista=>lista.length ? lista.map(g=>`<div class="hb"><div class="hb-l" title="${esc(g.nome)}">${esc(g.nome)}</div><div class="hb-t"><div class="hb-f" style="width:${(g.saldo/lista[0].saldo*100).toFixed(1)}%"></div></div><div class="hb-v">${R(g.saldo)}</div><div class="hb-p">${P(g.saldo/D.saldo*100)}</div></div>`).join('') : '<div class="vazio">—</div>';
+
+  const linhasOps=D.ops.slice().sort((a,b)=>b.saldo-a.saldo).map(x=>`<tr${x.quitada?' class="quit"':''}>
+    <td>${esc(x.o.empresa||'—')}</td><td>${esc(x.o.banco||'—')}</td><td>${esc(x.o.modalidade||'—')}</td><td>${esc(x.o.conta||'—')}</td>
+    <td class="n">${N(x.o.taxaAm)}%</td><td class="n">${N(x.o.valorContratado)}</td><td class="n">${N(x.parcela)}</td>
+    <td class="n">${x.r.pagas}/${x.r.prazo}</td><td class="n"><b>${x.quitada?'quitada':N(x.saldo)}</b></td><td>${mesAno(x.futuras.length?x.futuras[x.futuras.length-1].data:x.o.dataTermino)}</td></tr>`).join('');
+  const totOps=`<tr class="tot"><td colspan="5">Total (${D.ops.length})</td><td class="n">${N(D.contratado)}</td><td class="n">${N(D.parcelaMensal)}</td><td></td><td class="n">${N(D.saldo)}</td><td></td></tr>`;
+
+  const linhasAnos=D.listaAnos.map(a=>`<tr><td>${a.ano}</td><td class="n">${a.qtd}</td><td class="n">${N(a.parcelas)}</td><td class="n">${N(a.amort)}</td><td class="n">${N(a.juros)}</td><td class="n">${N(a.saldoFim)}</td></tr>`).join('');
+  const totAnos=D.listaAnos.length?`<tr class="tot"><td>Total</td><td class="n">${D.listaAnos.reduce((s,a)=>s+a.qtd,0)}</td><td class="n">${N(D.listaAnos.reduce((s,a)=>s+a.parcelas,0))}</td><td class="n">${N(D.listaAnos.reduce((s,a)=>s+a.amort,0))}</td><td class="n">${N(D.jurosRest)}</td><td></td></tr>`:'';
+
+  const linhaVenc=(a,atr)=>`<tr${atr?' class="atr"':''}><td>${fmtData(a.f.data)}${atr?' · em atraso':''}</td><td>${esc(a.x.o.empresa||'—')}</td><td>${esc(a.x.o.banco||'—')}</td><td class="n">${a.f.n}/${a.x.r.prazo}</td><td class="n">${N(a.f.parcela)}</td></tr>`;
+  const venc=[...D.atrasadas.map(a=>linhaVenc(a,true)), ...D.proximas.map(a=>linhaVenc(a,false))].join('');
+  const totVenc=D.atrasadas.reduce((s,a)=>s+a.f.parcela,0)+D.proximas.reduce((s,a)=>s+a.f.parcela,0);
+
+  const kpi=(l,v,s,cor)=>`<div class="kpi"><i style="background:${cor}"></i><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${s}</div></div>`;
+  const titulo='Relatorio_Endividamento_'+D.hoje;
+
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${titulo}</title>
+<script>
+  /* roda antes das fontes: se o Google Fonts demorar, o relatório não trava */
+  document.addEventListener('DOMContentLoaded', function(){
+    var obs=document.getElementById('obs'), box=document.getElementById('obsBox');
+    function ajusta(){ box.className=obs.textContent.trim()?'':'obs-vazia'; }
+    obs.addEventListener('input', ajusta);
+    window.addEventListener('beforeprint', ajusta);
+    document.documentElement.setAttribute('data-pronto','1');
+    /* espera as fontes (no máximo 2,5s) e abre a janela de impressão */
+    Promise.race([document.fonts?document.fonts.ready:Promise.resolve(), new Promise(function(r){setTimeout(r,2500);})])
+      .then(function(){ setTimeout(function(){ window.print(); }, 400); });
+  });
+<\/script>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700;800&family=IBM+Plex+Sans:wght@400;500;600;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+@page { size:A4; margin:14mm 13mm 16mm; @bottom-left { content:"Gestão Zappas · Relatório de Endividamento · ${fmtData(D.hoje)}"; font:8pt 'IBM Plex Sans',sans-serif; color:#8a8a7c; } @bottom-right { content:"Página " counter(page) " de " counter(pages); font:8pt 'IBM Plex Sans',sans-serif; color:#8a8a7c; } }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:'IBM Plex Sans',system-ui,sans-serif;color:#16160F;font-size:9.5pt;line-height:1.45;background:#e9e8e3;}
+.folha{background:#fff;max-width:210mm;margin:16px auto;padding:14mm 13mm;box-shadow:0 4px 24px rgba(0,0,0,.12);}
+.barra{position:sticky;top:0;z-index:5;background:#16283F;color:#fff;display:flex;align-items:center;gap:12px;padding:10px 18px;font-size:12.5px;}
+.barra b{font-family:'Playfair Display',serif;font-size:15px;margin-right:auto;}
+.barra button{background:#C8961A;color:#16160F;border:0;border-radius:8px;padding:8px 16px;font:700 12.5px 'IBM Plex Sans',sans-serif;cursor:pointer;}
+.barra span{opacity:.7;}
+@media print{ body{background:#fff;} .barra{display:none;} .folha{margin:0;padding:0;box-shadow:none;max-width:none;} .obs-vazia{display:none;} .obs{border:0;padding:0;min-height:0;} }
+.cab{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #16283F;padding-bottom:10px;margin-bottom:14px;}
+.cab h1{font-family:'Playfair Display',serif;font-size:21pt;line-height:1.1;color:#16283F;}
+.cab .sub{font-size:9.5pt;color:#5d5d50;margin-top:3px;}
+.cab .dir{text-align:right;font-size:8.5pt;color:#5d5d50;}
+.cab .dir b{display:block;font-size:10pt;color:#16283F;}
+h2{font-family:'Playfair Display',serif;font-size:12.5pt;color:#16283F;margin:18px 0 8px;display:flex;align-items:center;gap:10px;break-after:avoid;}
+h2::after{content:"";flex:1;height:1px;background:#D8D5CC;}
+.kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:8px;}
+.kpi{border:1px solid #E3E1D9;border-radius:8px;padding:9px 11px 8px;position:relative;overflow:hidden;break-inside:avoid;}
+.kpi i{position:absolute;left:0;top:0;right:0;height:3px;}
+.kl{font-size:7.5pt;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b6b5e;}
+.kv{font-family:Inter,sans-serif;font-weight:700;font-size:13.5pt;margin-top:3px;letter-spacing:-.02em;}
+.ks{font-size:7.5pt;color:#7d7d70;margin-top:1px;}
+.kpis.mini .kv{font-size:11pt;}
+.dest{background:#F6F5F0;border-left:3px solid #C8961A;border-radius:0 8px 8px 0;padding:10px 14px;margin-top:4px;}
+.dest p{margin:3px 0;}
+.alerta{color:#A23B2E;font-weight:600;}
+.duas{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.caixa{break-inside:avoid;}
+.caixa h3{font-size:9pt;font-weight:700;color:#3A3A2E;margin-bottom:6px;}
+.hb{display:grid;grid-template-columns:42% 1fr auto 40px;align-items:center;gap:7px;margin:5px 0;font-size:8.5pt;}
+.hb-l{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600;font-size:8pt;}
+.hb-t{height:9px;background:#EEEDE7;border-radius:5px;overflow:hidden;}
+.hb-f{height:100%;background:#1a56db;border-radius:0 4px 4px 0;}
+.hb-v{font-family:Inter,sans-serif;font-weight:600;text-align:right;white-space:nowrap;}
+.hb-p{text-align:right;color:#6b6b5e;font-family:Inter,sans-serif;}
+.leg{display:flex;gap:16px;font-size:8pt;color:#4a4a3e;margin:0 0 2px 56px;}
+.leg span::before{content:"";display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;background:var(--c);}
+svg .ax{font:7.5pt 'IBM Plex Sans',sans-serif;fill:#7d7d70;} svg .val{font:600 7.5pt Inter,sans-serif;fill:#3A3A2E;}
+table{width:100%;border-collapse:collapse;font-size:8.2pt;}
+th{background:#16283F;color:#fff;font-weight:600;text-align:left;padding:5px 6px;font-size:7.5pt;text-transform:uppercase;letter-spacing:.03em;}
+td{padding:4.5px 6px;border-bottom:1px solid #ECEAE3;}
+td.n,th.n{text-align:right;font-family:Inter,sans-serif;white-space:nowrap;}
+tr{break-inside:avoid;} thead{display:table-header-group;}
+tbody tr:nth-child(even) td{background:#FAFAF7;}
+tr.tot td{background:#EEF3FD !important;font-weight:700;border-top:2px solid #16283F;}
+tr.quit td{color:#9a9a8c;} tr.atr td{color:#A23B2E;font-weight:600;}
+.vazio{color:#9a9a8c;font-size:8.5pt;padding:8px 0;}
+.nota{font-size:7.5pt;color:#7d7d70;margin-top:14px;border-top:1px solid #E3E1D9;padding-top:8px;}
+.obs{border:1px dashed #C8C5BA;border-radius:8px;padding:10px 12px;min-height:56px;font-size:9pt;outline:none;}
+.obs:empty::before{content:"Clique aqui para escrever comentários da gestão (opcional). Se ficar em branco, este quadro não sai no PDF.";color:#9a9a8c;}
+.quebra{break-before:page;}
+</style></head><body>
+<div class="barra"><b>Relatório de Endividamento</b><span>Confira e clique em “Salvar em PDF” (na janela, escolha o destino <i>Salvar como PDF</i>).</span><button onclick="window.print()">Salvar em PDF</button></div>
+<div class="folha">
+  <div class="cab">
+    <div><h1>Relatório de Endividamento</h1><div class="sub">Posição em ${fmtData(D.hoje)} · Apresentação à Diretoria</div></div>
+    <div class="dir"><b>Gestão Zappas</b>Emitido em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}${sessao.name?'<br>por '+esc(sessao.name):''}</div>
+  </div>
+
+  <h2>Resumo executivo</h2>
+  <div class="kpis">
+    ${kpi('Saldo devedor atual', R(D.saldo), D.ativas.length+(D.ativas.length===1?' operação ativa':' operações ativas'), '#1a56db')}
+    ${kpi('Comprometimento mensal', R(D.parcelaMensal), 'soma das parcelas atuais', '#C8961A')}
+    ${kpi('Próximos 12 meses', R(D.prox12), 'parcelas a pagar · '+R(D.juros12)+' de juros', '#0e7490')}
+    ${kpi('Juros a pagar até o fim', R(D.jurosRest), 'custo financeiro remanescente', '#B4483A')}
+  </div>
+  <div class="kpis mini">
+    ${kpi('Total contratado', R(D.contratado), D.ops.length+' operações · tarifa+IOF '+R(D.custoContratacao), '#AEADA0')}
+    ${kpi('Já amortizado', P(amortPct), R(Math.max(0,D.financiado-D.saldo))+' de principal pago', '#0ea472')}
+    ${kpi('Taxa média ponderada', N(D.taxaPond)+'% a.m.', N(taxaAA)+'% a.a. (pelo saldo)', '#AEADA0')}
+    ${kpi('Prazo médio remanescente', D.prazoPond.toLocaleString('pt-BR',{maximumFractionDigits:1})+' meses', 'última parcela: '+mesAno(D.termino), '#AEADA0')}
+  </div>
+  <div class="dest">${dest.map(t=>'<p>'+t+'</p>').join('')}</div>
+
+  <h2>Composição do saldo devedor</h2>
+  <div class="duas">
+    <div class="caixa"><h3>Por instituição financeira</h3>${barras(D.porBanco)}</div>
+    <div class="caixa"><h3>Por empresa / loja</h3>${barras(D.porLoja)}</div>
+  </div>
+
+  <h2>Desembolso previsto · próximos 12 meses</h2>
+  <div class="caixa">
+    <div class="leg"><span style="--c:#1a56db">Amortização (principal)</span><span style="--c:#C8961A">Juros</span></div>
+    ${svg}
+    <div class="ks" style="margin-left:56px">Valores em R$. Parcelas vencidas e ainda não baixadas aparecem no mês atual.</div>
+  </div>
+
+  <h2>Cronograma anual até a quitação</h2>
+  <table><thead><tr><th>Ano</th><th class="n">Nº parcelas</th><th class="n">Parcelas (R$)</th><th class="n">Amortização (R$)</th><th class="n">Juros (R$)</th><th class="n">Saldo ao fim do ano (R$)</th></tr></thead>
+  <tbody>${linhasAnos||'<tr><td colspan="6" class="vazio">Sem parcelas futuras.</td></tr>'}${totAnos}</tbody></table>
+
+  <h2>Operações de crédito</h2>
+  <table><thead><tr><th>Loja</th><th>Banco</th><th>Modalidade</th><th>Contrato</th><th class="n">Taxa a.m.</th><th class="n">Contratado</th><th class="n">Parcela</th><th class="n">Pagas</th><th class="n">Saldo devedor</th><th>Término</th></tr></thead>
+  <tbody>${linhasOps||'<tr><td colspan="10" class="vazio">Nenhuma operação cadastrada.</td></tr>'}${D.ops.length?totOps:''}</tbody></table>
+
+  <h2>Vencimentos · em atraso e próximos 30 dias</h2>
+  <table><thead><tr><th>Vencimento</th><th>Loja</th><th>Banco</th><th class="n">Parcela</th><th class="n">Valor (R$)</th></tr></thead>
+  <tbody>${venc||'<tr><td colspan="5" class="vazio">Nenhuma parcela em atraso ou vencendo nos próximos 30 dias.</td></tr>'}${venc?`<tr class="tot"><td colspan="4">Total</td><td class="n">${N(totVenc)}</td></tr>`:''}</tbody></table>
+
+  <div id="obsBox" class="obs-vazia"><h2>Comentários da gestão</h2><div class="obs" id="obs" contenteditable="true"></div></div>
+
+  <div class="nota">Saldos e juros calculados pela Tabela Price a partir dos contratos cadastrados no Controle de Endividamento (taxa, prazo, carência e parcela do contrato) e das parcelas baixadas até a data de emissão. Podem diferir do extrato bancário por arredondamentos, encargos pós-fixados ou baixas ainda não registradas.</div>
+</div>
+
+</body></html>`;
+}
+
+function gerarRelatorioPDF(){
+  if(!operacoesEd.length){ toast('Cadastre ao menos uma operação para gerar o relatório.'); return; }
+  const html=htmlRelatorio(dadosRelatorio());
+  const w=window.open('', '_blank');
+  if(w){ w.document.open(); w.document.write(html); w.document.close(); return; }
+  /* janela bloqueada pelo navegador: imprime por um quadro invisível */
+  const f=document.createElement('iframe');
+  f.style.cssText='position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(f);
+  f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+  setTimeout(()=>f.remove(), 60000);
+}
+
 /* ---------- eventos ---------- */
 function ligarEventos(){
   maskMoeda($('edValor')); maskMoeda($('edParcela')); maskMoeda($('baixaValor')); maskMoeda($('edSaldoBanco'));
   $('btnAddEd').addEventListener('click', salvarOperacao);
+  $('btnRelatorio').addEventListener('click', gerarRelatorioPDF);
   $('btnCancelEd').addEventListener('click', cancelarAlteracao);
   maskMoeda($('edTarifa')); maskMoeda($('edIof'));
   ['edPrimeira','edPrazo','edPagas','edValor','edTarifa','edIof','edTaxaAm','edCarencia','edParcela','edFinanciados'].forEach(id=>{ $(id).addEventListener('input', atualizarCamposCalculados); $(id).addEventListener('change', atualizarCamposCalculados); });
