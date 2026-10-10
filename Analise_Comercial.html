@@ -586,7 +586,7 @@ tr.loja-click td.td-metric { cursor:pointer; user-select:none; }
 tr.dia-click td.td-metric { cursor:pointer; user-select:none; }
 tr.dia-click.open td { background:#F7F6F0; }
 tr.dia-click .exp-caret { font-size:8px; }
-tr.dia-click.open .exp-caret { transform:rotate(90deg); }
+tr.dia-click.open .exp-caret, tr.loja-click.open .exp-caret { transform:rotate(90deg); }
 tr.lanc-sub { display:none; }
 tr.lanc-sub.show { display:table-row; }
 tr.lanc-sub td { background:#FBFBF8; font-size:10.5px; color:var(--ink-3); }
@@ -2744,7 +2744,8 @@ function renderComparative(data) {
       });
 
       // ── Linha Total (soma real de cada coluna) ─────────
-      html += `<tr class="total-row"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2)">Total</td>`;
+      const eidT = 'loja-total';
+      html += `<tr class="total-row exp-row" data-exp="${eidT}"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2);cursor:pointer" onclick="toggleExp('${eidT}')"><span class="exp-caret">▶</span>Total</td>`;
       lojas.forEach(loja => {
         const vTot = aggLojaTot(loja);
         const av   = totalGeral > 0 ? vTot / totalGeral * 100 : 0;
@@ -2753,6 +2754,30 @@ function renderComparative(data) {
       });
       html += `<td class="b-left" style="font-weight:800;text-align:center;background:var(--blue-xl);color:var(--blue)">${fNum(totalGeral)}</td>`;
       html += '</tr>';
+
+      // Total → Canal (soma dos meses por loja) → Mês (totalizador do mês por loja)
+      const totAll = dataAno.reduce((s,r)=>s+(r.fat||0),0);
+      EXP_CANAIS.forEach(([ck, cn]) => {
+        const vc = (loja) => mesesLoja.reduce((s,m)=>s+(_cidx[m+'|'+loja+'|'+ck]||0),0);
+        const fatMes = ck === 'loja' || ck === 'delivery';
+        let tot = 0;
+        html += `<tr class="exp-sub loja-click${fatMes ? ' exp-sub-fat' : ''}" data-exp="${eidT}" data-key="${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleSub(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
+        lojas.forEach(loja => {
+          const v = vc(loja); tot += v;
+          html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(totAll>0?v/totAll*100:0)}</td>`;
+        });
+        html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(tot)}</td></tr>`;
+        mesesLoja.forEach(mes => {
+          const tm = aggMesAll(mes);
+          let tl = 0, cells = '';
+          lojas.forEach(loja => {
+            const v = _cidx[mes+'|'+loja+'|'+ck] || 0; tl += v;
+            cells += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(tm>0?v/tm*100:0)}</td>`;
+          });
+          if (!tl) return;
+          html += `<tr class="dia-sub" data-exp="${eidT}" data-diaof="${eidT}|${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${MONTHS[+mes-1]||mes}</td>${cells}<td class="b-left" style="text-align:center;font-weight:600">${fNum(tl)}</td></tr>`;
+        });
+      });
 
       $('ctb-loja').innerHTML = html;
     } else {
