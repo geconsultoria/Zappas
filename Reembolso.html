@@ -173,7 +173,7 @@ a.side-brand:hover { opacity:.85; }
   z-index: 320;
 }
 .sidebar.collapsed:not(.peek) .side-link:hover::after { opacity:1; visibility:visible; }
-.side-item.open > .side-sub { max-height:640px; opacity:1; padding: 3px 0 6px 24px; }
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
 .side-sub a {
   display:flex; align-items:center; gap:9px;
   padding: 8px 10px; border-radius:8px;
@@ -353,6 +353,15 @@ a.side-brand:hover { opacity:.85; }
 .btn-export-nl { border-color:#e8b4ae; color:#b3261e; background:#fff6f5; }
 .btn-export-nl:hover { background:#fde4e1; }
 .btn-export:disabled { opacity:.45; cursor:default; }
+.conf-chk { display:flex; align-items:center; gap:5px; font-size:11.5px; color:var(--ink-3); white-space:nowrap; cursor:pointer; }
+.conf-kpis { display:grid; grid-template-columns:repeat(3,1fr); gap:13px; margin-bottom:12px; }
+.conf-kpi { background:var(--surface); border:1px solid var(--border); border-radius:var(--r-lg); padding:12px 16px; box-shadow:var(--sh); display:flex; flex-direction:column; min-height:86px; }
+.conf-kpi .lbl { font-size:11.5px; font-weight:700; color:var(--ink-4); }
+.conf-kpi .val { flex:1; display:flex; align-items:center; justify-content:center; font-family:var(--font-num); font-size:20px; font-weight:700; color:var(--ink); }
+.conf-kpi .foot { text-align:right; font-size:10.5px; color:var(--ink-4); }
+.conf-kpi.dif .val { color:#b3261e; }
+.conf-kpi.ok .val { color:#1e7b34; }
+.comp-table td.dif-pos, .comp-table td.dif-neg { font-weight:700; color:#b3261e; }
 
 /* Category / store bars */
 .cat-row { display: flex; align-items: center; gap: 10px; padding: 8px 18px; }
@@ -497,10 +506,6 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
-        </a>
       </div>
     </div>
 
@@ -578,6 +583,22 @@ a.side-brand:hover { opacity:.85; }
   </div>
 
   <div class="sec">
+    <span class="sec-title">Conferência: Faturamento (Análise Comercial) × Base de Reembolso</span><span class="sec-line"></span>
+    <span class="sec-count" id="sec-count-conf">—</span>
+    <label class="conf-chk"><input type="checkbox" id="conf-so-dif" onchange="renderConferencia()"> Só diferenças</label>
+    <button type="button" class="btn-export" onclick="exportarConferencia()" title="Baixa a conferência do filtro atual (abre no Excel)">⬇ Exportar conferência</button>
+  </div>
+  <div class="conf-kpis" id="conf-kpis"></div>
+  <div class="comp-card">
+    <div class="comp-scroll">
+      <table class="comp-table" id="ct-conf">
+        <thead id="cth-conf"></thead>
+        <tbody id="ctb-conf"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="sec">
     <span class="sec-title">Lançamentos de Reembolso por Mês</span><span class="sec-line"></span>
     <span class="sec-count" id="sec-count">0 registros</span>
     <button type="button" class="btn-export" onclick="exportarReembolsos('todos')" title="Baixa todos os reembolsos do filtro atual (abre no Excel)">⬇ Exportar todos</button>
@@ -620,6 +641,9 @@ a.side-brand:hover { opacity:.85; }
 const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbyHkPrEsO5BcqE8MzbnazuCZVe1LmHoH98e3SZo1Fzvwm01vnOK3z-ZIcfmwigp_LTv/exec";
 const STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?tipo=reembolso&loja=${k}`);
+// Faturamento comum (mesma fonte da Análise Comercial) — usado só na
+// Conferência, para comparar o canal "Reembolso" do faturamento com a base RE.
+const FAT_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 
 /* ══════════════════════════════════════════════════════════════
    DE-PARA  pnome (base)  →  CodCentro / Descrição (Plano de Contas Zappas)
@@ -896,7 +920,7 @@ function parseReembolso(text, lojaFallback){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v4_so_re';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='reembolso_data_v5_conf';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -910,7 +934,7 @@ async function saveCache(data, ts, rawTs){
     const db = await openDB();
     await new Promise((resolve,reject)=>{
       const tx = db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs}, DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,fat:fatReembolso,fatStatus}, DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:', e); }
@@ -933,9 +957,135 @@ async function loadCacheDB(){
 let rawData = [];
 
 /* ══════════════════════════════════════════════════════════════
+   CONFERÊNCIA — Faturamento (Análise Comercial) × Base de Reembolso
+   Mesma regra da Análise Comercial (parseCSV): no faturamento comum,
+   Canal = DISTRIBUIÇÃO + VS = True + Fabrica = False é o canal REEMBOLSO.
+   Soma por Loja + Ano + Mês e compara com o total da base FATURAMENTO_RE_.
+══════════════════════════════════════════════════════════════ */
+let fatReembolso = [];          // [{loja, ano, mes, total, qtd}]
+let fatStatus = { ok:[], falha:[] };
+const RE_SIM = /^(true|verdadeiro|1|sim)$/i;
+function parseFatReembolso(text, lojaKey){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const out = new Map();
+  if(!lines.length) return [];
+  const headers = splitLine(lines[0], sep).map(h => h.replace(/^"|"$/g,'').trim());
+  const iAno = findCol(headers,'ano'), iMes = findCol(headers,'mes'), iTot = findCol(headers,'total');
+  const iCanal = findCol(headers,'canais','canal','canais_semana');
+  const iVs = findCol(headers,'vs'), iFab = findCol(headers,'fabrica');
+  const iData = findCol(headers,'data');
+  if(iTot<0 || iCanal<0 || iVs<0) return [];
+  for(let i=1;i<lines.length;i++){
+    const line = lines[i].trim(); if(!line) continue;
+    const c = splitLine(line, sep);
+    const g = idx => idx>=0 ? (c[idx]||'').replace(/^"|"$/g,'').trim() : '';
+    if(normCanal(g(iCanal)) !== 'DISTRIBUICAO') continue;
+    if(!RE_SIM.test(g(iVs))) continue;            // VS = True
+    if(iFab>=0 && RE_SIM.test(g(iFab))) continue;  // Fabrica = True fica fora (igual à Análise Comercial)
+    const total = parseNum(g(iTot)); if(!total) continue;
+    const dt = iData>=0 ? parseDataFlex(g(iData)) : null;
+    const ano = parseInt(g(iAno)) || (dt ? dt.ano : null);
+    const mes = parseMesCol(g(iMes)) || (dt ? dt.mes : null);
+    if(!ano || !mes) continue;
+    const loja = lojaKey.toUpperCase();
+    const k = loja+'|'+ano+'|'+mes;
+    const cur = out.get(k) || { loja, ano, mes, total:0, qtd:0 };
+    cur.total += total; cur.qtd++; out.set(k, cur);
+  }
+  return [...out.values()];
+}
+async function carregarFaturamentoReembolso(){
+  let rows = []; const ok = [], falha = [];
+  await Promise.all(FAT_URLS.map(async (url, idx) => {
+    const lojaKey = STORE_KEYS[idx];
+    try{
+      const text = await fetchCSV(url);
+      rows = rows.concat(parseFatReembolso(text, lojaKey));
+      ok.push(lojaKey.toUpperCase());
+    }catch(e){ console.warn('Faturamento indisponível ('+lojaKey+'):', e.message); falha.push(lojaKey.toUpperCase()); }
+  }));
+  fatReembolso = rows; fatStatus = { ok, falha };
+}
+const TOL_CONF = 0.05;   // diferença de até 5 centavos é tratada como igual (arredondamento)
+function dadosConferencia(){
+  const ano = $('f-ano').value ? +$('f-ano').value : null;
+  const mes = $('f-mes').value ? +$('f-mes').value : null;
+  const loja = $('f-loja').value || null;
+  const passa = r => (!ano || r.ano===ano) && (!mes || r.mes===mes) && (!loja || r.loja===loja);
+  const m = new Map();
+  const get = (l,a,ms) => { const k=l+'|'+a+'|'+ms; if(!m.has(k)) m.set(k,{loja:l,ano:a,mes:ms,fat:0,fatQtd:0,base:0,baseQtd:0}); return m.get(k); };
+  fatReembolso.filter(passa).forEach(r => { const c=get(r.loja,r.ano,r.mes); c.fat+=r.total; c.fatQtd+=r.qtd; });
+  rawData.filter(passa).forEach(r => { const c=get(r.loja,r.ano,r.mes||0); c.base+=r.total; c.baseQtd++; });
+  return [...m.values()].map(c => ({ ...c, dif: c.fat - c.base }))
+    .sort((a,b)=> (b.ano-a.ano) || (b.mes-a.mes) || collator.compare(lojaLabel(a.loja), lojaLabel(b.loja)));
+}
+function renderConferencia(){
+  const thead = $('cth-conf'), tbody = $('ctb-conf'); if(!thead) return;
+  thead.innerHTML = `<tr><th>Ano</th><th>Mês</th><th>Loja</th>
+    <th class="num">Faturamento — canal Reembolso</th><th class="num">Base FATURAMENTO_RE_</th>
+    <th class="num">Diferença</th><th>Situação</th></tr>`;
+  if(!fatReembolso.length && !fatStatus.ok.length){
+    $('conf-kpis').innerHTML = '';
+    $('sec-count-conf').textContent = '—';
+    tbody.innerHTML = `<tr><td colspan="7" class="nd">${fatStatus.falha.length ? 'Não foi possível ler o faturamento ('+fatStatus.falha.join(', ')+'). Clique em Atualizar.' : 'Faturamento ainda não carregado — clique em Atualizar.'}</td></tr>`;
+    requestAnimationFrame(()=>limitarLinhas('ct-conf',10));
+    return;
+  }
+  let lista = dadosConferencia();
+  const tFat = lista.reduce((t,c)=>t+c.fat,0), tBase = lista.reduce((t,c)=>t+c.base,0), tDif = tFat - tBase;
+  const nDif = lista.filter(c=>Math.abs(c.dif)>TOL_CONF).length;
+  $('conf-kpis').innerHTML = `
+    <div class="conf-kpi"><div class="lbl">Faturamento — canal Reembolso</div><div class="val">${fBRL(tFat)}</div><div class="foot">Análise Comercial (DISTRIBUIÇÃO + VS True + Fábrica False)</div></div>
+    <div class="conf-kpi"><div class="lbl">Base FATURAMENTO_RE_</div><div class="val">${fBRL(tBase)}</div><div class="foot">base usada no DRE/DFC</div></div>
+    <div class="conf-kpi ${Math.abs(tDif)>TOL_CONF?'dif':'ok'}"><div class="lbl">Diferença</div><div class="val">${Math.abs(tDif)>TOL_CONF?fBRL(tDif):'✓ Confere'}</div><div class="foot">${nDif} mês(es)/loja(s) com diferença</div></div>`;
+  if($('conf-so-dif').checked) lista = lista.filter(c=>Math.abs(c.dif)>TOL_CONF);
+  $('sec-count-conf').textContent = fN(lista.length) + ' linhas';
+  if(!lista.length){
+    tbody.innerHTML = '<tr><td colspan="7" class="nd">Nenhuma diferença para os filtros selecionados</td></tr>';
+  } else {
+    tbody.innerHTML = lista.map(c => {
+      const temDif = Math.abs(c.dif) > TOL_CONF;
+      const sit = !temDif ? '<span class="st-badge st-ok">Confere</span>'
+        : (c.base===0 ? '<span class="st-badge st-nl">Só no faturamento</span>'
+        : (c.fat===0 ? '<span class="st-badge st-nl">Só na base RE</span>'
+        : '<span class="st-badge st-rev">Diferença</span>'));
+      return `<tr${temDif?' class="row-nl"':''}>
+        <td>${c.ano}</td><td>${c.mes ? MONTHS[c.mes-1] : '—'}</td><td>${lojaLabel(c.loja)}</td>
+        <td class="num">${c.fat ? fBRL(c.fat) : '—'}</td>
+        <td class="num">${c.base ? fBRL(c.base) : '—'}</td>
+        <td class="num ${temDif?'dif-pos':''}">${temDif ? fBRL(c.dif) : '—'}</td>
+        <td>${sit}</td></tr>`;
+    }).join('') +
+    `<tr class="total-row"><td colspan="3">Total</td><td class="num">${fBRL(lista.reduce((t,c)=>t+c.fat,0))}</td><td class="num">${fBRL(lista.reduce((t,c)=>t+c.base,0))}</td><td class="num">${fBRL(lista.reduce((t,c)=>t+c.dif,0))}</td><td></td></tr>`;
+  }
+  requestAnimationFrame(()=>limitarLinhas('ct-conf',10));
+}
+function exportarConferencia(){
+  let lista = dadosConferencia();
+  if($('conf-so-dif').checked) lista = lista.filter(c=>Math.abs(c.dif)>TOL_CONF);
+  if(!lista.length) return;
+  const num = v => (Math.round((v||0)*100)/100).toFixed(2).replace('.', ',');
+  const sit = c => Math.abs(c.dif)<=TOL_CONF ? 'Confere' : (c.base===0 ? 'Só no faturamento' : (c.fat===0 ? 'Só na base RE' : 'Diferença'));
+  const linhas = [
+    'Conferência: Faturamento (Análise Comercial, canal Reembolso) x Base FATURAMENTO_RE_',
+    'Gerado em: ' + new Date().toLocaleString('pt-BR'), '',
+    ['Ano','Mês','Loja','Faturamento - canal Reembolso','Qtd. faturamento','Base FATURAMENTO_RE_','Qtd. base','Diferença','Situação'].join(';'),
+    ...lista.map(c => [c.ano, c.mes?MONTHS[c.mes-1]:'', lojaLabel(c.loja), num(c.fat), c.fatQtd, num(c.base), c.baseQtd, num(c.dif), sit(c)].join(';')),
+    ['TOTAL','','', num(lista.reduce((t,c)=>t+c.fat,0)), '', num(lista.reduce((t,c)=>t+c.base,0)), '', num(lista.reduce((t,c)=>t+c.dif,0)), ''].join(';')
+  ].join('\r\n');
+  const blob = new Blob(['\ufeff'+linhas], { type:'text/csv;charset=utf-8' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'Conferencia_Reembolso_Faturamento_' + new Date().toISOString().slice(0,10) + '.csv';
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href), 2000);
+}
+
+/* ══════════════════════════════════════════════════════════════
    LOAD
 ══════════════════════════════════════════════════════════════ */
 async function carregarTudo(){
+  // Faturamento (para a Conferência) carrega em paralelo; se falhar, o resto da tela segue normal.
+  const pFat = carregarFaturamentoReembolso().catch(e => console.warn('Conferência:', e.message));
   await carregarPlano();
   let rows = [];
   const falhas = [];
@@ -961,6 +1111,8 @@ async function carregarTudo(){
   if(falhas.length === CSV_URLS.length) throw new Error(
     'Nenhuma base de reembolso foi encontrada pelo Apps Script. Confira se o script foi atualizado com o tipo "reembolso" (nova versão implantada) e se o arquivo FATURAMENTO_RE_<LOJA>.csv está na pasta do Drive. Detalhe: ' + ultimoErro);
   rawData = rows; // pode ser vazio: significa que não há reembolsos no período disponível
+  const lbl = document.getElementById('ld-txt'); if(lbl) lbl.textContent = 'Carregando faturamento para a conferência…';
+  await pFat;
 }
 
 function showUpdateOverlay(){
@@ -988,6 +1140,8 @@ async function loadData(forceRefresh){
     const cached = await loadCacheDB();
     if(cached && Array.isArray(cached.data)){
       rawData = cached.data;
+      fatReembolso = cached.fat || [];
+      fatStatus = cached.fatStatus || { ok:[], falha:[] };
       populateFilters();
       applyFilters();
       $('content').classList.remove('hidden');
@@ -1158,6 +1312,7 @@ function applyFilters(){
   renderPorLoja(data);
   renderTabela(data);
   renderNaoLocalizados(data);
+  renderConferencia();
   // espera o próximo quadro: a área pode ainda estar oculta (carregamento pelo cache)
   requestAnimationFrame(() => { limitarLinhas('ct-reembolso', 10); limitarLinhas('ct-nl', 10); });
 }
@@ -1184,7 +1339,7 @@ function limitarLinhas(tableId, n){
   if(!hint){ hint = document.createElement('div'); hint.className = 'lista-hint'; box.parentElement.appendChild(hint); }
   hint.textContent = 'Mostrando 10 de ' + linhas.length.toLocaleString('pt-BR') + ' linhas — role a tabela para ver o restante.';
 }
-window.addEventListener('resize', () => { limitarLinhas('ct-reembolso', 10); limitarLinhas('ct-nl', 10); });
+window.addEventListener('resize', () => { limitarLinhas('ct-reembolso', 10); limitarLinhas('ct-nl', 10); limitarLinhas('ct-conf', 10); });
 
 function stBadge(s){
   if(s === 'nl')  return '<span class="st-badge st-nl">Não localizado</span>';
