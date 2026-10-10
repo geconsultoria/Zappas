@@ -601,7 +601,8 @@ a.side-brand:hover { opacity:.85; }
   <div class="sec">
     <span class="sec-title">Lançamentos de Reembolso por Mês</span><span class="sec-line"></span>
     <span class="sec-count" id="sec-count">0 registros</span>
-    <button type="button" class="btn-export" onclick="exportarReembolsos('todos')" title="Baixa todos os reembolsos do filtro atual (abre no Excel)">⬇ Exportar todos</button>
+    <label class="conf-chk" title="Mostra só os lançamentos sem código válido no Plano de Contas (sem cod_pl ou código fora do plano)"><input type="checkbox" id="lanc-so-nl" onchange="applyFilters()"> Só não localizados</label>
+    <button type="button" class="btn-export" onclick="exportarReembolsos('todos')" title="Baixa os reembolsos do filtro atual (abre no Excel)">⬇ Exportar todos</button>
   </div>
   <div class="comp-card">
     <div class="comp-scroll">
@@ -1220,7 +1221,7 @@ function exportarReembolsos(tipo){
   const mes = $('f-mes').value ? +$('f-mes').value : null;
   const loja = $('f-loja').value || null;
   let lista = rawData.filter(r => (!ano || r.ano===ano) && (!mes || r.mes===mes) && (!loja || r.loja===loja));
-  if(tipo === 'sem_codigo') lista = lista.filter(pendente);
+  if(tipo === 'sem_codigo' || ($('lanc-so-nl') && $('lanc-so-nl').checked)) lista = lista.filter(pendente);
   lista = lista.slice().sort((a,b) => collator.compare(lojaLabel(a.loja), lojaLabel(b.loja)) || ((a.dataTs||0)-(b.dataTs||0)) || collator.compare(a.pnome, b.pnome));
   if(!lista.length){
     const el = $('nl-alert'); if(el){ el.className='nl-alert ok'; el.textContent='Nada para exportar com os filtros atuais.'; }
@@ -1498,6 +1499,8 @@ function renderPorLoja(data){
 }
 
 function renderTabela(data){
+  // Checkbox "Só não localizados" do cabeçalho desta tabela
+  if($('lanc-so-nl') && $('lanc-so-nl').checked) data = data.filter(pendente);
   $('sec-count').textContent = fN(data.length) + ' registros';
   $('cth-reembolso').innerHTML = headerHtml('main');
   if(!data.length){
