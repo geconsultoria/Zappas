@@ -583,6 +583,15 @@ tr.dia-sub.show { display:table-row; }
 tr.dia-sub td { background:#fff; font-size:11px; color:var(--ink-3); }
 tr.dia-sub td.td-metric { padding-left:52px; font-weight:400; }
 tr.loja-click td.td-metric { cursor:pointer; user-select:none; }
+tr.dia-click td.td-metric { cursor:pointer; user-select:none; }
+tr.dia-click.open td { background:#F7F6F0; }
+tr.dia-click .exp-caret { font-size:8px; }
+tr.dia-click.open .exp-caret { transform:rotate(90deg); }
+tr.lanc-sub { display:none; }
+tr.lanc-sub.show { display:table-row; }
+tr.lanc-sub td { background:#FBFBF8; font-size:10.5px; color:var(--ink-3); }
+tr.lanc-sub td.td-metric { padding-left:70px; font-weight:400; max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+tr.lanc-sub td.lanc-v { color:var(--ink); }
 
 tr.exp-sub td { background:var(--surf-2); font-size:11.5px; color:var(--ink-3); }
 tr.exp-sub td.td-metric { padding-left:30px; font-weight:500; color:var(--ink-3); cursor:default; }
@@ -1448,6 +1457,7 @@ function diaDaSemana(date) {
   return DIAS_SEMANA_NOMES[date.getDay()];
 }
 
+const LANC_SKIP=new Set(['ano','loja','mes','canais','canal','canais_semana','dia','data','semana','semana2','total','passage','ticket','quebras','vs','fabrica']);
 function parseCSV(text) {
   const lines = text.split(/\r?\n/);
   if(!lines.length) return [];
@@ -1494,6 +1504,10 @@ function parseCSV(text) {
       // Coluna "Fabrica" (True/False): junto com Canal=DISTRIBUICAO e VS=False define o canal CENTRAL.
       fabrica: /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim()),
     };
+    // Demais colunas da linha (detalhe do lançamento ao abrir o dia)
+    const ex={};
+    headers.forEach(h=>{ if(LANC_SKIP.has(h)) return; const v=String(obj[h]??'').trim(); if(v!=='') ex[h]=v; });
+    if(Object.keys(ex).length) row.ex=ex;
     if(!row.ano||!row.loja) continue;
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
     // Regra REEMBOLSO: Canal = DISTRIBUICAO + VS = True + Fabrica = False vira o canal REEMBOLSO.
@@ -2249,6 +2263,8 @@ function toggleExp(id){
   if(!open){
     document.querySelectorAll('tr.dia-sub[data-exp="'+id+'"]').forEach(x=>x.classList.remove('show'));
     document.querySelectorAll('tr.loja-click[data-exp="'+id+'"]').forEach(x=>x.classList.remove('open'));
+    document.querySelectorAll('tr.lanc-sub[data-exp="'+id+'"]').forEach(x=>x.classList.remove('show'));
+    document.querySelectorAll('tr.dia-click[data-exp="'+id+'"]').forEach(x=>x.classList.remove('open'));
   }
 }
 function toggleSub(tr){
@@ -2270,14 +2286,17 @@ function toggleDiaCanal(tr){
       if(r.mes!==mes||normTxt(r.canal)!==ck) return;
       if(!(r.data instanceof Date)||isNaN(r.data)) return;
       const d=r.data.getDate();
-      const o=porDia[d]=porDia[d]||{wd:r.data.getDay(),v:{}};
+      const o=porDia[d]=porDia[d]||{wd:r.data.getDay(),v:{},rows:[]};
       o.v[r.loja]=(o.v[r.loja]||0)+(r.fat||0);
+      o.rows.push(r);
     });
     const totMes=c.totMes[mes]||0;
+    c.lanc=c.lanc||{};
     let html='';
     Object.keys(porDia).map(Number).sort((a,b)=>a-b).forEach(d=>{
       const o=porDia[d];
-      html+=`<tr class="dia-sub show" data-exp="${tr.dataset.exp}" data-diaof="${id}"><td class="td-metric" style="border-right:2px solid var(--border-2)">Dia ${String(d).padStart(2,'0')}${c.ano?' ('+DIAS_ABR[o.wd]+')':''}</td>`;
+      const lid=id+'|'+d; c.lanc[lid]=o.rows;
+      html+=`<tr class="dia-sub dia-click show" data-exp="${tr.dataset.exp}" data-diaof="${id}" data-lid="${lid}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleLanc(this.parentNode)" title="Clique para ver os lançamentos do dia"><span class="exp-caret">▶</span>Dia ${String(d).padStart(2,'0')}${c.ano?' ('+DIAS_ABR[o.wd]+')':''} <span style="color:var(--ink-4,#999);font-size:10px">· ${o.rows.length} lanç.</span></td>`;
       let tot=0;
       c.lojas.forEach(l=>{
         const v=o.v[l]||0; tot+=v;
@@ -2290,6 +2309,48 @@ function toggleDiaCanal(tr){
     return;
   }
   document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
+  if(!open){
+    document.querySelectorAll('tr.lanc-sub[data-canalof="'+id+'"]').forEach(x=>x.classList.remove('show'));
+    document.querySelectorAll('tr.dia-click[data-diaof="'+id+'"]').forEach(x=>x.classList.remove('open'));
+  }
+}
+// Lançamentos de um dia (quadro Faturamento por Loja): clique no dia abre cada linha da planilha
+const LANC_LBL={hora:'Hora',horario:'Hora',cupom:'Cupom',nf:'NF',nota:'NF',documento:'Doc',pedido:'Pedido',cliente:'Cliente',produto:'Produto',descricao:'Descrição',forma_pgto:'Pgto',pagamento:'Pgto',operador:'Operador',caixa:'Caixa'};
+function lancDesc(r){
+  const ex=r.ex||{};
+  const parts=Object.keys(ex).map(k=>(LANC_LBL[k]||k.replace(/_/g,' '))+': '+ex[k]);
+  return parts.join(' · ');
+}
+function escH(t){ return String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
+function toggleLanc(tr){
+  const lid=tr.dataset.lid;
+  const open=tr.classList.toggle('open');
+  if(tr.dataset.loaded!=='1'){
+    tr.dataset.loaded='1';
+    const c=window.__diaC; const rows=(c&&c.lanc&&c.lanc[lid])||[];
+    const totMes=(c&&rows[0])?(c.totMes[rows[0].mes]||0):0;
+    const ord=rows.slice().sort((a,b)=>{
+      const la=c.lojas.indexOf(a.loja), lb=c.lojas.indexOf(b.loja);
+      return la!==lb ? la-lb : (b.fat||0)-(a.fat||0);
+    });
+    let html='';
+    ord.forEach((r,i)=>{
+      const desc=lancDesc(r);
+      const cup=r.cupons?` · ${fNum(r.cupons)} cupom${r.cupons>1?'s':''}`:'';
+      const lbl=`${i+1}. ${r.loja==='BELVEDER'?'BELVEDERE':r.loja}${desc?' · '+desc:''}${cup}`;
+      html+=`<tr class="lanc-sub show" data-exp="${tr.dataset.exp}" data-canalof="${tr.dataset.diaof}" data-lancof="${lid}"><td class="td-metric" style="border-right:2px solid var(--border-2)" title="${escH(lbl)}">${escH(lbl)}</td>`;
+      c.lojas.forEach(l=>{
+        if(l===r.loja){
+          html+=`<td class="b-left lanc-v" style="text-align:center">${fNum(r.fat||0)}</td><td class="av-col" style="text-align:center">${fPct(totMes>0?(r.fat||0)/totMes*100:0)}</td>`;
+        } else html+=`<td class="b-left"></td><td class="av-col"></td>`;
+      });
+      html+=`<td class="b-left lanc-v" style="text-align:center">${fNum(r.fat||0)}</td></tr>`;
+    });
+    if(!html) html=`<tr class="lanc-sub show" data-exp="${tr.dataset.exp}" data-canalof="${tr.dataset.diaof}" data-lancof="${lid}"><td class="td-metric" colspan="30">Sem lançamentos</td></tr>`;
+    tr.insertAdjacentHTML('afterend',html);
+    return;
+  }
+  document.querySelectorAll('tr.lanc-sub[data-lancof="'+lid+'"]').forEach(x=>x.classList.toggle('show',open));
 }
 window.__dia = window.__dia || {};
 const DIAS_ABR=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
