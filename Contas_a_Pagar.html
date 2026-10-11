@@ -1113,7 +1113,7 @@ function renderCategorias(data){
     entry.rows.push(r);
   });
 
-  const lista = [...porGrupo.entries()].sort((a,b)=>b[1].total-a[1].total).slice(0,12);
+  const lista = [...porGrupo.entries()].sort((a,b)=>b[1].total-a[1].total); // todos os grupos — o Total do quadro bate com o Total do Período
   const grandTotal = lista.reduce((s,[,v])=>s+v.total, 0);
   const nCols = 1 + colunas.length + 1 + (showAV?1:0);
 
