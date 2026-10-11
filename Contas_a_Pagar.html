@@ -332,7 +332,11 @@ a.side-brand:hover { opacity:.85; }
 }
 .comp-table thead th.num { text-align: right; }
 .comp-table tbody tr { border-bottom: 1px solid #F0EDE5; transition: background .12s; }
-.comp-table tbody tr:hover td { background: var(--bg); }
+.comp-table > tbody > tr:hover > td { background: var(--bg); }
+/* dentro da lista de lançamentos, destaca só a linha sob o mouse */
+.cat-lanc-table tbody tr td { background: var(--surface); }
+.cat-lanc-table tbody tr:not(.lanc-sub):hover > td { background: #FFF6D6; }
+.cat-lanc-table tbody tr.lanc-sub td { background: var(--blue-xl); }
 .comp-table td { padding: 9px 12px; color: var(--ink-2); white-space: nowrap; }
 .comp-table td.num { text-align: right; font-family: var(--font-num); font-weight: 600; }
 .comp-table tbody tr.total-row td { background: var(--blue-xl); font-weight: 700; border-top: 2px solid var(--blue-lt); color: var(--blue); }
