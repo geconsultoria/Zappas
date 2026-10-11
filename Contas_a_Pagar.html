@@ -356,6 +356,18 @@ a.side-brand:hover { opacity:.85; }
 
 /* Category table (by store, with optional vertical-analysis column) */
 .comp-table td.cat-name-cell { font-weight: 600; color: var(--ink-2); }
+/* Quadro por grupo: tabela de verdade, colunas alinhadas, 1ª coluna fixa ao rolar */
+#ct-categorias { display: table !important; table-layout: auto; width: 100%; border-collapse: separate; border-spacing: 0; }
+#ct-categorias thead { display: table-header-group !important; }
+#ct-categorias tbody { display: table-row-group !important; }
+#ct-categorias tr { display: table-row !important; }
+#ct-categorias th, #ct-categorias td { display: table-cell !important; white-space: nowrap; border-bottom: 1px solid #F0EDE5; }
+#ct-categorias thead th { background: var(--surf-2); text-align: left; padding: 9px 12px; font-size: 9.5px; font-weight: 800; letter-spacing: .07em; text-transform: uppercase; color: var(--ink-4); border-bottom: 2px solid var(--border); }
+#ct-categorias thead th.num, #ct-categorias td.num { text-align: right; min-width: 110px; }
+#ct-categorias th:first-child, #ct-categorias tr.cat-row > td:first-child, #ct-categorias tr.total-row > td:first-child { position: sticky; left: 0; z-index: 2; background: var(--surface); box-shadow: 1px 0 0 var(--border); }
+#ct-categorias thead th:first-child { background: var(--surf-2); z-index: 3; }
+#ct-categorias tr.cat-row.is-open > td:first-child { background: var(--blue-xl); }
+#ct-categorias tr.total-row > td:first-child { background: var(--blue-xl); }
 /* Grupo clicável → abre lançamentos */
 .comp-table tbody tr.cat-row { cursor: pointer; }
 .comp-table tbody tr.cat-row td.cat-name-cell .cat-chev { display:inline-block; width:12px; height:12px; margin-right:7px; vertical-align:-1px; color:var(--ink-4); transition:transform .16s var(--ease); }
@@ -1048,7 +1060,30 @@ const gruposAbertos = new Set();
 const MESES_ABREV = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 function escHTML(s){ return String(s==null?'':s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 
+// Garante que o quadro seja uma <table> de verdade (thead + tbody), mesmo que a
+// página tenha um container antigo no lugar — senão as colunas se misturam.
+function ensureCatTable(){
+  let tb = $('cat-list');
+  const ok = tb && tb.tagName === 'TBODY' && $('cth-categorias') && $('cth-categorias').tagName === 'THEAD'
+             && tb.closest('table') && tb.closest('table').id === 'ct-categorias';
+  if(ok) return;
+  const html = '<table class="comp-table cat-table" id="ct-categorias"><thead id="cth-categorias"></thead><tbody id="cat-list"></tbody></table>';
+  const oldTable = $('ct-categorias') || (tb && tb.closest('table'));
+  const alvo = oldTable || tb;
+  const wrap = document.createElement('div');
+  wrap.className = 'comp-scroll';
+  wrap.innerHTML = html;
+  if(alvo && alvo.parentElement && alvo.parentElement.classList.contains('comp-scroll')){
+    alvo.outerHTML = html;
+  } else if(alvo){
+    alvo.replaceWith(wrap);
+  }
+  const oldHead = document.querySelectorAll('#cth-categorias');
+  if(oldHead.length > 1) oldHead.forEach((h,i)=>{ if(!h.closest('#ct-categorias')) h.remove(); });
+}
+
 function renderCategorias(data){
+  ensureCatTable();
   lastCategoriasData = data;
 
   // Mês = "Todos" → colunas por mês; mês específico → colunas por loja (como antes)
@@ -1058,7 +1093,7 @@ function renderCategorias(data){
   let chaveDe;
   if(modoMeses){
     const keys = [...new Set(data.map(r=>r.ano*100+r.mes))].sort((a,b)=>a-b);
-    colunas = keys.map(k => ({ key:k, label: MESES_ABREV[(k%100)-1] + (variosAnos ? '/'+String(Math.floor(k/100)).slice(-2) : '') }));
+    colunas = keys.map(k => ({ key:k, label: MONTHS[(k%100)-1] + (variosAnos ? '/'+String(Math.floor(k/100)).slice(-2) : '') }));
     chaveDe = r => r.ano*100+r.mes;
   } else {
     const lojas = [...new Set(data.map(r=>r.loja))].filter(Boolean).sort();
