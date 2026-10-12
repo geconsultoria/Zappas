@@ -342,7 +342,23 @@ a.side-brand:hover { opacity:.85; }
 /* Card "Sua Meta" — usuário de uma loja só: barra + quanto falta p/ cada faixa */
 .cal-card { background: var(--surface); border:1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px rgba(12,24,48,.06); padding: 14px 18px 14px; margin-bottom: 16px; }
 .cal-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 4px; }
-.cal-head select { margin-left:auto; font-size: 12px; padding: 5px 8px; border:1px solid var(--border); border-radius: 8px; background:#fff; color: var(--ink); }
+.cal-actions { margin-left:auto; display:flex; gap:8px; align-items:center; }
+.cal-print { font-size: 12px; font-weight: 700; padding: 5px 11px; border:1px solid var(--border); border-radius: 8px; background:#fff; color: var(--ink); cursor:pointer; }
+.cal-print:hover { background:#F6F8FC; }
+.cal-print-info { display:none; }
+/* Impressão: só o calendário, A4 deitado, mantendo as cores */
+@media print {
+  @page { size: A4 landscape; margin: 10mm; }
+  html, body.print-cal { background: #fff !important; }
+  body.print-cal > *:not(#cal-print-area) { display: none !important; }
+  body.print-cal #cal-print-area { display: block !important; }
+  body.print-cal .cal-card { box-shadow: none; border: none; margin: 0; padding: 0; }
+  body.print-cal .cal-actions { display: none !important; }
+  body.print-cal .cal-print-info { display: block; font-size: 10px; color: #666; margin-top: 8px; }
+  body.print-cal .cal-card, body.print-cal .cal-card * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body.print-cal .cal-day { min-height: 58px; break-inside: avoid; }
+}
+.cal-head select { font-size: 12px; padding: 5px 8px; border:1px solid var(--border); border-radius: 8px; background:#fff; color: var(--ink); }
 .cal-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 12px; }
 .cal-sub b { color: var(--ink); }
 .cal-grid { display:grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 6px; }
@@ -1728,11 +1744,28 @@ function calendarioHTML(ano, mes) {
     : 'Meta do mês não informada — mostrando só a venda de cada dia';
 
   return `<div class="cal-card">
-    <div class="cal-head"><div class="rk-title">Calendário de Vendas · ${nomeSel} · ${MESES[mes-1]} ${ano}</div>${opts}</div>
+    <div class="cal-head"><div class="rk-title">Calendário de Vendas · ${nomeSel} · ${MESES[mes-1]} ${ano}</div>
+      <div class="cal-actions">${opts}<button type="button" class="cal-print" onclick="imprimirCalendario()" title="Imprimir só o calendário">🖨️ Imprimir</button></div></div>
     <div class="cal-sub">${resumo}</div>
     <div class="cal-grid">${cells}</div>
     <div class="cal-leg"><span style="--c:#2FB67A">Bateu a meta diária</span><span style="--c:#E0675E">Abaixo da meta diária</span><span style="--c:#D5DBE6">Sem venda / dias futuros</span></div>
+    <div class="cal-print-info">Canal: ${canalLabelTexto()} · Impresso em ${new Date().toLocaleString('pt-BR')}</div>
   </div>`;
+}
+function imprimirCalendario() {
+  // Atualiza o "Impresso em" na hora do clique e imprime só o calendário.
+  const info = document.querySelector('.cal-card .cal-print-info');
+  if (info) info.textContent = info.textContent.replace(/Impresso em .*/, 'Impresso em ' + new Date().toLocaleString('pt-BR'));
+  // Copia o calendário para uma área própria, filha direta do <body>, e na
+  // impressão esconde todo o resto (sem páginas em branco depois).
+  let area = document.getElementById('cal-print-area');
+  if (!area) { area = document.createElement('div'); area.id = 'cal-print-area'; area.style.display = 'none'; document.body.appendChild(area); }
+  area.innerHTML = document.querySelector('#calWrap .cal-card').outerHTML;
+  document.body.classList.add('print-cal');
+  const limpar = () => { document.body.classList.remove('print-cal'); area.innerHTML = ''; window.removeEventListener('afterprint', limpar); };
+  window.addEventListener('afterprint', limpar);
+  window.print();
+  setTimeout(limpar, 1000); // garante a limpeza em navegadores sem "afterprint"
 }
 
 function rkToggle(row){
