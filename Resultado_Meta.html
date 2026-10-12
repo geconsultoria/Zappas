@@ -340,6 +340,33 @@ a.side-brand:hover { opacity:.85; }
 .rk-badge { justify-self: end; }
 .rk-empty { font-size: 12px; color: var(--muted); padding: 6px 0; }
 /* Card "Sua Meta" — usuário de uma loja só: barra + quanto falta p/ cada faixa */
+.cal-card { background: var(--surface); border:1px solid var(--border); border-radius: 12px; box-shadow: 0 1px 3px rgba(12,24,48,.06); padding: 14px 18px 14px; margin-bottom: 16px; }
+.cal-head { display:flex; align-items:center; gap:10px; flex-wrap:wrap; margin-bottom: 4px; }
+.cal-head select { margin-left:auto; font-size: 12px; padding: 5px 8px; border:1px solid var(--border); border-radius: 8px; background:#fff; color: var(--ink); }
+.cal-sub { font-size: 11.5px; color: var(--muted); margin-bottom: 12px; }
+.cal-sub b { color: var(--ink); }
+.cal-grid { display:grid; grid-template-columns: repeat(7, minmax(0,1fr)); gap: 6px; }
+.cal-dow { font-size: 10px; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); text-align:center; padding-bottom: 2px; }
+.cal-day { border:1px solid var(--border); border-radius: 9px; padding: 6px 8px 7px; min-height: 66px; background:#FAFBFD; display:flex; flex-direction:column; gap:1px; border-left: 4px solid #D5DBE6; }
+.cal-day.vazio { background: transparent; border: none; }
+.cal-day.ok   { background:#F1FBF5; border-left-color:#2FB67A; }
+.cal-day.nok  { background:#FEF4F3; border-left-color:#E0675E; }
+.cal-day.futuro { background:#fff; border-style: dashed; border-left-style: solid; }
+.cal-day.hoje { box-shadow: 0 0 0 2px #1A4FBA inset; }
+.cal-n { font-family:'Inter',system-ui,sans-serif; font-size: 11px; font-weight: 800; color: var(--muted); display:flex; justify-content:space-between; }
+.cal-n .ic { font-size: 11px; }
+.cal-day.ok .ic { color:#0A7C5C; } .cal-day.nok .ic { color:#C8281E; }
+.cal-v { font-family:'Inter',system-ui,sans-serif; font-size: 13px; font-weight: 800; color: var(--ink); margin-top: 2px; }
+.cal-p { font-family:'Inter',system-ui,sans-serif; font-size: 10.5px; font-weight: 700; }
+.cal-day.ok .cal-p { color:#0A7C5C; } .cal-day.nok .cal-p { color:#C8281E; }
+.cal-m { font-size: 10px; color: var(--muted); }
+.cal-leg { display:flex; gap: 14px; flex-wrap:wrap; font-size: 11px; color: var(--muted); margin-top: 10px; }
+.cal-leg span::before { content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; background: var(--c); }
+@media (max-width: 760px) {
+  .cal-grid { gap: 3px; }
+  .cal-day { padding: 4px 4px 5px; min-height: 54px; border-left-width: 3px; }
+  .cal-v { font-size: 10.5px; } .cal-m { display:none; } .cal-p { font-size: 9.5px; }
+}
 .rk-click { cursor: pointer; border-radius: 8px; transition: background .12s ease; }
 .rk-click:hover { background: #F6F8FC; }
 .rk-chev { display:inline-block; width: 12px; color: var(--muted); font-size: 10px; transition: transform .15s ease; }
@@ -651,10 +678,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         <a href="Ciclo_Financeiro.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
-        </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
         </a>
       </div>
     </div>
@@ -1630,6 +1653,88 @@ function faixasTilesHTML(r, ano, mes){
 // quanto falta para Meta (100%), Super Meta (105%) e Desafio (110%),
 // quanto precisa vender por dia nos dias que restam e se a projeção de
 // fechamento alcança cada faixa.
+// ═══════════════ CALENDÁRIO DE VENDAS DO MÊS ═══════════════
+// Cada dia mostra a venda realizada e se bateu a Meta Diária
+// (meta do mês ÷ dias do mês — mesma regra do Acompanhamento de Metas).
+// Admin escolhe a loja (ou Todas); usuário de loja vê só a dele.
+let calLojaSel = 'TODAS';
+function calLojasDisponiveis() {
+  return LOJAS_ORDEM.filter(l => lojaPermitida(l.key))
+    .map(l => ({ ...l, val: findLojaValue(l.key) })).filter(l => l.val);
+}
+function fmtK(v) {
+  const a = Math.abs(v);
+  if (a >= 1e6) return 'R$ ' + (v/1e6).toLocaleString('pt-BR', { maximumFractionDigits: 2 }) + 'M';
+  if (a >= 1e3) return 'R$ ' + (v/1e3).toLocaleString('pt-BR', { maximumFractionDigits: 1 }) + 'k';
+  return 'R$ ' + Math.round(v).toLocaleString('pt-BR');
+}
+function calendarioHTML(ano, mes) {
+  const lojas = calLojasDisponiveis();
+  if (!lojas.length) return '';
+  if (lojas.length === 1) calLojaSel = lojas[0].val;
+  if (calLojaSel !== 'TODAS' && !lojas.some(l => l.val === calLojaSel)) calLojaSel = 'TODAS';
+  const sel = calLojaSel === 'TODAS' ? lojas : lojas.filter(l => l.val === calLojaSel);
+  const valSet = new Set(sel.map(l => l.val));
+
+  const dias = daysInMonth(ano, mes);
+  const vendaDia = new Array(dias + 1).fill(0);
+  rawData.forEach(d => {
+    if (d.ano === ano && d.mes === mes && valSet.has(d.loja) && canalMatch(d) && d.dia >= 1 && d.dia <= dias)
+      vendaDia[d.dia] += d.venda || 0;
+  });
+  const metaMes = sel.reduce((s, l) => s + (getMetaFiltrada(l.val, mes, ano) || 0), 0);
+  const metaDia = metaMes > 0 ? metaMes / dias : 0;
+
+  const hoje = new Date();
+  const isMesAtual = ano === hoje.getFullYear() && mes === hoje.getMonth() + 1;
+  const isFuturo = ano > hoje.getFullYear() || (ano === hoje.getFullYear() && mes > hoje.getMonth() + 1);
+  const DOW = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const primeiroDow = new Date(ano, mes - 1, 1).getDay();
+
+  let bateu = 0, comVenda = 0;
+  let cells = DOW.map(d => `<div class="cal-dow">${d}</div>`).join('');
+  for (let i = 0; i < primeiroDow; i++) cells += '<div class="cal-day vazio"></div>';
+  for (let d = 1; d <= dias; d++) {
+    const v = vendaDia[d];
+    const futuro = isFuturo || (isMesAtual && d > hoje.getDate());
+    const ehHoje = isMesAtual && d === hoje.getDate();
+    let cls = '', ic = '', pctTxt = '';
+    if (!futuro && v > 0) {
+      comVenda++;
+      if (metaDia > 0) {
+        const pct = v / metaDia * 100;
+        const ok = pct >= 100;
+        if (ok) bateu++;
+        cls = ok ? 'ok' : 'nok'; ic = ok ? '✓' : '✗';
+        pctTxt = Math.floor(pct).toLocaleString('pt-BR') + '% da meta'; // arredonda pra baixo: 99,6% não aparece como 100%
+      }
+    } else if (futuro) cls = 'futuro';
+    cells += `<div class="cal-day ${cls}${ehHoje ? ' hoje' : ''}" title="${d}/${mes}/${ano}${v > 0 ? ' · Venda ' + R0(v) : ''}${metaDia > 0 ? ' · Meta diária ' + R0(metaDia) : ''}">
+      <div class="cal-n"><span>${d}${ehHoje ? ' · hoje' : ''}</span><span class="ic">${ic}</span></div>
+      <div class="cal-v">${v > 0 && !futuro ? fmtK(v) : (futuro ? '' : '—')}</div>
+      ${pctTxt ? `<div class="cal-p">${pctTxt}</div>` : ''}
+      ${futuro && metaDia > 0 ? `<div class="cal-m">meta ${fmtK(metaDia)}</div>` : ''}
+    </div>`;
+  }
+
+  const opts = lojas.length > 1
+    ? `<select onchange="calLojaSel=this.value; document.getElementById('calWrap').innerHTML = calendarioHTML(${ano}, ${mes});">
+         <option value="TODAS"${calLojaSel === 'TODAS' ? ' selected' : ''}>Todas as lojas</option>
+         ${lojas.map(l => `<option value="${l.val}"${calLojaSel === l.val ? ' selected' : ''}>${l.label}</option>`).join('')}
+       </select>` : '';
+  const nomeSel = calLojaSel === 'TODAS' ? 'Todas as lojas' : sel[0].label;
+  const resumo = metaDia > 0
+    ? `Meta diária <b>${R0(metaDia)}</b> · Bateu a meta em <b>${bateu} de ${comVenda}</b> dia${comVenda !== 1 ? 's' : ''} com venda`
+    : 'Meta do mês não informada — mostrando só a venda de cada dia';
+
+  return `<div class="cal-card">
+    <div class="cal-head"><div class="rk-title">Calendário de Vendas · ${nomeSel} · ${MESES[mes-1]} ${ano}</div>${opts}</div>
+    <div class="cal-sub">${resumo}</div>
+    <div class="cal-grid">${cells}</div>
+    <div class="cal-leg"><span style="--c:#2FB67A">Bateu a meta diária</span><span style="--c:#E0675E">Abaixo da meta diária</span><span style="--c:#D5DBE6">Sem venda / dias futuros</span></div>
+  </div>`;
+}
+
 function rkToggle(row){
   const det = row.nextElementSibling;
   if (!det || !det.classList.contains('rk-detail')) return;
@@ -1820,6 +1925,8 @@ function renderResultado() {
   </div>
 
   ${restrictedLoja ? metaFaixasLojaHTML(linhas[0], ano, mes) : rankingMetaHTML(linhas, ano, mes)}
+
+  <div id="calWrap">${calendarioHTML(ano, mes)}</div>
 
   <div class="tbl-card">
     <div class="tbl-head">
