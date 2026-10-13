@@ -620,7 +620,7 @@ let rawProdTot = [];
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v9';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v11';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -1088,6 +1088,8 @@ function abcAgregar(text, lojaFallback, out){
     out.push({
       ano: dt ? String(dt.ano) : '', mes: dt ? dt.mes : 0, ts: dt ? dt.ts : 0,
       lojaRaw: loja, canalRaw: canal,
+      // Origem do produto: coluna Fabrica = true → Produção Própria; senão Revenda
+      origem: ehVerdade(g(iFab)) ? 'Própria' : 'Revenda',
       cod: abcNormCodGrupo(iGrupo>=0 ? g(iGrupo) : ''), nomegrupo,
       total, custo: (iCusto>=0 ? abcParseNum(g(iCusto)) : 0) * (qtd||0),
     });
@@ -1108,8 +1110,8 @@ function abcConsolidar(rows){
     const u = ultimo.get(r.cod);
     const nome = u ? u.nome : r.nomegrupo;
     if(ABC_GRUPOS_EXCLUIDOS.includes(abcNormTxt(nome))){ excl++; return; }
-    const k = r.ano+'|'+r.lojaRaw+'|'+r.mes+'|'+r.canalRaw;
-    const a = acc[k] || (acc[k] = { ano: r.ano, lojaRaw: r.lojaRaw, mes: r.mes, canalRaw: r.canalRaw, total: 0, custo: 0 });
+    const k = r.ano+'|'+r.lojaRaw+'|'+r.mes+'|'+r.canalRaw+'|'+r.origem;
+    const a = acc[k] || (acc[k] = { ano: r.ano, lojaRaw: r.lojaRaw, mes: r.mes, canalRaw: r.canalRaw, origem: r.origem, total: 0, custo: 0 });
     a.total += r.total; a.custo += r.custo;
   });
   debugLog.push(`CMV produto: ${excl} linha(s) excluídas por grupo renomeado para grupo excluído.`);
@@ -1141,7 +1143,38 @@ async function loadCmvProduto(){
 // Casa loja/canal da base de produtos com os rótulos do faturamento
 // ('BELVEDER' x 'belvedere', 'LOJA' x 'Loja'), para os filtros servirem
 // igualmente às duas bases.
-function lojaCanonKey(l){ const s = abcNormTxt(l); return s.indexOf('belveder') === 0 ? 'belvedere' : s; }
+// ── Tabela de apelidos de loja ──────────────────────────────────────
+// Casa o nome da loja da base de produtos (Curva ABC) com o nome do
+// faturamento. Chave = como o nome pode aparecer (em minúsculas, sem
+// acento, sem espaço/pontuação); valor = loja canônica (uma das
+// STORE_KEYS). Para cadastrar um novo apelido, basta acrescentar uma
+// linha aqui — ex.: se a planilha trouxer "Zappas Shopping Havan",
+// acrescente  'zappasshoppinghavan': 'havan'.
+const LOJA_APELIDOS = {
+  'belveder':  'belvedere',
+  'belvedere': 'belvedere',
+  'anisio':    'anisio',
+  'bady':      'bady',
+  'damha':     'damha',
+  'havan':     'havan',
+  'muffato':   'muffato',
+  'mufato':    'muffato',
+};
+// Palavras genéricas ignoradas na comparação ("LOJA HAVAN", "Zappas Damha"…)
+const LOJA_PALAVRAS_IGNORADAS = ['loja', 'zappas', 'filial', 'unidade', 'shopping'];
+function lojaCompacta(l){
+  let s = abcNormTxt(l).replace(/[^a-z0-9 ]/g, ' ');
+  s = s.split(/\s+/).filter(w => w && !LOJA_PALAVRAS_IGNORADAS.includes(w)).join('');
+  return s;
+}
+function lojaCanonKey(l){
+  const s = lojaCompacta(l);
+  if (!s) return abcNormTxt(l);
+  if (LOJA_APELIDOS[s]) return LOJA_APELIDOS[s];
+  // Contém o nome de uma loja conhecida? (ex.: "zappasdamha2" → damha)
+  const ap = Object.keys(LOJA_APELIDOS).sort((a,b)=>b.length-a.length).find(k => s.includes(k));
+  return ap ? LOJA_APELIDOS[ap] : s;
+}
 function mapearProdutos(prod, fat){
   const lojaMap = {}, canalMap = {};
   fat.forEach(r => {
@@ -1149,12 +1182,23 @@ function mapearProdutos(prod, fat){
     const ck = abcNormTxt(r.canal);  if(r.canal && !canalMap[ck]) canalMap[ck] = r.canal;
   });
   const cmv = [], tot = [];
+  const semCasamento = {};
   prod.forEach(p => {
-    const loja  = lojaMap[lojaCanonKey(p.lojaRaw)] || String(p.lojaRaw).trim().toUpperCase();
+    const casada = lojaMap[lojaCanonKey(p.lojaRaw)];
+    if (!casada) {
+      const k = String(p.lojaRaw).trim();
+      semCasamento[k] = (semCasamento[k] || 0) + (p.custo || 0);
+    }
+    const loja  = casada || String(p.lojaRaw).trim().toUpperCase();
     const canal = p.canalRaw ? (canalMap[abcNormTxt(p.canalRaw)] || p.canalRaw) : '';
-    cmv.push({ ano: p.ano, loja, mes: p.mes, canal, valor: p.custo });
-    tot.push({ ano: p.ano, loja, mes: p.mes, canal, total: p.total });
+    cmv.push({ ano: p.ano, loja, mes: p.mes, canal, origem: p.origem || 'Revenda', valor: p.custo });
+    tot.push({ ano: p.ano, loja, mes: p.mes, canal, origem: p.origem || 'Revenda', total: p.total });
   });
+  const nomes = Object.keys(semCasamento);
+  if (nomes.length) {
+    debugLog.push(`<span class="warn">⚠ Loja(s) da base de produtos sem correspondência no faturamento — cadastre em LOJA_APELIDOS: ${nomes.map(n => `"${n}" (CMV ${fmt(semCasamento[n])})`).join(', ')}</span>`);
+    console.warn('[CMV] Lojas sem correspondência no faturamento:', semCasamento);
+  }
   return { cmv, tot };
 }
 
@@ -1627,11 +1671,15 @@ function _renderDashboard() {
   kpiWrap.innerHTML = `<div class="section-title">Indicadores Gerais</div>
   <div class="kpi-grid">
     ${kpi('blue','M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z','Faturamento Total',fmt(tFat),`${fatF.length} registros`)}
-    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total (Produto)',fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
+    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total (Produto)',fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`+cmvOrigemSub(cmvF,tCmv))}
     ${kpi('green','M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z','Lucro Bruto',fmt(tLucro),`Margem de ${fmtPct(pctLB)}`)}
     ${kpi('indigo','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4h2v4zm0-6h-2V7h2v4z','% Lucro Bruto',fmtPct(pctLB),pctLB>=30?'✓ Acima do esperado':pctLB>=15?'→ Dentro do esperado':'↓ Abaixo do esperado')}
   </div>`;
   main.appendChild(kpiWrap);
+
+  // ── Margem por Origem (Produção Própria × Revenda)
+  const orig = buildMargemOrigem(cmvF);
+  if (orig) main.appendChild(orig);
 
   // ── Charts mensais
   const row1 = el('div');
@@ -2017,6 +2065,54 @@ function buildTableComparativo(anos, lojas) {
   }
 
   return cards;
+}
+
+/* ── Produção Própria × Revenda ──
+   Origem vem da coluna Fabrica da base de produtos (Curva ABC):
+   true = Produção Própria; demais = Revenda. Faturamento e CMV por
+   origem saem da MESMA base (total e custo dos itens), para baterem
+   entre si; a diferença para o faturamento total aparece na Conciliação. */
+const ORIGENS = ['Própria', 'Revenda'];
+const ORIGEM_LBL = { 'Própria': 'Produção Própria', 'Revenda': 'Revenda' };
+const ORIGEM_COR = { 'Própria': '#f97316', 'Revenda': '#1a56db' };
+function somaOrigem(rows, key){
+  const o = { 'Própria': 0, 'Revenda': 0 };
+  rows.forEach(r => { const k = r.origem === 'Própria' ? 'Própria' : 'Revenda'; o[k] += (r[key] || 0); });
+  return o;
+}
+function cmvOrigemSub(cmvF, tCmv){
+  if (!cmvF.length || !tCmv) return '';
+  const c = somaOrigem(cmvF, 'valor');
+  const pP = c['Própria'] / tCmv * 100, pR = 100 - pP;
+  return `<div style="margin-top:8px;text-align:left">
+    <div style="display:flex;height:6px;border-radius:3px;overflow:hidden;background:var(--border)">
+      <div style="width:${pP}%;background:${ORIGEM_COR['Própria']}"></div>
+      <div style="width:${pR}%;background:${ORIGEM_COR['Revenda']}"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;gap:6px;margin-top:5px;font-size:10.5px;color:var(--text-secondary)">
+      <span title="Produção Própria (Fabrica = true)"><b style="color:${ORIGEM_COR['Própria']}">●</b> Própria ${fmtK(c['Própria'])} (${fmtPct(pP)})</span>
+      <span title="Revenda"><b style="color:${ORIGEM_COR['Revenda']}">●</b> Revenda ${fmtK(c['Revenda'])} (${fmtPct(pR)})</span>
+    </div></div>`;
+}
+function buildMargemOrigem(cmvF){
+  if (!rawProdTot.length || !cmvF.length) return null;
+  const totF = filterDataCmv(rawProdTot);
+  const f = somaOrigem(totF, 'total'), c = somaOrigem(cmvF, 'valor');
+  const tF = f['Própria'] + f['Revenda'], tC = c['Própria'] + c['Revenda'];
+  const linha = (lbl, fv, cv, cor, cls) => {
+    const l = fv - cv, p = fv > 0 ? l / fv * 100 : 0, part = tF > 0 ? fv / tF * 100 : 0;
+    return `<tr${cls ? ` class="${cls}"` : ''}><td style="text-align:left">${cor ? `<b style="color:${cor}">●</b> ` : ''}${lbl}</td>
+      <td class="num">${fmt(fv)}</td><td class="num">${fmtPct(part)}</td><td class="num">${fmt(cv)}</td>
+      <td class="num" style="font-weight:700">${fmt(l)}</td><td class="pct ${pctCls(p)}">${fmtPct(p)}</td></tr>`;
+  };
+  const rows = ORIGENS.map(o => linha(ORIGEM_LBL[o], f[o], c[o], ORIGEM_COR[o])).join('') +
+    linha('TOTAL', tF, tC, '', 'row-total');
+  const wrap = el('div');
+  wrap.innerHTML = `<div class="section-title">Margem por Origem — Produção Própria × Revenda</div>
+    <div class="table-card"><div class="table-header"><div class="chart-title">Faturamento × CMV × Lucro Bruto por origem do produto</div><div class="table-badge">Base: Curva ABC Produto</div></div>
+    <div style="padding:8px 20px 4px;font-size:12px;color:var(--text-secondary)">Produção Própria = itens com <b>Fabrica = true</b>; demais itens = Revenda. Faturamento por origem vem do total vendido dos itens (mesma base do CMV), por isso o total pode diferir levemente do Faturamento Total — ver Conciliação.</div>
+    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:left">Origem</th><th class="num">Faturamento</th><th class="num">Part.</th><th class="num">CMV</th><th class="num">Lucro Bruto</th><th class="num">% L.B.</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+  return wrap;
 }
 
 /* Conciliação: compara, com os MESMOS filtros, o faturamento (base de
