@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta name="zappas-versao" content="v2026.10.15-d">
+<meta name="zappas-versao" content="v2026.10.15-e">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Faturamento & Lucro</title>
@@ -484,7 +484,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-d</span><span class="sv-short">10.15-d</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-e</span><span class="sv-short">10.15-e</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -992,6 +992,26 @@ function parseVendasLoja(text, acc) {
   }
   return n;
 }
+/* ── Busca com novas tentativas ──
+   O Apps Script às vezes demora quase 1 minuto ou falha numa loja. Tenta
+   até 3 vezes (com espera entre elas) e só aceita a resposta se o
+   cabeçalho tiver as colunas esperadas — não uma página/mensagem de erro. */
+async function buscarComRetentativa(url, colunas, tentativas = 3) {
+  let ultimoErro = null;
+  for (let t = 1; t <= tentativas; t++) {
+    try {
+      const txt = await fetchComTimeout(url, 90000);
+      const cab = (txt.split(/\r?\n/)[0] || '').toLowerCase();
+      if (!colunas.every(c => cab.indexOf(c) >= 0)) throw new Error('resposta inválida: ' + txt.slice(0, 80));
+      return txt;
+    } catch (e) {
+      ultimoErro = e;
+      if (t < tentativas) await new Promise(r => setTimeout(r, 2000 * t));
+    }
+  }
+  throw ultimoErro || new Error('falha ao buscar');
+}
+
 async function loadFaturamentoLojas(){
   const acc = {}; const falharam = [];
   const BATCH = 2; // igual à Análise Comercial
@@ -1000,7 +1020,7 @@ async function loadFaturamentoLojas(){
       const key = STORE_KEYS[i+j];
       setStatusSub(`Carregando faturamento (${Math.min(i+BATCH, CSV_URLS_FAT.length)}/${CSV_URLS_FAT.length})…`);
       try {
-        const n = parseVendasLoja(await fetchCSV(url), acc);
+        const n = parseVendasLoja(await buscarComRetentativa(url, ['ano','total']), acc);
         debugLog.push(`Faturamento (${key}): ${n} linhas.`);
       } catch(e) {
         falharam.push(key);
@@ -1147,7 +1167,7 @@ async function loadCmvProduto(){
     const key = STORE_KEYS[i];
     setStatusSub(`Carregando CMV dos produtos (${i+1}/${CURVAABC_URLS.length})… ${key}`);
     try{
-      const n = abcAgregar(await fetchComTimeout(CURVAABC_URLS[i], 60000), key.toUpperCase(), linhas);
+      const n = abcAgregar(await buscarComRetentativa(CURVAABC_URLS[i], ['qtd','total']), key.toUpperCase(), linhas);
       debugLog.push(`CMV produto (${key}): ${n} itens vendidos.`);
     }catch(e){
       falharam.push(key);
@@ -1228,6 +1248,9 @@ async function loadData(forceRefresh, silent = false) {
     }
   }
 
+  // Evita duas atualizações ao mesmo tempo (faixa de dados novos + Atualização Geral).
+  if (window.__zappasCarregando) return;
+  window.__zappasCarregando = true;
   btn.classList.add('loading');
   // Só apaga o dashboard inteiro no primeiro carregamento de verdade.
   const isRefresh = Array.isArray(rawFat) && rawFat.length > 0;
@@ -1237,9 +1260,19 @@ async function loadData(forceRefresh, silent = false) {
   try {
     debugLog.push(`<span class="ok">✓ Iniciando fetch dos CSVs…</span>`);
 
+    // Dado anterior (cache) de cada loja: se uma loja falhar mesmo depois das
+    // novas tentativas, mantém o que já tinha em vez de a loja zerar.
+    const fatAnt = rawFat || [], cmvAnt = rawCmv || [], totAnt = rawProdTot || [];
+    const lojasMantidas = new Set(), lojasSemDados = new Set();
+    const daLoja = (arr, key) => arr.filter(r => lojaCanonKey(r.loja) === key);
+
     // Faturamento: 6 lojas, mesmas regras da Análise Comercial
     const fatRes = await loadFaturamentoLojas();
     rawFat = fatRes.linhas;
+    fatRes.falharam.forEach(key => {
+      const ant = daLoja(fatAnt, key);
+      if (ant.length) { rawFat = rawFat.concat(ant); lojasMantidas.add(key); } else lojasSemDados.add(key);
+    });
     if (fatRes.falharam.length) debugLog.push(`<span class="warn">⚠ Sem faturamento de: ${fatRes.falharam.join(', ')}</span>`);
 
     debugLog.push(`<span class="ok">✓ Faturamento total: ${rawFat.length} linhas válidas</span>`);
@@ -1252,6 +1285,11 @@ async function loadData(forceRefresh, silent = false) {
       if (pr.falharam.length) debugLog.push(`<span class="warn">⚠ Sem CMV de: ${pr.falharam.join(', ')}</span>`);
       const mp = mapearProdutos(pr.linhas, rawFat);
       rawCmv = mp.cmv; rawProdTot = mp.tot;
+      pr.falharam.forEach(key => {
+        const antC = daLoja(cmvAnt, key), antT = daLoja(totAnt, key);
+        if (antC.length || antT.length) { rawCmv = rawCmv.concat(antC); rawProdTot = rawProdTot.concat(antT); lojasMantidas.add(key); }
+        else lojasSemDados.add(key);
+      });
       if (!rawCmv.length) {
         cmvUnavailable = true;
         debugLog.push(`<span class="warn">⚠ CMV: nenhuma linha classificada como CMV foi encontrada.</span>`);
@@ -1260,9 +1298,12 @@ async function loadData(forceRefresh, silent = false) {
         debugLog.push(`Amostra CMV[0]: ${JSON.stringify(rawCmv[0])}`);
       }
     } catch (cmvErr) {
-      rawCmv = []; rawProdTot = [];
-      cmvUnavailable = true;
-      debugLog.push(`<span class="warn">⚠ CMV indisponível: ${cmvErr.message} — usando zeros</span>`);
+      // Nenhuma loja da base de produtos respondeu: mantém o CMV anterior
+      // (se houver) em vez de zerar a tela inteira.
+      rawCmv = cmvAnt; rawProdTot = totAnt;
+      if (cmvAnt.length) { STORE_KEYS.forEach(k => lojasMantidas.add(k)); }
+      else cmvUnavailable = true;
+      debugLog.push(`<span class="warn">⚠ CMV indisponível: ${cmvErr.message}${cmvAnt.length ? ' — mantido o anterior' : ' — usando zeros'}</span>`);
     }
 
     if (rawFat.length === 0) throw new Error('Nenhum dado válido na aba Faturamento.');
@@ -1281,7 +1322,9 @@ async function loadData(forceRefresh, silent = false) {
 
     const tsDate = new Date();
     const ts = tsDate.toLocaleString('pt-BR',{hour:'2-digit',minute:'2-digit',day:'2-digit',month:'2-digit',year:'numeric'});
-    document.getElementById('fb-ts').textContent = ts;
+    document.getElementById('fb-ts').textContent = ts
+      + (lojasSemDados.size ? ' ⚠️ Sem dados de: ' + [...lojasSemDados].join(', ') : '')
+      + (lojasMantidas.size ? ' ⚠️ Não atualizou (mantido o dado anterior): ' + [...lojasMantidas].join(', ') : '');
 
     saveCache({ rawFat, rawCmv, rawProdTot, cmvUnavailable }, ts, tsDate.getTime());
     if (isRefresh) hideUpdateOverlay(false, '✓ Dados atualizados.');
@@ -1304,6 +1347,7 @@ async function loadData(forceRefresh, silent = false) {
       showError(e.message);
     }
   } finally {
+    window.__zappasCarregando = false;
     btn.classList.remove('loading');
   }
 }

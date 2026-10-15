@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta name="zappas-versao" content="v2026.10.15-d">
+<meta name="zappas-versao" content="v2026.10.15-e">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Análise Comercial</title>
@@ -910,7 +910,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-d</span><span class="sv-short">10.15-d</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-e</span><span class="sv-short">10.15-e</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2767,6 +2767,36 @@ function hideUpdateOverlay(isError, msg){
   setTimeout(() => ov.classList.remove('show'), 1200);
 }
 
+
+/* ── Busca de uma loja com novas tentativas ──
+   O Apps Script às vezes demora quase 1 minuto ou falha (principalmente
+   com várias telas pedindo dados ao mesmo tempo). Tenta até 3 vezes, com
+   espera entre as tentativas, e só aceita a resposta se vier o CSV de
+   verdade (cabeçalho com "ano" e "total"), não uma página/mensagem de erro. */
+async function buscarLojaComRetentativa(url, tentativas = 3) {
+  let ultimoErro = null;
+  for (let t = 1; t <= tentativas; t++) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), 90000);
+    try {
+      const res = await fetch(url + '&_=' + Date.now() + '_' + t, { cache: 'no-store', signal: ctl.signal });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const txt = await res.text();
+      const cab = (txt.split(/\r?\n/)[0] || '').toLowerCase();
+      if (!/(^|;|,)ano(;|,|$)/.test(cab) || cab.indexOf('total') < 0) throw new Error('resposta inválida: ' + txt.slice(0, 80));
+      return txt;
+    } catch (e) {
+      ultimoErro = e;
+      if (t < tentativas) await new Promise(r => setTimeout(r, 2000 * t));
+    } finally { clearTimeout(timer); }
+  }
+  throw ultimoErro || new Error('falha ao buscar');
+}
+// Mesma loja? (o dado vem como "BELVEDER" e a chave é "belvedere")
+function mesmaLojaZappas(lojaRow, chave) {
+  return String(lojaRow || '').toLowerCase().indexOf(String(chave || '').toLowerCase().slice(0, 8)) === 0;
+}
+
 async function loadData(forceRefresh = false, silent = false) {
   const btn = $('btn-refresh');
   const isFirst = $('content').classList.contains('hidden');
@@ -2793,6 +2823,10 @@ async function loadData(forceRefresh = false, silent = false) {
     }
   }
 
+  // Evita duas atualizações ao mesmo tempo (ex.: faixa de dados novos +
+  // Atualização Geral), que podiam somar a mesma loja duas vezes.
+  if (window.__zappasCarregando) return;
+  window.__zappasCarregando = true;
   btn.classList.add('spin');
   setLdTxt('Carregando CSV…');
   if(isFirst) showLoader(true); else showUpdateOverlay();
@@ -2802,8 +2836,11 @@ async function loadData(forceRefresh = false, silent = false) {
     setLdTxt('Carregando CSV…');
     const quebrasPromise = loadQuebrasMap().catch(e => { console.warn('Quebras (Recebidos) indisponível:', e.message); return {}; });
 
+    // Dado anterior (cache) de cada loja: se a loja falhar de novo nesta
+    // atualização, mantém o que já tinha em vez de a loja sumir da tela.
+    const rawAnterior = Array.isArray(rawData) ? rawData : [];
     rawData = [];
-    const lojasComFalha = [];
+    const lojasComFalha = [], lojasMantidas = [];
     // Busca 2 lojas por vez (em vez de 1 por vez, ou todas de uma vez) —
     // um meio-termo bem mais rápido, mas que ainda evita sobrecarregar o
     // Apps Script disparando as 6 simultaneamente.
@@ -2815,13 +2852,13 @@ async function loadData(forceRefresh = false, silent = false) {
         const idx = i + j;
         const nomeLoja = (STORE_KEYS && STORE_KEYS[idx]) ? STORE_KEYS[idx] : ('arquivo ' + (idx + 1));
         try {
-          const res = await fetch(url + cacheBust, { cache:'no-store' });
-          if (!res.ok) throw new Error('HTTP ' + res.status);
-          const txt = await res.text();
+          const txt = await buscarLojaComRetentativa(url);
           rawData = rawData.concat(parseCSV(txt));
         } catch (errLoja) {
           console.warn('Loja indisponível (' + nomeLoja + '):', errLoja.message);
-          lojasComFalha.push(nomeLoja);
+          const anteriorLoja = rawAnterior.filter(r => mesmaLojaZappas(r.loja, nomeLoja));
+          if (anteriorLoja.length) { rawData = rawData.concat(anteriorLoja); lojasMantidas.push(nomeLoja); }
+          else lojasComFalha.push(nomeLoja);
         }
       }));
     }
@@ -2837,7 +2874,9 @@ async function loadData(forceRefresh = false, silent = false) {
     updateQuebrasStatusUI();
     const tsDate = new Date();
     const ts = tsDate.toLocaleString('pt-BR',{day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});
-    $('fb-ts').textContent = ts + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '');
+    $('fb-ts').textContent = ts
+      + (lojasComFalha.length ? ' ⚠️ Sem dados de: ' + lojasComFalha.join(', ') : '')
+      + (lojasMantidas.length ? ' ⚠️ Não atualizou (mantido o dado anterior): ' + lojasMantidas.join(', ') : '');
     saveCache(rawData, ts, tsDate.getTime(), quebrasMap);
     // Não avisa mais as outras páginas aqui — só a tela inicial
     // ("Atualização Geral") deve disparar esse aviso, senão uma
@@ -2859,6 +2898,7 @@ async function loadData(forceRefresh = false, silent = false) {
     }
     if(isFirst) setTimeout(()=>showLoader(false), 300);
   }
+  window.__zappasCarregando = false;
   btn.classList.remove('spin');
 }
 
