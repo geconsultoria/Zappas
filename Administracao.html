@@ -212,6 +212,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
       </button>
       <div class="side-sub">
         <a href="DRE_Gerencial.html">Demonstrativo de Resultado</a>
+        <a href="Orcamento_2027.html">Orçamento 2027</a>
         <a href="Contas_a_Pagar.html">Contas a Pagar</a>
         <a href="#" class="soon">Contas a Receber (em breve)</a>
         <a href="#" class="soon">Fluxo de Caixa (em breve)</a>
@@ -356,7 +357,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
 var TELA_LABELS = {
   home: 'Início', analise_comercial: 'Análise Comercial', faturamento_lucro: 'Faturamento x Lucro',
-  faturamento_detalhado: 'Faturamento Detalhado', curva_abc_produto: 'Curva ABC Produto', dre_gerencial: 'Demonstrativo de Resultado', contas_a_pagar: 'Contas a Pagar',
+  faturamento_detalhado: 'Faturamento Detalhado', curva_abc_produto: 'Curva ABC Produto', dre_gerencial: 'Demonstrativo de Resultado', orcamento_2027: 'Orçamento 2027', contas_a_pagar: 'Contas a Pagar',
   banco_declaracao: 'Banco', reembolso: 'Reembolso entre Lojas', ciclo_financeiro: 'Ciclo Financeiro', endividamento: 'Controle de Endividamento',
   elaboracao_metas: 'Elaboração de Metas', resultado_meta: 'Resultado Metas', acompanhamento_metas: 'Acompanhamento de Metas'
 };
@@ -367,7 +368,7 @@ var TELA_KEYS = Object.keys(TELA_LABELS);
 var GRUPOS_TELAS = [
   { id: 'inicio', label: 'Início', telas: ['home'] },
   { id: 'comercial', label: 'Comercial', telas: ['analise_comercial', 'faturamento_lucro', 'faturamento_detalhado', 'curva_abc_produto'] },
-  { id: 'financeiro', label: 'Financeiro', telas: ['dre_gerencial', 'contas_a_pagar', 'banco_declaracao', 'reembolso', 'ciclo_financeiro', 'endividamento'] },
+  { id: 'financeiro', label: 'Financeiro', telas: ['dre_gerencial', 'orcamento_2027', 'contas_a_pagar', 'banco_declaracao', 'reembolso', 'ciclo_financeiro', 'endividamento'] },
   { id: 'metas', label: 'Metas', telas: ['elaboracao_metas', 'acompanhamento_metas', 'resultado_meta'] }
 ];
 

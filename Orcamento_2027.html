@@ -5999,7 +5999,7 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(session){
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('orcamento_2027', function(session){
   // Botão "Exportar relatório" só para administradores (igual à Análise Comercial).
   if (session && session.role === 'admin') { var be = document.getElementById('btnExport'); if (be) be.style.display = ''; }
   orcSession = session || null;

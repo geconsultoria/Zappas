@@ -55,6 +55,7 @@
     faturamento_detalhado: { label: "Faturamento Detalhado", href: "Faturamento_Detalhado.html" },
     curva_abc_produto: { label: "Curva ABC Produto", href: "Curva_ABC_Produto.html" },
     dre_gerencial: { label: "Demonstrativo de Resultado", href: "DRE_Gerencial.html" },
+    orcamento_2027: { label: "Orçamento 2027", href: "Orcamento_2027.html" },
     contas_a_pagar: { label: "Contas a Pagar", href: "Contas_a_Pagar.html" },
     banco_declaracao: { label: "Banco", href: "Banco_Declaracao.html" },
     reembolso: { label: "Reembolso entre Lojas", href: "Reembolso.html" },
@@ -169,29 +170,29 @@
     style.id = "auth-guard-styles";
     style.textContent =
       "#auth-guard-overlay{position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;" +
-      "background:linear-gradient(135deg,#0B1E3D 0%,#16283F 55%,#122C52 100%);font-family:'Epilogue',system-ui,sans-serif;}" +
+      "background:linear-gradient(135deg,#0B1E3D 0%,#16283F 55%,#122C52 100%);font-family:Inter,system-ui,sans-serif;}" +
       "#auth-guard-overlay .ag-card{background:#FFFFFF;border-radius:22px;padding:40px 36px;max-width:380px;width:90vw;" +
       "text-align:center;box-shadow:0 12px 48px rgba(0,0,0,.35);}" +
       "#auth-guard-overlay .ag-icon{width:56px;height:56px;border-radius:16px;background:#C8961A;display:flex;align-items:center;" +
       "justify-content:center;margin:0 auto 18px;}" +
       "#auth-guard-overlay .ag-icon svg{width:28px;height:28px;color:#16160F;}" +
-      "#auth-guard-overlay .ag-title{font-family:'Syne',system-ui,sans-serif;font-weight:800;font-size:20px;color:#16160F;margin-bottom:8px;}" +
+      "#auth-guard-overlay .ag-title{font-family:Inter,system-ui,sans-serif;font-weight:800;font-size:20px;color:#16160F;margin-bottom:8px;}" +
       "#auth-guard-overlay .ag-sub{font-size:13px;color:#787868;margin-bottom:22px;line-height:1.5;}" +
       "#auth-guard-overlay .ag-gsi{display:flex;justify-content:center;min-height:44px;}" +
       "#auth-guard-overlay .ag-err{margin-top:14px;font-size:12.5px;color:#B4483A;}" +
       "#auth-guard-overlay .ag-ok{margin-top:14px;font-size:12.5px;color:#3E8F63;}" +
       "#auth-guard-overlay .ag-divider{display:flex;align-items:center;gap:10px;margin:18px 0;color:#AEADA0;font-size:11px;text-transform:uppercase;letter-spacing:.05em;}" +
       "#auth-guard-overlay .ag-divider::before,#auth-guard-overlay .ag-divider::after{content:'';flex:1;height:1px;background:#E8E6DE;}" +
-      "#auth-guard-overlay .ag-link{background:none;border:none;color:#1B3D6E;font-family:'Epilogue',system-ui,sans-serif;font-size:12.5px;" +
+      "#auth-guard-overlay .ag-link{background:none;border:none;color:#1B3D6E;font-family:Inter,system-ui,sans-serif;font-size:12.5px;" +
       "font-weight:600;cursor:pointer;text-decoration:underline;padding:4px;}" +
       "#auth-guard-overlay .ag-link:hover{color:#2C4E78;}" +
       "#auth-guard-overlay .ag-field{margin-bottom:12px;text-align:left;}" +
       "#auth-guard-overlay .ag-field input{width:100%;padding:10px 12px;border:1px solid #D8D5CC;border-radius:10px;" +
-      "font-family:'Epilogue',system-ui,sans-serif;font-size:14px;background:#F7F6F2;text-align:center;letter-spacing:.02em;}" +
+      "font-family:Inter,system-ui,sans-serif;font-size:14px;background:#F7F6F2;text-align:center;letter-spacing:.02em;}" +
       "#auth-guard-overlay .ag-field input:focus{outline:none;border-color:#2C4E78;box-shadow:0 0 0 3px #E4ECF6;}" +
-      "#auth-guard-overlay .ag-field input[type=tel]{letter-spacing:.5em;font-family:'JetBrains Mono',monospace;font-size:18px;font-weight:600;}" +
+      "#auth-guard-overlay .ag-field input[type=tel]{letter-spacing:.5em;font-family:Inter,monospace;font-size:18px;font-weight:600;}" +
       "#auth-guard-overlay .ag-btn{width:100%;background:#1B3D6E;color:#fff;border:none;border-radius:10px;padding:11px 15px;" +
-      "font-family:'Epilogue',system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;}" +
+      "font-family:Inter,system-ui,sans-serif;font-size:13px;font-weight:700;cursor:pointer;margin-top:4px;}" +
       "#auth-guard-overlay .ag-btn:hover{background:#2C4E78;}" +
       "#auth-guard-overlay .ag-btn:disabled{opacity:.6;cursor:default;}" +
       "#auth-guard-overlay .ag-back-link{display:block;margin-top:14px;}" +
@@ -199,9 +200,9 @@
       "#auth-guard-denied .ag-card{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;max-width:380px;}" +
       "#auth-guard-denied .ag-icon{width:64px;height:64px;border-radius:16px;background:#E39184;display:flex;align-items:center;justify-content:center;}" +
       "#auth-guard-denied .ag-icon svg{width:32px;height:32px;color:#fff;}" +
-      "#auth-guard-denied .ag-title{font-family:'Syne',system-ui,sans-serif;font-weight:800;font-size:22px;color:#16160F;}" +
-      "#auth-guard-denied .ag-sub{font-family:'Epilogue',system-ui,sans-serif;font-size:14px;color:#787868;}" +
-      "#auth-guard-denied .ag-back{margin-top:6px;font-family:'Syne',system-ui,sans-serif;font-weight:700;font-size:13px;" +
+      "#auth-guard-denied .ag-title{font-family:Inter,system-ui,sans-serif;font-weight:800;font-size:22px;color:#16160F;}" +
+      "#auth-guard-denied .ag-sub{font-family:Inter,system-ui,sans-serif;font-size:14px;color:#787868;}" +
+      "#auth-guard-denied .ag-back{margin-top:6px;font-family:Inter,system-ui,sans-serif;font-weight:700;font-size:13px;" +
       "color:#16160F;background:#C8961A;padding:10px 20px;border-radius:10px;text-decoration:none;}";
     document.head.appendChild(style);
   }
@@ -465,7 +466,7 @@
   var BACKUP_APP_FILES = [
     "GestaoZappas.html", "Administracao.html", "auth-common.js",
     "Analise_Comercial.html", "Faturamento_Lucro.html", "Faturamento_Detalhado.html", "Curva_ABC_Produto.html",
-    "DRE_Gerencial.html", "Contas_a_Pagar.html", "Banco_Declaracao.html", "Reembolso.html", "Ciclo_Financeiro.html", "Endividamento.html",
+    "DRE_Gerencial.html", "Orcamento_2027.html", "Contas_a_Pagar.html", "Banco_Declaracao.html", "Reembolso.html", "Ciclo_Financeiro.html", "Endividamento.html",
     "Elaboracao_Metas.html", "Acompanhamento_Metas.html", "Resultado_Meta.html"
   ];
 
@@ -492,12 +493,12 @@
       // Overlay de progresso (Atualização Geral / Backup Geral)
       "#ag-adm-overlay{position:fixed;inset:0;z-index:99990;display:none;align-items:center;justify-content:center;background:rgba(10,20,40,.35);backdrop-filter:blur(2px);}" +
       "#ag-adm-overlay.show{display:flex;}" +
-      "#ag-adm-overlay .ag-adm-card{background:#fff;border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:14px;min-width:300px;max-width:440px;box-shadow:0 12px 48px rgba(0,0,0,.25);font-family:'Epilogue',system-ui,sans-serif;}" +
+      "#ag-adm-overlay .ag-adm-card{background:#fff;border-radius:16px;padding:20px 24px;display:flex;align-items:center;gap:14px;min-width:300px;max-width:440px;box-shadow:0 12px 48px rgba(0,0,0,.25);font-family:Inter,system-ui,sans-serif;}" +
       "#ag-adm-overlay .ag-adm-icon{width:40px;height:40px;border-radius:12px;background:#E4ECF6;color:#1B3D6E;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
       "#ag-adm-overlay .ag-adm-icon svg{width:20px;height:20px;}" +
       "#ag-adm-overlay .ag-adm-icon.spin svg{animation:agAdmSpin .9s linear infinite;}" +
       "@keyframes agAdmSpin{to{transform:rotate(360deg);}}" +
-      "#ag-adm-overlay .ag-adm-title{font-family:'Syne',system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#16160F;}" +
+      "#ag-adm-overlay .ag-adm-title{font-family:Inter,system-ui,sans-serif;font-weight:700;font-size:14.5px;color:#16160F;}" +
       "#ag-adm-overlay .ag-adm-sub{font-size:12.5px;color:#787868;margin-top:2px;}" +
       "#ag-adm-overlay .ag-adm-sub.ok{color:#3E8F63;}" +
       "#ag-adm-overlay .ag-adm-sub.err{color:#B4483A;}";
@@ -535,12 +536,12 @@
       var st = document.createElement("style");
       st.id = "ag-confirm-styles";
       st.textContent =
-        "#ag-confirm{position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.4);backdrop-filter:blur(2px);font-family:'Epilogue','IBM Plex Sans',system-ui,sans-serif;}" +
+        "#ag-confirm{position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.4);backdrop-filter:blur(2px);font-family:Inter,system-ui,sans-serif;}" +
         "#ag-confirm .agc-card{background:#fff;border-radius:18px;padding:24px 26px 20px;width:92vw;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);}" +
         "#ag-confirm .agc-top{display:flex;gap:14px;align-items:flex-start;}" +
         "#ag-confirm .agc-icon{width:40px;height:40px;border-radius:12px;background:#E4ECF6;color:#1B3D6E;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
         "#ag-confirm .agc-icon svg{width:20px;height:20px;}" +
-        "#ag-confirm .agc-title{font-family:'Syne','Playfair Display',system-ui,sans-serif;font-weight:700;font-size:15.5px;color:#16160F;margin-bottom:4px;}" +
+        "#ag-confirm .agc-title{font-family:Inter,system-ui,sans-serif;font-weight:700;font-size:15.5px;color:#16160F;margin-bottom:4px;}" +
         "#ag-confirm .agc-msg{font-size:13px;color:#787868;line-height:1.5;}" +
         "#ag-confirm .agc-acoes{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}" +
         "#ag-confirm button{border-radius:10px;padding:9px 16px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}" +
@@ -728,10 +729,10 @@
       st.textContent =
         "#ag-user-footer{flex-shrink:0;padding:10px 10px 12px;border-top:1px solid rgba(255,255,255,.08);}" +
         "#ag-user-footer .ag-uf-info{padding:6px 11px 8px;overflow:hidden;}" +
-        "#ag-user-footer .ag-uf-n{font-family:'Syne','Epilogue',system-ui,sans-serif;font-size:12px;font-weight:600;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
+        "#ag-user-footer .ag-uf-n{font-family:Inter,system-ui,sans-serif;font-size:12px;font-weight:600;color:#fff;line-height:1.3;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
         "#ag-user-footer .ag-uf-e{font-size:10.5px;color:rgba(255,255,255,.5);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}" +
         "#ag-user-footer .ag-uf-sair{display:flex;align-items:center;gap:11px;width:100%;background:none;border:none;cursor:pointer;" +
-        "color:rgba(255,255,255,.7);font-family:'Syne','Epilogue',system-ui,sans-serif;font-weight:600;font-size:13px;padding:9px 11px;border-radius:10px;text-align:left;}" +
+        "color:rgba(255,255,255,.7);font-family:Inter,system-ui,sans-serif;font-weight:600;font-size:13px;padding:9px 11px;border-radius:10px;text-align:left;}" +
         "#ag-user-footer .ag-uf-sair:hover{background:rgba(255,255,255,.07);color:#fff;}" +
         "#ag-user-footer .ag-uf-sair svg{width:18px;height:18px;flex-shrink:0;opacity:.85;}" +
         "#ag-user-footer .ag-uf-atualizar{color:#E9C46A;}" +
@@ -796,6 +797,13 @@
   // item indicado em "depoisDe". Depois disso, o filtro de permissão abaixo
   // esconde o link de quem não tem acesso, igual aos demais.
   var MENU_EXTRA = [
+    {
+      grupo: "financeiro",
+      href: "Orcamento_2027.html",
+      label: "Orçamento 2027",
+      depoisDe: "DRE_Gerencial.html",
+      icone: '<svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>'
+    },
     {
       grupo: "financeiro",
       href: "Endividamento.html",
