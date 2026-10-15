@@ -1463,6 +1463,31 @@ a.side-brand:hover { opacity:.85; }
 .orc-proj-leg { background: #FBF6E4; font-style: italic; padding: 0 5px; border-radius: 3px; }
 .orc-table th:first-child { min-width: 300px; }
 @media (max-width: 700px){ .orc-status { text-align: left; } }
+/* ── Ponto de Equilíbrio ── */
+#orcPeWrap { padding: 18px 22px 22px; }
+.orc-pe-kpis { grid-template-columns: repeat(4, 1fr); margin-bottom: 20px; }
+@media (max-width: 1100px){ .orc-pe-kpis { grid-template-columns: repeat(2,1fr); } }
+@media (max-width: 560px){ .orc-pe-kpis { grid-template-columns: 1fr; } #orcPeWrap { padding: 14px 10px; } }
+.orc-pe-h { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; margin: 22px 0 10px; }
+.orc-pe-h:first-child { margin-top: 0; }
+.orc-pe-tit { font-family: var(--font-display); font-size: 15px; font-weight: 600; color: var(--ink); }
+.orc-pe-sub { font-size: 11px; color: var(--ink-4); margin-top: 2px; }
+.orc-pe-acoes { display:flex; gap:6px; flex-wrap:wrap; }
+.orc-pe-tab { overflow-x:auto; border:1px solid var(--border); border-radius: var(--radius); }
+.orc-pe-tab table { width:100%; border-collapse:collapse; font-size:12px; }
+.orc-pe-tab th { padding:8px 10px; text-align:right; font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-4); background:var(--surface-tint); border-bottom:2px solid var(--border); white-space:nowrap; }
+.orc-pe-tab th:first-child, .orc-pe-tab td:first-child { text-align:left; position:sticky; left:0; background:var(--surface); z-index:1; }
+.orc-pe-tab th:first-child { background:var(--surface-tint); z-index:2; }
+.orc-pe-tab td { padding:7px 10px; text-align:right; font-family:var(--font-numeric); font-variant-numeric:tabular-nums; color:var(--ink-2); border-bottom:1px solid #F0EDE6; white-space:nowrap; }
+.orc-pe-tab td:first-child { font-family:var(--font-body); font-weight:600; color:var(--ink); }
+.orc-pe-tab tr.orc-pe-tot td { font-weight:700; background:var(--surface-tint); border-top:2px solid var(--border-strong); }
+.orc-pe-tab th.orc-pe-dest, .orc-pe-tab td.orc-pe-dest { background: var(--gold-pale); color: var(--ink); font-weight:700; }
+.orc-pe-tab td.orc-pe-risco { background: var(--crimson-light) !important; color: var(--crimson); font-weight:700; }
+.orc-pe-tab td.orc-pe-justo { background: var(--amber-light) !important; color: var(--amber); font-weight:600; }
+.orc-pe-leg { display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--ink-3); margin-top:8px; }
+.orc-pe-leg span::before { content:''; display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; background:var(--c); }
+.orc-pe-analise { display:flex; flex-direction:column; gap:8px; }
+
 
 </style>
 </head>
@@ -1486,13 +1511,13 @@ a.side-brand:hover { opacity:.85; }
 
   <nav class="side-nav">
     <div class="side-item" data-menu="comercial">
-      <button class="side-link" type="button" id="side-link-comercial" data-label="Comercial">
+      <button class="side-link" type="button" data-label="Comercial">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
         <span>Comercial</span>
         <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
       </button>
       <div class="side-sub">
-        <a href="Analise_Comercial.html" id="link-analise-comercial">
+        <a href="Analise_Comercial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           Análise Comercial
         </a>
@@ -1500,7 +1525,7 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
           Faturamento x Lucro
         </a>
-        <a href="Faturamento_Detalhado.html" id="link-faturamento-detalhado">
+        <a href="Faturamento_Detalhado.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           Faturamento Detalhado
         </a>
@@ -1550,10 +1575,6 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
-        </a>
       </div>
     </div>
 
@@ -1580,8 +1601,6 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
 </aside>
-<!-- Menu lateral único: menu-zappas.js redesenha o menu acima. Para mudar o menu de TODAS as telas, edite só o menu-zappas.js. -->
-<script src="menu-zappas.js"></script>
 
 <!-- Conteúdo deslocado à direita da sidebar -->
 <div class="page-content" id="page-content">
@@ -1704,6 +1723,7 @@ a.side-brand:hover { opacity:.85; }
     <button class="dre-view-tab is-active" data-view="orc" onclick="orcSetView('orc')">Orçamento 2027</button>
     <button class="dre-view-tab" data-view="base" onclick="orcSetView('base')">Base 2026</button>
     <button class="dre-view-tab" data-view="real" onclick="orcSetView('real')">Orçado x Realizado</button>
+    <button class="dre-view-tab" data-view="pe" onclick="orcSetView('pe')">Ponto de Equilíbrio</button>
   </div>
   <div class="dre-card" style="margin-bottom:28px">
     <div class="dre-card-header">
@@ -1721,6 +1741,7 @@ a.side-brand:hover { opacity:.85; }
         <tbody id="orcTbody"></tbody>
       </table>
     </div>
+    <div id="orcPeWrap" style="display:none"></div>
   </div>
 
   <!-- METODOLOGIA (janela) -->
@@ -6367,6 +6388,9 @@ function orcRenderTabela(){
   const btnLimpar = document.getElementById('orcBtnLimparAjustes');
   const nAj = loja ? Object.values(orcState.ajustes[loja]||{}).reduce((a,o)=>a+Object.keys(o||{}).length,0) : 0;
   btnLimpar.style.display = (orcView==='orc' && nAj) ? '' : 'none';
+  const peWrap = document.getElementById('orcPeWrap'), tabScroll = document.getElementById('orcTable').closest('.dre-scroll');
+  if(orcView === 'pe'){ tabScroll.style.display = 'none'; peWrap.style.display = ''; orcRenderPE(); return; }
+  tabScroll.style.display = ''; peWrap.style.display = 'none';
   const sinal = (v) => `<span class="${v<0?'val-neg':''}">${v===0?'<span class="val-zero">—</span>':fmt0(v)}</span>`;
   const varCell = (a, b, k) => {
     if(!b) return `<td><span class="val-zero">—</span></td>`;
@@ -6501,6 +6525,152 @@ function orcRenderStatus(){
   else if(quando) st.textContent = 'Versão salva em ' + quando + (orcState.salvoPor ? ' por ' + orcState.salvoPor : '');
   else st.textContent = 'Premissas padrão (ainda não salvo)';
 }
+/* ══════════════════════════════════════════════════════════════
+   PONTO DE EQUILÍBRIO (sobre o Orçamento 2027)
+   Custos variáveis = Impostos + Deduções + CMV + Desp. comerciais
+     (as mesmas linhas que o orçamento calcula como % da receita).
+   Margem de contribuição % = (Receita − Custos variáveis) ÷ Receita.
+   • PE Operacional = (Pessoal + Administrativas + Financeiras + Pró-labore) ÷ MC%
+       → faturamento que zera o Resultado Operacional.
+   • PE de Caixa = (fixos operacionais + Distribuição + IR/CSLL + Empréstimos
+       + Investimentos + Parcelamentos) ÷ MC%
+       → faturamento que zera o Resultado Líquido (cobre todas as saídas).
+   Calculado mês a mês (o fixo muda com o dissídio e o MC% com o mix);
+   o PE do ano é a soma dos 12 meses — piso mensal para as metas de 2027.
+══════════════════════════════════════════════════════════════ */
+let orcPeBase = 'caixa';   // 'oper' | 'caixa' — base usada na tabela mensal/metas
+function orcPEdaLoja(d){
+  const r = { rec:[0], cv:[0], cfo:[0], cfc:[0], mc:[0], peo:[0], pec:[0] };
+  for(let m=1;m<=12;m++){
+    const rec = d.rec[m]||0;
+    const cv  = (d.imp[m]||0)+(d.ded[m]||0)+(d.cmv[m]||0)+(d.dcom[m]||0);
+    const cfo = (d.dpes[m]||0)+(d.dadm[m]||0)+(d.dfin[m]||0)+(d.plab[m]||0);
+    const cfc = cfo+(d.dist[m]||0)+(d.ir[m]||0)+(d.emp[m]||0)+(d.inv[m]||0)+(d.parc[m]||0);
+    const mc  = rec ? (rec-cv)/rec : 0;
+    r.rec.push(rec); r.cv.push(cv); r.cfo.push(cfo); r.cfc.push(cfc); r.mc.push(mc);
+    r.peo.push(mc>0 ? Math.max(0,cfo)/mc : null);
+    r.pec.push(mc>0 ? Math.max(0,cfc)/mc : null);
+  }
+  const soma = a => a.slice(1).reduce((x,v)=>x+(v||0),0);
+  const somaPE = a => a.slice(1).some(v=>v===null) ? null : soma(a);
+  r.ano = { rec:soma(r.rec), cv:soma(r.cv), cfo:soma(r.cfo), cfc:soma(r.cfc),
+            peo:somaPE(r.peo), pec:somaPE(r.pec) };
+  r.ano.mc = r.ano.rec ? (r.ano.rec-r.ano.cv)/r.ano.rec : 0;
+  return r;
+}
+function orcSetPeBase(b){ orcPeBase = b; orcRenderPE(); }
+function orcCopiarPE(){
+  const sel = orcLojasSel(), k = orcPeBase==='oper' ? 'peo' : 'pec';
+  const nome = l => l==='BELVEDER'?'BELVEDERE':l;
+  const f = v => v===null ? '' : (Math.round(v*100)/100).toString().replace('.',',');
+  const linhas = [['Loja', ...MES_FULL.slice(1), 'Total '+ORC_ANO].join('\t')];
+  sel.forEach(l => { const p = orcPEdaLoja(orcCalc.porLoja[l].orc); linhas.push([nome(l), ...p[k].slice(1).map(f), f(p.ano[k])].join('\t')); });
+  const txt = linhas.join('\n');
+  const ok = () => { const b = document.getElementById('orcPeCopiar'); if(b){ b.textContent = '✓ Copiado'; setTimeout(()=>b.textContent='Copiar tabela', 1500); } };
+  if(navigator.clipboard) navigator.clipboard.writeText(txt).then(ok, ()=>alert('Não foi possível copiar.'));
+}
+function orcRenderPE(){
+  const wrap = document.getElementById('orcPeWrap');
+  const titulo = document.getElementById('orcTabTitulo'), sub = document.getElementById('orcTabSub');
+  titulo.textContent = 'Ponto de Equilíbrio ' + ORC_ANO;
+  sub.textContent = 'Faturamento mínimo, mês a mês, para não ter prejuízo com os custos orçados — base para as metas de ' + ORC_ANO + '.';
+  const sel = orcLojasSel();
+  if(!sel.length){ wrap.innerHTML = '<div class="recon-empty">Nenhuma loja selecionada.</div>'; return; }
+  const nome = l => l==='BELVEDER'?'BELVEDERE':l;
+  const dados = sel.map(l => ({ loja:l, p: orcPEdaLoja(orcCalc.porLoja[l].orc) }));
+  const kb = orcPeBase==='oper' ? 'peo' : 'pec';
+  const rotBase = orcPeBase==='oper' ? 'PE Operacional' : 'PE de Caixa';
+  const v0 = v => v===null ? '<span class="val-neg">MC negativa</span>' : fmt0(v);
+  const pc = v => isFinite(v) ? fmtPct(v*100) : '—';
+
+  // Consolidado: soma do PE de cada loja (cada loja precisa atingir o seu)
+  const somaK = (k) => dados.some(d=>d.p.ano[k]===null) ? null : dados.reduce((a,d)=>a+d.p.ano[k],0);
+  const C = { rec: dados.reduce((a,d)=>a+d.p.ano.rec,0), cv: dados.reduce((a,d)=>a+d.p.ano.cv,0),
+              cfo: dados.reduce((a,d)=>a+d.p.ano.cfo,0), cfc: dados.reduce((a,d)=>a+d.p.ano.cfc,0),
+              peo: somaK('peo'), pec: somaK('pec') };
+  C.mc = C.rec ? (C.rec-C.cv)/C.rec : 0;
+  const msC = (C[kb]!==null && C.rec) ? (C.rec-C[kb])/C.rec : null;
+
+  const kpi = (cls, rot, val, subTxt) => `<div class="kpi-card ${cls}"><div class="kpi-eyebrow"><span class="kpi-dot"></span>${rot}</div>
+    <div class="kpi-value">${val}</div><div class="kpi-sub">${subTxt}</div></div>`;
+  const kpis = `<div class="kpi-grid orc-pe-kpis">
+    ${kpi('gold','PE de Caixa '+ORC_ANO, C.pec===null?'—':fmtShort(C.pec), C.pec===null?'margem negativa em algum mês':pc(C.pec/C.rec)+' da receita orçada')}
+    ${kpi('navy','PE Operacional '+ORC_ANO, C.peo===null?'—':fmtShort(C.peo), C.peo===null?'margem negativa em algum mês':pc(C.peo/C.rec)+' da receita orçada')}
+    ${kpi('emerald','Margem de Contribuição', pc(C.mc), 'Receita orçada '+fmtShort(C.rec))}
+    ${kpi(msC!==null&&msC>=0?'emerald':'crimson','Margem de Segurança', msC===null?'—':pc(msC), 'Folga da receita orçada sobre o '+rotBase)}
+  </div>`;
+
+  // Resumo anual por loja
+  const linhasResumo = dados.map(({loja,p}) => {
+    const a = p.ano, pe = a[kb];
+    const ms = (pe!==null && a.rec) ? (a.rec-pe)/a.rec : null;
+    const mesesAbaixo = []; for(let m=1;m<=12;m++){ const v=p[kb][m]; if(v===null || p.rec[m] < v) mesesAbaixo.push(MES_ABR[m]); }
+    return `<tr><td>${nome(loja)}</td><td>${fmt0(a.rec)}</td><td>${fmt0(a.cv)}</td><td>${pc(a.mc)}</td>
+      <td>${fmt0(a.cfo)}</td><td class="${kb==='peo'?'orc-pe-dest':''}">${v0(a.peo)}</td>
+      <td>${fmt0(a.cfc)}</td><td class="${kb==='pec'?'orc-pe-dest':''}">${v0(a.pec)}</td>
+      <td class="${ms===null?'':ms<0?'val-neg':ms<0.1?'':'val-pos'}">${ms===null?'—':pc(ms)}</td>
+      <td style="text-align:left">${mesesAbaixo.length?`<span class="val-neg">${mesesAbaixo.join(', ')}</span>`:'<span class="val-pos">nenhum</span>'}</td></tr>`;
+  }).join('');
+  const totResumo = `<tr class="orc-pe-tot"><td>Consolidado</td><td>${fmt0(C.rec)}</td><td>${fmt0(C.cv)}</td><td>${pc(C.mc)}</td>
+    <td>${fmt0(C.cfo)}</td><td class="${kb==='peo'?'orc-pe-dest':''}">${v0(C.peo)}</td><td>${fmt0(C.cfc)}</td><td class="${kb==='pec'?'orc-pe-dest':''}">${v0(C.pec)}</td>
+    <td>${msC===null?'—':pc(msC)}</td><td></td></tr>`;
+
+  // PE mensal por loja (base para as metas)
+  const totMes = new Array(13).fill(0), recMes = new Array(13).fill(0); let totNull = new Array(13).fill(false);
+  const linhasMes = dados.map(({loja,p}) => {
+    const cells = [];
+    for(let m=1;m<=12;m++){
+      const pe = p[kb][m], rec = p.rec[m];
+      recMes[m] += rec;
+      if(pe===null){ totNull[m] = true; cells.push(`<td class="orc-pe-risco" title="Margem de contribuição negativa: os custos variáveis passam da receita orçada">MC neg.</td>`); continue; }
+      totMes[m] += pe;
+      const folga = rec ? (rec-pe)/rec : 0;
+      const cls = rec < pe ? 'orc-pe-risco' : folga < 0.05 ? 'orc-pe-justo' : '';
+      cells.push(`<td class="${cls}" title="Receita orçada: R$ ${fmt0(rec)} · folga ${pc(folga)}">${fmt0(pe)}</td>`);
+    }
+    return `<tr><td>${nome(loja)}</td>${cells.join('')}<td style="font-weight:700">${v0(p.ano[kb])}</td></tr>`;
+  }).join('');
+  const totMesCells = totMes.slice(1).map((v,i)=> totNull[i+1] ? '<td>—</td>' : `<td class="${recMes[i+1]<v?'orc-pe-risco':''}">${fmt0(v)}</td>`).join('');
+  const linhaRecMes = `<tr><td style="color:var(--ink-3);font-weight:500">Receita orçada (consolidado)</td>${recMes.slice(1).map(v=>`<td style="color:var(--ink-3)">${fmt0(v)}</td>`).join('')}<td style="color:var(--ink-3)">${fmt0(C.rec)}</td></tr>`;
+
+  // Análises automáticas
+  const an = [];
+  if(C[kb]!==null){
+    an.push({t: msC>=0.1?'ok':msC>=0?'warning':'critical', txt:`Consolidado: o <strong>${rotBase}</strong> de ${ORC_ANO} é <strong>R$ ${fmt0(C[kb])}</strong> (${pc(C[kb]/C.rec)} da receita orçada de R$ ${fmt0(C.rec)}). Margem de segurança de <strong>${pc(msC)}</strong>: as vendas podem cair até esse percentual antes de gerar prejuízo${orcPeBase==='caixa'?' de caixa':' operacional'}.`});
+  }
+  const comMs = dados.map(({loja,p}) => ({ loja, pe:p.ano[kb], ms: (p.ano[kb]!==null && p.ano.rec) ? (p.ano.rec-p.ano[kb])/p.ano.rec : null, p }));
+  comMs.filter(x=>x.ms===null).forEach(x => an.push({t:'critical', txt:`<strong>${nome(x.loja)}</strong>: em algum mês os custos variáveis (CMV, impostos, deduções, comerciais) superam a receita orçada — não existe ponto de equilíbrio nesses meses. Revise preço/CMV dessa loja.`}));
+  comMs.filter(x=>x.ms!==null && x.ms<0).forEach(x => an.push({t:'critical', txt:`<strong>${nome(x.loja)}</strong> está orçada <strong>abaixo</strong> do ponto de equilíbrio no ano (faltam R$ ${fmt0(x.pe - x.p.ano.rec)}, ${pc(-x.ms)} da receita). A meta precisa ser de pelo menos R$ ${fmt0(x.pe)}, ou os custos fixos precisam cair.`}));
+  comMs.filter(x=>x.ms!==null && x.ms>=0 && x.ms<0.1).forEach(x => an.push({t:'warning', txt:`<strong>${nome(x.loja)}</strong> tem margem de segurança apertada (${pc(x.ms)}). Pequena queda de vendas já leva ao prejuízo.`}));
+  const melhor = comMs.filter(x=>x.ms!==null).sort((a,b)=>b.ms-a.ms)[0];
+  if(melhor && melhor.ms>=0.1) an.push({t:'ok', txt:`Maior folga: <strong>${nome(melhor.loja)}</strong>, com margem de segurança de ${pc(melhor.ms)} e margem de contribuição de ${pc(melhor.p.ano.mc)}.`});
+  const mesesRisco = [];
+  dados.forEach(({loja,p}) => { for(let m=1;m<=12;m++){ const v=p[kb][m]; if(v!==null && p.rec[m]<v) mesesRisco.push(`${nome(loja)} ${MES_ABR[m]}`); } });
+  if(mesesRisco.length) an.push({t:'warning', txt:`Meses com receita orçada abaixo do PE (sazonalidade): ${mesesRisco.join(', ')}. Nesses meses a meta deve ficar acima do PE e o caixa precisa da sobra dos meses fortes.`});
+  an.push({t:'info', txt:`<strong>Uso nas metas ${ORC_ANO}:</strong> o PE mensal de cada loja é o piso da meta — informe-o no campo "Ponto de Equilíbrio" da Elaboração de Metas e acompanhe a coluna Diferença (Meta − PE). Na BADY, a Elaboração separa Loja e Delivery: divida o PE pela participação de cada canal no faturamento.`});
+  const analise = an.map(r => `<div class="rec-card rec-${r.t}"><div class="rec-icon">${r.t==='critical'?'🔴':r.t==='warning'?'🟡':r.t==='info'?'🔵':'🟢'}</div><div class="rec-text">${r.txt}</div></div>`).join('');
+
+  const bt = (b, rot) => `<button class="btn-toggle-all${orcPeBase===b?' btn-av-toggle active':''}" onclick="orcSetPeBase('${b}')">${rot}</button>`;
+  wrap.innerHTML = `
+    ${kpis}
+    <div class="orc-pe-h"><div><div class="orc-pe-tit">Resumo por loja — ${ORC_ANO}</div>
+      <div class="orc-pe-sub">Custos variáveis = Impostos + Deduções + CMV + Desp. comerciais · Fixos operacionais = Pessoal + Administrativas + Financeiras + Pró-labore · Fixos + compromissos inclui Distribuição, IR/CSLL, Empréstimos, Investimentos e Parcelamentos</div></div>
+      <div class="orc-pe-acoes">${bt('caixa','PE de Caixa')}${bt('oper','PE Operacional')}</div></div>
+    <div class="orc-pe-tab"><table>
+      <thead><tr><th>Loja</th><th>Receita orçada</th><th>Custos variáveis</th><th>MC %</th><th>Fixos operacionais</th><th class="${kb==='peo'?'orc-pe-dest':''}">PE Operacional</th><th>Fixos + compromissos</th><th class="${kb==='pec'?'orc-pe-dest':''}">PE de Caixa</th><th>Margem segurança</th><th style="text-align:left">Meses abaixo do PE</th></tr></thead>
+      <tbody>${linhasResumo}${totResumo}</tbody></table></div>
+
+    <div class="orc-pe-h"><div><div class="orc-pe-tit">${rotBase} mensal por loja — piso das metas ${ORC_ANO}</div>
+      <div class="orc-pe-sub">Passe o mouse sobre um valor para ver a receita orçada e a folga do mês.</div></div>
+      <div class="orc-pe-acoes"><button class="btn-toggle-all" id="orcPeCopiar" onclick="orcCopiarPE()" title="Copia a tabela para colar no Excel/Planilhas">Copiar tabela</button></div></div>
+    <div class="orc-pe-tab"><table>
+      <thead><tr><th>Loja</th>${MES_ABR.slice(1).map(m=>`<th>${m}</th>`).join('')}<th>Total ${ORC_ANO}</th></tr></thead>
+      <tbody>${linhasMes}<tr class="orc-pe-tot"><td>Consolidado</td>${totMesCells}<td>${v0(C[kb])}</td></tr>${linhaRecMes}</tbody></table></div>
+    <div class="orc-pe-leg"><span style="--c:var(--crimson-light)">Receita orçada abaixo do PE</span><span style="--c:var(--amber-light)">Folga menor que 5%</span></div>
+
+    <div class="orc-pe-h"><div class="orc-pe-tit">Análises</div></div>
+    <div class="orc-pe-analise">${analise}</div>`;
+}
 function orcTabelaPlana(){
   const linhas = [];
   orcCalc.lojas.forEach(l => {
@@ -6517,6 +6687,11 @@ function orcTabelaPlana(){
       const v = T[L.k].slice(1).map(x => Math.round((x||0)*100)/100);
       linhas.push([l==='BELVEDER'?'BELVEDERE':l, L.l, ...v, Math.round(v.reduce((a,b)=>a+b,0)*100)/100]);
     });
+    // Ponto de equilíbrio mensal (vai junto para a planilha ORCAMENTO_2027, base das metas)
+    const pe = orcPEdaLoja(d);
+    const r2 = x => x===null ? '' : Math.round(x*100)/100;
+    linhas.push([l==='BELVEDER'?'BELVEDERE':l, 'PONTO DE EQUILÍBRIO OPERACIONAL', ...pe.peo.slice(1).map(r2), r2(pe.ano.peo)]);
+    linhas.push([l==='BELVEDER'?'BELVEDERE':l, 'PONTO DE EQUILÍBRIO DE CAIXA', ...pe.pec.slice(1).map(r2), r2(pe.ano.pec)]);
   });
   return linhas;
 }
@@ -6621,6 +6796,17 @@ function orcAbrirMetodologia(){
       <tr><td>Distribuição, IR+CSLL, Empréstimos, Investimentos, Parcelamentos</td><td>${pc(P.distVar)} · ${pc(P.irVar)} · ${pc(P.empVar)} · ${pc(P.invVar)} · ${pc(P.parcVar)} sobre a base.</td></tr>
       <tr><td>Valores digitados</td><td>Com uma loja selecionada, qualquer valor mensal pode ser digitado no Demonstrativo e substitui o calculado (fica em amarelo). Se a receita for digitada, os custos variáveis daquele mês acompanham.</td></tr>
     </table>
+
+    <h4>Ponto de Equilíbrio</h4>
+    <ul>
+      <li><strong>Custos variáveis</strong> = Impostos + Deduções + CMV + Despesas comerciais (as linhas que o orçamento calcula como % da receita).</li>
+      <li><strong>Margem de contribuição %</strong> = (Receita − Custos variáveis) ÷ Receita.</li>
+      <li><strong>PE Operacional</strong> = (Pessoal + Administrativas + Financeiras + Pró-labore) ÷ MC% — faturamento que zera o Resultado Operacional.</li>
+      <li><strong>PE de Caixa</strong> = (fixos operacionais + Distribuição + IR/CSLL + Empréstimos + Investimentos + Parcelamentos) ÷ MC% — faturamento que zera o Resultado Líquido.</li>
+      <li>Calculado <strong>mês a mês e por loja</strong>; o do ano é a soma dos meses. O consolidado soma o PE de cada loja.</li>
+      <li><strong>Margem de segurança</strong> = (Receita orçada − PE) ÷ Receita orçada.</li>
+      <li>O PE mensal é o <strong>piso das metas ${ORC_ANO}</strong> e é salvo junto com o orçamento na planilha.</li>
+    </ul>
 
     <h4>Totalizadores</h4>
     <ul>
