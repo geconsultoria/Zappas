@@ -1058,6 +1058,9 @@ tr.is-open .expand-hint { display: none; }
 
 .recon-detail-row { display: none; }
 .recon-detail-row.open { display: table-row; }
+.recon-lojas .recon-row { cursor: pointer; }
+.recon-lojas .recon-row td:first-child { font-weight: 600; }
+.recon-lojas .recon-detail-row > td { padding: 4px 8px 10px 26px !important; }
 .recon-detail-row > td { background: var(--surface-tint); padding: 4px 12px 12px 34px !important; }
 
 .recon-subtable-wrap { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
@@ -3737,30 +3740,59 @@ function renderConciliacao(){
     return;
   }
 
+  // Uma linha por TÍTULO (tipo + código + motivo) com o total de todas as
+  // lojas. Ao clicar, abre a quebra por loja; clicando na loja, abre os
+  // lançamentos individuais daquela loja.
   const agg = new Map();
   pendentes.forEach(l=>{
-    const key = l.tipo+'|'+l.loja+'|'+l.codigo+'|'+l.motivo;
-    const cur = agg.get(key) || { tipo:l.tipo, loja:l.loja, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0, itens:[] };
-    cur.qtd++; cur.valor += l.valor; cur.itens.push(l);
+    const key = l.tipo+'|'+l.status+'|'+l.codigo+'|'+l.motivo;
+    const cur = agg.get(key) || { tipo:l.tipo, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0, lojasMap:new Map() };
+    cur.qtd++; cur.valor += l.valor;
+    const lj = l.loja || '—';
+    const g = cur.lojasMap.get(lj) || { loja:lj, qtd:0, valor:0, itens:[] };
+    g.qtd++; g.valor += l.valor; g.itens.push(l);
+    cur.lojasMap.set(lj, g);
     agg.set(key, cur);
+  });
+  agg.forEach(it => {
+    it.lojas = [...it.lojasMap.values()].sort((a,b)=>b.valor-a.valor);
+    // Rótulo da coluna Loja na linha do título (também usado na ordenação).
+    it.loja = it.lojas.length === 1 ? it.lojas[0].loja : it.lojas.length + ' lojas';
   });
   // Ordena a lista pela coluna escolhida pelo usuário (clicando no
   // cabeçalho da tabela — ver setReconSort/reconSortCol). Sem escolha
   // nenhuma, mantém o padrão histórico: maior valor primeiro.
   const detalhe = ordenarDetalheConciliacao([...agg.values()]);
 
-  // Guarda os itens de cada grupo pra montar a lista de títulos individuais
-  // só quando o usuário clicar em cima (evita montar tudo de antemão se o
-  // grupo tiver muitos lançamentos).
+  const CHEV = id => `<span class="row-chevron" id="${id}"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>`;
   reconGruposAtuais = {};
   const rowsHtml = detalhe.map((it,i) => {
     const rid = 'r'+i;
-    reconGruposAtuais[rid] = it;
+    const lojasHtml = it.lojas.map((g,j) => {
+      const lid = rid+'_'+j;
+      reconGruposAtuais[lid] = g;
+      return `
+            <tr class="recon-row" onclick="event.stopPropagation();toggleReconGrupo('${lid}')">
+              <td>${CHEV('reconChev_'+lid)}${g.loja}</td>
+              <td class="num">${g.qtd.toLocaleString('pt-BR')}</td>
+              <td class="num">R$ ${fmtBRL(g.valor)}</td>
+            </tr>
+            <tr class="recon-detail-row" id="reconDet_${lid}">
+              <td colspan="3">
+                <div class="recon-subtable-wrap">
+                  <table class="recon-subtable">
+                    <thead><tr><th>Data</th><th>Título / Descrição</th><th class="num">Valor (R$)</th></tr></thead>
+                    <tbody class="recon-subtable-body"></tbody>
+                  </table>
+                </div>
+              </td>
+            </tr>`;
+    }).join('');
     return `
-    <tr class="recon-row" onclick="toggleReconGrupo('${rid}')">
-      <td><span class="row-chevron" id="reconChev_${rid}"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>
-        <span class="recon-pill ${it.status==='info'?'info':it.tipo}">${it.status==='info'?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
-      <td>${it.loja||'—'}</td>
+    <tr class="recon-row" onclick="toggleReconTitulo('${rid}')">
+      <td>${CHEV('reconChev_'+rid)}
+        <span class="recon-pill ${it.status==='info'?'info':it.tipo}">${reconTipoLabel(it)}</span></td>
+      <td>${it.loja}</td>
       <td>${it.codigo||'—'}</td>
       <td>${it.motivo}</td>
       <td class="num">${it.qtd.toLocaleString('pt-BR')}</td>
@@ -3768,12 +3800,10 @@ function renderConciliacao(){
     </tr>
     <tr class="recon-detail-row" id="reconDet_${rid}">
       <td colspan="6">
-        <div class="recon-subtable-wrap">
-          <table class="recon-subtable">
-            <thead><tr><th>Data</th><th>Título / Descrição</th><th class="num">Valor (R$)</th></tr></thead>
-            <tbody class="recon-subtable-body"></tbody>
-          </table>
-        </div>
+        <table class="recon-subtable recon-lojas">
+          <thead><tr><th>Loja</th><th class="num">Lançamentos</th><th class="num">Valor (R$)</th></tr></thead>
+          <tbody>${lojasHtml}</tbody>
+        </table>
       </td>
     </tr>`;
   }).join('');
@@ -3783,6 +3813,16 @@ function renderConciliacao(){
       <thead><tr>${reconTh('tipo','Tipo')}${reconTh('loja','Loja')}${reconTh('codigo','Código')}${reconTh('motivo','Motivo')}${reconTh('qtd','Lançamentos',true)}${reconTh('valor','Valor (R$)',true)}</tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
+}
+
+// Abre/fecha a quebra por loja de um título da Conciliação do De-Para.
+function toggleReconTitulo(rid){
+  const detRow = document.getElementById('reconDet_'+rid);
+  const chev = document.getElementById('reconChev_'+rid);
+  if(!detRow) return;
+  const abrir = !detRow.classList.contains('open');
+  detRow.classList.toggle('open', abrir);
+  if(chev) chev.classList.toggle('is-open', abrir);
 }
 
 // ─── Ordenação do grid de Conciliação do De-Para ───
