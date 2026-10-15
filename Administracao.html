@@ -122,9 +122,16 @@ tbody tr:hover{background:var(--surf-2);}
 .modal-overlay{position:fixed;inset:0;background:rgba(10,20,40,.4);backdrop-filter:blur(2px);z-index:400;
   display:none;align-items:center;justify-content:center;}
 .modal-overlay.show{display:flex;}
-.modal{background:var(--surface);border-radius:var(--r-xl);padding:28px;width:92vw;max-width:460px;max-height:88vh;overflow-y:auto;
+.modal{background:var(--surface);border-radius:var(--r-xl);padding:28px;width:92vw;max-width:900px;max-height:94vh;overflow-y:auto;
   box-shadow:0 20px 60px rgba(0,0,0,.3);}
-.modal h3{font-family:var(--font-head);font-size:17px;margin-bottom:18px;}
+.modal h3{font-family:var(--font-head);font-size:17px;margin-bottom:16px;}
+/* Modal em duas colunas: dados do usuário | telas liberadas — tudo visível sem rolagem */
+.modal-body{display:grid;grid-template-columns:minmax(0,320px) minmax(0,1fr);gap:24px;align-items:start;}
+.modal-col-perm{border-left:1px solid var(--border);padding-left:24px;min-height:100%;}
+@media (max-width:780px){
+  .modal-body{grid-template-columns:1fr;gap:6px;}
+  .modal-col-perm{border-left:none;padding-left:0;}
+}
 .field{margin-bottom:14px;}
 .field label{display:block;font-size:11px;font-weight:700;color:var(--ink-3);margin-bottom:5px;letter-spacing:.02em;}
 .field input[type=text],.field input[type=email],.field select{
@@ -286,6 +293,8 @@ tbody tr:hover{background:var(--surf-2);}
 <div class="modal-overlay" id="modal-overlay">
   <div class="modal">
     <h3 id="modal-title">Novo usuário</h3>
+    <div class="modal-body">
+    <div class="modal-col modal-col-dados">
     <div class="field">
       <label>E-mail (qualquer conta Google, inclusive Gmail pessoal)</label>
       <input type="email" id="f-email" placeholder="nome.sobrenome@gmail.com">
@@ -311,6 +320,8 @@ tbody tr:hover{background:var(--surf-2);}
         <option value="">Todas as lojas</option>
       </select>
     </div>
+    </div>
+    <div class="modal-col modal-col-perm">
     <div id="bloco-permissoes">
       <div class="perm-head">
         <label>Telas liberadas</label>
@@ -322,6 +333,8 @@ tbody tr:hover{background:var(--surf-2);}
       <div class="perm-grid" id="perm-grid"></div>
     </div>
     <div class="perm-note" id="perm-note" style="display:none;">Administradores têm acesso total a todas as telas, independente das permissões marcadas.</div>
+    </div>
+    </div>
     <div class="err-msg" id="modal-err"></div>
     <div class="modal-actions">
       <button class="btn ghost" type="button" id="btn-remover" style="margin-right:auto;">Remover usuário</button>
