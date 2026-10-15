@@ -134,8 +134,27 @@ tbody tr:hover{background:var(--surf-2);}
 .check-row{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
 .check-row label{font-size:12.5px;font-weight:600;color:var(--ink-2);}
 .perm-note{background:var(--blue-lt);color:var(--blue);border-radius:var(--r);padding:10px 12px;font-size:12px;margin-bottom:6px;}
-.perm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin-bottom:6px;}
-.perm-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);}
+/* Telas liberadas agrupadas igual ao menu (Início / Comercial / Financeiro / Metas) */
+.perm-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;}
+.perm-head label{font-size:11px;font-weight:700;color:var(--ink-3);}
+.perm-acoes{display:flex;gap:12px;}
+.perm-acoes button{background:none;border:none;color:var(--blue);font-family:var(--font-body);font-size:11.5px;font-weight:600;cursor:pointer;padding:0;}
+.perm-acoes button:hover{text-decoration:underline;}
+.perm-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:6px;}
+.perm-grupo{border:1px solid var(--border);border-radius:var(--r);background:var(--surf-2);overflow:hidden;}
+.perm-grupo-head{display:flex;align-items:center;gap:9px;padding:9px 12px;cursor:pointer;user-select:none;}
+.perm-grupo-head input{margin:0;width:15px;height:15px;cursor:pointer;accent-color:var(--blue);flex-shrink:0;}
+.perm-grupo-nome{font-family:var(--font-head);font-weight:700;font-size:12.5px;color:var(--ink);}
+.perm-grupo-cont{margin-left:auto;font-family:var(--font-mono);font-size:11px;color:var(--ink-4);}
+.perm-grupo-cont.cheio{color:var(--green);font-weight:600;}
+.perm-grupo-chev{width:14px;height:14px;color:var(--ink-4);transition:transform .18s ease;flex-shrink:0;}
+.perm-grupo.aberto .perm-grupo-chev{transform:rotate(180deg);}
+.perm-grupo-itens{display:none;grid-template-columns:1fr 1fr;gap:7px 12px;padding:10px 12px 11px 36px;border-top:1px solid var(--border);background:var(--surface);}
+.perm-grupo.aberto .perm-grupo-itens{display:grid;}
+.perm-grupo.unico .perm-grupo-chev,.perm-grupo.unico .perm-grupo-cont{display:none;}
+.perm-item{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--ink-2);cursor:pointer;}
+.perm-item input{margin:0;accent-color:var(--blue);cursor:pointer;}
+@media (max-width:480px){.perm-grupo-itens{grid-template-columns:1fr;}}
 .modal-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}
 .btn.ghost{background:none;color:var(--ink-3);border:1px solid var(--border-2);}
 .btn.ghost:hover{background:var(--bg-2);color:var(--ink);}
@@ -293,7 +312,13 @@ tbody tr:hover{background:var(--surf-2);}
       </select>
     </div>
     <div id="bloco-permissoes">
-      <label style="display:block;font-size:11px;font-weight:700;color:var(--ink-3);margin-bottom:8px;">Telas liberadas</label>
+      <div class="perm-head">
+        <label>Telas liberadas</label>
+        <div class="perm-acoes">
+          <button type="button" id="perm-marcar-todas">Marcar todas</button>
+          <button type="button" id="perm-desmarcar-todas">Desmarcar todas</button>
+        </div>
+      </div>
       <div class="perm-grid" id="perm-grid"></div>
     </div>
     <div class="perm-note" id="perm-note" style="display:none;">Administradores têm acesso total a todas as telas, independente das permissões marcadas.</div>
@@ -317,6 +342,15 @@ var TELA_LABELS = {
   elaboracao_metas: 'Elaboração de Metas', resultado_meta: 'Resultado Metas', acompanhamento_metas: 'Acompanhamento de Metas'
 };
 var TELA_KEYS = Object.keys(TELA_LABELS);
+
+// Telas agrupadas igual ao menu lateral. Tela nova: inclua em TELA_LABELS
+// e no grupo certo aqui. O que é salvo continua sendo { telaKey: true/false }.
+var GRUPOS_TELAS = [
+  { id: 'inicio', label: 'Início', telas: ['home'] },
+  { id: 'comercial', label: 'Comercial', telas: ['analise_comercial', 'faturamento_lucro', 'faturamento_detalhado', 'curva_abc_produto'] },
+  { id: 'financeiro', label: 'Financeiro', telas: ['dre_gerencial', 'contas_a_pagar', 'banco_declaracao', 'reembolso', 'ciclo_financeiro', 'endividamento'] },
+  { id: 'metas', label: 'Metas', telas: ['elaboracao_metas', 'acompanhamento_metas', 'resultado_meta'] }
+];
 
 // Mantenha igual à lista STORE_KEYS usada em Acompanhamento_Metas.html.
 var STORE_LABELS = {
@@ -355,11 +389,70 @@ AuthGuard.requireScreen('admin', function (session) {
   $('btn-novo-usuario').addEventListener('click', function () { abrirModal(null); });
 });
 
+// Lista de "Telas liberadas" separada por grupo do menu. Cada checkbox de tela
+// continua com data-tela (abrirModal/salvarUsuario leem por ele); o checkbox do
+// grupo (.perm-grupo-chk, sem data-tela) só marca/desmarca as telas do grupo.
 function renderPermGrid() {
   var grid = $('perm-grid');
-  grid.innerHTML = TELA_KEYS.map(function (key) {
-    return '<label class="perm-item"><input type="checkbox" data-tela="' + key + '"> ' + TELA_LABELS[key] + '</label>';
+  var chev = '<svg class="perm-grupo-chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>';
+  grid.innerHTML = GRUPOS_TELAS.map(function (g) {
+    var unico = g.telas.length === 1;
+    if (unico) {
+      // Grupo com uma tela só (Início): a própria linha é a tela.
+      return '<div class="perm-grupo unico"><label class="perm-grupo-head">' +
+        '<input type="checkbox" data-tela="' + g.telas[0] + '">' +
+        '<span class="perm-grupo-nome">' + TELA_LABELS[g.telas[0]] + '</span></label></div>';
+    }
+    return '<div class="perm-grupo aberto" data-grupo="' + g.id + '">' +
+      '<div class="perm-grupo-head">' +
+      '<input type="checkbox" class="perm-grupo-chk" aria-label="Liberar todo o grupo ' + g.label + '">' +
+      '<span class="perm-grupo-nome">' + g.label + '</span>' +
+      '<span class="perm-grupo-cont"></span>' + chev + '</div>' +
+      '<div class="perm-grupo-itens">' +
+      g.telas.map(function (key) {
+        return '<label class="perm-item"><input type="checkbox" data-tela="' + key + '"> ' + TELA_LABELS[key] + '</label>';
+      }).join('') +
+      '</div></div>';
   }).join('');
+
+  grid.querySelectorAll('.perm-grupo[data-grupo]').forEach(function (grupoEl) {
+    var gchk = grupoEl.querySelector('.perm-grupo-chk');
+    // Clicar no nome do grupo abre/fecha; clicar no checkbox marca o grupo inteiro.
+    grupoEl.querySelector('.perm-grupo-head').addEventListener('click', function (ev) {
+      if (ev.target === gchk) return;
+      grupoEl.classList.toggle('aberto');
+    });
+    gchk.addEventListener('change', function () {
+      grupoEl.querySelectorAll('input[data-tela]').forEach(function (cb) { cb.checked = gchk.checked; });
+      atualizarGrupoPerm(grupoEl);
+    });
+    grupoEl.querySelectorAll('input[data-tela]').forEach(function (cb) {
+      cb.addEventListener('change', function () { atualizarGrupoPerm(grupoEl); });
+    });
+  });
+
+  function marcarTodas(sim) {
+    grid.querySelectorAll('input[data-tela]').forEach(function (cb) { cb.checked = sim; });
+    atualizarGruposPerm();
+  }
+  $('perm-marcar-todas').addEventListener('click', function () { marcarTodas(true); });
+  $('perm-desmarcar-todas').addEventListener('click', function () { marcarTodas(false); });
+}
+
+// Atualiza o checkbox do grupo (cheio / parcial / vazio) e o contador "2/6".
+function atualizarGrupoPerm(grupoEl) {
+  var itens = grupoEl.querySelectorAll('input[data-tela]');
+  var n = 0;
+  itens.forEach(function (cb) { if (cb.checked) n++; });
+  var gchk = grupoEl.querySelector('.perm-grupo-chk');
+  gchk.checked = n > 0 && n === itens.length;
+  gchk.indeterminate = n > 0 && n < itens.length;
+  var cont = grupoEl.querySelector('.perm-grupo-cont');
+  cont.textContent = n + '/' + itens.length;
+  cont.classList.toggle('cheio', n === itens.length);
+}
+function atualizarGruposPerm() {
+  document.querySelectorAll('#perm-grid .perm-grupo[data-grupo]').forEach(atualizarGrupoPerm);
 }
 
 function renderLojaOpcoes() {
@@ -410,10 +503,11 @@ function abrirModal(usuario) {
   $('btn-remover').style.display = usuario ? 'inline-flex' : 'none';
   $('modal-err').style.display = 'none';
 
-  document.querySelectorAll('#perm-grid input[type=checkbox]').forEach(function (cb) {
+  document.querySelectorAll('#perm-grid input[data-tela]').forEach(function (cb) {
     var key = cb.getAttribute('data-tela');
     cb.checked = usuario && usuario.permissoes ? !!usuario.permissoes[key] : false;
   });
+  atualizarGruposPerm();
   atualizarBlocoPermissoes();
   $('modal-overlay').classList.add('show');
 }
@@ -445,7 +539,7 @@ function salvarUsuario() {
   }
 
   var permissoes = {};
-  document.querySelectorAll('#perm-grid input[type=checkbox]').forEach(function (cb) {
+  document.querySelectorAll('#perm-grid input[data-tela]').forEach(function (cb) {
     permissoes[cb.getAttribute('data-tela')] = cb.checked;
   });
 
@@ -531,8 +625,15 @@ function renderUsuarios() {
   $('empty-usuarios').style.display = filtrados.length ? 'none' : 'block';
 
   $('tbody-usuarios').innerHTML = filtrados.map(function (u) {
-    var telas = u.role === 'admin' ? 'Todas (admin)' : TELA_KEYS.filter(function (k) { return u.permissoes && u.permissoes[k]; })
-      .map(function (k) { return TELA_LABELS[k]; }).join(', ') || '—';
+    // Resumo por grupo: grupo completo aparece como "Financeiro (todas)";
+    // parcial, como "Financeiro: Contas a Pagar, Banco".
+    var telas = u.role === 'admin' ? 'Todas (admin)' : GRUPOS_TELAS.map(function (g) {
+      var marcadas = g.telas.filter(function (k) { return u.permissoes && u.permissoes[k]; });
+      if (!marcadas.length) return '';
+      if (g.telas.length === 1) return TELA_LABELS[g.telas[0]];
+      if (marcadas.length === g.telas.length) return '<strong>' + g.label + '</strong> (todas)';
+      return '<strong>' + g.label + ':</strong> ' + marcadas.map(function (k) { return TELA_LABELS[k]; }).join(', ');
+    }).filter(Boolean).join('<br>') || '—';
     return '<tr>' +
       '<td><div style="font-weight:600;color:var(--ink);">' + (u.nome || '—') + '</div><div class="mono">' + u.email + '</div></td>' +
       '<td><span class="badge ' + (u.role === 'admin' ? 'admin' : 'user') + '">' + (u.role === 'admin' ? 'Administrador' : 'Usuário') + '</span></td>' +
