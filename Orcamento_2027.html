@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<meta name="zappas-versao" content="v2026.10.15-d">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Orçamento 2027 — Dashboard Executivo</title>
@@ -1595,6 +1596,10 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
+        <a href="Endividamento.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
+          Controle de Endividamento
+        </a>
       </div>
     </div>
 
@@ -1620,6 +1625,15 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
       </div>
     </div>
   </nav>
+  <!-- Versão do arquivo publicado (rodapé do menu) -->
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-d</span><span class="sv-short">10.15-d</span></div>
+  <style>
+    .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .side-versao .sv-short{display:none}
+    .sidebar.collapsed:not(.peek) .side-versao{padding:10px 0 12px;text-align:center;font-size:8.5px}
+    .sidebar.collapsed:not(.peek) .side-versao .sv-full{display:none}
+    .sidebar.collapsed:not(.peek) .side-versao .sv-short{display:inline}
+  </style>
 </aside>
 
 <!-- Conteúdo deslocado à direita da sidebar -->
@@ -2565,8 +2579,9 @@ function parseVendas(text, lojaFallback){
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
   let iVs      = findColExata(rawHeaders,'vs');
   if(iVs<0)  iVs  = rawHeaders.findIndex(h => /^vs\b|^vs_/.test(normKey(h)));
-  let iFab     = findColExata(rawHeaders,'fabrica');
-  if(iFab<0) iFab = rawHeaders.findIndex(h => normKey(h).includes('fabrica'));
+  // "Fabrica" também pode vir como "Montagem" na planilha de vendas.
+  let iFab     = findColExata(rawHeaders,'fabrica','montagem');
+  if(iFab<0) iFab = rawHeaders.findIndex(h => /fabrica|montagem/.test(normKey(h)));
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2656,7 +2671,7 @@ function parseCurvaABC(text, lojaFallback){
   let iCanal = exata('canais','canal','canais_semana');
   if(iCanal<0) iCanal = headers.findIndex(h => abcNorm(h).includes('canal'));
   let iVs = exata('vs'); if(iVs<0) iVs = headers.findIndex(h => /^vs\b|^vs_/.test(abcNorm(h)));
-  let iFab = exata('fabrica'); if(iFab<0) iFab = headers.findIndex(h => abcNorm(h).includes('fabrica'));
+  let iFab = exata('fabrica','montagem'); if(iFab<0) iFab = headers.findIndex(h => /fabrica|montagem/.test(abcNorm(h)));
   if(iNome<0 || iQtd<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2886,7 +2901,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v10'; // v10: Compras com data em "dt_solicitado"
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11'; // v10: Compras com data em "dt_solicitado" · v11: "montagem" = "fabrica" (mesma chave do DRE)
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -7087,6 +7102,74 @@ if(window.innerWidth > 900) collapseSidebar();
     </div>
   </div>
 </div>
+<!-- ═══ AVISO DE DADOS NOVOS NO GOOGLE DRIVE ═══
+     Ao abrir e a cada 5 min, pergunta ao Apps Script (?tipo=versao) a hora
+     da última alteração dos arquivos da pasta. Se for mais nova que os dados
+     guardados no navegador, mostra a faixa com "Atualizar agora", que faz o
+     mesmo que a Atualização Geral (todas as telas abertas atualizam). -->
+<div id="zappas-aviso-drive" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100000;max-width:calc(100% - 32px);background:#fff7e6;border:1px solid #f5c26b;color:#7a4a05;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:10px 14px;font:500 13px/1.35 Inter,'IBM Plex Sans',Arial,sans-serif;align-items:center;gap:12px;flex-wrap:wrap">
+  <span><b>Há dados novos no Google Drive</b> <span id="zappas-aviso-hora"></span></span>
+  <button type="button" id="zappas-aviso-btn" style="background:#b87010;color:#fff;border:0;border-radius:7px;padding:6px 12px;font:700 12px Inter,Arial,sans-serif;cursor:pointer">Atualizar agora</button>
+  <button type="button" id="zappas-aviso-fechar" title="Fechar" style="background:transparent;border:0;color:#7a4a05;font-size:16px;line-height:1;cursor:pointer;padding:0 2px">×</button>
+</div>
+<script>
+(function(){
+  if (window.__SNAP__) return; // relatório exportado: sem consulta ao Drive
+  var GANCHO = window.__ZAPPAS_AVISO || null; // telas com o código dentro de um bloco fechado (ex.: Banco)
+  var URL_BASE = GANCHO && GANCHO.url ? GANCHO.url
+               : (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL
+               : (typeof APPS_SCRIPT_URL_DRE !== 'undefined') ? APPS_SCRIPT_URL_DRE : null;
+  if (!URL_BASE) return;
+  var INTERVALO = 5 * 60 * 1000;
+  var ignoradoAte = 0; // fechou no "×": não mostra de novo para esta mesma alteração
+  var box = document.getElementById('zappas-aviso-drive');
+  var ehInicio = (typeof resumoLoadCache === 'function') && (typeof gerarResumoMensal === 'function');
+  function globalTs(){ try { return parseInt(localStorage.getItem('zappas_global_refresh_ts') || '0', 10) || 0; } catch(e) { return 0; } }
+  // Hora dos dados que esta tela tem guardados no navegador.
+  async function horaLocal(){
+    if (ehInicio) { var r = await resumoLoadCache(); return Math.max(r && +r.ts || 0, globalTs()); }
+    var ler = (GANCHO && GANCHO.lerCache) ? GANCHO.lerCache : (typeof loadCacheDB === 'function') ? loadCacheDB : (typeof loadCache === 'function') ? loadCache : null;
+    if (!ler) return 0;
+    var c = await ler(); return c && +c.rawTs || 0;
+  }
+  function atualizar(){
+    if (ehInicio) { gerarResumoMensal(); return; }            // tela inicial: roda a Atualização Geral
+    try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
+    if (GANCHO && GANCHO.atualizar) GANCHO.atualizar();
+    else if (typeof loadData === 'function') loadData(true);
+    else if (typeof fetchData === 'function') fetchData(true);
+  }
+  function esconder(){ box.style.display = 'none'; }
+  async function verificar(){
+    try {
+      if (document.hidden) return;
+      var r = await fetch(URL_BASE + (URL_BASE.indexOf('?')>=0?'&':'?') + 'tipo=versao&_=' + Date.now(), { cache:'no-store' });
+      if (!r.ok) return;
+      var v; try { v = JSON.parse(await r.text()); } catch(e) { return; } // Apps Script ainda sem ?tipo=versao
+      var drive = +v.ultimaAlteracao || 0;
+      var local = await horaLocal();
+      if (!drive || !local) return;              // sem dados guardados ainda: a própria tela já busca
+      if (drive > local && drive > ignoradoAte) {
+        var d = new Date(drive);
+        document.getElementById('zappas-aviso-hora').textContent =
+          '(alterados em ' + d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + ')';
+        box.dataset.drive = drive;
+        box.style.display = 'flex';
+      } else {
+        esconder();
+      }
+    } catch(e) { /* sem conexão: tenta na próxima */ }
+  }
+  document.getElementById('zappas-aviso-btn').addEventListener('click', function(){ esconder(); atualizar(); });
+  document.getElementById('zappas-aviso-fechar').addEventListener('click', function(){
+    ignoradoAte = +box.dataset.drive || Date.now();
+    esconder();
+  });
+  setTimeout(verificar, 8000);
+  setInterval(verificar, INTERVALO);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) verificar(); });
+})();
+</script>
 </body>
 
 </html>

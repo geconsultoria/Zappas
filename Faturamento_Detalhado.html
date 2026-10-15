@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta name="zappas-versao" content="v2026.10.15-c">
+<meta name="zappas-versao" content="v2026.10.15-d">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faturamento Detalhado</title>
@@ -798,6 +798,10 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           Demonstrativo de Resultado
         </a>
+        <a href="Orcamento_2027.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
+          Orçamento 2027
+        </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
           Contas a Pagar
@@ -821,6 +825,10 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         <a href="Ciclo_Financeiro.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
+        </a>
+        <a href="Endividamento.html">
+          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
+          Controle de Endividamento
         </a>
       </div>
     </div>
@@ -847,6 +855,15 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       </div>
     </div>
   </nav>
+  <!-- Versão do arquivo publicado (rodapé do menu) -->
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-d</span><span class="sv-short">10.15-d</span></div>
+  <style>
+    .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+    .side-versao .sv-short{display:none}
+    .sidebar.collapsed:not(.peek) .side-versao{padding:10px 0 12px;text-align:center;font-size:8.5px}
+    .sidebar.collapsed:not(.peek) .side-versao .sv-full{display:none}
+    .sidebar.collapsed:not(.peek) .side-versao .sv-short{display:inline}
+  </style>
 </aside>
 
 <!-- HOME SCREEN -->
@@ -1992,7 +2009,7 @@ AuthGuard.requireScreen('faturamento_detalhado', function(){ openFaturamentoDeta
     </div>
   </div>
 </div>
-<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-c</div>
+
 <!-- ═══ AVISO DE DADOS NOVOS NO GOOGLE DRIVE ═══
      Ao abrir e a cada 5 min, pergunta ao Apps Script (?tipo=versao) a hora
      da última alteração dos arquivos da pasta. Se for mais nova que os dados
@@ -2006,23 +2023,39 @@ AuthGuard.requireScreen('faturamento_detalhado', function(){ openFaturamentoDeta
 <script>
 (function(){
   if (window.__SNAP__) return; // relatório exportado: sem consulta ao Drive
-  var URL_BASE = (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL
+  var GANCHO = window.__ZAPPAS_AVISO || null; // telas com o código dentro de um bloco fechado (ex.: Banco)
+  var URL_BASE = GANCHO && GANCHO.url ? GANCHO.url
+               : (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL
                : (typeof APPS_SCRIPT_URL_DRE !== 'undefined') ? APPS_SCRIPT_URL_DRE : null;
   if (!URL_BASE) return;
   var INTERVALO = 5 * 60 * 1000;
   var ignoradoAte = 0; // fechou no "×": não mostra de novo para esta mesma alteração
   var box = document.getElementById('zappas-aviso-drive');
-  var lerCache = (typeof loadCacheDB === 'function') ? loadCacheDB : (typeof loadCache === 'function') ? loadCache : null;
+  var ehInicio = (typeof resumoLoadCache === 'function') && (typeof gerarResumoMensal === 'function');
+  function globalTs(){ try { return parseInt(localStorage.getItem('zappas_global_refresh_ts') || '0', 10) || 0; } catch(e) { return 0; } }
+  // Hora dos dados que esta tela tem guardados no navegador.
+  async function horaLocal(){
+    if (ehInicio) { var r = await resumoLoadCache(); return Math.max(r && +r.ts || 0, globalTs()); }
+    var ler = (GANCHO && GANCHO.lerCache) ? GANCHO.lerCache : (typeof loadCacheDB === 'function') ? loadCacheDB : (typeof loadCache === 'function') ? loadCache : null;
+    if (!ler) return 0;
+    var c = await ler(); return c && +c.rawTs || 0;
+  }
+  function atualizar(){
+    if (ehInicio) { gerarResumoMensal(); return; }            // tela inicial: roda a Atualização Geral
+    try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
+    if (GANCHO && GANCHO.atualizar) GANCHO.atualizar();
+    else if (typeof loadData === 'function') loadData(true);
+    else if (typeof fetchData === 'function') fetchData(true);
+  }
   function esconder(){ box.style.display = 'none'; }
   async function verificar(){
     try {
-      if (!lerCache || document.hidden) return;
+      if (document.hidden) return;
       var r = await fetch(URL_BASE + (URL_BASE.indexOf('?')>=0?'&':'?') + 'tipo=versao&_=' + Date.now(), { cache:'no-store' });
       if (!r.ok) return;
       var v; try { v = JSON.parse(await r.text()); } catch(e) { return; } // Apps Script ainda sem ?tipo=versao
       var drive = +v.ultimaAlteracao || 0;
-      var c = await lerCache();
-      var local = c && +c.rawTs || 0;
+      var local = await horaLocal();
       if (!drive || !local) return;              // sem dados guardados ainda: a própria tela já busca
       if (drive > local && drive > ignoradoAte) {
         var d = new Date(drive);
@@ -2035,11 +2068,7 @@ AuthGuard.requireScreen('faturamento_detalhado', function(){ openFaturamentoDeta
       }
     } catch(e) { /* sem conexão: tenta na próxima */ }
   }
-  document.getElementById('zappas-aviso-btn').addEventListener('click', function(){
-    esconder();
-    try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
-    if (typeof loadData === 'function') loadData(true);
-  });
+  document.getElementById('zappas-aviso-btn').addEventListener('click', function(){ esconder(); atualizar(); });
   document.getElementById('zappas-aviso-fechar').addEventListener('click', function(){
     ignoradoAte = +box.dataset.drive || Date.now();
     esconder();
