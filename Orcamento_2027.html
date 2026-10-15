@@ -1430,6 +1430,9 @@ a.side-brand:hover { opacity:.85; }
 .orc-btn-primary { background: var(--navy); color: #fff; border-color: var(--navy); }
 .orc-btn-primary:hover { background: var(--navy-mid); color: #fff; }
 .orc-btn:disabled { opacity: .5; cursor: wait; }
+.orc-btn.is-on { background: var(--gold-pale); border-color: var(--gold); color: var(--amber); }
+.orc-seg-l { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
+.orc-seg-r { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
 .orc-up { color: var(--emerald-mid); font-weight: 600; }
 .orc-down { color: var(--crimson); font-weight: 600; }
 
@@ -1692,6 +1695,10 @@ a.side-brand:hover { opacity:.85; }
     </div>
     <div class="orc-acoes">
       <span class="orc-status" id="orcStatus">—</span>
+      <span id="orcFonteSel" style="display:inline-flex;gap:0" title="De onde vêm os números da base e do orçamento">
+        <button class="orc-btn orc-seg-l" data-f="dfc" onclick="orcSetFonte('dfc')">Base: DFC (caixa)</button>
+        <button class="orc-btn orc-seg-r" data-f="ger" onclick="orcSetFonte('ger')">DRE Gerencial</button>
+      </span>
       <button class="orc-btn" onclick="orcAbrirMetodologia()" title="Como a base e o orçamento são calculados">ⓘ Metodologia</button>
       <button class="orc-btn" id="orcBtnPadrao" onclick="orcRestaurarPadrao()" title="Volta todas as premissas para o padrão e apaga os ajustes manuais">Restaurar padrão</button>
       <button class="orc-btn orc-btn-primary" id="orcBtnSalvar" onclick="orcSalvar()" title="Grava o orçamento na planilha ORCAMENTO_2027 do Google Drive">Salvar orçamento</button>
@@ -6049,6 +6056,7 @@ const ORC_SAIDA = new Set(['imp','ded','cmv','dcom','dpes','dadm','dfin','plab',
 
 // Premissas padrão — todas editáveis na tela.
 const ORC_PREM_PADRAO = {
+  fonte: 'dfc',      // 'dfc' = recebido × pago (regime de caixa) | 'ger' = DRE Gerencial (competência)
   recCresc: 5.0,     // % de crescimento da receita sobre a base (todas as lojas)
   recLoja: {},       // loja → % (substitui o geral para aquela loja)
   impPP: 0, dedPP: 0, cmvPP: 0, dcomPP: 0,   // ajuste em pontos percentuais sobre o % da base
@@ -6071,6 +6079,20 @@ const fmtPct = (v,d=1) => (isFinite(v)?v:0).toLocaleString('pt-BR',{minimumFract
 const orcEsc = s => String(s==null?'':s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 /* ── 1. Junta os dados reais por ano × loja × grupo × mês ── */
+function orcFonte(){ return (orcState.premissas && orcState.premissas.fonte) === 'ger' ? 'ger' : 'dfc'; }
+function orcSetFonte(f){
+  if(orcFonte() === f) return;
+  orcState.premissas.fonte = f;
+  orcMarcarSujo(); renderOrcamento();
+}
+// Rótulos que mudam com a fonte (receita recebida x faturada, CMC x CMV).
+function orcAplicarRotulos(){
+  const dfc = orcFonte() === 'dfc';
+  const L = k => ORC_LINHAS.find(x => x.k === k);
+  L('rec').l = dfc ? 'RECEITA OPERACIONAL (RECEBIMENTOS)' : 'RECEITA OPERACIONAL (FATURAMENTO)';
+  L('cmv').l = dfc ? 'CMC — CUSTO MERCADORIA COMPRADA' : 'CMV — CUSTO MERCADORIA VENDIDA (PRODUTO)';
+  document.querySelectorAll('#orcFonteSel .orc-btn').forEach(b => b.classList.toggle('is-on', b.dataset.f === orcFonte()));
+}
 function orcMontarReal(){
   const M = new Map();
   const anos = new Set([ORC_REF, ORC_BASE, ORC_ANO]);
@@ -6080,15 +6102,24 @@ function orcMontarReal(){
     const key = ano+'|'+loja+'|'+k+'|'+mes;
     M.set(key, (M.get(key)||0) + v);
   };
+  const dfc = orcFonte() === 'dfc';
   const canalOk = r => !r.canal || CANAIS_FATURAMENTO.includes(r.canal);
-  (vendasRaw||[]).forEach(r => { if(canalOk(r)) add(r.ano, r.loja, 'rec', r.mes, r.valor); });
-  (impostosGerRaw||[]).forEach(r => add(r.ano, r.loja, 'imp', r.mes, r.valor));
-  (custoProdutoRaw||[]).forEach(r => { if(canalOk(r)) add(r.ano, r.loja, 'cmv', r.mes, r.valor); });
+  if(dfc){
+    // DFC (regime de caixa): receita = recebido classificado pelo De-Para,
+    // impostos no mês em que foram pagos, CMC = compras (arquivo de Compras).
+    (comprasRaw||[]).forEach(r => add(r.ano, r.loja, 'cmv', r.mes, r.valor));
+  } else {
+    (vendasRaw||[]).forEach(r => { if(canalOk(r)) add(r.ano, r.loja, 'rec', r.mes, r.valor); });
+    (impostosGerRaw||[]).forEach(r => add(r.ano, r.loja, 'imp', r.mes, r.valor));
+    (custoProdutoRaw||[]).forEach(r => { if(canalOk(r)) add(r.ano, r.loja, 'cmv', r.mes, r.valor); });
+  }
   const cacheSlug = {};
   (raw||[]).forEach(r => {
     if(!anos.has(Number(r.ano))) return;
     let s = cacheSlug[r.grupo];
     if(s === undefined) s = cacheSlug[r.grupo] = slugFromGrupo(r.grupo) || '';
+    if(dfc && s === 'receita_operacional'){ add(r.ano, r.loja, 'rec', r.mes, r.valor); return; }
+    if(dfc && s === 'impostos_vendas'){ add(r.ano, r.loja, 'imp', r.mes, r.valor); return; }
     const k = ORC_SLUG_K[s];
     if(k) add(r.ano, r.loja, k, r.mes, r.valor);
     if(isJuros(r.subgrupo) || isJuros(r.plano)) add(r.ano, r.loja, 'jur', r.mes, r.valor);
@@ -6137,7 +6168,7 @@ function orcCalcular(){
     // seguinte. Se o mês seguinte ainda não fechou (ex.: setembro, com
     // outubro em aberto), o imposto daquele mês ainda não existe nos dados —
     // é estimado pelo % da receita dos meses completos, como na projeção.
-    const mesSeguinteFechado = m => m < 12 ? fechado(ORC_BASE, m+1) : fechado(ORC_BASE+1, 1);
+    const mesSeguinteFechado = m => orcFonte()==='dfc' ? true : (m < 12 ? fechado(ORC_BASE, m+1) : fechado(ORC_BASE+1, 1));
     const impMeses = realizados.filter(mesSeguinteFechado);
     const recImp = impMeses.reduce((a,m)=>a+g(ORC_BASE,loja,'rec',m),0);
     const pctImp = recImp ? impMeses.reduce((a,m)=>a+g(ORC_BASE,loja,'imp',m),0)/recImp : 0;
@@ -6215,6 +6246,7 @@ function renderOrcamento(){
   const tbody = document.getElementById('orcTbody');
   if(!tbody) return;
   if(!raw || !raw.length) return;
+  orcAplicarRotulos();
   orcCalc = orcCalcular();
   orcRenderBaseInfo();
   orcRenderKpis();
@@ -6241,7 +6273,7 @@ function orcRenderBaseInfo(){
   if(real.length) partes.push(`<strong>${faixa(real)}/${ORC_BASE}</strong> realizados`);
   if(proj.length) partes.push(`<strong>${faixa(proj)}/${ORC_BASE}</strong> projetados (sazonalidade de ${ORC_REF} × crescimento de ${ORC_BASE})`);
   const escopo = sel.length === orcCalc.lojas.length ? 'Todas as lojas' : sel.join(', ');
-  el.innerHTML = `Base ${ORC_BASE}: ${partes.join(' · ')} · ${orcEsc(escopo)}` +
+  el.innerHTML = `<strong>${orcFonte()==='dfc'?'DFC — recebido × pago':'DRE Gerencial — faturado × competência'}</strong> · Base ${ORC_BASE}: ${partes.join(' · ')} · ${orcEsc(escopo)}` +
     (typeof cmvCarregando!=='undefined' && cmvCarregando ? ' · <span style="color:var(--gold)">carregando CMV…</span>' : '');
   document.getElementById('orcTitulo').textContent = 'Orçamento ' + ORC_ANO;
 }
@@ -6539,7 +6571,8 @@ function orcRenderStatus(){
    o PE do ano é a soma dos 12 meses — piso mensal para as metas de 2027.
 ══════════════════════════════════════════════════════════════ */
 let orcPeBase = 'caixa';   // 'caixa' = Resultado Líquido zero (padrão) | 'oper' = Resultado Operacional zero
-const ORC_PE_ROT = { caixa: 'Resultado Líquido zero', oper: 'Resultado Operacional zero' };
+const ORC_PE_ROT = { caixa: 'PE de Caixa', oper: 'PE Operacional' };
+const orcPeVerbo = () => orcFonte()==='dfc' ? 'receber' : 'faturar';
 // Monta, mês a mês, receita, custos variáveis, fixos e o PE de uma loja (ou do grupo).
 // status[m]: 'ok' | 'semrec' (sem receita orçada) | 'mcneg' (custos variáveis ≥ receita)
 function orcPEdeValores(rec, cv, cfo, cfc){
@@ -6595,7 +6628,7 @@ function orcRenderPE(){
   const wrap = document.getElementById('orcPeWrap');
   const titulo = document.getElementById('orcTabTitulo'), sub = document.getElementById('orcTabSub');
   titulo.textContent = 'Ponto de Equilíbrio ' + ORC_ANO;
-  sub.textContent = 'Quanto cada loja precisa FATURAR, mês a mês, para pagar todas as despesas orçadas e deixar o resultado zerado — piso das metas de ' + ORC_ANO + '.';
+  sub.textContent = 'Quanto cada loja precisa ' + orcPeVerbo().toUpperCase() + ', mês a mês, para pagar as contas orçadas e deixar o resultado zerado (' + (orcFonte()==='dfc'?'base DFC — regime de caixa':'base DRE Gerencial') + ') — piso das metas de ' + ORC_ANO + '.';
   const sel = orcLojasSel();
   if(!sel.length){ wrap.innerHTML = '<div class="recon-empty">Nenhuma loja selecionada.</div>'; return; }
   const nome = l => l==='BELVEDER'?'BELVEDERE':l;
@@ -6616,8 +6649,8 @@ function orcRenderPE(){
   const kpi = (cls, rot, val, subTxt) => `<div class="kpi-card ${cls}"><div class="kpi-eyebrow"><span class="kpi-dot"></span>${rot}</div>
     <div class="kpi-value">${val}</div><div class="kpi-sub">${subTxt}</div></div>`;
   const kpis = `<div class="kpi-grid orc-pe-kpis">
-    ${kpi('gold','Faturamento p/ '+rotBase, peG===null?'—':fmtShort(peG), peG===null?'margem do grupo negativa':'Média '+fmtShort(peG/12)+' por mês')}
-    ${kpi('navy','Receita orçada '+ORC_ANO, fmtShort(recG), peG===null?'—':(faltaG>0?'<span class="orc-down">faltam '+fmtShort(faltaG)+'</span>':'<span class="orc-up">sobram '+fmtShort(-faltaG)+'</span>')+' p/ zerar')}
+    ${kpi('gold',rotBase+' '+ORC_ANO, peG===null?'—':fmtShort(peG), peG===null?'margem do grupo negativa':'Média '+fmtShort(peG/12)+' por mês')}
+    ${kpi('navy',(orcFonte()==='dfc'?'Recebimento':'Receita')+' orçado '+ORC_ANO, fmtShort(recG), peG===null?'—':(faltaG>0?'<span class="orc-down">faltam '+fmtShort(faltaG)+'</span>':'<span class="orc-up">sobram '+fmtShort(-faltaG)+'</span>')+' p/ zerar')}
     ${kpi('emerald','Margem de Contribuição', pc(G.ano.mc), 'Cada R$ 100 vendidos sobram '+fmtBRL(G.ano.mc*100).replace(',00','')+' p/ os fixos')}
     ${kpi(msG!==null&&msG>=0?'emerald':'crimson','Margem de Segurança', msG===null?'—':pc(msG), msG===null?'—':(msG>=0?'Vendas podem cair isso sem prejuízo':'Orçado abaixo do ponto de equilíbrio'))}
   </div>`;
@@ -6628,7 +6661,7 @@ function orcRenderPE(){
     const cvPE = peG*(1-G.ano.mc);
     const mcPE = peG - cvPE;
     const fx = G.ano[kf];
-    prova = `<div class="orc-pe-h"><div><div class="orc-pe-tit">Prova do cálculo — DRE do grupo faturando o ponto de equilíbrio</div>
+    prova = `<div class="orc-pe-h"><div><div class="orc-pe-tit">Prova do cálculo — DRE do grupo ${orcFonte()==='dfc'?'recebendo':'faturando'} o ponto de equilíbrio</div>
       <div class="orc-pe-sub">Faturando exatamente esse valor, com os mesmos % de custo e as mesmas despesas fixas do orçamento, o resultado fica zerado.</div></div></div>
       <div class="orc-pe-tab"><table>
         <thead><tr><th>Linha</th><th>No ponto de equilíbrio</th><th>No orçamento ${ORC_ANO}</th><th>% da receita</th></tr></thead>
@@ -6641,23 +6674,16 @@ function orcRenderPE(){
         </tbody></table></div>`;
   }
 
-  // ── Resumo anual por loja ──
-  const linhasResumo = dados.map(({loja,p}) => {
-    const a = p.ano, pe = a[kb];
-    const dif = pe!==null ? a.rec - pe : null;
-    const ms = (pe!==null && a.rec) ? dif/a.rec : null;
-    const mesesAbaixo = []; for(let m=1;m<=12;m++){ const v=p[kb][m]; if(v===null || p.rec[m] < v) mesesAbaixo.push(MES_ABR[m]); }
-    return `<tr><td>${nome(loja)}</td><td>${fmt0(a.rec)}</td><td>${fmt0(a.cv)}</td><td class="${a.mc<=0?'val-neg':''}">${pc(a.mc)}</td>
-      <td>${fmt0(a[kf])}</td><td class="orc-pe-dest">${v0(pe, a.status)}</td>
-      <td class="${dif===null?'':dif<0?'val-neg':'val-pos'}">${dif===null?'—':(dif>0?'+':'')+fmt0(dif)}</td>
-      <td class="${ms===null?'':ms<0?'val-neg':ms<0.1?'':'val-pos'}">${ms===null?'—':pc(ms)}</td>
-      <td style="text-align:left">${mesesAbaixo.length===12?'<span class="val-neg">todos</span>':mesesAbaixo.length?`<span class="val-neg">${mesesAbaixo.join(', ')}</span>`:'<span class="val-pos">nenhum</span>'}</td></tr>`;
-  }).join('');
+  // ── Resumo anual por loja (modelo com os dois PEs; o selecionado em destaque) ──
+  const mesesAbaixoTxt = (p) => { const r=[]; for(let m=1;m<=12;m++){ const v=p[kb][m]; if(v===null || p.rec[m] < v) r.push(MES_ABR[m]); } return r.length?`<span class="val-neg">${r.join(', ')}</span>`:'<span class="val-pos">nenhum</span>'; };
+  const msTd = (a) => { const pe=a[kb]; const ms=(pe!==null && a.rec)?(a.rec-pe)/a.rec:null; return `<td class="${ms===null?'':ms<0?'val-neg':ms<0.1?'':'val-pos'}">${ms===null?'—':pc(ms)}</td>`; };
+  const linhaResumo = (nomeL, a, mesesTd, cls) => `<tr${cls?` class="${cls}"`:''}><td>${nomeL}</td><td>${fmt0(a.rec)}</td><td>${fmt0(a.cv)}</td><td class="${a.mc<=0?'val-neg':''}">${pc(a.mc)}</td>
+      <td>${fmt0(a.cfo)}</td><td class="${kb==='peo'?'orc-pe-dest':''}">${v0(a.peo, a.status)}</td>
+      <td>${fmt0(a.cfc)}</td><td class="${kb==='pec'?'orc-pe-dest':''}">${v0(a.pec, a.status)}</td>
+      ${msTd(a)}<td style="text-align:left">${mesesTd}</td></tr>`;
+  const linhasResumo = dados.map(({loja,p}) => linhaResumo(nome(loja), p.ano, mesesAbaixoTxt(p))).join('');
+  const totResumo = linhaResumo('Grupo', G.ano, '', 'orc-pe-tot');
   const difG = peG!==null ? recG - peG : null;
-  const totResumo = `<tr class="orc-pe-tot"><td>Grupo</td><td>${fmt0(recG)}</td><td>${fmt0(G.ano.cv)}</td><td>${pc(G.ano.mc)}</td>
-    <td>${fmt0(G.ano[kf])}</td><td class="orc-pe-dest">${v0(peG, G.ano.status)}</td>
-    <td class="${difG===null?'':difG<0?'val-neg':'val-pos'}">${difG===null?'—':(difG>0?'+':'')+fmt0(difG)}</td>
-    <td>${msG===null?'—':pc(msG)}</td><td></td></tr>`;
 
   // ── PE mensal por loja ──
   const celula = (pe, rec, st) => {
@@ -6671,36 +6697,37 @@ function orcRenderPE(){
     return `<tr><td>${nome(loja)}</td>${cells.join('')}<td style="font-weight:700">${v0(p.ano[kb], p.ano.status)}</td></tr>`;
   }).join('');
   const cellsG = []; for(let m=1;m<=12;m++) cellsG.push(celula(G[kb][m], G.rec[m], G.status[m]));
-  const linhaRec = `<tr><td style="color:var(--ink-3);font-weight:500">Receita orçada (grupo)</td>${G.rec.slice(1).map(v=>`<td style="color:var(--ink-3)">${fmt0(v)}</td>`).join('')}<td style="color:var(--ink-3)">${fmt0(recG)}</td></tr>`;
+  const linhaRec = `<tr><td style="color:var(--ink-3);font-weight:500">${orcFonte()==='dfc'?'Recebimento':'Receita'} orçado (grupo)</td>${G.rec.slice(1).map(v=>`<td style="color:var(--ink-3)">${fmt0(v)}</td>`).join('')}<td style="color:var(--ink-3)">${fmt0(recG)}</td></tr>`;
   const linhaDif = `<tr><td style="color:var(--ink-3);font-weight:500">Sobra / falta (grupo)</td>${G.rec.slice(1).map((v,i)=>{ const pe=G[kb][i+1]; if(pe===null) return '<td>—</td>'; const d=v-pe; return `<td class="${d<0?'val-neg':'val-pos'}">${d>0?'+':''}${fmt0(d)}</td>`; }).join('')}<td class="${difG!==null&&difG<0?'val-neg':'val-pos'}">${difG===null?'—':(difG>0?'+':'')+fmt0(difG)}</td></tr>`;
 
   // ── Análises ──
   const an = [];
   if(peG!==null){
-    an.push({t: msG>=0.1?'ok':msG>=0?'warning':'critical', txt:`Para <strong>pagar todas as despesas e deixar o ${orcPeBase==='oper'?'resultado operacional':'resultado líquido'} zerado</strong>, o grupo precisa faturar <strong>R$ ${fmt0(peG)}</strong> em ${ORC_ANO} (média de R$ ${fmt0(peG/12)} por mês). O orçamento prevê R$ ${fmt0(recG)} — ${difG>=0?`<strong>R$ ${fmt0(difG)} acima</strong> (margem de segurança de ${pc(msG)})`:`<strong>faltam R$ ${fmt0(-difG)}</strong> (${pc(-difG/peG)} a mais de vendas)`}.`});
+    an.push({t: msG>=0.1?'ok':msG>=0?'warning':'critical', txt:`Para <strong>pagar ${orcPeBase==='oper'?'as contas da operação e deixar o resultado operacional':'todas as contas e deixar o resultado líquido'} zerado</strong>, o grupo precisa ${orcPeVerbo()} <strong>R$ ${fmt0(peG)}</strong> em ${ORC_ANO} (média de R$ ${fmt0(peG/12)} por mês). O orçamento prevê R$ ${fmt0(recG)} — ${difG>=0?`<strong>R$ ${fmt0(difG)} acima</strong> (margem de segurança de ${pc(msG)})`:`<strong>faltam R$ ${fmt0(-difG)}</strong> (${pc(-difG/peG)} a mais de vendas)`}.`});
   }
   dados.filter(d=>d.p.ano.status==='semrec').forEach(d => an.push({t:'critical', txt:`<strong>${nome(d.loja)}</strong> está sem receita orçada, mas tem custos (R$ ${fmt0(d.p.ano.cv + d.p.ano[kf])} no ano). Por isso não tem ponto de equilíbrio próprio — os custos dela entram no PE do grupo. Confira se o faturamento dessa loja aparece na Análise Comercial (canais Loja/Delivery/Central).`}));
   dados.filter(d=>d.p.ano.status==='mcneg').forEach(d => an.push({t:'critical', txt:`<strong>${nome(d.loja)}</strong>: os custos variáveis (R$ ${fmt0(d.p.ano.cv)}) ${d.p.ano.mc<=0?'passam':'em alguns meses passam'} da receita orçada (R$ ${fmt0(d.p.ano.rec)}) — margem de contribuição ${pc(d.p.ano.mc)}. Vender mais não zera o resultado; é preciso rever preço/CMV ou conferir se o CMV da loja está completo e o faturamento não está faltando.`}));
   dados.filter(d=>d.p.ano[kb]!==null && d.p.ano.rec < d.p.ano[kb]).forEach(d => an.push({t:'critical', txt:`<strong>${nome(d.loja)}</strong> precisa faturar <strong>R$ ${fmt0(d.p.ano[kb])}</strong> para zerar; o orçado é R$ ${fmt0(d.p.ano.rec)} (faltam R$ ${fmt0(d.p.ano[kb]-d.p.ano.rec)}). Meta mínima = PE, ou reduzir despesas fixas.`}));
   dados.filter(d=>d.p.ano[kb]!==null && d.p.ano.rec >= d.p.ano[kb] && (d.p.ano.rec-d.p.ano[kb])/d.p.ano.rec < 0.1).forEach(d => an.push({t:'warning', txt:`<strong>${nome(d.loja)}</strong> cobre o PE, mas com folga pequena (${pc((d.p.ano.rec-d.p.ano[kb])/d.p.ano.rec)}).`}));
+  if(orcFonte()==='dfc') an.push({t:'info', txt:`<strong>Base DFC:</strong> o PE está em <strong>recebimento</strong>. Como as metas são de faturamento, considere a defasagem de cartão/boleto (venda de um mês entra no seguinte) e as taxas — no ano os valores ficam próximos, mês a mês podem diferir. O CMC usa as compras do período: se o orçamento prevê formar ou reduzir estoque, ajuste o CMC nas premissas.`});
   an.push({t:'info', txt:`<strong>Uso nas metas ${ORC_ANO}:</strong> o valor de cada loja/mês na tabela acima é o mínimo a faturar — use como "Ponto de Equilíbrio" na Elaboração de Metas; a meta deve ficar acima dele. Na BADY, a Elaboração separa Loja e Delivery: divida pelo peso de cada canal no faturamento.`});
   const analise = an.map(r => `<div class="rec-card rec-${r.t}"><div class="rec-icon">${r.t==='critical'?'🔴':r.t==='warning'?'🟡':r.t==='info'?'🔵':'🟢'}</div><div class="rec-text">${r.txt}</div></div>`).join('');
 
   const bt = (b, rot) => `<button class="btn-toggle-all${orcPeBase===b?' btn-av-toggle active':''}" onclick="orcSetPeBase('${b}')">${rot}</button>`;
   wrap.innerHTML = `
-    <div class="orc-pe-h" style="margin-top:0"><div><div class="orc-pe-tit">Zerar qual resultado?</div>
-      <div class="orc-pe-sub">${orcPeBase==='caixa'?'Resultado Líquido zero: cobre todas as saídas — custos, despesas, empréstimos, investimentos, parcelamentos, IR e distribuição de lucro.':'Resultado Operacional zero: cobre só custos e despesas da operação (sem empréstimos, investimentos, parcelamentos, IR e distribuição).'}</div></div>
-      <div class="orc-pe-acoes">${bt('caixa','Resultado Líquido zero (paga tudo)')}${bt('oper','Resultado Operacional zero')}</div></div>
+    <div class="orc-pe-h" style="margin-top:0"><div><div class="orc-pe-tit">Qual ponto de equilíbrio?</div>
+      <div class="orc-pe-sub">${orcPeBase==='caixa'?'PE de Caixa: zera o Resultado Líquido — paga todas as contas: custos, despesas, empréstimos, investimentos, parcelamentos, IR e distribuição de lucro.':'PE Operacional: zera o Resultado Operacional — paga só custos e despesas da operação (sem empréstimos, investimentos, parcelamentos, IR e distribuição).'}</div></div>
+      <div class="orc-pe-acoes">${bt('caixa','PE de Caixa')}${bt('oper','PE Operacional')}</div></div>
     ${kpis}
     ${prova}
-    <div class="orc-pe-h"><div><div class="orc-pe-tit">Faturamento necessário por loja — ${ORC_ANO}</div>
-      <div class="orc-pe-sub">PE = despesas fixas ÷ margem de contribuição. "Sobra/falta" = receita orçada − PE.</div></div></div>
+    <div class="orc-pe-h"><div><div class="orc-pe-tit">Resumo por loja — ${ORC_ANO}</div>
+      <div class="orc-pe-sub">Custos variáveis = Impostos + Deduções + ${orcFonte()==='dfc'?'CMC (compras)':'CMV'} + Desp. comerciais · Fixos operacionais = Pessoal + Administrativas + Financeiras + Pró-labore · Fixos + compromissos inclui Distribuição, IR/CSLL, Empréstimos, Investimentos e Parcelamentos · Grupo = todos os custos ÷ margem do grupo</div></div></div>
     <div class="orc-pe-tab"><table>
-      <thead><tr><th>Loja</th><th>Receita orçada</th><th>Custos variáveis</th><th>MC %</th><th>${orcPeBase==='oper'?'Fixos operacionais':'Fixos + compromissos'}</th><th class="orc-pe-dest">Faturamento p/ zerar</th><th>Sobra / falta</th><th>Margem segurança</th><th style="text-align:left">Meses abaixo do PE</th></tr></thead>
+      <thead><tr><th>Loja</th><th>${orcFonte()==='dfc'?'Recebimento orçado':'Receita orçada'}</th><th>Custos variáveis</th><th>MC %</th><th>Fixos operacionais</th><th class="${kb==='peo'?'orc-pe-dest':''}">PE Operacional</th><th>Fixos + compromissos</th><th class="${kb==='pec'?'orc-pe-dest':''}">PE de Caixa</th><th>Margem segurança</th><th style="text-align:left">Meses abaixo do PE</th></tr></thead>
       <tbody>${linhasResumo}${totResumo}</tbody></table></div>
 
-    <div class="orc-pe-h"><div><div class="orc-pe-tit">Faturamento mensal necessário (${rotBase}) — piso das metas ${ORC_ANO}</div>
-      <div class="orc-pe-sub">Cada valor é o quanto a loja precisa vender no mês para zerar. A linha "Grupo" usa todos os custos das lojas ÷ margem do grupo.</div></div>
+    <div class="orc-pe-h"><div><div class="orc-pe-tit">${orcFonte()==='dfc'?'Recebimento':'Faturamento'} mensal necessário (${rotBase}) — piso das metas ${ORC_ANO}</div>
+      <div class="orc-pe-sub">Cada valor é o quanto a loja precisa ${orcPeVerbo()} no mês para zerar. A linha "Grupo" usa todos os custos das lojas ÷ margem do grupo.</div></div>
       <div class="orc-pe-acoes"><button class="btn-toggle-all" id="orcPeCopiar" onclick="orcCopiarPE()" title="Copia a tabela para colar no Excel/Planilhas">Copiar tabela</button></div></div>
     <div class="orc-pe-tab"><table>
       <thead><tr><th>Loja</th>${MES_ABR.slice(1).map(m=>`<th>${m}</th>`).join('')}<th>Total ${ORC_ANO}</th></tr></thead>
@@ -6807,8 +6834,15 @@ function orcAbrirMetodologia(){
   const pc = v => (Number(v)>0?'+':'') + n(v) + '%';
   const lojasEsp = Object.entries(P.recLoja||{}).filter(([,v])=>v!==''&&v!==null).map(([l,v])=>`${l==='BELVEDER'?'BELVEDERE':l} ${pc(v)}`);
   document.getElementById('orcModalBody').innerHTML = `
-    <h4>De onde vêm os números</h4>
-    <p>Os mesmos dados do <strong>DRE Gerencial</strong>:</p>
+    <h4>Fonte dos números — escolhida no botão "Base" (em uso: <strong>${orcFonte()==='dfc'?'DFC':'DRE Gerencial'}</strong>)</h4>
+    <p><strong>DFC (padrão, regime de caixa)</strong> — o que a empresa de fato recebeu e pagou:</p>
+    <ul>
+      <li><strong>Receita:</strong> recebimentos classificados pelo De-Para (boleto/convênio, cartão/PIX, dinheiro).</li>
+      <li><strong>Impostos:</strong> no mês em que foram pagos.</li>
+      <li><strong>CMC:</strong> compras de mercadoria do período (arquivo de Compras).</li>
+      <li><strong>Demais grupos:</strong> Contas a Pagar pela data de pagamento, classificado pelo Plano de Contas.</li>
+    </ul>
+    <p><strong>DRE Gerencial (competência)</strong>, quando selecionado:</p>
     <ul>
       <li><strong>Receita:</strong> faturamento da Análise Comercial (Loja + Delivery + Central).</li>
       <li><strong>Impostos:</strong> por competência (o imposto pago num mês é do mês anterior).</li>
