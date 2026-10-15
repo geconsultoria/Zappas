@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<meta name="zappas-versao" content="v2026.10.15-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faturamento Detalhado</title>
@@ -178,7 +179,7 @@ a.side-brand:hover { opacity:.85; }
 .sidebar.collapsed:not(.peek) .side-link:hover::after {
   opacity:1; visibility:visible;
 }
-.side-item.open > .side-sub { max-height:640px; opacity:1; padding: 3px 0 6px 24px; }
+.side-item.open > .side-sub { max-height:260px; opacity:1; padding: 3px 0 6px 24px; }
 .side-sub a {
   display:flex; align-items:center; gap:9px;
   padding: 8px 10px; border-radius:8px;
@@ -821,10 +822,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
-        </a>
       </div>
     </div>
 
@@ -1032,7 +1029,7 @@ const CSV_URLS = STORE_KEYS.map(k => `${APPS_SCRIPT_URL}?loja=${k}`);
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_data_v5';
+const DB_KEY   = 'analiseComercial_data_v6';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1212,7 +1209,8 @@ function parseCSV(text) {
       cupons: cuponsVal,
       // Coluna "VS" (True/False) adicionada na planilha.
       vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
-      fabrica: /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim()),
+      // Coluna "Fabrica" — na planilha de vendas ela também pode vir como "Montagem".
+      fabrica: /^(true|verdadeiro|1|sim)$/i.test(String((obj.fabrica!==undefined && obj.fabrica!=='') ? obj.fabrica : (obj.montagem||'')).trim()),
     };
     // Igual à Análise Comercial: linha sem ano ou loja não entra no total.
     if(!row.ano||!row.loja) continue;
@@ -1994,6 +1992,7 @@ AuthGuard.requireScreen('faturamento_detalhado', function(){ openFaturamentoDeta
     </div>
   </div>
 </div>
+<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-b</div>
 </body>
 
 </html>

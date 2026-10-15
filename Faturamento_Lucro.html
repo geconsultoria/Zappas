@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<meta name="zappas-versao" content="v2026.10.15-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Faturamento & Lucro</title>
@@ -616,7 +617,7 @@ let rawProdTot = [];
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v10';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v11';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -957,7 +958,8 @@ function parseVendasLoja(text, acc) {
     if(!ano||!loja) continue;
     let canal = String(obj.canais||obj.canal||obj.canais_semana||'').trim();
     const vs  = /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim());
-    const fab = /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim());
+    // "Fabrica" também pode vir como "Montagem" na planilha de vendas.
+    const fab = /^(true|verdadeiro|1|sim)$/i.test(String((obj.fabrica!==undefined && obj.fabrica!=='') ? obj.fabrica : (obj.montagem||'')).trim());
     if(acNormTxt(canal)==='distribuicao' && vs){
       if(fab) continue;
       canal = canal===canal.toUpperCase() ? 'REEMBOLSO' : 'Reembolso';
@@ -1053,7 +1055,7 @@ function abcAgregar(text, lojaFallback, out){
   let iCanal = exata('canais','canal','canais_semana');
   if(iCanal<0) iCanal = headers.findIndex(h => abcNormTxt(h).includes('canal'));
   let iVs = exata('vs'); if(iVs<0) iVs = headers.findIndex(h => /^vs\b|^vs_/.test(abcNormTxt(h)));
-  let iFab = exata('fabrica'); if(iFab<0) iFab = headers.findIndex(h => abcNormTxt(h).includes('fabrica'));
+  let iFab = exata('fabrica','montagem'); if(iFab<0) iFab = headers.findIndex(h => /fabrica|montagem/.test(abcNormTxt(h)));
   const ehVerdade = v => /^(true|verdadeiro|1|1\.0|sim|s|x|yes)$/i.test(String(v||'').trim());
   const missing=[]; if(iNome<0) missing.push('nome'); if(iQtd<0) missing.push('qtd'); if(iTotal<0) missing.push('total');
   if(missing.length) throw new Error('colunas não encontradas: '+missing.join(', '));
@@ -1087,6 +1089,7 @@ function abcAgregar(text, lojaFallback, out){
       ano: dt ? String(dt.ano) : '', mes: dt ? dt.mes : 0, dia: dt ? dt.dia : 0, ts: dt ? dt.ts : 0,
       lojaRaw: loja, canalRaw: canal,
       cod: abcNormCodGrupo(iGrupo>=0 ? g(iGrupo) : ''), nomegrupo,
+      nome: out.__comNome ? g(iNome) : undefined, qtd: out.__comNome ? qtd : undefined,
       total, custo: (iCusto>=0 ? abcParseNum(g(iCusto)) : 0) * (qtd||0),
     });
     n++;
@@ -2025,88 +2028,198 @@ function buildTableComparativo(anos, lojas) {
    vendido da base de produtos (igual ao "Total Vendido" da Curva ABC).
    Diferença ≠ 0 indica venda sem item correspondente (ou vice-versa),
    grupos excluídos na Curva ABC, descontos no cupom etc. */
-// Lojas abertas na Conciliação (sobrevive aos re-renders dos filtros)
-// e opção "só dias com diferença".
+/* ══════════════════════════════════════════════════════════════
+   CONCILIAÇÃO Faturamento × Curva ABC — em níveis:
+   Mês → Loja → Canal → Dia → Lançamentos (vendas e produtos do dia)
+   Os lançamentos são buscados só quando o dia é aberto (da planilha da
+   loja) e ficam guardados em memória enquanto a tela estiver aberta.
+══════════════════════════════════════════════════════════════ */
 const _concAbertas = new Set();
 let _concSoDif = true;
-function toggleConcLoja(id) {
+let _concDados = null;           // agregados do último render
+const _lancCache = {};           // storeKey → Promise<{vendas, prod}>
+
+function setConcSoDif(v) { _concSoDif = v; renderConcBody(); }
+function toggleConc(id) {
   if (_concAbertas.has(id)) _concAbertas.delete(id); else _concAbertas.add(id);
-  const aberto = _concAbertas.has(id);
-  document.querySelectorAll(`tr.conc-dia[data-conc="${id}"]`).forEach(tr => tr.style.display = aberto ? '' : 'none');
-  const head = document.querySelector(`tr.conc-loja[data-conc="${id}"] .conc-caret`);
-  if (head) head.textContent = aberto ? '▼' : '▶';
+  renderConcBody();
 }
-function setConcSoDif(v) { _concSoDif = v; renderDashboard(); }
+
+const _concFmt = n => (n||0).toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
+const _concLojaLbl = l => l==='BELVEDER' ? 'BELVEDERE' : l;
+const _concEsc = t => String(t==null?'':t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 function buildConciliacao() {
   if (!rawProdTot.length) return null;
   const fatF = filterData(rawFat), proF = filterDataCmv(rawProdTot);
-  const lojas = [...new Set([...fatF.map(r=>r.loja), ...proF.map(r=>r.loja)])].filter(Boolean).sort();
-  const lbl = l => l==='BELVEDER' ? 'BELVEDERE' : l;
-  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
-  const dKey = r => (r.ano||'') + '|' + String(r.mes||0).padStart(2,'0') + '|' + String(r.dia||0).padStart(2,'0');
-  const dLbl = k => {
-    const [a,m,d] = k.split('|');
-    if (!+d || !+m || !+a) return 'Sem data';
-    const dt = new Date(+a, +m-1, +d);
-    return `${d}/${m}/${a} <span style="color:var(--text-muted);font-weight:500">(${DIAS[dt.getDay()]})</span>`;
+  // Árvore: mes → loja → canal → dia → {f, p}
+  const arv = {};
+  const add = (r, campo, lado) => {
+    const mk = (r.ano||'') + '-' + String(r.mes||0).padStart(2,'0');
+    const ck = r.canal || '(sem canal)';
+    const d  = r.dia || 0;
+    const M = arv[mk] = arv[mk] || {};
+    const L = M[r.loja] = M[r.loja] || {};
+    const C = L[ck] = L[ck] || {};
+    const D = C[d] = C[d] || { f:0, p:0 };
+    D[lado] += r[campo] || 0;
   };
-  // Soma por loja → dia
-  const porDia = (rows, campo) => {
-    const m = {};
-    rows.forEach(r => { const lk = r.loja; (m[lk] = m[lk] || {}); const k = dKey(r); m[lk][k] = (m[lk][k]||0) + (r[campo]||0); });
-    return m;
-  };
-  const fD = porDia(fatF, 'total_venda'), pD = porDia(proF, 'total');
-  const cell = (f,p,peso) => {
-    const d = f - p, pc = f ? (d/f)*100 : 0;
-    const ok = Math.abs(d) < 0.5;
-    const cor = ok ? '#0ea472' : (Math.abs(pc) < 0.5 ? '#b45309' : '#ef4444');
-    const fmt2 = n => n.toLocaleString('pt-BR',{style:'currency',currency:'BRL',minimumFractionDigits:2,maximumFractionDigits:2});
-    return `<td class="num"${peso}>${fmt2(f)}</td><td class="num"${peso}>${fmt2(p)}</td>
-      <td class="num" style="color:${cor};font-weight:700">${ok ? '✓ bate' : fmt2(d)}</td>
-      <td class="num" style="color:${cor}">${ok ? '—' : fmtPct(pc)}</td>`;
-  };
-  // Linhas diárias de um grupo (uma loja, ou todas no Total)
-  const linhasDias = (id, fMap, pMap) => {
-    const dias = [...new Set([...Object.keys(fMap), ...Object.keys(pMap)])].sort();
-    const aberto = _concAbertas.has(id);
-    let out = '', mostrados = 0;
-    dias.forEach(k => {
-      const f = fMap[k]||0, p = pMap[k]||0;
-      if (_concSoDif && Math.abs(f-p) < 0.5) return;
-      mostrados++;
-      out += `<tr class="conc-dia" data-conc="${id}" style="display:${aberto?'':'none'};background:var(--surface2);font-size:12px"><td style="padding-left:34px">${dLbl(k)}</td>${cell(f,p,'')}</tr>`;
-    });
-    if (!mostrados) out = `<tr class="conc-dia" data-conc="${id}" style="display:${aberto?'':'none'};background:var(--surface2);font-size:12px"><td colspan="5" style="padding-left:34px;color:var(--text-muted)">${_concSoDif ? 'Nenhum dia com diferença' : 'Sem lançamentos'}</td></tr>`;
-    return out;
-  };
-  const cabec = (id, nome, f, p, extra) => `<tr class="conc-loja" data-conc="${id}" onclick="toggleConcLoja('${id}')" style="cursor:pointer${extra}">
-      <td><span class="conc-caret" style="display:inline-block;width:14px;font-size:10px;color:var(--accent)">${_concAbertas.has(id)?'▼':'▶'}</span>${nome}</td>${cell(f,p,'')}</tr>`;
-
-  let tF = 0, tP = 0, rows = '';
-  const totF = {}, totP = {};
-  lojas.forEach(l => {
-    const fm = fD[l]||{}, pm = pD[l]||{};
-    const f = Object.values(fm).reduce((a,b)=>a+b,0), p = Object.values(pm).reduce((a,b)=>a+b,0);
-    tF += f; tP += p;
-    Object.entries(fm).forEach(([k,v]) => totF[k] = (totF[k]||0) + v);
-    Object.entries(pm).forEach(([k,v]) => totP[k] = (totP[k]||0) + v);
-    const id = 'cl-' + l.replace(/[^A-Za-z0-9]/g,'');
-    rows += cabec(id, lbl(l), f, p, '') + linhasDias(id, fm, pm);
-  });
-  rows += cabec('cl-TOTAL', 'Total', tF, tP, ';font-weight:700;background:var(--surface2)') + linhasDias('cl-TOTAL', totF, totP);
+  fatF.forEach(r => add(r, 'total_venda', 'f'));
+  proF.forEach(r => add(r, 'total', 'p'));
+  _concDados = arv;
 
   const wrap = el('div');
   wrap.innerHTML = `<div class="section-title">Conciliação Faturamento × Curva ABC</div>
     <div class="table-card"><div class="table-header"><div class="chart-title">Faturamento (Análise Comercial) × Total Vendido (Curva ABC Produto)</div>
       <div style="display:flex;align-items:center;gap:12px">
-        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" ${_concSoDif?'checked':''} onchange="setConcSoDif(this.checked)">Só dias com diferença</label>
+        <label style="font-size:12px;color:var(--text-secondary);display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" ${_concSoDif?'checked':''} onchange="setConcSoDif(this.checked)">Só canais/dias com diferença</label>
         <div class="table-badge">Mesmos filtros</div>
       </div></div>
-    <div style="padding:8px 20px 4px;font-size:12px;color:var(--text-secondary)">Clique na loja (ou no Total) para abrir os lançamentos por dia e ver em qual dia está a diferença. O CMV desta tela vem da base de produtos: se a diferença não for zero, parte do faturamento não tem item (e custo) correspondente na Curva ABC — ou a Curva ABC tem itens fora do faturamento.</div>
-    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:left">Loja / Dia</th><th class="num">Faturamento</th><th class="num">Total Curva ABC</th><th class="num">Diferença</th><th class="num">% Dif.</th></tr></thead><tbody>${rows}</tbody></table></div></div>`;
+    <div style="padding:8px 20px 4px;font-size:12px;color:var(--text-secondary)">Clique para abrir: <b>Mês → Loja → Canal → Dia → Lançamentos</b>. No dia aparecem, lado a lado, as vendas (planilha da Análise Comercial) e os produtos (Curva ABC); valores iguais à diferença do dia ficam destacados. As planilhas não têm nº de cupom em comum, então a conferência final do lançamento é no PDV.</div>
+    <div style="overflow-x:auto"><table><thead><tr><th style="text-align:left">Mês / Loja / Canal / Dia</th><th class="num">Faturamento</th><th class="num">Total Curva ABC</th><th class="num">Diferença</th><th class="num">% Dif.</th></tr></thead><tbody id="concBody"></tbody></table></div></div>`;
+  // corpo preenchido depois que o card entra na página
+  setTimeout(renderConcBody, 0);
   return wrap;
+}
+
+function renderConcBody() {
+  const tb = document.getElementById('concBody');
+  if (!tb || !_concDados) return;
+  const arv = _concDados;
+  const MESES = ['','Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
+  const DIAS = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
+  const sum = o => { let f=0,p=0; (function rec(x){ if (x && typeof x.f==='number' && typeof x.p==='number' && Object.keys(x).length===2){ f+=x.f; p+=x.p; return; } Object.values(x||{}).forEach(rec); })(o); return {f,p}; };
+  const temDif = t => Math.abs(t.f - t.p) >= 0.5;
+  const cells = (f,p) => {
+    const d = f - p, pc = f ? (d/f)*100 : 0, ok = Math.abs(d) < 0.5;
+    const cor = ok ? '#0ea472' : (Math.abs(pc) < 0.5 ? '#b45309' : '#ef4444');
+    return `<td class="num">${_concFmt(f)}</td><td class="num">${_concFmt(p)}</td>
+      <td class="num" style="color:${cor};font-weight:700">${ok ? '✓ bate' : _concFmt(d)}</td>
+      <td class="num" style="color:${cor}">${ok ? '—' : fmtPct(pc)}</td>`;
+  };
+  const linha = (id, nivel, rotulo, t, extraStyle, abrivel=true) => {
+    const ab = _concAbertas.has(id);
+    const caret = abrivel ? `<span style="display:inline-block;width:14px;font-size:10px;color:var(--accent)">${ab?'▼':'▶'}</span>` : '';
+    return `<tr ${abrivel?`onclick="toggleConc('${id}')"`:''} style="cursor:${abrivel?'pointer':'default'};${extraStyle||''}">
+      <td style="padding-left:${12 + nivel*20}px;white-space:nowrap">${caret}${rotulo}</td>${cells(t.f,t.p)}</tr>`;
+  };
+  let html = '', tot = {f:0,p:0};
+  Object.keys(arv).sort().forEach(mk => {
+    const M = arv[mk], tM = sum(M); tot.f += tM.f; tot.p += tM.p;
+    const [a, m] = mk.split('-');
+    const idM = 'M|'+mk;
+    html += linha(idM, 0, `<b>${MESES[+m]||'Sem mês'} ${a||''}</b>`, tM, 'background:#f7f9fc');
+    if (!_concAbertas.has(idM)) return;
+    Object.keys(M).sort().forEach(lj => {
+      const L = M[lj], tL = sum(L), idL = idM+'|'+lj;
+      html += linha(idL, 1, `<b>${_concEsc(_concLojaLbl(lj))}</b>`, tL);
+      if (!_concAbertas.has(idL)) return;
+      const canais = Object.keys(L).sort().filter(ck => !_concSoDif || temDif(sum(L[ck])));
+      if (!canais.length) html += `<tr><td colspan="5" style="padding-left:52px;color:var(--text-muted);font-size:12px">Nenhum canal com diferença</td></tr>`;
+      canais.forEach(ck => {
+        const C = L[ck], tC = sum(C), idC = idL+'|'+ck;
+        html += linha(idC, 2, _concEsc(ck), tC, 'font-size:12.5px');
+        if (!_concAbertas.has(idC)) return;
+        const dias = Object.keys(C).map(Number).sort((x,y)=>x-y).filter(d => !_concSoDif || temDif(C[d]));
+        if (!dias.length) html += `<tr><td colspan="5" style="padding-left:72px;color:var(--text-muted);font-size:12px">Nenhum dia com diferença</td></tr>`;
+        dias.forEach(d => {
+          const t = C[d], idD = idC+'|'+d;
+          const dt = (+a && +m && d) ? new Date(+a, +m-1, d) : null;
+          const rot = dt ? `${String(d).padStart(2,'0')}/${m}/${a} <span style="color:var(--text-muted)">(${DIAS[dt.getDay()]})</span>` : 'Sem data';
+          html += linha(idD, 3, rot, t, 'font-size:12px;background:var(--surface2)');
+          if (_concAbertas.has(idD)) {
+            html += `<tr><td colspan="5" style="padding:8px 12px 14px 92px;background:#fbfcfe"><div id="lanc-${idD.replace(/[^A-Za-z0-9]/g,'_')}" style="font-size:12px;color:var(--text-muted)">Carregando lançamentos…</div></td></tr>`;
+            setTimeout(() => carregarLancamentos(idD, { ano: a, mes: +m, dia: d, loja: lj, canal: ck, dif: t.f - t.p }), 0);
+          }
+        });
+      });
+    });
+  });
+  html += `<tr style="font-weight:700;background:var(--surface2)"><td style="padding-left:12px">Total</td>${cells(tot.f, tot.p)}</tr>`;
+  tb.innerHTML = html;
+}
+
+/* Lançamentos de um dia/loja/canal — busca as planilhas da loja (uma vez). */
+function parseVendasLinhas(text) {
+  const lines = text.split(/\r?\n/);
+  const sep = acDetectSep(lines[0] || '');
+  const headers = acParseLine(lines[0] || '', sep).map(acNormKey);
+  const out = [];
+  for (let i=1;i<lines.length;i++){
+    const line = lines[i].trim(); if (!line) continue;
+    const fields = acParseLine(line, sep);
+    if (fields.every(f=>!f)) continue;
+    const obj = {}; headers.forEach((h,idx)=>{ obj[h]=fields[idx]??''; });
+    const ano = String(obj.ano).trim(), loja = String(obj.loja).trim();
+    if (!ano || !loja) continue;
+    let canal = String(obj.canais||obj.canal||obj.canais_semana||'').trim();
+    const vs  = /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim());
+    const fab = /^(true|verdadeiro|1|sim)$/i.test(String((obj.fabrica!==undefined && obj.fabrica!=='') ? obj.fabrica : (obj.montagem||'')).trim());
+    if (acNormTxt(canal)==='distribuicao' && vs){ if (fab) continue; canal = canal===canal.toUpperCase() ? 'REEMBOLSO' : 'Reembolso'; }
+    if (acNormTxt(canal)==='distribuicao' && !vs && fab) canal = canal===canal.toUpperCase() ? 'CENTRAL' : 'Central';
+    const md = String(obj.data||'').trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+    out.push({ ano: parseAno(ano), mes: parseMes(obj.mes), dia: md ? +md[1] : 0, canal,
+               total: acToNum(obj.total), cupons: acToNum(obj.passage), frete: acToNum(obj.frete), linha: i+1 });
+  }
+  return out;
+}
+function lancamentosDaLoja(storeKey) {
+  if (!_lancCache[storeKey]) {
+    _lancCache[storeKey] = (async () => {
+      const iv = STORE_KEYS.indexOf(storeKey);
+      const [tv, tp] = await Promise.all([ fetchCSV(CSV_URLS_FAT[iv]), fetchComTimeout(CURVAABC_URLS[iv], 60000) ]);
+      const prodRaw = []; prodRaw.__comNome = true;
+      abcAgregar(tp, storeKey.toUpperCase(), prodRaw);
+      // mesma unificação de grupo da Curva ABC (dentro da loja)
+      const ult = new Map();
+      prodRaw.forEach(r => { if(!r.cod || !r.nomegrupo || r.nomegrupo==='SEM GRUPO') return; const u = ult.get(r.cod); if(!u || r.ts >= u.ts) ult.set(r.cod, { ts:r.ts, nome:r.nomegrupo }); });
+      const prod = prodRaw.filter(r => { const u = ult.get(r.cod); return !ABC_GRUPOS_EXCLUIDOS.includes(abcNormTxt(u ? u.nome : r.nomegrupo)); });
+      return { vendas: parseVendasLinhas(tv), prod };
+    })().catch(e => { delete _lancCache[storeKey]; throw e; });
+  }
+  return _lancCache[storeKey];
+}
+async function carregarLancamentos(idD, q) {
+  const box = document.getElementById('lanc-' + idD.replace(/[^A-Za-z0-9]/g,'_'));
+  if (!box) return;
+  const storeKey = lojaCanonKey(q.loja);
+  if (STORE_KEYS.indexOf(storeKey) < 0) { box.textContent = 'Loja não reconhecida para buscar os lançamentos.'; return; }
+  try {
+    const { vendas, prod } = await lancamentosDaLoja(storeKey);
+    const nc = abcNormTxt(q.canal === '(sem canal)' ? '' : q.canal);
+    const v = vendas.filter(r => String(r.ano)===String(q.ano) && r.mes===q.mes && r.dia===q.dia && abcNormTxt(r.canal)===nc)
+                    .sort((x,y)=>y.total-x.total);
+    const p = prod.filter(r => String(r.ano)===String(q.ano) && r.mes===q.mes && r.dia===q.dia && abcNormTxt(r.canalRaw)===nc)
+                  .sort((x,y)=>y.total-x.total);
+    const sv = v.reduce((t,r)=>t+r.total,0), sp = p.reduce((t,r)=>t+r.total,0);
+    const alvo = Math.abs(q.dif);
+    const hl = val => alvo >= 0.5 && Math.abs(Math.abs(val) - alvo) < 0.5;
+    const estilo = 'max-height:340px;overflow:auto;border:1px solid var(--border);border-radius:8px;background:#fff';
+    const th = 'style="position:sticky;top:0;background:#f4f6f9;text-align:left;padding:6px 8px;font-size:11px"';
+    const thn = 'style="position:sticky;top:0;background:#f4f6f9;text-align:right;padding:6px 8px;font-size:11px"';
+    const td = 'style="padding:4px 8px;border-top:1px solid #eef1f5"';
+    const tdn = 'style="padding:4px 8px;border-top:1px solid #eef1f5;text-align:right;font-variant-numeric:tabular-nums"';
+    const marca = val => hl(val) ? ' style="background:#fff3cd" title="Valor igual à diferença do dia"' : '';
+    const tabV = `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th ${th}>#</th><th ${thn}>Valor</th><th ${thn}>Cupons</th><th ${thn}>Frete</th></tr></thead><tbody>${
+      v.map((r,i)=>`<tr${marca(r.total)}><td ${td}>${i+1}</td><td ${tdn}>${_concFmt(r.total)}</td><td ${tdn}>${r.cupons||''}</td><td ${tdn}>${r.frete?_concFmt(r.frete):''}</td></tr>`).join('') || `<tr><td ${td} colspan="4">Nenhuma venda neste dia/canal</td></tr>`}</tbody></table>`;
+    const tabP = `<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr><th ${th}>Produto</th><th ${th}>Grupo</th><th ${thn}>Qtd</th><th ${thn}>Valor</th></tr></thead><tbody>${
+      p.map(r=>`<tr${marca(r.total)}><td ${td}>${_concEsc(r.nome)}</td><td ${td}>${_concEsc(r.nomegrupo)}</td><td ${tdn}>${(r.qtd||0).toLocaleString('pt-BR')}</td><td ${tdn}>${_concFmt(r.total)}</td></tr>`).join('') || `<tr><td ${td} colspan="4">Nenhum produto neste dia/canal</td></tr>`}</tbody></table>`;
+    const freteTot = v.reduce((t,r)=>t+(r.frete||0),0);
+    const qHl = v.filter(r=>hl(r.total)).length + p.filter(r=>hl(r.total)).length;
+    box.innerHTML = `
+      <div style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:8px;color:var(--text-secondary)">
+        <span>Diferença do dia: <b style="color:#ef4444">${_concFmt(q.dif)}</b></span>
+        <span>Vendas: <b>${v.length}</b> lançamentos · ${_concFmt(sv)}${freteTot?` · frete ${_concFmt(freteTot)}`:''}</span>
+        <span>Produtos: <b>${p.length}</b> itens · ${_concFmt(sp)}</span>
+        ${qHl ? `<span style="background:#fff3cd;padding:0 6px;border-radius:4px">${qHl} valor(es) igual(is) à diferença destacado(s)</span>` : ''}
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:12px">
+        <div><div style="font-weight:700;color:#0f1923;margin-bottom:4px">Vendas (Análise Comercial)</div><div style="${estilo}">${tabV}</div></div>
+        <div><div style="font-weight:700;color:#0f1923;margin-bottom:4px">Produtos (Curva ABC)</div><div style="${estilo}">${tabP}</div></div>
+      </div>`;
+  } catch (e) {
+    box.textContent = 'Não foi possível buscar os lançamentos: ' + e.message;
+  }
 }
 
 function buildTable(allM, mesLbl, fatMA, cmvMA, lucMA, lojas, fatLA, cmvLA, lucLA, pctLA) {
@@ -2319,6 +2432,7 @@ AuthGuard.requireScreen('faturamento_lucro', function(session){
     </div>
   </div>
 </div>
+<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-b</div>
 </body>
 
 </html>

@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<meta name="zappas-versao" content="v2026.10.15-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Análise Comercial</title>
@@ -583,15 +584,6 @@ tr.dia-sub.show { display:table-row; }
 tr.dia-sub td { background:#fff; font-size:11px; color:var(--ink-3); }
 tr.dia-sub td.td-metric { padding-left:52px; font-weight:400; }
 tr.loja-click td.td-metric { cursor:pointer; user-select:none; }
-tr.dia-click td.td-metric { cursor:pointer; user-select:none; }
-tr.dia-click.open td { background:#F7F6F0; }
-tr.dia-click .exp-caret { font-size:8px; }
-tr.dia-click.open .exp-caret, tr.loja-click.open .exp-caret { transform:rotate(90deg); }
-tr.lanc-sub { display:none; }
-tr.lanc-sub.show { display:table-row; }
-tr.lanc-sub td { background:#FBFBF8; font-size:10.5px; color:var(--ink-3); }
-tr.lanc-sub td.td-metric { padding-left:70px; font-weight:400; max-width:260px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-tr.lanc-sub td.lanc-v { color:var(--ink); }
 
 tr.exp-sub td { background:var(--surf-2); font-size:11.5px; color:var(--ink-3); }
 tr.exp-sub td.td-metric { padding-left:30px; font-weight:500; color:var(--ink-3); cursor:default; }
@@ -883,10 +875,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         <a href="Ciclo_Financeiro.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
-        </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
         </a>
       </div>
     </div>
@@ -1313,7 +1301,7 @@ const NOMEPGTO_QUEBRAS = ['x baixas e quebras', 'baixas e quebras'];
 ═══════════════════════════════════════════════════════ */
 const DB_NAME  = 'analiseComercialDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'analiseComercial_resumo_v5';
+const DB_KEY   = 'analiseComercial_resumo_v6';
 
 function openDB() {
   return new Promise((resolve, reject) => {
@@ -1457,7 +1445,6 @@ function diaDaSemana(date) {
   return DIAS_SEMANA_NOMES[date.getDay()];
 }
 
-const LANC_SKIP=new Set(['ano','loja','mes','canais','canal','canais_semana','dia','data','semana','semana2','total','passage','ticket','quebras','vs','fabrica']);
 function parseCSV(text) {
   const lines = text.split(/\r?\n/);
   if(!lines.length) return [];
@@ -1502,12 +1489,9 @@ function parseCSV(text) {
       // Coluna "VS" (True/False) adicionada na planilha.
       vs: /^(true|verdadeiro|1|sim)$/i.test(String(obj.vs||'').trim()),
       // Coluna "Fabrica" (True/False): junto com Canal=DISTRIBUICAO e VS=False define o canal CENTRAL.
-      fabrica: /^(true|verdadeiro|1|sim)$/i.test(String(obj.fabrica||'').trim()),
+      // Coluna "Fabrica" — na planilha de vendas ela também pode vir como "Montagem".
+      fabrica: /^(true|verdadeiro|1|sim)$/i.test(String((obj.fabrica!==undefined && obj.fabrica!=='') ? obj.fabrica : (obj.montagem||'')).trim()),
     };
-    // Demais colunas da linha (detalhe do lançamento ao abrir o dia)
-    const ex={};
-    headers.forEach(h=>{ if(LANC_SKIP.has(h)) return; const v=String(obj[h]??'').trim(); if(v!=='') ex[h]=v; });
-    if(Object.keys(ex).length) row.ex=ex;
     if(!row.ano||!row.loja) continue;
     // Regra VS: para o canal DISTRIBUICAO, só entram linhas com VS = False.
     // Regra REEMBOLSO: Canal = DISTRIBUICAO + VS = True + Fabrica = False vira o canal REEMBOLSO.
@@ -2263,8 +2247,6 @@ function toggleExp(id){
   if(!open){
     document.querySelectorAll('tr.dia-sub[data-exp="'+id+'"]').forEach(x=>x.classList.remove('show'));
     document.querySelectorAll('tr.loja-click[data-exp="'+id+'"]').forEach(x=>x.classList.remove('open'));
-    document.querySelectorAll('tr.lanc-sub[data-exp="'+id+'"]').forEach(x=>x.classList.remove('show'));
-    document.querySelectorAll('tr.dia-click[data-exp="'+id+'"]').forEach(x=>x.classList.remove('open'));
   }
 }
 function toggleSub(tr){
@@ -2286,17 +2268,14 @@ function toggleDiaCanal(tr){
       if(r.mes!==mes||normTxt(r.canal)!==ck) return;
       if(!(r.data instanceof Date)||isNaN(r.data)) return;
       const d=r.data.getDate();
-      const o=porDia[d]=porDia[d]||{wd:r.data.getDay(),v:{},rows:[]};
+      const o=porDia[d]=porDia[d]||{wd:r.data.getDay(),v:{}};
       o.v[r.loja]=(o.v[r.loja]||0)+(r.fat||0);
-      o.rows.push(r);
     });
     const totMes=c.totMes[mes]||0;
-    c.lanc=c.lanc||{};
     let html='';
     Object.keys(porDia).map(Number).sort((a,b)=>a-b).forEach(d=>{
       const o=porDia[d];
-      const lid=id+'|'+d; c.lanc[lid]=o.rows;
-      html+=`<tr class="dia-sub dia-click show" data-exp="${tr.dataset.exp}" data-diaof="${id}" data-lid="${lid}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleLanc(this.parentNode)" title="Clique para ver os lançamentos do dia"><span class="exp-caret">▶</span>Dia ${String(d).padStart(2,'0')}${c.ano?' ('+DIAS_ABR[o.wd]+')':''} <span style="color:var(--ink-4,#999);font-size:10px">· ${o.rows.length} lanç.</span></td>`;
+      html+=`<tr class="dia-sub show" data-exp="${tr.dataset.exp}" data-diaof="${id}"><td class="td-metric" style="border-right:2px solid var(--border-2)">Dia ${String(d).padStart(2,'0')}${c.ano?' ('+DIAS_ABR[o.wd]+')':''}</td>`;
       let tot=0;
       c.lojas.forEach(l=>{
         const v=o.v[l]||0; tot+=v;
@@ -2309,48 +2288,6 @@ function toggleDiaCanal(tr){
     return;
   }
   document.querySelectorAll('tr.dia-sub[data-diaof="'+id+'"]').forEach(x=>x.classList.toggle('show',open));
-  if(!open){
-    document.querySelectorAll('tr.lanc-sub[data-canalof="'+id+'"]').forEach(x=>x.classList.remove('show'));
-    document.querySelectorAll('tr.dia-click[data-diaof="'+id+'"]').forEach(x=>x.classList.remove('open'));
-  }
-}
-// Lançamentos de um dia (quadro Faturamento por Loja): clique no dia abre cada linha da planilha
-const LANC_LBL={hora:'Hora',horario:'Hora',cupom:'Cupom',nf:'NF',nota:'NF',documento:'Doc',pedido:'Pedido',cliente:'Cliente',produto:'Produto',descricao:'Descrição',forma_pgto:'Pgto',pagamento:'Pgto',operador:'Operador',caixa:'Caixa'};
-function lancDesc(r){
-  const ex=r.ex||{};
-  const parts=Object.keys(ex).map(k=>(LANC_LBL[k]||k.replace(/_/g,' '))+': '+ex[k]);
-  return parts.join(' · ');
-}
-function escH(t){ return String(t).replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch])); }
-function toggleLanc(tr){
-  const lid=tr.dataset.lid;
-  const open=tr.classList.toggle('open');
-  if(tr.dataset.loaded!=='1'){
-    tr.dataset.loaded='1';
-    const c=window.__diaC; const rows=(c&&c.lanc&&c.lanc[lid])||[];
-    const totMes=(c&&rows[0])?(c.totMes[rows[0].mes]||0):0;
-    const ord=rows.slice().sort((a,b)=>{
-      const la=c.lojas.indexOf(a.loja), lb=c.lojas.indexOf(b.loja);
-      return la!==lb ? la-lb : (b.fat||0)-(a.fat||0);
-    });
-    let html='';
-    ord.forEach((r,i)=>{
-      const desc=lancDesc(r);
-      const cup=r.cupons?` · ${fNum(r.cupons)} cupom${r.cupons>1?'s':''}`:'';
-      const lbl=`${i+1}. ${r.loja==='BELVEDER'?'BELVEDERE':r.loja}${desc?' · '+desc:''}${cup}`;
-      html+=`<tr class="lanc-sub show" data-exp="${tr.dataset.exp}" data-canalof="${tr.dataset.diaof}" data-lancof="${lid}"><td class="td-metric" style="border-right:2px solid var(--border-2)" title="${escH(lbl)}">${escH(lbl)}</td>`;
-      c.lojas.forEach(l=>{
-        if(l===r.loja){
-          html+=`<td class="b-left lanc-v" style="text-align:center">${fNum(r.fat||0)}</td><td class="av-col" style="text-align:center">${fPct(totMes>0?(r.fat||0)/totMes*100:0)}</td>`;
-        } else html+=`<td class="b-left"></td><td class="av-col"></td>`;
-      });
-      html+=`<td class="b-left lanc-v" style="text-align:center">${fNum(r.fat||0)}</td></tr>`;
-    });
-    if(!html) html=`<tr class="lanc-sub show" data-exp="${tr.dataset.exp}" data-canalof="${tr.dataset.diaof}" data-lancof="${lid}"><td class="td-metric" colspan="30">Sem lançamentos</td></tr>`;
-    tr.insertAdjacentHTML('afterend',html);
-    return;
-  }
-  document.querySelectorAll('tr.lanc-sub[data-lancof="'+lid+'"]').forEach(x=>x.classList.toggle('show',open));
 }
 window.__dia = window.__dia || {};
 const DIAS_ABR=['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
@@ -2744,8 +2681,7 @@ function renderComparative(data) {
       });
 
       // ── Linha Total (soma real de cada coluna) ─────────
-      const eidT = 'loja-total';
-      html += `<tr class="total-row exp-row" data-exp="${eidT}"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2);cursor:pointer" onclick="toggleExp('${eidT}')"><span class="exp-caret">▶</span>Total</td>`;
+      html += `<tr class="total-row"><td class="td-metric" style="font-weight:800;border-right:2px solid var(--border-2)">Total</td>`;
       lojas.forEach(loja => {
         const vTot = aggLojaTot(loja);
         const av   = totalGeral > 0 ? vTot / totalGeral * 100 : 0;
@@ -2754,30 +2690,6 @@ function renderComparative(data) {
       });
       html += `<td class="b-left" style="font-weight:800;text-align:center;background:var(--blue-xl);color:var(--blue)">${fNum(totalGeral)}</td>`;
       html += '</tr>';
-
-      // Total → Canal (soma dos meses por loja) → Mês (totalizador do mês por loja)
-      const totAll = dataAno.reduce((s,r)=>s+(r.fat||0),0);
-      EXP_CANAIS.forEach(([ck, cn]) => {
-        const vc = (loja) => mesesLoja.reduce((s,m)=>s+(_cidx[m+'|'+loja+'|'+ck]||0),0);
-        const fatMes = ck === 'loja' || ck === 'delivery';
-        let tot = 0;
-        html += `<tr class="exp-sub loja-click${fatMes ? ' exp-sub-fat' : ''}" data-exp="${eidT}" data-key="${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)" onclick="toggleSub(this.parentNode)"><span class="exp-caret">▶</span>${cn}</td>`;
-        lojas.forEach(loja => {
-          const v = vc(loja); tot += v;
-          html += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(totAll>0?v/totAll*100:0)}</td>`;
-        });
-        html += `<td class="b-left" style="text-align:center;font-weight:600">${fNum(tot)}</td></tr>`;
-        mesesLoja.forEach(mes => {
-          const tm = aggMesAll(mes);
-          let tl = 0, cells = '';
-          lojas.forEach(loja => {
-            const v = _cidx[mes+'|'+loja+'|'+ck] || 0; tl += v;
-            cells += `<td class="b-left" style="text-align:center">${fNum(v)}</td><td class="av-col" style="text-align:center">${fPct(tm>0?v/tm*100:0)}</td>`;
-          });
-          if (!tl) return;
-          html += `<tr class="dia-sub" data-exp="${eidT}" data-diaof="${eidT}|${ck}"><td class="td-metric" style="border-right:2px solid var(--border-2)">${MONTHS[+mes-1]||mes}</td>${cells}<td class="b-left" style="text-align:center;font-weight:600">${fNum(tl)}</td></tr>`;
-        });
-      });
 
       $('ctb-loja').innerHTML = html;
     } else {
@@ -3180,6 +3092,7 @@ AuthGuard.requireScreen('analise_comercial', function(session){
     </div>
   </div>
 </div>
+<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-b</div>
 </body>
 
 </html>
