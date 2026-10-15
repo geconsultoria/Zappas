@@ -1757,6 +1757,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
       </div>
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
         <button class="btn-toggle-all" id="orcBtnLimparAjustes" onclick="orcLimparAjustesLoja()" style="display:none">Limpar ajustes desta loja</button>
+        <button class="btn-av-toggle active" id="orcBtnAV" onclick="orcToggleAV()" title="Mostra/oculta a Análise Vertical (% de cada linha sobre a receita do mês)">% AV</button>
       </div>
     </div>
     <div class="dre-scroll">
@@ -6038,9 +6039,12 @@ const ORC_SLUG = {
   inv:'investimento', parc:'parcelamento_impostos'
 };
 const ORC_SLUG_K = Object.fromEntries(Object.entries(ORC_SLUG).map(([k,s])=>[s,k]));
-const ORC_GRUPOS = ['rec','imp','ded','cmv','dcom','dpes','dadm','dfin','plab','dist','ir','emp','inv','parc','jur'];
+const ORC_GRUPOS = ['rec','imp','ded','cmv','com','tax','dcom','dpes','dadm','dfin','plab','dist','ir','emp','inv','parc','jur'];
 // Linhas calculadas como % da receita (custos variáveis).
-const ORC_PCT = ['imp','ded','cmv','dcom'];
+const ORC_PCT = ['imp','ded','cmv','com','tax'];
+// Despesas comerciais que variam com a venda (mesmo critério do Break-Even do DRE):
+// 2.17.01 Comissão de Vendas, 2.17.02 Comissão de Terceiros → 'com'; 2.17.14 Taxas Cartões/Recebíveis → 'tax'.
+const ORC_COD_COM = ['2.17.1','2.17.2'], ORC_COD_TAX = ['2.17.14'];
 
 const ORC_LINHAS = [
   { k:'rec',  l:'RECEITA OPERACIONAL',                   s:'(=)', t:'g' },
@@ -6051,7 +6055,9 @@ const ORC_LINHAS = [
   { k:'cmv',  l:'CMV — CUSTO MERCADORIA VENDIDA (PRODUTO)', s:'(-)', t:'g' },
   { k:'lb',   l:'LUCRO BRUTO',                           s:'(=)', t:'r', st:'green' },
   { t:'sep' },
-  { k:'dcom', l:'DESPESAS COMERCIAIS',                   s:'(-)', t:'g' },
+  { k:'com',  l:'COMISSÕES SOBRE VENDAS (VARIÁVEL)',     s:'(-)', t:'g' },
+  { k:'tax',  l:'TAXAS CARTÕES / RECEBÍVEIS (VARIÁVEL)', s:'(-)', t:'g' },
+  { k:'dcom', l:'DEMAIS DESPESAS COMERCIAIS (FIXO)',     s:'(-)', t:'g' },
   { k:'dpes', l:'DESPESAS COM PESSOAL',                  s:'(-)', t:'g' },
   { k:'dadm', l:'DESPESAS ADMINISTRATIVAS E OPERACIONAIS', s:'(-)', t:'g' },
   { k:'dfin', l:'DESPESAS / RECEITAS FINANCEIRAS',       s:'(-)', t:'g' },
@@ -6069,14 +6075,16 @@ const ORC_LINHAS = [
   { k:'rliq', l:'RESULTADO LÍQUIDO',                     s:'(=)', t:'r', st:'gold' },
 ];
 // Linhas "para baixo" (custo/despesa): subir é ruim (cor invertida na variação).
-const ORC_SAIDA = new Set(['imp','ded','cmv','dcom','dpes','dadm','dfin','plab','dist','ir','emp','inv','parc']);
+const ORC_SAIDA = new Set(['imp','ded','cmv','com','tax','dcom','dpes','dadm','dfin','plab','dist','ir','emp','inv','parc']);
 
 // Premissas padrão — todas editáveis na tela.
 const ORC_PREM_PADRAO = {
   fonte: 'dfc',      // 'dfc' = recebido × pago (regime de caixa) | 'ger' = DRE Gerencial (competência)
   recCresc: 5.0,     // % de crescimento da receita sobre a base (todas as lojas)
   recLoja: {},       // loja → % (substitui o geral para aquela loja)
-  impPP: 0, dedPP: 0, cmvPP: 0, dcomPP: 0,   // ajuste em pontos percentuais sobre o % da base
+  impPP: 0, dedPP: 0, cmvPP: 0, taxPP: 0,   // ajuste em pontos percentuais sobre o % da base
+  comPct: 5.0,       // comissões = % fixo do faturamento/recebimento orçado
+  dcomVar: 0,        // demais despesas comerciais (fixas): % sobre o mesmo mês da base
   dpesReaj: 5.0, dpesMes: 5,                 // reajuste salarial (dissídio) e mês em que começa
   dadmInf: 4.5,                              // inflação das despesas administrativas
   dfinVar: 0, plabVar: 0, distVar: 0, irVar: 0, empVar: 0, invVar: 0, parcVar: 0,
@@ -6137,7 +6145,12 @@ function orcMontarReal(){
     if(s === undefined) s = cacheSlug[r.grupo] = slugFromGrupo(r.grupo) || '';
     if(dfc && s === 'receita_operacional'){ add(r.ano, r.loja, 'rec', r.mes, r.valor); return; }
     if(dfc && s === 'impostos_vendas'){ add(r.ano, r.loja, 'imp', r.mes, r.valor); return; }
-    const k = ORC_SLUG_K[s];
+    let k = ORC_SLUG_K[s];
+    if(k === 'dcom'){
+      const cg = normCodGrupo(r.cod_grupo);
+      if(ORC_COD_COM.includes(cg)) k = 'com';
+      else if(ORC_COD_TAX.includes(cg)) k = 'tax';
+    }
     if(k) add(r.ano, r.loja, k, r.mes, r.valor);
     if(isJuros(r.subgrupo) || isJuros(r.plano)) add(r.ano, r.loja, 'jur', r.mes, r.valor);
   });
@@ -6209,11 +6222,11 @@ function orcCalcular(){
     const ajV = (k,m) => (aj[k] && aj[k][m] !== undefined && aj[k][m] !== null) ? Number(aj[k][m]) : null;
     const orc = {};
     ORC_GRUPOS.forEach(k => orc[k] = new Array(13).fill(0));
-    const varK = { dfin:P.dfinVar, plab:P.plabVar, dist:P.distVar, ir:P.irVar, emp:P.empVar, inv:P.invVar, parc:P.parcVar, jur:P.dfinVar };
+    const varK = { dcom:P.dcomVar, dfin:P.dfinVar, plab:P.plabVar, dist:P.distVar, ir:P.irVar, emp:P.empVar, inv:P.invVar, parc:P.parcVar, jur:P.dfinVar };
     for(let m=1;m<=12;m++){
       orc.rec[m] = base.rec[m] * (1 + cresc/100);
       if(ajV('rec',m) !== null) orc.rec[m] = ajV('rec',m);
-      ORC_PCT.forEach(k => orc[k][m] = orc.rec[m] * Math.max(0, pctBase[k] + Number(P[k+'PP']||0)) / 100);
+      ORC_PCT.forEach(k => orc[k][m] = orc.rec[m] * Math.max(0, k==='com' ? Number(P.comPct||0) : pctBase[k] + Number(P[k+'PP']||0)) / 100);
       orc.dpes[m] = base.dpes[m] * (1 + (m >= Number(P.dpesMes||1) ? Number(P.dpesReaj||0) : 0)/100);
       orc.dadm[m] = base.dadm[m] * (1 + Number(P.dadmInf||0)/100);
       Object.entries(varK).forEach(([k,p]) => orc[k][m] = base[k][m] * (1 + Number(p||0)/100));
@@ -6248,7 +6261,7 @@ function orcConsolidar(qual){
   for(let m=1;m<=12;m++){
     out.rl[m]   = T('rec')[m] - T('imp')[m] - T('ded')[m];
     out.lb[m]   = out.rl[m] - T('cmv')[m];
-    out.rop[m]  = out.lb[m] - T('dcom')[m] - T('dpes')[m] - T('dadm')[m] - T('dfin')[m] - T('plab')[m];
+    out.rop[m]  = out.lb[m] - T('com')[m] - T('tax')[m] - T('dcom')[m] - T('dpes')[m] - T('dadm')[m] - T('dfin')[m] - T('plab')[m];
     out.ebitda[m] = out.rop[m] + T('jur')[m];
     out.rir[m]  = out.rop[m] - T('dist')[m] - T('ir')[m];
     out.rliq[m] = out.rir[m] - T('emp')[m] - T('inv')[m] - T('parc')[m];
@@ -6361,12 +6374,15 @@ function orcRenderPremissas(){
       ${linhaPct('cmv','CMV (Produto)')}
       ${linhaPct('imp','Impostos s/ vendas')}
       ${linhaPct('ded','Deduções s/ vendas')}
-      ${linhaPct('dcom','Despesas comerciais')}
+      <div class="orc-prem-row"><label>Comissões s/ vendas</label><span class="orc-prem-base" id="orcPctBase_com">base ${fmtPct(pctB('com'))}</span>${inp('comPct', P.comPct)}<span class="orc-un">%</span></div>
+      ${linhaPct('tax','Taxas cartões / recebíveis')}
+      <div class="orc-prem-nota">Comissões: % fixo sobre o ${orcFonte()==='dfc'?'recebimento':'faturamento'} orçado (não é ajuste em pontos).</div>
     </div>
     <div class="orc-prem-card">
       <div class="orc-prem-h">Despesas fixas <small>(% sobre o mesmo mês da base)</small></div>
       <div class="orc-prem-row"><label>Reajuste salarial (dissídio)</label>${inp('dpesReaj', P.dpesReaj)}<span class="orc-un">%</span></div>
       <div class="orc-prem-row"><label>…a partir de</label><select class="orc-inp orc-sel" onchange="orcSetPrem('dpesMes', this.value)">${mesesOpt}</select><span class="orc-un"></span></div>
+      ${linhaVar('dcomVar','Demais despesas comerciais')}
       ${linhaVar('dadmInf','Administrativas (inflação)')}
       ${linhaVar('dfinVar','Financeiras')}
       ${linhaVar('plabVar','Pró-labore')}
@@ -6430,6 +6446,21 @@ function orcSetView(v){
   orcRenderTabela();
 }
 
+let orcAV = true;   // Análise Vertical visível por padrão
+function orcToggleAV(){
+  orcAV = !orcAV;
+  const b = document.getElementById('orcBtnAV'); if(b) b.classList.toggle('active', orcAV);
+  orcRenderTabela();
+}
+// Célula de %AV: valor da linha ÷ receita do mesmo período.
+function orcAvCell(v, base, resultado){
+  if(!orcAV) return '';
+  if(!base) return '<td class="av-col"><span class="val-zero">—</span></td>';
+  const p = v/base*100;
+  const cls = resultado ? (p>0?'av-pos':p<0?'av-neg':'av-neutral') : 'av-neutral';
+  return `<td class="av-col"><span class="${cls}">${p.toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1})}%</span></td>`;
+}
+const orcAvTh = () => orcAV ? '<th class="av-header av-col">AV%</th>' : '';
 function orcRenderTabela(){
   const thead = document.getElementById('orcThead'), tbody = document.getElementById('orcTbody');
   const titulo = document.getElementById('orcTabTitulo'), sub = document.getElementById('orcTabSub');
@@ -6437,6 +6468,7 @@ function orcRenderTabela(){
   const btnLimpar = document.getElementById('orcBtnLimparAjustes');
   const nAj = loja ? Object.values(orcState.ajustes[loja]||{}).reduce((a,o)=>a+Object.keys(o||{}).length,0) : 0;
   btnLimpar.style.display = (orcView==='orc' && nAj) ? '' : 'none';
+  const btnAV = document.getElementById('orcBtnAV'); if(btnAV) btnAV.style.display = (orcView==='orc' || orcView==='base') ? '' : 'none';
   const peWrap = document.getElementById('orcPeWrap'), tabScroll = document.getElementById('orcTable').closest('.dre-scroll');
   if(orcView === 'pe'){ tabScroll.style.display = 'none'; peWrap.style.display = ''; orcRenderPE(); return; }
   tabScroll.style.display = ''; peWrap.style.display = 'none';
@@ -6459,7 +6491,7 @@ function orcRenderTabela(){
     sub.innerHTML = loja
       ? `Loja ${orcEsc(loja)} · clique num valor mensal para digitar o orçado (fica destacado). Apague o valor para voltar ao calculado.`
       : 'Consolidado das lojas do filtro · para digitar valores mês a mês, selecione uma loja só no filtro de Loja.';
-    thead.innerHTML = `<tr><th>Conta</th>${MES_ABR.slice(1).map(m=>`<th>${m}</th>`).join('')}<th>Total ${ORC_ANO}</th><th>Base ${ORC_BASE}</th><th>Var.</th></tr>`;
+    thead.innerHTML = `<tr><th>Conta</th>${MES_ABR.slice(1).map(m=>`<th>${m}</th>${orcAvTh()}`).join('')}<th>Total ${ORC_ANO}</th>${orcAvTh()}<th>Base ${ORC_BASE}</th><th>Var.</th></tr>`;
     const aj = loja ? (orcState.ajustes[loja]||{}) : {};
     tbody.innerHTML = ORC_LINHAS.map(L => linhaHtml(L, k => {
       const ed = loja && L.t==='g';
@@ -6469,9 +6501,9 @@ function orcRenderTabela(){
         return ed
           ? `<td class="orc-cell${manual?' orc-manual':''}" data-k="${k}" data-m="${m}" onclick="orcEditar(this)" title="${manual?'Valor digitado manualmente':'Clique para digitar o orçado deste mês'}">${sinal(v)}</td>`
           : `<td>${sinal(v)}</td>`;
-      }).join('');
+      }).map((c,i) => c + orcAvCell(O[k][i+1], O.rec[i+1], L.t==='r')).join('');
       const tO = orcAno(O[k]), tB = orcAno(B[k]);
-      return cells + `<td style="font-weight:700">${sinal(tO)}</td><td>${sinal(tB)}</td>` + varCell(tO, tB, k);
+      return cells + `<td style="font-weight:700">${sinal(tO)}</td>` + orcAvCell(tO, orcAno(O.rec), L.t==='r') + `<td>${sinal(tB)}</td>` + varCell(tO, tB, k);
     })).join('');
     return;
   }
@@ -6482,12 +6514,12 @@ function orcRenderTabela(){
     const projM = m => sel.some(l => orcCalc.porLoja[l].proj[m]);
     titulo.textContent = 'Base ' + ORC_BASE + ' — realizado + projetado';
     sub.innerHTML = `Meses em <span class="orc-proj-leg">destaque</span> são projetados (ainda não lançados). Quando o mês for lançado, passa a mostrar o realizado.`;
-    thead.innerHTML = `<tr><th>Conta</th>${MES_ABR.slice(1).map((m,i)=>`<th class="${projM(i+1)?'orc-proj-th':''}">${m}${projM(i+1)?' *':''}</th>`).join('')}<th>Total ${ORC_BASE}</th><th>${ORC_REF}</th><th>Var.</th></tr>`;
+    thead.innerHTML = `<tr><th>Conta</th>${MES_ABR.slice(1).map((m,i)=>`<th class="${projM(i+1)?'orc-proj-th':''}">${m}${projM(i+1)?' *':''}</th>${orcAvTh()}`).join('')}<th>Total ${ORC_BASE}</th>${orcAvTh()}<th>${ORC_REF}</th><th>Var.</th></tr>`;
     tbody.innerHTML = ORC_LINHAS.map(L => linhaHtml(L, k => {
       const impEst = m => k==='imp' && sel.some(l => orcCalc.porLoja[l].impEstimado[m]);
-      const cells = B[k].slice(1).map((v,i) => `<td class="${(projM(i+1)||impEst(i+1))?'orc-proj':''}" ${impEst(i+1)?'title="Imposto estimado: o pagamento deste mês só acontece no mês seguinte, que ainda não fechou"':''}>${sinal(v)}</td>`).join('');
+      const cells = B[k].slice(1).map((v,i) => `<td class="${(projM(i+1)||impEst(i+1))?'orc-proj':''}" ${impEst(i+1)?'title="Imposto estimado: o pagamento deste mês só acontece no mês seguinte, que ainda não fechou"':''}>${sinal(v)}</td>` + orcAvCell(v, B.rec[i+1], L.t==='r')).join('');
       const tB = orcAno(B[k]), tR = orcAno(R[k]);
-      return cells + `<td style="font-weight:700">${sinal(tB)}</td><td>${sinal(tR)}</td>` + varCell(tB, tR, k);
+      return cells + `<td style="font-weight:700">${sinal(tB)}</td>` + orcAvCell(tB, orcAno(B.rec), L.t==='r') + `<td>${sinal(tR)}</td>` + varCell(tB, tR, k);
     })).join('');
     return;
   }
@@ -6576,7 +6608,7 @@ function orcRenderStatus(){
 }
 /* ══════════════════════════════════════════════════════════════
    PONTO DE EQUILÍBRIO (sobre o Orçamento 2027)
-   Custos variáveis = Impostos + Deduções + CMV + Desp. comerciais
+   Custos variáveis = Impostos + Deduções + CMV + Comissões + Taxas de cartão
      (as mesmas linhas que o orçamento calcula como % da receita).
    Margem de contribuição % = (Receita − Custos variáveis) ÷ Receita.
    • PE Operacional = (Pessoal + Administrativas + Financeiras + Pró-labore) ÷ MC%
@@ -6613,8 +6645,8 @@ function orcPEcomponentes(d){
   const rec=z(), cv=z(), cfo=z(), cfc=z();
   for(let m=1;m<=12;m++){
     rec[m] = d.rec[m]||0;
-    cv[m]  = (d.imp[m]||0)+(d.ded[m]||0)+(d.cmv[m]||0)+(d.dcom[m]||0);
-    cfo[m] = (d.dpes[m]||0)+(d.dadm[m]||0)+(d.dfin[m]||0)+(d.plab[m]||0);
+    cv[m]  = (d.imp[m]||0)+(d.ded[m]||0)+(d.cmv[m]||0)+(d.com[m]||0)+(d.tax[m]||0);
+    cfo[m] = (d.dcom[m]||0)+(d.dpes[m]||0)+(d.dadm[m]||0)+(d.dfin[m]||0)+(d.plab[m]||0);
     cfc[m] = cfo[m]+(d.dist[m]||0)+(d.ir[m]||0)+(d.emp[m]||0)+(d.inv[m]||0)+(d.parc[m]||0);
   }
   return { rec, cv, cfo, cfc };
@@ -6684,7 +6716,7 @@ function orcRenderPE(){
         <thead><tr><th>Linha</th><th>No ponto de equilíbrio</th><th>No orçamento ${ORC_ANO}</th><th>% da receita</th></tr></thead>
         <tbody>
           <tr><td>(=) Receita</td><td class="orc-pe-dest">${brl(peG)}</td><td>${brl(recG)}</td><td>100,0%</td></tr>
-          <tr><td>(−) Custos variáveis (impostos, deduções, CMV, comerciais)</td><td>${brl(cvPE)}</td><td>${brl(G.ano.cv)}</td><td>${pc(1-G.ano.mc)}</td></tr>
+          <tr><td>(−) Custos variáveis (impostos, deduções, CMV/CMC, comissões, taxas de cartão)</td><td>${brl(cvPE)}</td><td>${brl(G.ano.cv)}</td><td>${pc(1-G.ano.mc)}</td></tr>
           <tr><td>(=) Margem de contribuição</td><td>${brl(mcPE)}</td><td>${brl(recG-G.ano.cv)}</td><td>${pc(G.ano.mc)}</td></tr>
           <tr><td>(−) ${orcPeBase==='oper'?'Despesas fixas operacionais':'Despesas fixas + empréstimos, investimentos, parcelamentos, IR e distribuição'}</td><td>${brl(fx)}</td><td>${brl(fx)}</td><td>—</td></tr>
           <tr class="orc-pe-tot"><td>(=) ${orcPeBase==='oper'?'Resultado Operacional':'Resultado Líquido'}</td><td class="orc-pe-dest">R$ 0</td><td class="${recG-G.ano.cv-fx<0?'val-neg':'val-pos'}">${brl(recG-G.ano.cv-fx)}</td><td></td></tr>
@@ -6738,7 +6770,7 @@ function orcRenderPE(){
     ${kpis}
     ${prova}
     <div class="orc-pe-h"><div><div class="orc-pe-tit">Resumo por loja — ${ORC_ANO}</div>
-      <div class="orc-pe-sub">Custos variáveis = Impostos + Deduções + ${orcFonte()==='dfc'?'CMC (compras)':'CMV'} + Desp. comerciais · Fixos operacionais = Pessoal + Administrativas + Financeiras + Pró-labore · Fixos + compromissos inclui Distribuição, IR/CSLL, Empréstimos, Investimentos e Parcelamentos · Grupo = todos os custos ÷ margem do grupo</div></div></div>
+      <div class="orc-pe-sub">Custos variáveis = Impostos + Deduções + ${orcFonte()==='dfc'?'CMC (compras)':'CMV'} + Comissões + Taxas de cartão · Fixos operacionais = Demais desp. comerciais + Pessoal + Administrativas + Financeiras + Pró-labore · Fixos + compromissos inclui Distribuição, IR/CSLL, Empréstimos, Investimentos e Parcelamentos · Grupo = todos os custos ÷ margem do grupo</div></div></div>
     <div class="orc-pe-tab"><table>
       <thead><tr><th>Loja</th><th>${orcFonte()==='dfc'?'Recebimento orçado':'Receita orçada'}</th><th>Custos variáveis</th><th>MC %</th><th>Fixos operacionais</th><th class="${kb==='peo'?'orc-pe-dest':''}">PE Operacional</th><th>Fixos + compromissos</th><th class="${kb==='pec'?'orc-pe-dest':''}">PE de Caixa</th><th>Margem segurança</th><th style="text-align:left">Meses abaixo do PE</th></tr></thead>
       <tbody>${linhasResumo}${totResumo}</tbody></table></div>
@@ -6762,7 +6794,7 @@ function orcTabelaPlana(){
     const calc = (f) => { const a = new Array(13).fill(0); for(let m=1;m<=12;m++) a[m] = f(m); return a; };
     T.rl = calc(m => T.rec[m]-T.imp[m]-T.ded[m]);
     T.lb = calc(m => T.rl[m]-T.cmv[m]);
-    T.rop = calc(m => T.lb[m]-T.dcom[m]-T.dpes[m]-T.dadm[m]-T.dfin[m]-T.plab[m]);
+    T.rop = calc(m => T.lb[m]-T.com[m]-T.tax[m]-T.dcom[m]-T.dpes[m]-T.dadm[m]-T.dfin[m]-T.plab[m]);
     T.ebitda = calc(m => T.rop[m]+T.jur[m]);
     T.rir = calc(m => T.rop[m]-T.dist[m]-T.ir[m]);
     T.rliq = calc(m => T.rir[m]-T.emp[m]-T.inv[m]-T.parc[m]);
@@ -6871,7 +6903,7 @@ function orcAbrirMetodologia(){
     <ul>
       <li><strong>Meses fechados e lançados</strong> entram com o valor <strong>realizado</strong>.</li>
       <li><strong>Meses ainda em aberto</strong> são <strong>projetados</strong>: mesmo mês de ${ORC_REF} × crescimento que ${ORC_BASE} teve sobre ${ORC_REF} nos meses já fechados (o fator fica limitado entre 0,5 e 2). Sem histórico de ${ORC_REF}, usa a média mensal do realizado.</li>
-      <li><strong>Custos variáveis</strong> (impostos, deduções, CMV, despesas comerciais) dos meses projetados seguem o mesmo % da receita do realizado.</li>
+      <li><strong>Custos variáveis</strong> (impostos, deduções, CMV/CMC, comissões e taxas de cartão) dos meses projetados seguem o mesmo % da receita do realizado.</li>
       <li>O <strong>imposto do último mês fechado</strong> é estimado pelo % da receita, porque o pagamento só acontece no mês seguinte.</li>
       <li>Quando um mês é lançado, ele <strong>sai da projeção sozinho</strong> e passa a valer o realizado. Na aba "Base ${ORC_BASE}" os meses projetados aparecem em destaque.</li>
     </ul>
@@ -6879,7 +6911,9 @@ function orcAbrirMetodologia(){
     <h4>Orçamento ${ORC_ANO} — premissas em uso</h4>
     <table>
       <tr><td>Receita</td><td>Base × (1 + crescimento). Geral: <strong>${pc(P.recCresc)}</strong>${lojasEsp.length?` · por loja: ${lojasEsp.join(', ')}`:''}. Mantém a sazonalidade mês a mês da base.</td></tr>
-      <tr><td>CMV, impostos, deduções e despesas comerciais</td><td>Receita orçada × % da base de cada loja, ajustado em pontos percentuais. CMV ${pp(P.cmvPP)} · Impostos ${pp(P.impPP)} · Deduções ${pp(P.dedPP)} · Comerciais ${pp(P.dcomPP)}</td></tr>
+      <tr><td>CMV/CMC, impostos, deduções e taxas de cartão</td><td>Receita orçada × % da base de cada loja, ajustado em pontos percentuais. CMV ${pp(P.cmvPP)} · Impostos ${pp(P.impPP)} · Deduções ${pp(P.dedPP)} · Taxas de cartão ${pp(P.taxPP)}</td></tr>
+      <tr><td>Comissões (2.17.01 e 2.17.02)</td><td><strong>${n(P.comPct)}%</strong> fixo sobre a receita orçada de cada mês.</td></tr>
+      <tr><td>Demais despesas comerciais</td><td>Custo fixo: mesmo mês da base ${pc(P.dcomVar)}.</td></tr>
       <tr><td>Despesas com pessoal</td><td>Mesmo mês da base; reajuste de <strong>${pc(P.dpesReaj)}</strong> a partir de <strong>${MES_FULL[Number(P.dpesMes)||1]}</strong> (meses anteriores ficam como na base).</td></tr>
       <tr><td>Administrativas e operacionais</td><td>Mesmo mês da base ${pc(P.dadmInf)} (inflação).</td></tr>
       <tr><td>Financeiras / Pró-labore</td><td>${pc(P.dfinVar)} / ${pc(P.plabVar)} sobre o mesmo mês da base.</td></tr>
@@ -6889,9 +6923,9 @@ function orcAbrirMetodologia(){
 
     <h4>Ponto de Equilíbrio</h4>
     <ul>
-      <li><strong>Custos variáveis</strong> = Impostos + Deduções + CMV + Despesas comerciais (as linhas que o orçamento calcula como % da receita).</li>
+      <li><strong>Custos variáveis</strong> = Impostos + Deduções + CMV/CMC + Comissões (2.17.01/02) + Taxas de cartão (2.17.14) — as linhas que acompanham a venda.</li>
       <li><strong>Margem de contribuição %</strong> = (Receita − Custos variáveis) ÷ Receita.</li>
-      <li><strong>PE Operacional</strong> = (Pessoal + Administrativas + Financeiras + Pró-labore) ÷ MC% — faturamento que zera o Resultado Operacional.</li>
+      <li><strong>PE Operacional</strong> = (Demais despesas comerciais + Pessoal + Administrativas + Financeiras + Pró-labore) ÷ MC% — faturamento que zera o Resultado Operacional.</li>
       <li><strong>PE de Caixa</strong> = (fixos operacionais + Distribuição + IR/CSLL + Empréstimos + Investimentos + Parcelamentos) ÷ MC% — faturamento que zera o Resultado Líquido.</li>
       <li>Calculado <strong>mês a mês e por loja</strong>; o do ano é a soma dos meses. O consolidado soma o PE de cada loja.</li>
       <li><strong>Margem de segurança</strong> = (Receita orçada − PE) ÷ Receita orçada.</li>
