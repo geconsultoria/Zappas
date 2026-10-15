@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
+<title>Demonstrativo de Resultado — Dashboard Executivo</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -159,10 +159,14 @@ body {
 .site-header .ig-filter-bar { flex-shrink: 0; }
 .site-header .header-logo { min-width: 0; flex-shrink: 1; }
 .site-header .logo-text { white-space: nowrap; }
+/* Título "Demonstrativo de Resultado" é mais longo: quebra em 2 linhas
+   em vez de ficar por baixo dos filtros. */
+.site-header .header-logo { flex-shrink: 0; }
+.site-header .logo-text { white-space: normal; max-width: 150px; line-height: 1.12; }
 .header-right { gap: 8px; }
 .last-update { max-width: 118px; line-height: 1.25; text-align: right; font-size: 10.5px; }
 .site-header .btn-refresh { padding: 7px 12px; white-space: nowrap; }
-@media (max-width: 1240px) {
+@media (max-width: 1360px) {
   .site-header { flex-wrap: wrap; }
   .site-header .header-logo { flex-shrink: 0; }
 }
@@ -816,22 +820,8 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 .dre-table tr.row-lanc {
   display: none;
 }
-/* Marcador de conta com reembolso deduzido */
-.re-badge { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; margin-left:6px;
-  border-radius:4px; background:#f5d98b; color:#6b4500; font-size:9.5px; font-weight:800; font-style:normal; vertical-align:middle; }
-#dreTbody.so-re > tr:not(.has-re):not(.row-break):not(.row-lanc) { display:none !important; }
-#btnSoReembolso.is-active { background:#f5d98b; color:#6b4500; border-color:#e2b84a; }
-/* Quebra da conta em "Pago" x "(−) Reembolso", alinhada às colunas */
-.dre-table tr.row-break { display: none; }
-.dre-table tr.row-break td { font-size: 11.5px; color: var(--ink-3); background: var(--surface-tint); font-style: italic; }
-.dre-table tr.row-break td:first-child { padding-left: 76px; }
-.dre-table tr.row-break.brk-re td { color: #8a5a00; }
-.dre-table tr.row-break.brk-re td:first-child::before { content: '↳ '; font-style: normal; opacity: .6; }
-.dre-table tr.row-break.brk-pago td:first-child::before { content: '↳ '; font-style: normal; opacity: .6; }
-.dre-table tr.row-break.brk-tot td { font-style: normal; font-weight: 700; color: var(--ink-2); border-top: 1px solid var(--border); }
 .dre-table tr.row-subgroup.visible,
 .dre-table tr.row-item.visible,
-.dre-table tr.row-break.visible,
 .dre-table tr.row-lanc.visible {
   display: table-row;
   animation: rowIn .18s ease forwards;
@@ -846,8 +836,6 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
   white-space: normal;
 }
 .dre-lanc-wrap {
-  position: sticky; left: 68px;
-  max-width: 900px;
   max-height: 260px;
   overflow-y: auto;
   border: 1px solid var(--border);
@@ -867,7 +855,6 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 .dre-lanc-wrap th.num, .dre-lanc-wrap td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: var(--font-numeric); }
 .dre-lanc-wrap td { padding: 5px 10px; border-bottom: 1px solid #F0EDE6; color: var(--ink-2); white-space: normal; }
 .dre-lanc-wrap tr:last-child td { border-bottom: none; }
-.dre-lanc-wrap tr.lanc-re td { background: #fdf6e7 !important; color: #8a5a00; }
 @keyframes rowIn {
   from { opacity: 0; transform: translateY(-3px); }
   to   { opacity: 1; transform: none; }
@@ -1491,10 +1478,6 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
         </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
-        </a>
       </div>
     </div>
 
@@ -1544,7 +1527,7 @@ a.side-brand:hover { opacity:.85; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">DFC Fluxo de Caixa</div>
+      <div class="logo-text">Demonstrativo de Resultado</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
@@ -1706,7 +1689,6 @@ a.side-brand:hover { opacity:.85; }
       <div style="display:flex;gap:8px;align-items:center;flex-shrink:0;flex-wrap:wrap">
         <button class="btn-av-toggle" id="btnAV" onclick="toggleAV()">% AV</button>
         <button class="btn-av-toggle" id="btnFixHeader" onclick="toggleFixHeader()" title="Fixar o cabeçalho da tabela ao rolar a tela">📌 Fixar Cabeçalho</button>
-        <button class="btn-av-toggle" id="btnSoReembolso" onclick="toggleSoReembolso()" title="Mostrar só as contas que tiveram reembolso deduzido">R  Só contas com reembolso</button>
         <button class="btn-toggle-all" onclick="toggleAll(true)">▼ Expandir tudo</button>
         <button class="btn-toggle-all" onclick="toggleAll(false)">▲ Recolher tudo</button>
       </div>
@@ -1802,13 +1784,6 @@ const CURVAABC_URLS = CURVAABC_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=
 // substitui a classificação via Contas a Pagar + Plano de Contas.
 const COMPRAS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const COMPRAS_URLS = COMPRAS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=compras&loja=${k}`);
-
-// Reembolsos (FATURAMENTO_RE_) (FATURAMENTO_RE_<LOJA>.csv) — deduzidos das
-// despesas no DRE/DFC, na mesma conta (cod_pl) da despesa reembolsada.
-// Mesma base da tela Reembolso.html. Lojas sem arquivo são ignoradas.
-const DEDUZIR_REEMBOLSO = true;
-const REEMBOLSO_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
-const REEMBOLSO_URLS = REEMBOLSO_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=reembolso&loja=${k}`);
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -2485,76 +2460,6 @@ function parseContasPagar(text, planoMap, lojaFallback){
   return { rows, linhas };
 }
 
-/* ══════════════════════════════════════════════════════════════
-   REEMBOLSO (FATURAMENTO_RE_) — dedução das despesas
-   Cada linha da planilha FATURAMENTO_RE_<LOJA>.csv é uma despesa da loja
-   que foi reembolsada (todas as linhas entram; a loja é a do nome do arquivo). Ela entra no DRE/DFC
-   com valor NEGATIVO, na mesma conta do Plano de Contas (cod_pl → grupo /
-   sub-grupo / conta), abatendo a despesa paga no Contas a Pagar.
-   • Código: coluna cod_pl da base. Se a base ainda não tiver essa coluna,
-     usa o mesmo de-para por descrição (pnome) da tela Reembolso.html.
-   • Período: ano/mês da própria linha (data do reembolso).
-   • Sem código válido no Plano de Contas → NÃO é deduzido e aparece na
-     Conciliação como "sem classificar".
-══════════════════════════════════════════════════════════════ */
-const REEMBOLSO_DEPARA = {
-  '130 SALARIO':11012, 'BENEFICIOS':120211, 'CESTA BASICA':11021, 'CONTRIBUIGCO SINDICAL':11015,
-  'CONVENIO FARMACIA':11010, 'CONVENIO MEDICO':11010, 'EMPRESTIMO CONSIGNADOS':11002, 'FERIAS':11006,
-  'FGTS':11009, 'ICMS':2006, 'ICMS-PARCELAMENTO':2027, 'INSS':20027, 'IR SOBRE FOLHA':11024, 'IRPJ':20062,
-  'PARTICIPAGCO DE LUCROS':11011, 'PROPAGANDA E PUBLICIDADE':50009, 'RESCISUES TRABALHISTAS':11003,
-  'SALARIOS':11008, 'SEGURO FUNCIONARIOS':11013, 'UNIFORME':11016, 'VALE TRANSPORTES':11004,
-};
-function parseReembolsoDRE(text, planoMap, lojaFallback){
-  const sep = detectSepExt(text);
-  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const rows = [], linhas = [];
-  if(!lines.length) return { rows, linhas };
-  const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
-  const iAno   = findColExata(rawHeaders,'ano');
-  const iMes   = findColExata(rawHeaders,'mes');
-  const iLoja  = findColExata(rawHeaders,'loja');
-  const iData  = findColExata(rawHeaders,'data');
-  const iTotal = findColExata(rawHeaders,'total');
-  const iPnome = findColExata(rawHeaders,'pnome');
-  const iCod   = findColExata(rawHeaders,'cod_pl','codpl','codcentro','cod_centro');
-  if(iTotal<0 || (iPnome<0 && iCod<0)) return { rows, linhas };   // não é uma planilha FATURAMENTO_RE_ (ex.: loja sem arquivo)
-
-  for(let i=1;i<lines.length;i++){
-    const line = lines[i].trim();
-    if(!line) continue;
-    const cells = splitLine(line,sep);
-    const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
-
-    // Todas as linhas da planilha FATURAMENTO_RE_ entram (sem filtro de Canal/VS).
-
-    const valor = parseNum(g(iTotal));
-    if(!valor) continue;
-    const dataRaw = g(iData);
-    const ano = parseInt(g(iAno),10) || parseAno(dataRaw);
-    const mes = parseInt(g(iMes),10) || parseMes(dataRaw);
-    if(!ano || !mes) continue;
-    const loja = lojaFallback || (iLoja>=0 ? g(iLoja) : '');   // loja = nome do arquivo FATURAMENTO_RE_<LOJA>
-
-    const pnome = g(iPnome).toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/\s+/g,' ').trim();
-    let cod = iCod>=0 ? g(iCod) : String(REEMBOLSO_DEPARA[pnome] || '');
-    const codNum = String(parseInt(cod,10) || '');
-    const info = cod ? (planoMap.get(cod) || planoMap.get(codNum)) : null;
-    const titulo = '(−) Reembolso — ' + (pnome || 'sem descrição');
-
-    if(!info || !info.grupo){
-      linhas.push({ tipo:'despesa', mes, ano, loja, valor, status:'erro',
-        codigo: cod || '(vazio)',
-        motivo: 'Reembolso (FATURAMENTO_RE_) sem cod_pl válido no Plano de Contas — não deduzido',
-        titulo, dataRaw });
-      continue;
-    }
-    linhas.push({ tipo:'despesa', mes, ano, loja, valor:-valor, status:'ok' });
-    rows.push({ mes, ano, loja, valor: -valor, grupo: info.grupo, subgrupo: info.sub_grupo,
-                plano: info.conta_pl, cod_grupo: info.cod_grupo, reembolso: true, titulo, dataRaw });
-  }
-  return { rows, linhas };
-}
-
 // Canais que compõem o Faturamento usado na Análise Comercial: Loja,
 // Delivery e Central (Central = DISTRIBUICAO + VS False + Fabrica True,
 // ver classificarCanal). Distribuição e Reembolso NÃO entram.
@@ -2938,7 +2843,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v12'; // v12: reembolso só das planilhas FATURAMENTO_RE_ (v11: dedução dos reembolsos) (v10: Compras com data em "dt_solicitado")
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v10'; // v10: Compras com data em "dt_solicitado"
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -3201,27 +3106,7 @@ async function carregarTudo(){
     comprasRaw = porLoja.flat();
   })();
 
-  // ══════════════════════════════════════════════════════
-  // 8. Reembolsos (FATURAMENTO_RE_) (por loja) — espera só o Plano de Contas.
-  //    Entram como despesa NEGATIVA na mesma conta (cod_pl), abatendo o
-  //    Contas a Pagar. Lojas sem arquivo FATURAMENTO_RE_ são ignoradas.
-  // ══════════════════════════════════════════════════════
-  let rowsReembolso = [];
-  const pReembolso = !DEDUZIR_REEMBOLSO ? Promise.resolve() : pPlanoContas.then(() => (async () => {
-    await Promise.all(REEMBOLSO_URLS.map(async (url, idx) => {
-      const lojaKey = REEMBOLSO_STORE_KEYS[idx];
-      try {
-        const text = await fetchCSV(url);
-        const { rows, linhas } = parseReembolsoDRE(text, planoMap, lojaKey.toUpperCase());
-        rowsReembolso = rowsReembolso.concat(rows);
-        reconciliacao.linhas.push(...linhas);
-      } catch(e) {
-        console.warn('Reembolso indisponível (' + lojaKey + '):', e.message);
-      }
-    }));
-  })());
-
-  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento, pReembolso]);
+  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento]);
   // Custo (Curva ABC) e Compras continuam carregando em segundo plano —
   // a tela já aparece, e o CMV é preenchido assim que terminarem.
   cmvCarregando = true;
@@ -3230,7 +3115,7 @@ async function carregarTudo(){
   document.getElementById('loaderMsg').textContent='Processando dados…';
 
   /* Remove qualquer linha de receita operacional das despesas para evitar duplicação */
-  const rowsDespSemReceita = rowsDespesas.concat(rowsReembolso).filter(r => {
+  const rowsDespSemReceita = rowsDespesas.filter(r => {
     const slug = slugFromGrupo(r.grupo);
     return slug !== 'receita_operacional';
   });
@@ -3649,8 +3534,7 @@ function recalcImpostosGer(){
       // Mantém grupo/subgrupo/plano (não só o total) pra dar pra expandir
       // a linha de Impostos no DRE Gerencial/Consolidado e mostrar de
       // qual imposto vem cada valor, igual ao DFC.
-      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano,
-               reembolso:r.reembolso, titulo:r.titulo, dataRaw:r.dataRaw };
+      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano };
     });
 }
 
@@ -4443,24 +4327,6 @@ function renderDRE(){
     if(!avVisible) return '';
     return `<td class="av-col">${fmtAV(v,base)}</td>`;
   }
-  /* Conta com reembolso: ao abrir, mostra duas linhas
-     alinhadas às colunas (mês ou loja) — "Pago (Contas a Pagar)" e
-     "(−) Reembolso" — que somadas dão o valor da conta. */
-  function breakRowsHTML(itens, iId, rec){
-    const re = (itens||[]).filter(r=>r.reembolso);
-    if(!re.length) return '';
-    const pago = itens.filter(r=>!r.reembolso);
-    const somaCols = arr => { const o={}; arr.forEach(r=>{ const k = modoMensal ? r.mes : r.loja; o[k]=(o[k]||0)+r.valor; }); return o; };
-    const linha = (label, vals, cls) => `<tr class="row-break ${cls}" data-parent="${iId}">
-      <td>${label}</td>
-      ${cols.map(c=>`<td>${cellVal(vals[c]||0)}</td>${avCell(vals[c]||0,(rec||{})[c]||0)}`).join('')}
-      <td>${cellVal(rowTotal(vals))}</td>
-      ${avCell(rowTotal(vals),rowTotal(rec||{}))}
-    </tr>`;
-    return linha('Pago (Contas a Pagar)', somaCols(pago), 'brk-pago')
-         + linha('(−) Reembolso', somaCols(re), 'brk-re')
-         + linha('= Realizado', somaCols(itens), 'brk-tot');
-  }
 
   let _uid=0;
   const uid=()=>'dre-'+(++_uid);
@@ -4592,14 +4458,13 @@ function renderDRE(){
             const pVals=treeImp[grupoReal][sub][plano]||{};
             const pTot=rowTotal(pVals);
             const iId=uid();
-            const itensP=itensDoPlano(filteredImpostosGer,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-            html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-              <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
+            html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
               <td>${cellVal(pTot)}</td>
               ${avCell(pTot,rowTotal(rec))}
             </tr>`;
-            html+=breakRowsHTML(itensP,iId,rec);
             html+=lancDetailRowHTML(iId,lId,totalCols());
           });
         });
@@ -4648,15 +4513,14 @@ function renderDRE(){
           const pVals=tree[grupoReal][sub][plano]||{};
           const pTot=rowTotal(pVals);
           const iId=uid();
-          const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
           </tr>`;
-          html+=breakRowsHTML(itensP,iId,rec);
-            html+=lancDetailRowHTML(iId,lId,totalCols());
+          html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -4695,15 +4559,14 @@ function renderDRE(){
           const pVals=tree[g][sub][plano]||{};
           const pTot=rowTotal(pVals);
           const iId=uid();
-          const itensP=itensDoPlano(filtered,g,sub,plano); const lId=registrarLanc(itensP);
-          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>`<td>${cellVal(pVals[c]||0)}</td>${avCell(pVals[c]||0,rec[c]||0)}`).join('')}
             <td>${cellVal(pTot)}</td>
             ${avCell(pTot,rowTotal(rec))}
           </tr>`;
-          html+=breakRowsHTML(itensP,iId,rec);
-            html+=lancDetailRowHTML(iId,lId,totalCols());
+          html+=lancDetailRowHTML(iId,lId,totalCols());
         });
       });
     });
@@ -5121,9 +4984,9 @@ function renderDREConsolidado(){
           Object.keys(treeImpGer[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=treeImpGer[grupoReal][sub][plano]||{};
             const iId=uid();
-            const itensP=itensDoPlano(filteredImpostosGer,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-            html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sIdGer}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-              <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
+            html+=`<tr class="row-item has-lanc" data-parent="${sIdGer}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(pVals[c]||0,0,cellVal)).join('')}
               ${triple(rowTotal(pVals),0,cellVal)}
             </tr>`;
@@ -5144,9 +5007,9 @@ function renderDREConsolidado(){
           Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=tree[grupoReal][sub][plano]||{};
             const iId=uid();
-            const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-            html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sIdDfc}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-              <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+            const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+            html+=`<tr class="row-item has-lanc" data-parent="${sIdDfc}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+              <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
               ${triple(0,rowTotal(pVals),cellVal)}
             </tr>`;
@@ -5196,9 +5059,9 @@ function renderDREConsolidado(){
         Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
           const pVals=tree[grupoReal][sub][plano]||{};
           const iId=uid();
-          const itensP=itensDoPlano(filtered,grupoReal,sub,plano); const lId=registrarLanc(itensP);
-          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
             ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
@@ -5236,9 +5099,9 @@ function renderDREConsolidado(){
         Object.keys(tree[g][sub]).sort().forEach(plano=>{
           const pVals=tree[g][sub][plano]||{};
           const iId=uid();
-          const itensP=itensDoPlano(filtered,g,sub,plano); const lId=registrarLanc(itensP);
-          html+=`<tr class="row-item has-lanc${temRe(itensP)?' has-re':''}" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}${temRe(itensP)?RE_BADGE:''}<span class="expand-hint">expandir</span></td>
+          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
             ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
             ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
           </tr>`;
@@ -5416,59 +5279,6 @@ function fecharDescendentes(tbody, parentId){
    aqui dentro da própria tabela do DRE. Montado sob demanda (só quando o
    usuário abre a conta) pra não gerar HTML de tudo de uma vez. */
 let _lancStore = {};
-/* ── Contas com reembolso ──
-   Marca com "R" a conta que teve reembolso deduzido, e também o sub-grupo
-   e o grupo acima dela. O botão "Só contas com reembolso" esconde o resto
-   da tabela e abre só esse caminho. */
-const RE_BADGE = '<span class="re-badge" title="Conta com reembolso deduzido">R</span>';
-function temRe(itens){ return (itens||[]).some(r=>r.reembolso); }
-let soReembolso = false;
-function marcarReembolsoDRE(){
-  const tbody = document.getElementById('dreTbody');
-  if(!tbody) return;
-  tbody.querySelectorAll('tr.row-item.has-re').forEach(item=>{
-    const sub = tbody.querySelector(`tr[data-sid="${item.dataset.parent}"]`);
-    if(!sub) return;
-    if(!sub.classList.contains('has-re')){
-      sub.classList.add('has-re');
-      const td = sub.querySelector('td'); const hint = td && td.querySelector('.expand-hint');
-      if(td) hint ? hint.insertAdjacentHTML('beforebegin', RE_BADGE) : td.insertAdjacentHTML('beforeend', RE_BADGE);
-    }
-    const grp = tbody.querySelector(`tr[data-gid="${sub.dataset.parent}"]`);
-    if(grp && !grp.classList.contains('has-re')){
-      grp.classList.add('has-re');
-      const td = grp.querySelector('td'); if(td) td.insertAdjacentHTML('beforeend', RE_BADGE);
-    }
-  });
-  const qtd = tbody.querySelectorAll('tr.row-item.has-re').length;
-  const btn = document.getElementById('btnSoReembolso');
-  if(btn){
-    btn.textContent = (soReembolso ? '✕ Mostrar todas as contas' : 'R  Só contas com reembolso') + ' (' + qtd + ')';
-    btn.classList.toggle('is-active', soReembolso);
-    btn.disabled = !qtd && !soReembolso;
-  }
-  tbody.classList.toggle('so-re', soReembolso);
-  if(soReembolso) abrirCaminhoReembolso();
-}
-function abrirCaminhoReembolso(){
-  const tbody = document.getElementById('dreTbody');
-  tbody.querySelectorAll('tr.row-item.has-re').forEach(item=>{
-    item.classList.add('visible');
-    const sub = tbody.querySelector(`tr[data-sid="${item.dataset.parent}"]`);
-    if(sub){ sub.classList.add('visible','is-open');
-      const grp = tbody.querySelector(`tr[data-gid="${sub.dataset.parent}"]`);
-      if(grp) grp.classList.add('is-open'); }
-  });
-}
-function toggleSoReembolso(){
-  soReembolso = !soReembolso;
-  if(!soReembolso){ toggleAll(false); }
-  marcarReembolsoDRE();
-}
-// Toda vez que a tabela é redesenhada (filtro, aba, % AV), remarca as contas.
-const _renderDREBase = renderDRE;
-renderDRE = function(){ _renderDREBase(); try{ marcarReembolsoDRE(); }catch(e){ console.warn('marcarReembolsoDRE:', e); } };
-
 function registrarLanc(itens){
   const lId = 'lanc-'+Object.keys(_lancStore).length+'-'+Math.random().toString(36).slice(2,7);
   _lancStore[lId] = itens || [];
@@ -5493,30 +5303,21 @@ function toggleItem(iId, lId, e){
   const lancRow=document.getElementById('lancRow_'+lId);
   if(!itemRow || !lancRow) return;
   const isOpen=itemRow.classList.contains('is-open');
-  const brk = tbody.querySelectorAll(`tr.row-break[data-parent="${iId}"]`);
   if(isOpen){
     itemRow.classList.remove('is-open');
     lancRow.classList.remove('visible');
-    brk.forEach(r=>r.classList.remove('visible'));
   } else {
     itemRow.classList.add('is-open');
-    brk.forEach(r=>r.classList.add('visible'));
     lancRow.classList.add('visible');
     const body=document.getElementById('lancBody_'+lId);
     if(body && !body.dataset.built){
-      // Ordem cronológica (mês a mês); no mesmo mês, o pagamento vem antes
-      // do reembolso que o abate.
-      const diaDe = it => { const m=String(it.dataRaw||'').match(/^(\d{1,2})\//); return m ? +m[1] : 0; };
-      const itens=(_lancStore[lId]||[]).slice().sort((a,b)=>
-        ((a.ano||0)-(b.ano||0)) || ((a.mes||0)-(b.mes||0)) ||
-        ((a.reembolso?1:0)-(b.reembolso?1:0)) || (diaDe(a)-diaDe(b)) || ((b.valor||0)-(a.valor||0)));
+      const itens=(_lancStore[lId]||[]).slice().sort((a,b)=>(b.valor||0)-(a.valor||0));
       body.innerHTML = itens.length
         ? itens.map(it=>{
             const dataFmt = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
-            const tituloFmt = it.titulo ? it.titulo : (it.reembolso ? '(−) Reembolso' : 'Pago (Contas a Pagar)');
+            const tituloFmt = it.titulo ? it.titulo : '<span style="color:var(--ink-4)">(sem título/descrição na planilha de origem)</span>';
             const lojaFmt = it.loja ? ` <span style="color:var(--ink-4);font-size:10.5px">— ${it.loja}</span>` : '';
-            const st = it.reembolso ? ' class="lanc-re"' : '';
-            return `<tr${st}><td>${dataFmt}</td><td>${tituloFmt}${lojaFmt}</td><td class="num">${fmtBRL(it.valor||0)}</td></tr>`;
+            return `<tr><td>${dataFmt}</td><td>${tituloFmt}${lojaFmt}</td><td class="num">${fmtBRL(it.valor||0)}</td></tr>`;
           }).join('')
         : `<tr><td colspan="3" style="text-align:center;color:var(--ink-4);padding:10px">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
       body.dataset.built='1';
@@ -5542,7 +5343,7 @@ function toggleAll(open){
   } else {
     /* Fechar tudo */
     tbody.querySelectorAll('tr.is-open').forEach(r=>r.classList.remove('is-open'));
-    tbody.querySelectorAll('tr.row-subgroup,tr.row-item,tr.row-break,tr.row-lanc').forEach(r=>r.classList.remove('visible'));
+    tbody.querySelectorAll('tr.row-subgroup,tr.row-item,tr.row-lanc').forEach(r=>r.classList.remove('visible'));
   }
 }
 

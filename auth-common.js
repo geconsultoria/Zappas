@@ -527,10 +527,79 @@
     };
   }
 
+  // ── Caixa de confirmação (Atualização Geral / Backup Geral) ───────────
+  // Pergunta antes de rodar uma ação pesada. Retorna uma Promise<boolean>.
+  function confirmarAcao(opcoes) {
+    opcoes = opcoes || {};
+    if (!document.getElementById("ag-confirm-styles")) {
+      var st = document.createElement("style");
+      st.id = "ag-confirm-styles";
+      st.textContent =
+        "#ag-confirm{position:fixed;inset:0;z-index:99995;display:flex;align-items:center;justify-content:center;background:rgba(10,20,40,.4);backdrop-filter:blur(2px);font-family:'Epilogue','IBM Plex Sans',system-ui,sans-serif;}" +
+        "#ag-confirm .agc-card{background:#fff;border-radius:18px;padding:24px 26px 20px;width:92vw;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,.3);}" +
+        "#ag-confirm .agc-top{display:flex;gap:14px;align-items:flex-start;}" +
+        "#ag-confirm .agc-icon{width:40px;height:40px;border-radius:12px;background:#E4ECF6;color:#1B3D6E;display:flex;align-items:center;justify-content:center;flex-shrink:0;}" +
+        "#ag-confirm .agc-icon svg{width:20px;height:20px;}" +
+        "#ag-confirm .agc-title{font-family:'Syne','Playfair Display',system-ui,sans-serif;font-weight:700;font-size:15.5px;color:#16160F;margin-bottom:4px;}" +
+        "#ag-confirm .agc-msg{font-size:13px;color:#787868;line-height:1.5;}" +
+        "#ag-confirm .agc-acoes{display:flex;justify-content:flex-end;gap:10px;margin-top:20px;}" +
+        "#ag-confirm button{border-radius:10px;padding:9px 16px;font-family:inherit;font-size:12.5px;font-weight:700;cursor:pointer;}" +
+        "#ag-confirm .agc-nao{background:none;border:1px solid #D8D5CC;color:#787868;}" +
+        "#ag-confirm .agc-nao:hover{background:#EDECE6;color:#16160F;}" +
+        "#ag-confirm .agc-sim{background:#C8961A;border:none;color:#16160F;}" +
+        "#ag-confirm .agc-sim:hover{background:#DBA82A;}";
+      document.head.appendChild(st);
+    }
+    return new Promise(function (resolve) {
+      var antigo = document.getElementById("ag-confirm");
+      if (antigo) antigo.remove();
+      var wrap = document.createElement("div");
+      wrap.id = "ag-confirm";
+      wrap.innerHTML =
+        '<div class="agc-card" role="dialog" aria-modal="true">' +
+        '<div class="agc-top"><div class="agc-icon">' + (opcoes.icone || "") + "</div><div>" +
+        '<div class="agc-title">' + escHtml(opcoes.titulo || "Confirmar") + "</div>" +
+        '<div class="agc-msg">' + escHtml(opcoes.mensagem || "Deseja continuar?") + "</div></div></div>" +
+        '<div class="agc-acoes"><button type="button" class="agc-nao">Cancelar</button>' +
+        '<button type="button" class="agc-sim">' + escHtml(opcoes.botao || "Confirmar") + "</button></div></div>";
+      document.body.appendChild(wrap);
+      function fechar(r) {
+        document.removeEventListener("keydown", onKey);
+        wrap.remove();
+        resolve(r);
+      }
+      function onKey(ev) { if (ev.key === "Escape") fechar(false); }
+      wrap.querySelector(".agc-nao").addEventListener("click", function () { fechar(false); });
+      wrap.querySelector(".agc-sim").addEventListener("click", function () { fechar(true); });
+      wrap.addEventListener("click", function (ev) { if (ev.target === wrap) fechar(false); });
+      document.addEventListener("keydown", onKey);
+      wrap.querySelector(".agc-nao").focus(); // Enter sem querer não dispara a ação
+    });
+  }
+  function confirmarAtualizacaoGeral() {
+    return confirmarAcao({
+      titulo: "Atualização Geral",
+      mensagem: "Deseja realmente rodar a Atualização Geral? Os dados de todas as lojas serão buscados de novo e isso pode levar alguns minutos.",
+      botao: "Sim, atualizar",
+      icone: ICON_REFRESH
+    });
+  }
+  function confirmarBackupGeral() {
+    return confirmarAcao({
+      titulo: "Backup Geral",
+      mensagem: "Deseja realmente fazer o Backup Geral? Todos os dados e telas do painel serão baixados num arquivo .zip, o que pode levar alguns minutos.",
+      botao: "Sim, fazer backup",
+      icone: ICON_DOWNLOAD
+    });
+  }
+
   // Atualização Geral: na tela inicial usa a função que já existe lá;
   // nas demais telas faz a mesma chamada e recarrega a tela no final,
-  // pra ela já abrir com os dados novos.
+  // pra ela já abrir com os dados novos. Sempre pergunta antes.
   function acaoAtualizacaoGeral(el) {
+    confirmarAtualizacaoGeral().then(function (ok) { if (ok) executarAtualizacaoGeral(el); });
+  }
+  function executarAtualizacaoGeral(el) {
     if (typeof window.gerarResumoMensal === "function" && document.getElementById("btn-gerar-resumo")) {
       window.gerarResumoMensal();
       return;
@@ -567,7 +636,11 @@
   }
 
   // Backup Geral: mesma lógica da tela inicial (dados + telas do app num .zip).
+  // Sempre pergunta antes.
   function acaoBackupGeral(el) {
+    confirmarBackupGeral().then(function (ok) { if (ok) executarBackupGeral(el); });
+  }
+  function executarBackupGeral(el) {
     if (el) el.classList.add("ag-busy");
     var ui = admOverlay("Backup Geral", ICON_DOWNLOAD);
     var falhas = [];
@@ -920,7 +993,10 @@
   window.AuthGuard = {
     requireScreen: start,
     logout: logout,
-    getSession: function () { return session; }
+    getSession: function () { return session; },
+    confirmar: confirmarAcao,
+    confirmarAtualizacaoGeral: confirmarAtualizacaoGeral,
+    confirmarBackupGeral: confirmarBackupGeral
   };
 
   // Exposto para a tela de administração (Administracao.html) reutilizar a
