@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Contas a Pagar</title>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
 /* ╔═══════════════════════════════════════╗
@@ -55,10 +55,10 @@
   --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
   --sh-lg: 0 8px 40px rgba(0,0,0,.12);
 
-  --font-head: 'Syne', system-ui, sans-serif;
-  --font-body: 'Epilogue', system-ui, sans-serif;
-  --font-mono: 'JetBrains Mono', monospace;
-  --font-num:  'Calibri', 'Trebuchet MS', system-ui, sans-serif;
+  --font-head: Inter, system-ui, sans-serif;
+  --font-body: Inter, system-ui, sans-serif;
+  --font-mono: Inter, monospace;
+  --font-num:  Inter, Inter, system-ui, sans-serif;
 
   --bar-h: 64px;
   --side-w: 232px;
@@ -221,7 +221,7 @@ a.side-brand:hover { opacity:.85; }
 .fb-brand { display: flex; align-items: center; gap: 10px; padding-right: 24px; border-right: 1px solid rgba(255,255,255,.15); margin-right: 24px; flex-shrink: 0; }
 .fb-mark { width: 30px; height: 30px; border-radius: 8px; background: rgba(255,255,255,.12); display: flex; align-items: center; justify-content: center; }
 .fb-mark svg { width: 16px; height: 16px; color: #fff; }
-.fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+.fb-title { font-family: Inter, Inter, system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
 .fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
 
 .fb-right { display: flex; align-items: center; gap: 12px; flex-shrink: 0; }
@@ -456,12 +456,18 @@ a.side-brand:hover { opacity:.85; }
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: Inter, system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
 </style>
 
+<style>
+/* ── Padrão de fontes do painel ──
+   Uma fonte só (Inter) em títulos, textos e números. Números com largura
+   fixa ("tabulares"), para as colunas das tabelas ficarem alinhadas. */
+body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+</style>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -487,13 +493,13 @@ a.side-brand:hover { opacity:.85; }
   </a>
   <nav class="side-nav">
     <div class="side-item" data-menu="comercial">
-      <button class="side-link" type="button" id="side-link-comercial" data-label="Comercial">
+      <button class="side-link" type="button" data-label="Comercial">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
         <span>Comercial</span>
         <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
       </button>
       <div class="side-sub">
-        <a href="Analise_Comercial.html" id="link-analise-comercial">
+        <a href="Analise_Comercial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           Análise Comercial
         </a>
@@ -501,7 +507,7 @@ a.side-brand:hover { opacity:.85; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
           Faturamento x Lucro
         </a>
-        <a href="Faturamento_Detalhado.html" id="link-faturamento-detalhado">
+        <a href="Faturamento_Detalhado.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           Faturamento Detalhado
         </a>
@@ -522,10 +528,6 @@ a.side-brand:hover { opacity:.85; }
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           Demonstrativo de Resultado
-        </a>
-        <a href="Orcamento_2027.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
-          Orçamento 2027
         </a>
         <a href="Contas_a_Pagar.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -581,8 +583,6 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
 </aside>
-<!-- Menu lateral único: menu-zappas.js redesenha o menu acima. Para mudar o menu de TODAS as telas, edite só o menu-zappas.js. -->
-<script src="menu-zappas.js"></script>
 
 <!-- FILTER BAR -->
 <div class="filter-bar" id="filter-bar">

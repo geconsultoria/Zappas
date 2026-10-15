@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de Metas</title>
-<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <style>
   /* ===== DESIGN TOKENS ===== */
@@ -35,8 +35,8 @@
     --filter-h: 64px;
     --side-w: 232px;
     --side-w-collapsed: 74px;
-    --font-head: 'Playfair Display', Georgia, serif;
-    --font-body: 'IBM Plex Sans', system-ui, sans-serif;
+    --font-head: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+    --font-body: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     --font-mono: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     --font-num: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   }
@@ -340,7 +340,7 @@
     flex-shrink: 0;
   }
   .section-title {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 17px;
     font-weight: 700;
     color: var(--text-primary);
@@ -452,7 +452,7 @@
     margin-bottom: 18px;
   }
   .chart-card-title {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 14px;
     font-weight: 700;
     color: var(--text-primary);
@@ -486,7 +486,7 @@
     background: var(--surface2);
   }
   .table-card-title {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 15px;
     font-weight: 700;
     color: var(--text-primary);
@@ -541,7 +541,7 @@
   }
   td.loja-cell {
     font-weight: 600;
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 13px;
   }
   .td-num {
@@ -635,7 +635,7 @@
     border-radius: var(--radius);
     text-align: center;
   }
-  .error-box h3 { color: var(--danger); font-family: 'Playfair Display', Georgia, serif; margin-bottom: 8px; }
+  .error-box h3 { color: var(--danger); font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; margin-bottom: 8px; }
   .error-box p { color: #6d2935; font-size: 13px; }
   .error-box button {
     margin-top: 14px;
@@ -690,7 +690,7 @@
   .metas-table .th-group {
     background: #1A4FBA;
     color: #fff;
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-size: 9.5px;
     font-weight: 700;
     text-transform: uppercase;
@@ -849,7 +849,7 @@
   }
   .metas-table td:last-child { border-right: none; }
   .metas-table td.td-loja {
-    font-family: 'Playfair Display', Georgia, serif;
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
     font-weight: 700;
     font-size: 10.5px;
     padding-left: 8px;
@@ -933,7 +933,7 @@
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -951,6 +951,12 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
   return l.sort();
 }
 </script>
+<style>
+/* ── Padrão de fontes do painel ──
+   Uma fonte só (Inter) em títulos, textos e números. Números com largura
+   fixa ("tabulares"), para as colunas das tabelas ficarem alinhadas. */
+body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
+</style>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -972,13 +978,13 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
 
   <nav class="side-nav">
     <div class="side-item" data-menu="comercial">
-      <button class="side-link" type="button" id="side-link-comercial" data-label="Comercial">
+      <button class="side-link" type="button" data-label="Comercial">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 3v18h18M7 15l4-5 3 3 5-7"/></svg>
         <span>Comercial</span>
         <svg class="chev" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19 9l-7 7-7-7"/></svg>
       </button>
       <div class="side-sub">
-        <a href="Analise_Comercial.html" id="link-analise-comercial">
+        <a href="Analise_Comercial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17V9m4 8V5m4 12v-6M5 21h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
           Análise Comercial
         </a>
@@ -986,7 +992,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M3 17l6-6 4 4 8-8M21 7v6M21 7h-6"/></svg>
           Faturamento x Lucro
         </a>
-        <a href="Faturamento_Detalhado.html" id="link-faturamento-detalhado">
+        <a href="Faturamento_Detalhado.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
           Faturamento Detalhado
         </a>
@@ -1007,10 +1013,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           Demonstrativo de Resultado
-        </a>
-        <a href="Orcamento_2027.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
-          Orçamento 2027
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1043,7 +1045,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
       </div>
     </div>
 
-    <div class="side-item active open" data-menu="metas">
+    <div class="side-item open" data-menu="metas">
       <button class="side-link" type="button" data-label="Metas">
         <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg>
         <span>Metas</span>
@@ -1066,8 +1068,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
   </nav>
 </aside>
-<!-- Menu lateral único: menu-zappas.js redesenha o menu acima. Para mudar o menu de TODAS as telas, edite só o menu-zappas.js. -->
-<script src="menu-zappas.js"></script>
 
 <!-- ===== HEADER ===== -->
 <header class="header">

@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Administração · Painel de Gestão</title>
 <link rel="icon" type="image/png" sizes="48x48" href="logo.png?v=1">
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
 <style>
 :root {
@@ -17,9 +17,9 @@
   --r:10px; --r-lg:16px; --r-xl:22px;
   --sh: 0 1px 4px rgba(0,0,0,.06), 0 4px 16px rgba(0,0,0,.06);
   --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
-  --font-head:'Syne', system-ui, sans-serif;
-  --font-body:'Epilogue', system-ui, sans-serif;
-  --font-mono:'JetBrains Mono', monospace;
+  --font-head:Inter, system-ui, sans-serif;
+  --font-body:Inter, system-ui, sans-serif;
+  --font-mono:Inter, monospace;
   --side-w:232px; --ease: cubic-bezier(.4,0,.2,1);
 }
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
@@ -169,6 +169,12 @@ tbody tr:hover{background:var(--surf-2);}
 
 .toolbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
 .toolbar input[type=text]{padding:8px 12px;border:1px solid var(--border-2);border-radius:var(--r);font-size:12.5px;min-width:220px;background:var(--surface);}
+</style>
+<style>
+/* ── Padrão de fontes do painel ──
+   Uma fonte só (Inter) em títulos, textos e números. Números com largura
+   fixa ("tabulares"), para as colunas das tabelas ficarem alinhadas. */
+body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 </style>
 </head>
 <body>
@@ -383,7 +389,7 @@ function $(id) { return document.getElementById(id); }
 AuthGuard.requireScreen('admin', function (session) {
   // Reforço extra no cliente, redundante de propósito.
   if (session.role !== 'admin') {
-    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Epilogue,sans-serif;color:#787868;">Acesso restrito a administradores.</div>';
+    document.body.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:Inter,sans-serif;color:#787868;">Acesso restrito a administradores.</div>';
     return;
   }
 
