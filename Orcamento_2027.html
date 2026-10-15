@@ -1430,6 +1430,17 @@ a.side-brand:hover { opacity:.85; }
 .orc-btn-primary { background: var(--navy); color: #fff; border-color: var(--navy); }
 .orc-btn-primary:hover { background: var(--navy-mid); color: #fff; }
 .orc-btn:disabled { opacity: .5; cursor: wait; }
+/* Barras fixas ao rolar: título + ações do orçamento e abas do Demonstrativo
+   ficam presas logo abaixo do cabeçalho escuro (alturas medidas via JS). */
+.orc-topo { position: sticky; top: var(--orc-top, 60px); z-index: 150; background: var(--bg);
+  padding: 10px 0; margin-top: -10px; transition: box-shadow .2s ease; }
+.orc-topo.is-stuck { box-shadow: 0 6px 12px -8px rgba(0,0,0,.25); }
+.orc-topo.is-stuck .orc-titulo { font-size: 18px; }
+.orc-topo.is-stuck .orc-sub { display: none; }
+#orcViewTabs { position: sticky; top: var(--orc-tabs-top, 120px); z-index: 149; background: var(--bg);
+  padding: 8px 0; margin: -8px 0 8px; }
+#orcViewTabs.is-stuck { box-shadow: 0 6px 12px -8px rgba(0,0,0,.25); }
+@media (max-width: 900px){ .orc-topo { position: static; } #orcViewTabs { top: var(--orc-top, 60px); } }
 .orc-btn.is-on { background: var(--gold-pale); border-color: var(--gold); color: var(--amber); }
 .orc-seg-l { border-radius: var(--radius-sm) 0 0 var(--radius-sm); }
 .orc-seg-r { border-radius: 0 var(--radius-sm) var(--radius-sm) 0; margin-left: -1px; }
@@ -6902,10 +6913,41 @@ function orcAbrirMetodologia(){
 function orcFecharMetodologia(){ document.getElementById('orcModal').classList.remove('open'); }
 document.addEventListener('keydown', e => { if(e.key==='Escape') { const m=document.getElementById('orcModal'); if(m && m.classList.contains('open')) orcFecharMetodologia(); } });
 
+/* ── Barras fixas: mede o cabeçalho e a barra de ações para posicionar as abas ── */
+function orcAjustarFixos(){
+  const hdr = document.querySelector('.site-header'), topo = document.querySelector('.orc-topo'), tabs = document.getElementById('orcViewTabs');
+  if(!hdr || !topo || !tabs) return;
+  const hH = hdr.getBoundingClientRect().height;
+  const topoFixo = getComputedStyle(topo).position === 'sticky';
+  document.documentElement.style.setProperty('--orc-top', hH + 'px');
+  const topoH = topoFixo ? topo.getBoundingClientRect().height : 0;
+  document.documentElement.style.setProperty('--orc-tabs-top', (hH + topoH) + 'px');
+  // sombra quando está "preso"
+  topo.classList.toggle('is-stuck', topoFixo && topo.getBoundingClientRect().top <= hH + 1 && window.scrollY > 10);
+  const tTop = parseFloat(getComputedStyle(tabs).top) || 0;
+  tabs.classList.toggle('is-stuck', Math.abs(tabs.getBoundingClientRect().top - tTop) < 2);
+}
+window.addEventListener('scroll', orcAjustarFixos, { passive: true });
+window.addEventListener('resize', orcAjustarFixos);
+document.addEventListener('DOMContentLoaded', orcAjustarFixos);
+// Ao trocar de aba com a barra presa, volta para o início do Demonstrativo.
+const _orcSetViewOrig = orcSetView;
+orcSetView = function(v){
+  const tabs = document.getElementById('orcViewTabs');
+  const presa = tabs && tabs.classList.contains('is-stuck');
+  _orcSetViewOrig(v);
+  if(presa){
+    const card = tabs.nextElementSibling;
+    const off = parseFloat(getComputedStyle(tabs).top) + tabs.getBoundingClientRect().height + 4;
+    if(card) window.scrollTo({ top: window.scrollY + card.getBoundingClientRect().top - off, behavior: 'smooth' });
+  }
+  orcAjustarFixos();
+};
+
 /* ── Integra com o carregamento do painel ── */
 // render() do DRE é trocado pelo do orçamento; o cabeçalho fixo da tabela
 // do DRE não existe aqui.
-render = function(){ chamarSeguro(renderOrcamento); orcCarregarVersao(); };
+render = function(){ chamarSeguro(renderOrcamento); orcCarregarVersao(); setTimeout(orcAjustarFixos, 0); };
 toggleFixHeader = function(){};
 
 </script>
