@@ -1,10 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+<meta name="zappas-versao" content="v2026.10.15-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Demonstrativo de Resultado — Dashboard Executivo</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
@@ -54,8 +55,8 @@
   --shadow-lg:    0 16px 48px rgba(0,0,0,.12), 0 4px 12px rgba(0,0,0,.06);
 
   --transition:   all .22s cubic-bezier(.4,0,.2,1);
-  --font-display: Inter, Inter, serif;
-  --font-body:    Inter, system-ui, sans-serif;
+  --font-display: 'Playfair Display', Georgia, serif;
+  --font-body:    'IBM Plex Sans', system-ui, sans-serif;
   --font-mono:    'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
   --font-numeric: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
 
@@ -159,14 +160,10 @@ body {
 .site-header .ig-filter-bar { flex-shrink: 0; }
 .site-header .header-logo { min-width: 0; flex-shrink: 1; }
 .site-header .logo-text { white-space: nowrap; }
-/* Título "Demonstrativo de Resultado" é mais longo: quebra em 2 linhas
-   em vez de ficar por baixo dos filtros. */
-.site-header .header-logo { flex-shrink: 0; }
-.site-header .logo-text { white-space: normal; max-width: 150px; line-height: 1.12; }
 .header-right { gap: 8px; }
 .last-update { max-width: 118px; line-height: 1.25; text-align: right; font-size: 10.5px; }
 .site-header .btn-refresh { padding: 7px 12px; white-space: nowrap; }
-@media (max-width: 1360px) {
+@media (max-width: 1240px) {
   .site-header { flex-wrap: wrap; }
   .site-header .header-logo { flex-shrink: 0; }
 }
@@ -1058,9 +1055,6 @@ tr.is-open .expand-hint { display: none; }
 
 .recon-detail-row { display: none; }
 .recon-detail-row.open { display: table-row; }
-.recon-lojas .recon-row { cursor: pointer; }
-.recon-lojas .recon-row td:first-child { font-weight: 600; }
-.recon-lojas .recon-detail-row > td { padding: 4px 8px 10px 26px !important; }
 .recon-detail-row > td { background: var(--surface-tint); padding: 4px 12px 12px 34px !important; }
 
 .recon-subtable-wrap { max-height: 260px; overflow-y: auto; border: 1px solid var(--border); border-radius: var(--radius-sm); }
@@ -1393,18 +1387,12 @@ a.side-brand:hover { opacity:.85; }
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: Inter, system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
 .loja-card-consolidado{border-color:var(--gold,#C8961A) !important;box-shadow:0 0 0 1px var(--gold,#C8961A) inset, var(--shadow-sm, 0 1px 3px rgba(0,0,0,.06));}
 .loja-card-consolidado .loja-card-name{font-weight:800;}
-</style>
-<style>
-/* ── Padrão de fontes do painel ──
-   Uma fonte só (Inter) em títulos, textos e números. Números com largura
-   fixa ("tabulares"), para as colunas das tabelas ficarem alinhadas. */
-body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 </style>
 </head>
 <body>
@@ -1462,10 +1450,6 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
         <a href="DRE_Gerencial.html" class="active">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           Demonstrativo de Resultado
-        </a>
-        <a href="Orcamento_2027.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
-          Orçamento 2027
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -1540,7 +1524,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">Demonstrativo de Resultado</div>
+      <div class="logo-text">DFC Fluxo de Caixa</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
@@ -1570,9 +1554,6 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
-    <button class="btn-refresh" id="btnExport" onclick="exportarRelatorio()" style="display:none" title="Gera um arquivo HTML somente leitura com os dados atuais">
-      Exportar relatório
-    </button>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 4v5h-5"/><path d="M1 16v-5h5"/>
@@ -1944,7 +1925,7 @@ const DRE_STRUCTURE = [
   { slug:'deducoes_vendas',            label:'DEDUÇÕES S/ VENDAS',                    sign:'(-)', type:'group',     style:'' },
   { slug:'__rec_liq__',                label:'RECEITA OPERACIONAL LÍQUIDA',           sign:'(=)', type:'resultado', style:'light' },
   { slug:'sep1', type:'sep' },
-  { slug:'cmv',                        label:'CMC — CUSTO MERCADORIA COMPRADA', sign:'(-)', type:'group',     style:'' },
+  { slug:'cmv',                        label:'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)', sign:'(-)', type:'group',     style:'' },
   { slug:'__lucro_bruto__',            label:'LUCRO BRUTO',                           sign:'(=)', type:'resultado', style:'green' },
   { slug:'sep2', type:'sep' },
   { slug:'despesas_comerciais',        label:'DESPESAS COMERCIAIS',                   sign:'(-)', type:'group',     style:'' },
@@ -2535,8 +2516,9 @@ function parseVendas(text, lojaFallback){
   const iCanal = findCol(rawHeaders,'canais','canal','canais_semana');
   let iVs      = findColExata(rawHeaders,'vs');
   if(iVs<0)  iVs  = rawHeaders.findIndex(h => /^vs\b|^vs_/.test(normKey(h)));
-  let iFab     = findColExata(rawHeaders,'fabrica');
-  if(iFab<0) iFab = rawHeaders.findIndex(h => normKey(h).includes('fabrica'));
+  // "Fabrica" também pode vir como "Montagem" na planilha de vendas.
+  let iFab     = findColExata(rawHeaders,'fabrica','montagem');
+  if(iFab<0) iFab = rawHeaders.findIndex(h => /fabrica|montagem/.test(normKey(h)));
   if(iAno<0 || iMes<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2626,7 +2608,7 @@ function parseCurvaABC(text, lojaFallback){
   let iCanal = exata('canais','canal','canais_semana');
   if(iCanal<0) iCanal = headers.findIndex(h => abcNorm(h).includes('canal'));
   let iVs = exata('vs'); if(iVs<0) iVs = headers.findIndex(h => /^vs\b|^vs_/.test(abcNorm(h)));
-  let iFab = exata('fabrica'); if(iFab<0) iFab = headers.findIndex(h => abcNorm(h).includes('fabrica'));
+  let iFab = exata('fabrica','montagem'); if(iFab<0) iFab = headers.findIndex(h => /fabrica|montagem/.test(abcNorm(h)));
   if(iNome<0 || iQtd<0 || iTotal<0) return rows; // planilha sem as colunas esperadas — ignora essa loja
 
   for(let i=1;i<lines.length;i++){
@@ -2712,11 +2694,7 @@ function parseCompras(text, lojaFallback){
   const exata = (...ns) => { for(const n of ns){ const i = rawHeaders.findIndex(h => normHeader(h) === normHeader(n)); if(i !== -1) return i; } return -1; };
   const iAno   = exata('ano','exercicio');
   const iMes   = exata('mes','mês','competencia','mes_ano','mesano');
-  // Base nova (out/2026) não tem mais "ano"/"mes": a data da compra vem em
-  // "dt_solicitado". Se o nome mudar de novo, cai em qualquer coluna que
-  // comece com "dt"/"data" (ex.: dt_pedido, data_compra).
-  let   iData  = exata('dt_solicitado','dtsolicitado','data_solicitado','data_solicitacao','data','dtentrada','dt_entrada','data_entrada','emissao','dtemissao','data_emissao');
-  if(iData < 0) iData = rawHeaders.findIndex(h => /^(dt|data)(_|$)/.test(normHeader(h)) || /^dt[a-z]/.test(normHeader(h)));
+  const iData  = exata('data','dtentrada','dt_entrada','data_entrada','emissao','dtemissao','data_emissao');
   let   iTotal = exata('total','valor_total','valortotal','vlr_total','vltotal','valor');
   const iCusto = exata('custofinal','custo');
   const iQtd   = exata('quant','qtd','quantidade');
@@ -2787,17 +2765,6 @@ function g0(lines, sep, idx){
 function parseDataBRSimples(s){
   if(!s) return null;
   s = String(s).trim();
-  // Formato do Google ("Date(2026,8,15)" — mês começa em 0)
-  let g = s.match(/^Date\((\d{4}),\s*(\d{1,2})/i);
-  if(g) return { mes: parseInt(g[2],10) + 1, ano: parseInt(g[1],10) };
-  // Data como número serial (planilha exportou sem formatar: 46280 = set/2026)
-  if(/^\d{5}(\.\d+)?$/.test(s)){
-    const d = new Date(Math.round((parseFloat(s) - 25569) * 86400000));
-    if(!isNaN(d)) return { mes: d.getUTCMonth() + 1, ano: d.getUTCFullYear() };
-  }
-  // Ano com 2 dígitos (15/09/26)
-  g = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2})(?!\d)/);
-  if(g) return { mes: parseInt(g[2],10), ano: 2000 + parseInt(g[3],10) };
   let m = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})/);
   if(m) return { mes: parseInt(m[2],10), ano: parseInt(m[3],10) };
   m = s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
@@ -2856,7 +2823,7 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v10'; // v10: Compras com data em "dt_solicitado"
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v10';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -3531,9 +3498,9 @@ function avisoCmv(){
     const d = Object.entries(comprasDiag).filter(([,v])=>v.motivo);
     if(d.length){
       const m = d[0][1];
-      return ' · CMC (Compras) sem dados — ' + m.motivo + (m.colunas ? ' · colunas recebidas: ' + m.colunas : '');
+      return ' · CMV (Compras) sem dados — ' + m.motivo + (m.colunas ? ' · colunas recebidas: ' + m.colunas : '');
     }
-    return ' · CMC (Compras) sem dados — o arquivo de Compras não respondeu';
+    return ' · CMV (Compras) sem dados — o arquivo de Compras não respondeu';
   }
   return '';
 }
@@ -3750,59 +3717,30 @@ function renderConciliacao(){
     return;
   }
 
-  // Uma linha por TÍTULO (tipo + código + motivo) com o total de todas as
-  // lojas. Ao clicar, abre a quebra por loja; clicando na loja, abre os
-  // lançamentos individuais daquela loja.
   const agg = new Map();
   pendentes.forEach(l=>{
-    const key = l.tipo+'|'+l.status+'|'+l.codigo+'|'+l.motivo;
-    const cur = agg.get(key) || { tipo:l.tipo, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0, lojasMap:new Map() };
-    cur.qtd++; cur.valor += l.valor;
-    const lj = l.loja || '—';
-    const g = cur.lojasMap.get(lj) || { loja:lj, qtd:0, valor:0, itens:[] };
-    g.qtd++; g.valor += l.valor; g.itens.push(l);
-    cur.lojasMap.set(lj, g);
+    const key = l.tipo+'|'+l.loja+'|'+l.codigo+'|'+l.motivo;
+    const cur = agg.get(key) || { tipo:l.tipo, loja:l.loja, codigo:l.codigo, motivo:l.motivo, status:l.status, qtd:0, valor:0, itens:[] };
+    cur.qtd++; cur.valor += l.valor; cur.itens.push(l);
     agg.set(key, cur);
-  });
-  agg.forEach(it => {
-    it.lojas = [...it.lojasMap.values()].sort((a,b)=>b.valor-a.valor);
-    // Rótulo da coluna Loja na linha do título (também usado na ordenação).
-    it.loja = it.lojas.length === 1 ? it.lojas[0].loja : it.lojas.length + ' lojas';
   });
   // Ordena a lista pela coluna escolhida pelo usuário (clicando no
   // cabeçalho da tabela — ver setReconSort/reconSortCol). Sem escolha
   // nenhuma, mantém o padrão histórico: maior valor primeiro.
   const detalhe = ordenarDetalheConciliacao([...agg.values()]);
 
-  const CHEV = id => `<span class="row-chevron" id="${id}"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>`;
+  // Guarda os itens de cada grupo pra montar a lista de títulos individuais
+  // só quando o usuário clicar em cima (evita montar tudo de antemão se o
+  // grupo tiver muitos lançamentos).
   reconGruposAtuais = {};
   const rowsHtml = detalhe.map((it,i) => {
     const rid = 'r'+i;
-    const lojasHtml = it.lojas.map((g,j) => {
-      const lid = rid+'_'+j;
-      reconGruposAtuais[lid] = g;
-      return `
-            <tr class="recon-row" onclick="event.stopPropagation();toggleReconGrupo('${lid}')">
-              <td>${CHEV('reconChev_'+lid)}${g.loja}</td>
-              <td class="num">${g.qtd.toLocaleString('pt-BR')}</td>
-              <td class="num">R$ ${fmtBRL(g.valor)}</td>
-            </tr>
-            <tr class="recon-detail-row" id="reconDet_${lid}">
-              <td colspan="3">
-                <div class="recon-subtable-wrap">
-                  <table class="recon-subtable">
-                    <thead><tr><th>Data</th><th>Título / Descrição</th><th class="num">Valor (R$)</th></tr></thead>
-                    <tbody class="recon-subtable-body"></tbody>
-                  </table>
-                </div>
-              </td>
-            </tr>`;
-    }).join('');
+    reconGruposAtuais[rid] = it;
     return `
-    <tr class="recon-row" onclick="toggleReconTitulo('${rid}')">
-      <td>${CHEV('reconChev_'+rid)}
-        <span class="recon-pill ${it.status==='info'?'info':it.tipo}">${reconTipoLabel(it)}</span></td>
-      <td>${it.loja}</td>
+    <tr class="recon-row" onclick="toggleReconGrupo('${rid}')">
+      <td><span class="row-chevron" id="reconChev_${rid}"><svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2l4 4-4 4"/></svg></span>
+        <span class="recon-pill ${it.status==='info'?'info':it.tipo}">${it.status==='info'?'Informativo':(it.tipo==='despesa'?'Despesa':'Receita')}</span></td>
+      <td>${it.loja||'—'}</td>
       <td>${it.codigo||'—'}</td>
       <td>${it.motivo}</td>
       <td class="num">${it.qtd.toLocaleString('pt-BR')}</td>
@@ -3810,10 +3748,12 @@ function renderConciliacao(){
     </tr>
     <tr class="recon-detail-row" id="reconDet_${rid}">
       <td colspan="6">
-        <table class="recon-subtable recon-lojas">
-          <thead><tr><th>Loja</th><th class="num">Lançamentos</th><th class="num">Valor (R$)</th></tr></thead>
-          <tbody>${lojasHtml}</tbody>
-        </table>
+        <div class="recon-subtable-wrap">
+          <table class="recon-subtable">
+            <thead><tr><th>Data</th><th>Título / Descrição</th><th class="num">Valor (R$)</th></tr></thead>
+            <tbody class="recon-subtable-body"></tbody>
+          </table>
+        </div>
       </td>
     </tr>`;
   }).join('');
@@ -3823,16 +3763,6 @@ function renderConciliacao(){
       <thead><tr>${reconTh('tipo','Tipo')}${reconTh('loja','Loja')}${reconTh('codigo','Código')}${reconTh('motivo','Motivo')}${reconTh('qtd','Lançamentos',true)}${reconTh('valor','Valor (R$)',true)}</tr></thead>
       <tbody>${rowsHtml}</tbody>
     </table>`;
-}
-
-// Abre/fecha a quebra por loja de um título da Conciliação do De-Para.
-function toggleReconTitulo(rid){
-  const detRow = document.getElementById('reconDet_'+rid);
-  const chev = document.getElementById('reconChev_'+rid);
-  if(!detRow) return;
-  const abrir = !detRow.classList.contains('open');
-  detRow.classList.toggle('open', abrir);
-  if(chev) chev.classList.toggle('is-open', abrir);
 }
 
 // ─── Ordenação do grid de Conciliação do De-Para ───
@@ -4008,27 +3938,8 @@ function renderCharts(){
 
 function renderChartMensal(){
   destroyChart(cMensal);
-  // Com 1 mês só no filtro, o gráfico de evolução ficaria com uma barra —
-  // então mostra TODOS os meses do ano (mantendo ano e loja) e destaca o
-  // mês escolhido. Com 2+ meses (ou nenhum), segue a seleção do filtro.
-  const meses = mesesSelecionados || [];
-  let base = filtered, mesDestaque = null, anoUsado = document.getElementById('fAno').value;
-  if(meses.length === 1){
-    mesDestaque = Number(meses[0]);
-    if(!anoUsado){
-      // Sem ano no filtro: usa o ano mais recente que tem o mês escolhido.
-      const anos = raw.filter(r=>Number(r.mes)===mesDestaque && passaLoja(r.loja)).map(r=>Number(r.ano)).filter(Boolean);
-      anoUsado = anos.length ? String(Math.max(...anos)) : '';
-    }
-    base = raw.filter(r => (!anoUsado || String(r.ano)===anoUsado) && passaLoja(r.loja));
-  }
-  const sub = document.querySelector('#cMensal')?.closest('.chart-card')?.querySelector('.chart-card-sub');
-  if(sub) sub.textContent = mesDestaque
-    ? `Todos os meses${anoUsado ? ' de '+anoUsado : ''} · ${MES[mesDestaque]||mesDestaque} em destaque`
-    : 'Total acumulado por mês no período selecionado';
-  const byMes=groupBy(base,'mes');
+  const byMes=groupBy(filtered,'mes');
   const keys=Object.keys(byMes).map(Number).sort((a,b)=>a-b);
-  const cor = m => (mesDestaque && m!==mesDestaque) ? PALETTE[0]+'55' : PALETTE[0]+'CC';
   cMensal=new Chart(document.getElementById('cMensal'),{
     type:'bar',
     data:{
@@ -4036,7 +3947,7 @@ function renderChartMensal(){
       datasets:[{
         label:'Total (R$)',
         data:keys.map(m=>byMes[m]),
-        backgroundColor:keys.map(cor),
+        backgroundColor:PALETTE[0]+'CC',
         borderColor:PALETTE[0],
         borderWidth:1.5,
         borderRadius:5,
@@ -4450,7 +4361,7 @@ function renderDRE(){
       const cmvTot=rowTotal(cmv);
       const cmvLabel = dreView==='gerencial'
         ? 'CMV — CUSTO MERCADORIA VENDIDA (PRODUTO)'
-        : 'CMC — CUSTO MERCADORIA COMPRADA';
+        : 'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)';
       html+=`<tr class="row-group" style="cursor:default">
         <td><span class="dre-sign">${slot.sign}</span>${cmvLabel}</td>
         ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
@@ -4999,7 +4910,7 @@ function renderDREConsolidado(){
        que ainda aguardam a planilha por vencimento. */
     if(slot.slug==='cmv'){
       html+=`<tr class="row-group" style="cursor:default">
-        <td><span class="dre-sign">${slot.sign}</span>CUSTO MERCADORIA</td>
+        <td><span class="dre-sign">${slot.sign}</span>CUSTO MERCADORIA VENDIDA</td>
         ${cols.map(c=>triple(cmvGer[c]||0,cmvDfc[c]||0,cellVal,true)).join('')}
         ${triple(rowTotal(cmvGer),rowTotal(cmvDfc),cellVal,true)}
       </tr>`;
@@ -5556,79 +5467,6 @@ function renderMetas() {
 }
 
 /* ══════════════════════════════════════════════════════════════
-   EXPORTAR RELATÓRIO (somente leitura, sem login/servidor)
-   Mesmo esquema da Análise Comercial: gera um único .html com os dados
-   atuais embutidos. Quem recebe só consegue ver e navegar (filtros,
-   abas DFC / DRE Gerencial / DRE x DFC, expandir linhas); não há botão
-   de atualizar, login, menu nem acesso ao Apps Script/Drive.
-══════════════════════════════════════════════════════════════ */
-function buildSnapshotHtml(src, dados, rotulo, chartJs) {
-  const A = '<script src="auth-common.js"><' + '/script>';
-  const B = 'async function loadData(forceRefresh, silent){';
-  if (src.indexOf(A) < 0 || src.indexOf(B) < 0) throw new Error('Estrutura da página mudou; não foi possível gerar o relatório.');
-
-  const json = JSON.stringify(Object.assign({}, dados, { rotulo: rotulo || '' })).replace(/</g, '\\u003c');
-
-  const dataScript =
-    '<script>\n' +
-    'window.AuthGuard={requireScreen:function(k,cb){cb({role:"viewer"});},logout:function(){},getSession:function(){return null;}};\n' +
-    'window.__SNAP__=' + json + ';\n' +
-    '<\/script>';
-
-  const novoLoadData =
-    'async function loadData(){\n' +
-    '  const S=window.__SNAP__;\n' +
-    '  raw=S.raw||[]; vendasRaw=S.vendas||[]; custoProdutoRaw=S.custo||[]; comprasRaw=S.compras||[];\n' +
-    '  if(S.recon){ reconciliacao=S.recon; reconciliacaoPronta=true; }\n' +
-    '  cmvCarregando=false;\n' +
-    '  corrigirNomesLojas(); recalcImpostosGer();\n' +
-    '  document.getElementById("mainArea").style.display="block";\n' +
-    '  populateFilters(); applyFilters(); toggleFixHeader(true);\n' +
-    '  document.getElementById("lastUpdate").textContent="Relatório · somente leitura · "+S.rotulo;\n' +
-    '  document.getElementById("overlay").classList.add("hidden");\n' +
-    '}\n' +
-    'async function loadData_ORIG(forceRefresh, silent){';
-
-  const css =
-    '<style>\n' +
-    'html{--side-w:0px !important;--side-w-collapsed:0px !important;}\n' +
-    '.sidebar,.side-toggle,.side-overlay,#btnExport,#btnRefresh,.update-overlay{display:none !important;}\n' +
-    '.page-content{margin-left:0 !important;}\n' +
-    '</style>\n';
-
-  let out = src;
-  out = out.replace(A, function () { return dataScript; });
-  // Gráficos: embute a biblioteca no arquivo para funcionar sem internet.
-  if (chartJs) {
-    const tagChart = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><' + '/script>';
-    out = out.replace(tagChart, function () { return '<script>' + chartJs.replace(/<\/script/gi, '<\\/script') + '<' + '/script>'; });
-  }
-  out = out.replace(B, function () { return novoLoadData; });
-  out = out.replace('</head>', function () { return css + '</head>'; });
-  return out;
-}
-
-async function exportarRelatorio() {
-  try {
-    if (!raw || !raw.length) { alert('Aguarde os dados carregarem antes de exportar.'); return; }
-    if (cmvCarregando) { alert('Aguarde o CMV/CMC terminar de carregar antes de exportar.'); return; }
-    const src = await (await fetch(location.href.split('#')[0], { cache: 'no-store' })).text();
-    const agora = new Date();
-    const rotulo = 'Posição de ' + agora.toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
-    let chartJs = '';
-    try { chartJs = await (await fetch('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js')).text(); } catch (e) { console.warn('Chart.js não embutido:', e.message); }
-    const dados = { raw: raw, vendas: vendasRaw, custo: custoProdutoRaw, compras: comprasRaw, recon: reconciliacaoPronta ? reconciliacao : null };
-    const html = buildSnapshotHtml(src, dados, rotulo, chartJs);
-    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-    const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
-    a.download = 'Relatorio_DRE_Gerencial_' + agora.toISOString().slice(0, 10) + '.html';
-    document.body.appendChild(a); a.click(); a.remove();
-    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-  } catch (e) { console.error(e); alert('Não foi possível gerar o relatório: ' + e.message); }
-}
-
-/* ══════════════════════════════════════════════════════════════
    COMPARATIVO MÊS vs MÊS ANTERIOR
    Determina o período de referência a partir dos filtros ativos:
    - Se há filtro de mês+ano → compara esse mês com o imediatamente anterior
@@ -5740,67 +5578,25 @@ function renderComparativoMensal() {
   }
 
   /* Calcula os valores para cada período usando `base` (raw filtrado por loja se houver) */
-  /* Mesmas regras do DRE principal (renderDRE): no "DRE Gerencial" a
-     receita vem da Análise Comercial (filtro de Canal), impostos por
-     competência e CMV (Produto); no DFC, receita/impostos do raw e CMV
-     (Compra) do arquivo de Compras. Daí pra baixo, todas as linhas e
-     totalizadores iguais ao DRE, até o Resultado Líquido. */
-  const ger = dreView==='gerencial';
-  const doMes = (arr, ano, mes, comCanal) => (arr||[]).filter(r =>
-    Number(r.ano) === ano && Number(r.mes) === mes && passaLoja(r.loja) &&
-    !(comCanal && r.canal && canaisSelecionados.length && !canaisSelecionados.includes(r.canal)));
-  const somaV = arr => arr.reduce((a,r)=>a+(r.valor||0),0);
   const dados = (ano, mes) => {
     const rows = base.filter(r => r.ano === ano && r.mes === mes);
     const map = {};
     uniq(rows.map(r=>r.grupo)).forEach(g=>{const s=slugFromGrupo(g);if(s){if(!map[s])map[s]=[];map[s].push(g);}});
     const v = s => rows.filter(r=>(map[s]||[]).includes(r.grupo)).reduce((a,r)=>a+r.valor,0);
-    const rec = ger ? somaV(doMes(vendasRaw, ano, mes, true)) : v('receita_operacional');
-    const imp = ger ? somaV(doMes(impostosGerRaw, ano, mes)) : v('impostos_vendas');
-    const ded = v('deducoes_vendas');
-    const rl  = rec-imp-ded;
-    const cmv = ger ? somaV(doMes(custoProdutoRaw, ano, mes, true)) : somaV(doMes(comprasRaw, ano, mes));
-    const lb  = rl-cmv;
-    const dcom=v('despesas_comerciais'), dpes=v('despesas_pessoal'), dadm=v('despesas_administrativas'),
-          dfin=v('despesas_financeiras'), plab=v('pro_labore');
-    const rop = lb-dcom-dpes-dadm-dfin-plab;
-    const juros = rows.filter(r=>isJuros(r.subgrupo)||isJuros(r.plano)).reduce((a,r)=>a+r.valor,0);
-    const ebitda = rop+juros;
-    const dist=v('distribuicao_lucro'), ir=v('ir_csll');
-    const rir = rop-dist-ir;
-    const emp=v('emprestimos_financiamentos'), inv=v('investimento'), parc=v('parcelamento_impostos');
-    const rliq = rir-emp-inv-parc;
-    return {rec,imp,ded,rl,cmv,lb,dcom,dpes,dadm,dfin,plab,rop,ebitda,dist,ir,rir,emp,inv,parc,rliq};
+    const rec=v('receita_operacional'), imp=v('impostos_vendas'), ded=v('deducoes_vendas'), cmv=v('cmv');
+    return {rec,imp,ded,rl:rec-imp-ded,cmv,lb:rec-imp-ded-cmv};
   };
 
   const atu = dados(uP.ano, uP.mes), ant = dados(aP.ano, aP.mes);
-  // t:true = linha totalizadora (destacada). inv:true = conta de saída
-  // (custo/despesa): subir é ruim, então a cor da variação é invertida.
   const linhas = [
-    {l:'Receita Operacional',k:'rec'},
-    {l:'Impostos s/ Vendas',k:'imp',inv:true},{l:'Deduções s/ Vendas',k:'ded',inv:true},
-    {l:'Receita Líquida',k:'rl',t:true},
-    {l:ger?'CMV (Produto)':'CMC — Custo Mercadoria Comprada',k:'cmv',inv:true},
-    {l:'Lucro Bruto',k:'lb',t:true},
-    {l:'Despesas Comerciais',k:'dcom',inv:true},{l:'Despesas com Pessoal',k:'dpes',inv:true},
-    {l:'Despesas Administrativas e Operacionais',k:'dadm',inv:true},
-    {l:'Despesas / Receitas Financeiras',k:'dfin',inv:true},{l:'Pró-labore',k:'plab',inv:true},
-    {l:'Resultado Operacional',k:'rop',t:true},
-    {l:'EBITDA',k:'ebitda',t:true},
-    {l:'Distribuição de Lucro',k:'dist',inv:true},{l:'IR + CSLL',k:'ir',inv:true},
-    {l:'Resultado Líquido após IR e CSLL',k:'rir',t:true},
-    {l:'Empréstimos e Financiamentos',k:'emp',inv:true},{l:'Investimentos',k:'inv',inv:true},
-    {l:'Parcelamento Impostos',k:'parc',inv:true},
-    {l:'Resultado Líquido',k:'rliq',t:true},
+    {l:'Receita Operacional',k:'rec'},{l:'Impostos s/ Vendas',k:'imp'},{l:'Deduções s/ Vendas',k:'ded'},
+    {l:'Receita Líquida',k:'rl'},{l:'CMV',k:'cmv'},{l:'Lucro Bruto',k:'lb'},
   ];
-  document.getElementById('compMensalBody').innerHTML = linhas.map(({l,k,t,inv}) => {
-    const va=atu[k], vb=ant[k], dif=va-vb, pctDif=vb?(dif/Math.abs(vb)*100):0;
-    const bom = inv ? dif<0 : dif>0, ruim = inv ? dif>0 : dif<0;
-    const cls = bom?'val-pos':ruim?'val-neg':'';
-    const st = t ? ' style="font-weight:700;background:var(--bg-2)"' : '';
-    return `<tr${st}><td${t?' style="font-weight:700"':''}>${l}</td><td>${fmtBRL(va)}</td><td>${fmtBRL(vb)}</td>
-      <td class="${cls}">${dif>0?'▲':dif<0?'▼':'—'} ${fmtBRL(Math.abs(dif))}</td>
-      <td class="${cls}">${pctDif.toFixed(1)}%</td></tr>`;
+  document.getElementById('compMensalBody').innerHTML = linhas.map(({l,k}) => {
+    const va=atu[k], vb=ant[k], dif=va-vb, pctDif=vb?(dif/vb*100):0;
+    return `<tr><td>${l}</td><td>${fmtBRL(va)}</td><td>${fmtBRL(vb)}</td>
+      <td class="${dif>0?'val-pos':dif<0?'val-neg':''}">${dif>0?'▲':dif<0?'▼':'—'} ${fmtBRL(Math.abs(dif))}</td>
+      <td class="${dif>0?'val-pos':dif<0?'val-neg':''}">${pctDif.toFixed(1)}%</td></tr>`;
   }).join('');
   const fmt = (p) => { const m = MES[p.mes]||p.mes; return m+'/'+String(p.ano); };
   document.getElementById('compMensalSub').textContent = avisoMesAberto
@@ -5968,11 +5764,7 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(session){
-  // Botão "Exportar relatório" só para administradores (igual à Análise Comercial).
-  if (session && session.role === 'admin') { var be = document.getElementById('btnExport'); if (be) be.style.display = ''; }
-  loadData();
-}));
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(){ loadData(); }));
 
 // Se outra página do painel (ex.: GestaoZappas) disparar uma
 // "Atualização Geral" enquanto esta aba já estiver aberta, esta também
@@ -6077,6 +5869,63 @@ if(window.innerWidth > 900) collapseSidebar();
     </div>
   </div>
 </div>
+<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-c</div>
+<!-- ═══ AVISO DE DADOS NOVOS NO GOOGLE DRIVE ═══
+     Ao abrir e a cada 5 min, pergunta ao Apps Script (?tipo=versao) a hora
+     da última alteração dos arquivos da pasta. Se for mais nova que os dados
+     guardados no navegador, mostra a faixa com "Atualizar agora", que faz o
+     mesmo que a Atualização Geral (todas as telas abertas atualizam). -->
+<div id="zappas-aviso-drive" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100000;max-width:calc(100% - 32px);background:#fff7e6;border:1px solid #f5c26b;color:#7a4a05;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:10px 14px;font:500 13px/1.35 Inter,'IBM Plex Sans',Arial,sans-serif;align-items:center;gap:12px;flex-wrap:wrap">
+  <span><b>Há dados novos no Google Drive</b> <span id="zappas-aviso-hora"></span></span>
+  <button type="button" id="zappas-aviso-btn" style="background:#b87010;color:#fff;border:0;border-radius:7px;padding:6px 12px;font:700 12px Inter,Arial,sans-serif;cursor:pointer">Atualizar agora</button>
+  <button type="button" id="zappas-aviso-fechar" title="Fechar" style="background:transparent;border:0;color:#7a4a05;font-size:16px;line-height:1;cursor:pointer;padding:0 2px">×</button>
+</div>
+<script>
+(function(){
+  if (window.__SNAP__) return; // relatório exportado: sem consulta ao Drive
+  var URL_BASE = (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL
+               : (typeof APPS_SCRIPT_URL_DRE !== 'undefined') ? APPS_SCRIPT_URL_DRE : null;
+  if (!URL_BASE) return;
+  var INTERVALO = 5 * 60 * 1000;
+  var ignoradoAte = 0; // fechou no "×": não mostra de novo para esta mesma alteração
+  var box = document.getElementById('zappas-aviso-drive');
+  var lerCache = (typeof loadCacheDB === 'function') ? loadCacheDB : (typeof loadCache === 'function') ? loadCache : null;
+  function esconder(){ box.style.display = 'none'; }
+  async function verificar(){
+    try {
+      if (!lerCache || document.hidden) return;
+      var r = await fetch(URL_BASE + (URL_BASE.indexOf('?')>=0?'&':'?') + 'tipo=versao&_=' + Date.now(), { cache:'no-store' });
+      if (!r.ok) return;
+      var v; try { v = JSON.parse(await r.text()); } catch(e) { return; } // Apps Script ainda sem ?tipo=versao
+      var drive = +v.ultimaAlteracao || 0;
+      var c = await lerCache();
+      var local = c && +c.rawTs || 0;
+      if (!drive || !local) return;              // sem dados guardados ainda: a própria tela já busca
+      if (drive > local && drive > ignoradoAte) {
+        var d = new Date(drive);
+        document.getElementById('zappas-aviso-hora').textContent =
+          '(alterados em ' + d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + ')';
+        box.dataset.drive = drive;
+        box.style.display = 'flex';
+      } else {
+        esconder();
+      }
+    } catch(e) { /* sem conexão: tenta na próxima */ }
+  }
+  document.getElementById('zappas-aviso-btn').addEventListener('click', function(){
+    esconder();
+    try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
+    if (typeof loadData === 'function') loadData(true);
+  });
+  document.getElementById('zappas-aviso-fechar').addEventListener('click', function(){
+    ignoradoAte = +box.dataset.drive || Date.now();
+    esconder();
+  });
+  setTimeout(verificar, 8000);
+  setInterval(verificar, INTERVALO);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) verificar(); });
+})();
+</script>
 </body>
 
 </html>

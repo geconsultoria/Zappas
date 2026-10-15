@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta name="zappas-versao" content="v2026.10.15-b">
+<meta name="zappas-versao" content="v2026.10.15-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Faturamento Detalhado</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=Epilogue:wght@300;400;500;600;700&family=Epilogue:ital,wght@1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
 <style>
@@ -57,10 +57,10 @@
   --sh-md: 0 2px 8px rgba(0,0,0,.06), 0 8px 32px rgba(0,0,0,.09);
   --sh-lg: 0 8px 40px rgba(0,0,0,.12);
 
-  --font-head: Inter, system-ui, sans-serif;
-  --font-body: Inter, system-ui, sans-serif;
-  --font-mono: Inter, monospace;
-  --font-num:  Inter, Inter, system-ui, sans-serif;
+  --font-head: 'Syne', system-ui, sans-serif;
+  --font-body: 'Epilogue', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+  --font-num:  'Calibri', 'Trebuchet MS', system-ui, sans-serif;
 
   --bar-h: 64px; /* sticky bar height */
   --side-w: 232px; /* sidebar width */
@@ -237,7 +237,7 @@ a.side-brand:hover { opacity:.85; }
   display: flex; align-items: center; justify-content: center;
 }
 .fb-mark svg { width: 16px; height: 16px; color: #fff; }
-.fb-title { font-family: Inter, Inter, system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
+.fb-title { font-family: 'Calibri', 'Trebuchet MS', system-ui, sans-serif; font-size: 20px; font-weight: 700; color: #fff; letter-spacing: -.01em; line-height: 1.1; }
 .fb-sub   { font-family: var(--font-body); font-size: 12px; color: rgba(255,255,255,.55); letter-spacing: .06em; text-transform: uppercase; }
 
 /* Filtros (Ano/Mês/Loja) — mesmo "cartão" translúcido usado nas demais
@@ -708,7 +708,7 @@ a.side-brand:hover { opacity:.85; }
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: Inter, system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Syne', system-ui, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -726,12 +726,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
   return l.sort();
 }
 </script>
-<style>
-/* ── Padrão de fontes do painel ──
-   Uma fonte só (Inter) em títulos, textos e números. Números com largura
-   fixa ("tabulares"), para as colunas das tabelas ficarem alinhadas. */
-body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
-</style>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -803,10 +797,6 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
         <a href="DRE_Gerencial.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           Demonstrativo de Resultado
-        </a>
-        <a href="Orcamento_2027.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
-          Orçamento 2027
         </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
@@ -2002,7 +1992,63 @@ AuthGuard.requireScreen('faturamento_detalhado', function(){ openFaturamentoDeta
     </div>
   </div>
 </div>
-<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-b</div>
+<div id="zappas-versao" title="Versão do arquivo publicado" style="position:fixed;right:8px;bottom:6px;z-index:99999;font:600 10px/1 Inter,Arial,sans-serif;color:#64748b;background:rgba(255,255,255,.85);border:1px solid #e2e8f0;border-radius:6px;padding:3px 6px;pointer-events:none">v2026.10.15-c</div>
+<!-- ═══ AVISO DE DADOS NOVOS NO GOOGLE DRIVE ═══
+     Ao abrir e a cada 5 min, pergunta ao Apps Script (?tipo=versao) a hora
+     da última alteração dos arquivos da pasta. Se for mais nova que os dados
+     guardados no navegador, mostra a faixa com "Atualizar agora", que faz o
+     mesmo que a Atualização Geral (todas as telas abertas atualizam). -->
+<div id="zappas-aviso-drive" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100000;max-width:calc(100% - 32px);background:#fff7e6;border:1px solid #f5c26b;color:#7a4a05;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:10px 14px;font:500 13px/1.35 Inter,'IBM Plex Sans',Arial,sans-serif;align-items:center;gap:12px;flex-wrap:wrap">
+  <span><b>Há dados novos no Google Drive</b> <span id="zappas-aviso-hora"></span></span>
+  <button type="button" id="zappas-aviso-btn" style="background:#b87010;color:#fff;border:0;border-radius:7px;padding:6px 12px;font:700 12px Inter,Arial,sans-serif;cursor:pointer">Atualizar agora</button>
+  <button type="button" id="zappas-aviso-fechar" title="Fechar" style="background:transparent;border:0;color:#7a4a05;font-size:16px;line-height:1;cursor:pointer;padding:0 2px">×</button>
+</div>
+<script>
+(function(){
+  if (window.__SNAP__) return; // relatório exportado: sem consulta ao Drive
+  var URL_BASE = (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL
+               : (typeof APPS_SCRIPT_URL_DRE !== 'undefined') ? APPS_SCRIPT_URL_DRE : null;
+  if (!URL_BASE) return;
+  var INTERVALO = 5 * 60 * 1000;
+  var ignoradoAte = 0; // fechou no "×": não mostra de novo para esta mesma alteração
+  var box = document.getElementById('zappas-aviso-drive');
+  var lerCache = (typeof loadCacheDB === 'function') ? loadCacheDB : (typeof loadCache === 'function') ? loadCache : null;
+  function esconder(){ box.style.display = 'none'; }
+  async function verificar(){
+    try {
+      if (!lerCache || document.hidden) return;
+      var r = await fetch(URL_BASE + (URL_BASE.indexOf('?')>=0?'&':'?') + 'tipo=versao&_=' + Date.now(), { cache:'no-store' });
+      if (!r.ok) return;
+      var v; try { v = JSON.parse(await r.text()); } catch(e) { return; } // Apps Script ainda sem ?tipo=versao
+      var drive = +v.ultimaAlteracao || 0;
+      var c = await lerCache();
+      var local = c && +c.rawTs || 0;
+      if (!drive || !local) return;              // sem dados guardados ainda: a própria tela já busca
+      if (drive > local && drive > ignoradoAte) {
+        var d = new Date(drive);
+        document.getElementById('zappas-aviso-hora').textContent =
+          '(alterados em ' + d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + ')';
+        box.dataset.drive = drive;
+        box.style.display = 'flex';
+      } else {
+        esconder();
+      }
+    } catch(e) { /* sem conexão: tenta na próxima */ }
+  }
+  document.getElementById('zappas-aviso-btn').addEventListener('click', function(){
+    esconder();
+    try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
+    if (typeof loadData === 'function') loadData(true);
+  });
+  document.getElementById('zappas-aviso-fechar').addEventListener('click', function(){
+    ignoradoAte = +box.dataset.drive || Date.now();
+    esconder();
+  });
+  setTimeout(verificar, 8000);
+  setInterval(verificar, INTERVALO);
+  document.addEventListener('visibilitychange', function(){ if (!document.hidden) verificar(); });
+})();
+</script>
 </body>
 
 </html>
