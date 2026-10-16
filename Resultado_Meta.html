@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta name="zappas-versao" content="v2026.10.15-d">
+<script src="zappas-cache.js"></script>
+<meta name="zappas-versao" content="v2026.10.16-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resultado da Meta</title>
@@ -736,7 +737,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.15-d</span><span class="sv-short">10.15-d</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -984,7 +985,10 @@ const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
 function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
   try {
     const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
-    return g > (cacheRawTs || 0);
+    if (!(g > (cacheRawTs || 0))) return false;
+    // Aviso mais novo que o cache, mas o Drive não mudou desde então (e não foi
+    // pedida atualização forçada): o cache continua em dia, não recarrega.
+    return !(window.ZappasCache && ZappasCache.semMudancaDesde(cacheRawTs));
   } catch(e) { return false; }
 }
 window.addEventListener('storage', (e) => {
@@ -2119,7 +2123,7 @@ AuthGuard.requireScreen('resultado_meta', function(session){
     var c = await ler(); return c && +c.rawTs || 0;
   }
   function atualizar(){
-    if (ehInicio) { gerarResumoMensal(); return; }            // tela inicial: roda a Atualização Geral
+    if (ehInicio) { gerarResumoMensal('drive'); return; }            // tela inicial: roda a Atualização Geral
     try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
     if (GANCHO && GANCHO.atualizar) GANCHO.atualizar();
     else if (typeof loadData === 'function') loadData(true);
@@ -2133,6 +2137,7 @@ AuthGuard.requireScreen('resultado_meta', function(session){
       if (!r.ok) return;
       var v; try { v = JSON.parse(await r.text()); } catch(e) { return; } // Apps Script ainda sem ?tipo=versao
       var drive = +v.ultimaAlteracao || 0;
+      if (drive) { try { localStorage.setItem('zappas_drive_ts', String(drive)); } catch(e) {} }
       var local = await horaLocal();
       if (!drive || !local) return;              // sem dados guardados ainda: a própria tela já busca
       if (drive > local && drive > ignoradoAte) {
