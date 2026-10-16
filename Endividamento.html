@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.10.16-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Controle de Endividamento · Gestão Zappas</title>
@@ -374,7 +374,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-c</span><span class="sv-short">10.16-c</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -666,7 +666,13 @@ const Store = {
     }
     const res=await fetch(ENDIV_API_URL+'?tipo=endividamento&_='+Date.now(), {cache:'no-store'});
     const txt=await res.text();
-    let j; try{ j=JSON.parse(txt); }catch(e){ throw new Error('o Apps Script ainda não tem a parte do Endividamento (publique a nova versão)'); }
+    let j; try{ j=JSON.parse(txt); }catch(e){
+      /* Mostra o começo do que o Google devolveu, para saber se é a
+         versão antiga do script (devolve CSV/HTML) ou erro de permissão. */
+      const amostra=String(txt||'').replace(/<[^>]*>/g,' ').replace(/\s+/g,' ').trim().slice(0,160);
+      console.warn('Resposta do Apps Script (?tipo=endividamento):', txt.slice(0,1000));
+      throw new Error('o Apps Script ainda não tem a parte do Endividamento (publique a nova versão)'+(amostra?' — resposta recebida: "'+amostra+'"':''));
+    }
     if(!j.ok) throw new Error(j.erro||'Falha ao listar');
     return {operacoes:j.operacoes||[], modalidades:j.modalidades||[], bancos:j.bancos||[]};
   },

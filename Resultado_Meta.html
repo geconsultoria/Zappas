@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.10.16-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Resultado da Meta</title>
@@ -737,7 +737,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-c</span><span class="sv-short">10.16-c</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -948,7 +948,7 @@ function lojaPermitida(key) {
 /* ═══════════════ CACHE LOCAL (IndexedDB) ═══════════════ */
 const DB_NAME  = 'zappasCacheDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'resultadoMeta_data_v5';
+const DB_KEY   = 'resultadoMeta_data_v6';
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -1196,7 +1196,12 @@ function transform(rows, headers) {
   const result = [];
   for (const row of rows) {
     const ano   = parseInt(row[cAno]);
-    const loja  = String(row[cLoja] || '').trim().toUpperCase().replace(/^["']|["']$/g, '');
+    const lojaBruta = String(row[cLoja] || '').trim().toUpperCase().replace(/^["']|["']$/g, '');
+    // Padroniza para a chave de LOJAS_ORDEM ("BELVEDERE", "Belvedere "
+    // etc. viram "BELVEDER"), senão a loja some das consultas exatas.
+    const lojaNorm = lojaBruta.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/\s+/g, ' ');
+    const lojaPadrao = lojaNorm.length >= 3 && LOJAS_ORDEM.find(l => lojaNorm === l.key || lojaNorm.startsWith(l.key) || l.key.startsWith(lojaNorm));
+    const loja  = lojaPadrao ? lojaPadrao.key : lojaNorm;
     const mes   = parseMesN(row[cMes]);
     const venda = parseNum(row[cVenda]);
     if (!ano || isNaN(ano) || !loja || !mes || venda === null) continue;
@@ -1306,10 +1311,20 @@ async function loadMetasData() {
     metasData = [];
   }
 }
+// Nome da loja na planilha de metas x nas vendas: a Belvedere vem como
+// "BELVEDER" nas vendas e "BELVEDERE" nas metas. Comparação tolerante
+// (sem acento, um nome começando pelo outro), igual à getMetaCanal.
+function normLoja(s) {
+  return String(s || '').trim().toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+function mesmaLoja(a, b) {
+  const x = normLoja(a), y = normLoja(b);
+  return !!x && !!y && (x === y || x.startsWith(y) || y.startsWith(x));
+}
 function getMetaSheet(loja, mes, ano) {
   if (!loja || !mes || !ano) return 0;
   return metasData
-    .filter(d => d.ano === ano && d.mes === mes && d.loja === loja.toUpperCase())
+    .filter(d => d.ano === ano && d.mes === mes && mesmaLoja(d.loja, loja))
     .reduce((s, d) => s + (d.meta || 0), 0);
 }
 
@@ -1365,9 +1380,9 @@ function getMetaFiltrada(loja, mes, ano) {
   // meta sem canal (= loja inteira) entra UMA vez só, igual à Elaboração.
   if (!loja || !mes || !ano || !metasData.length) return 0;
   const sel = new Set([...selectedCanais].map(c => String(c).toUpperCase()));
-  const lojaUpper = loja.toUpperCase();
+  const lojaUpper = normLoja(loja);
   const base = metasData.filter(d =>
-    Number(d.ano) === Number(ano) && Number(d.mes) === Number(mes) && d.loja === lojaUpper);
+    Number(d.ano) === Number(ano) && Number(d.mes) === Number(mes) && mesmaLoja(d.loja, loja));
 
   // Anísio/Damha: total cadastrado dividido 97% Loja / 3% Delivery
   if (['ANISIO', 'DAMHA'].includes(lojaUpper)) {
@@ -1552,8 +1567,10 @@ async function loadData(forceRefresh = false, silent = false) {
   }
 
   try {
-    let headers = [];
-    const allRows = [];
+    // Cada loja é lida com o PRÓPRIO cabeçalho: antes usava só o da 1ª
+    // planilha que chegava, e uma loja com colunas de nome diferente
+    // (ex.: "total" x "total_venda") tinha todas as linhas descartadas.
+    const allData = [];
     const lojasComFalha = [];
     const metasPromise = loadMetasData();
     const quebrasPromise = loadQuebrasMap().catch(e => { console.warn('Quebras indisponível:', e.message); return { mensal: {}, diario: {} }; });
@@ -1564,17 +1581,18 @@ async function loadData(forceRefresh = false, silent = false) {
         if (!res.ok) throw new Error('HTTP ' + res.status);
         const txt = await res.text();
         const parsed = parseCSV(txt);
-        if (!headers.length) headers = parsed.headers;
-        parsed.rows.forEach(r => allRows.push(r));
+        const linhas = transform(parsed.rows, parsed.headers);
+        if (!linhas.length) throw new Error('planilha sem linhas válidas');
+        linhas.forEach(r => allData.push(r));
       } catch(e) {
         lojasComFalha.push(STORE_KEYS[idx].toUpperCase());
         console.warn('Falha ao buscar ' + STORE_KEYS[idx] + ':', e.message);
       }
     }));
 
-    if (!allRows.length) throw new Error('Nenhum dado recebido das planilhas.');
+    if (!allData.length) throw new Error('Nenhum dado recebido das planilhas.');
 
-    rawData = transform(allRows, headers);
+    rawData = allData;
     await metasPromise;
     const quebrasResult = await quebrasPromise;
     quebrasMap    = quebrasResult.mensal  || {};
