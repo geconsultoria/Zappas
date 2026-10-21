@@ -409,6 +409,9 @@ a.side-brand:hover { opacity:.85; }
 }
 .rd-pos { color: #0A7C5C; }
 .rd-neg { color: #C8281E; }
+/* Dentro das tabelas do card (Resumo Diário / imagem do WhatsApp) a regra
+   ".rd-tbl td" tinha prioridade e deixava tudo preto — negativo fica vermelho. */
+.rd-tbl td.rd-neg { color: #C8281E; }
 .canal-dropdown {
   display: none;
   position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
@@ -2917,7 +2920,7 @@ function buildCardHTMLv1(r) {
     <div class="rd-sec-title">META MENSAL</div>
     <table class="rd-tbl">
       <tr><th>META</th><th>REALIZADO</th><th>DIFERENÇA</th><th>% DA META</th></tr>
-      <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
+      <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td>${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
   </div>`;
 }
@@ -2960,7 +2963,7 @@ function buildCardHTMLv2(r) {
     <div class="rd-sec-title">META MENSAL</div>
     <table class="rd-tbl">
       <tr><th>META</th><th>REALIZADO</th><th>DIFERENÇA</th><th>% DA META</th></tr>
-      <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td class="${pctClass100(r.pctAtingidoTotal)}">${pctTxt(r.pctAtingidoTotal)}</td></tr>
+      <tr><td class="rd-val-sm">${R0(r.metaMesTotal)}</td><td class="rd-val-sm">${R0(r.realizadoMesTotal)}</td><td class="rd-val-sm ${pctClass(r.diferMetaTotal)}">${r.diferMetaTotal>=0?'+':''}${R0(r.diferMetaTotal)}</td><td>${pctTxt(r.pctAtingidoTotal)}</td></tr>
     </table>
   </div>`;
 }
