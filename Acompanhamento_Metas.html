@@ -1,12 +1,10 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Acompanhamento de Metas</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700;800&family=IBM+Plex+Sans:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400&family=IBM+Plex+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
@@ -42,13 +40,13 @@
   --fh:          56px;
   --side-w:      232px;
   --side-w-collapsed: 74px;
-  --font-head: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  --font-head: 'Playfair Display', Georgia, serif;
 }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; }
 body {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   background: var(--bg);
   color: var(--ink);
   font-size: 13px;
@@ -206,7 +204,7 @@ a.side-brand:hover { opacity:.85; }
   padding: 8px 16px;
   background: var(--blue); color: #fff;
   border: none; border-radius: var(--r-sm);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12px; font-weight: 600;
   cursor: pointer; transition: var(--tr);
   white-space: nowrap;
@@ -218,7 +216,7 @@ a.side-brand:hover { opacity:.85; }
 /* Nota: .fb-select continua definido abaixo (é reaproveitado no select de
    loja do modal "Resumo Diário", que fica sobre fundo claro). */
 .fb-select {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12.5px; font-weight: 500; color: var(--ink);
   background: var(--bg);
   border: 1px solid var(--border);
@@ -235,7 +233,7 @@ a.side-brand:hover { opacity:.85; }
 /* ── Canal multi-select (translúcido, embutido no header escuro) ── */
 .canal-wrap { position: relative; }
 .canal-trigger {
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 12.5px; font-weight: 500; color: #fff;
   background: rgba(255,255,255,.08);
   border: 1px solid rgba(255,255,255,.28);
@@ -724,7 +722,7 @@ thead {
 .tr-grp th {
   padding: 5px 4px;
   text-align: center;
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif;
   font-size: 9px; font-weight: 700;
   text-transform: uppercase; letter-spacing: .4px;
   white-space: nowrap;
@@ -772,7 +770,7 @@ td {
   color: var(--ink);
 }
 td:last-child { border-right: none; }
-td.tl  { text-align: left; font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 9.5px; color: var(--ink2); }
+td.tl  { text-align: left; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 9.5px; color: var(--ink2); }
 td.sep { border-right: 2px solid var(--border-hi); }
 td.pos { color: var(--green); font-weight: 600; }
 td.neg { color: var(--red); font-weight: 600; }
@@ -829,7 +827,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
   margin-top: 12px; padding: 7px 18px;
   background: var(--red); color: #fff;
   border: none; border-radius: var(--r-sm);
-  font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
+  font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 
 /* ─── RESPONSIVE ─── */
@@ -873,7 +871,7 @@ tfoot tr:last-child td:last-child  { border-radius: 0 0 var(--r) 0; }
 .update-card-icon { width: 34px; height: 34px; flex-shrink: 0; color: #C8961A; }
 .update-card-icon svg { width: 100%; height: 100%; }
 .update-card-icon.spin svg { animation: spin .8s linear infinite; }
-.update-card-title { font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif; font-weight: 700; font-size: 15px; color: #fff; }
+.update-card-title { font-family: 'Playfair Display', Georgia, serif; font-weight: 700; font-size: 15px; color: #fff; }
 .update-card-sub { font-size: 12px; color: rgba(255,255,255,.6); margin-top: 3px; }
 .update-card-sub.ok  { color: #7FCBA4; }
 .update-card-sub.err { color: #E39184; }
@@ -891,12 +889,6 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
   return l.sort();
 }
 </script>
-<style>
-/* ── Padrão de fontes do painel ──
-   Uma fonte só (Inter) em títulos, textos e números. Números com largura
-   fixa ("tabulares"), para as colunas das tabelas ficarem alinhadas. */
-body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
-</style>
 </head>
 <body>
 <script src="auth-common.js"></script>
@@ -954,10 +946,6 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M9 13h6M9 17h6"/></svg>
           Demonstrativo de Resultado
         </a>
-        <a href="Orcamento_2027.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="17" rx="2"/><path stroke-linecap="round" stroke-linejoin="round" d="M3 9h18M8 2v4M16 2v4M7 13h4M7 17h7"/></svg>
-          Orçamento 2027
-        </a>
         <a href="Contas_a_Pagar.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path stroke-linecap="round" stroke-linejoin="round" d="M12 16V8m-3 3l3-3 3 3"/></svg>
           Contas a Pagar
@@ -981,10 +969,6 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
         <a href="Ciclo_Financeiro.html">
           <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3M12 3a9 9 0 100 18 9 9 0 000-18z"/></svg>
           Ciclo Financeiro
-        </a>
-        <a href="Endividamento.html">
-          <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><circle cx="7" cy="7" r="2.5"/><circle cx="17" cy="17" r="2.5"/><path stroke-linecap="round" d="M17 7L7 17"/></svg>
-          Controle de Endividamento
         </a>
       </div>
     </div>
@@ -1011,15 +995,6 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
       </div>
     </div>
   </nav>
-  <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
-  <style>
-    .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-    .side-versao .sv-short{display:none}
-    .sidebar.collapsed:not(.peek) .side-versao{padding:10px 0 12px;text-align:center;font-size:8.5px}
-    .sidebar.collapsed:not(.peek) .side-versao .sv-full{display:none}
-    .sidebar.collapsed:not(.peek) .side-versao .sv-short{display:inline}
-  </style>
 </aside>
 
 <!-- ════ HEADER ════ -->
@@ -1305,7 +1280,7 @@ let metasData = []; // { ano, mes, loja, canal, meta, pe } — vindo da planilha
    de 5-10MB do localStorage. */
 const DB_NAME  = 'zappasCacheDB';
 const DB_STORE = 'cache';
-const DB_KEY   = 'acompanhamentoMetas_data_v4';
+const DB_KEY   = 'acompanhamentoMetas_data_v3';
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB_NAME, 1);
@@ -1349,18 +1324,14 @@ async function loadCache() {
 ═══════════════════════════════════════════════════════ */
 const GLOBAL_REFRESH_KEY = 'zappas_global_refresh_ts';
 
-function avisarOutrasPaginasZappas(forcar = true) {
+function avisarOutrasPaginasZappas() {
   try { localStorage.setItem(GLOBAL_REFRESH_KEY, String(Date.now())); } catch(e) {}
-  if (forcar && window.ZappasCache) ZappasCache.forcar();
 }
 
 function existeAtualizacaoMaisRecenteZappas(cacheRawTs) {
   try {
     const g = parseInt(localStorage.getItem(GLOBAL_REFRESH_KEY) || '0', 10);
-    if (!(g > (cacheRawTs || 0))) return false;
-    // Aviso mais novo que o cache, mas o Drive não mudou desde então (e não foi
-    // pedida atualização forçada): o cache continua em dia, não recarrega.
-    return !(window.ZappasCache && ZappasCache.semMudancaDesde(cacheRawTs));
+    return g > (cacheRawTs || 0);
   } catch(e) { return false; }
 }
 
@@ -1610,7 +1581,7 @@ function transform(rows, headers) {
   const cCanal  = find(['canais','canal','channel']);
   const cData   = find(['data', 'dt', 'data_venda', 'dt_venda', 'dia']);
   const cVs     = find(['vs']);
-  const cFabrica = find(['fabrica','montagem']); // "Fabrica" também pode vir como "Montagem"
+  const cFabrica = find(['fabrica']);
 
   if (!cAno || !cLoja || !cMes || !cVenda)
     throw new Error('Colunas obrigatórias não encontradas. Detectadas: [' + headers.join(', ') + ']. Necessárias: ANO, LOJA, MÊS, Total_Venda');
@@ -2272,7 +2243,9 @@ function renderDashboard(f) {
   // "Meta Acum." da tabela — não a meta do mês inteiro de uma vez, senão
   // distorce o resultado enquanto o mês ainda está em andamento.
   const metaAcumDia = (metaMes > 0 && ultimoDiaVenda > 0) ? metaMes * (ultimoDiaVenda / dias) : metaMes;
-  const pctMeta   = vAntAcumDia > 0 ? ((metaAcumDia / vAntAcumDia) - 1) * 100 : null;
+  // % Venda × Meta Acum. = (Venda acumulada ÷ Meta acumulada) − 1
+  // → positivo = acima da meta até o último dia com venda; negativo = abaixo.
+  const pctMeta   = metaAcumDia > 0 ? ((vAAcumDia / metaAcumDia) - 1) * 100 : null;
   const pctVsAnt  = vAntAcumDia > 0 ? ((vAAcumDia / vAntAcumDia) - 1) * 100 : null;
 
   const vDia    = vA   / dias;
@@ -2386,7 +2359,7 @@ function renderDashboard(f) {
   const pctTktAA = mediaTkAA > 0 ? (mediaTkAtual / mediaTkAA - 1) * 100 : null;
 
   const inds = [
-    { lbl: '% META ACUM. ATUAL × VENDA', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
+    { lbl: '% VENDA × META ACUM.', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
     { lbl: '% VENDA ACUM. ATUAL × AA',   val: pctVsAnt, clr: pctVsAnt === null ? 'blue' : pctVsAnt >= 0 ? 'green' : 'red', note: '', ico: '📈' },
     { lbl: '% PESSOAS ANO ANTERIOR',     val: pctPessAA,clr: pctPessAA=== null ? 'blue' : pctPessAA>= 0 ? 'green' : 'red', note: '', ico: '👥' },
     { lbl: '% TK ANO ANTERIOR',          val: pctTktAA, clr: pctTktAA === null ? 'blue' : pctTktAA >= 0 ? 'green' : 'red', note: '', ico: '🛒' },
@@ -2783,7 +2756,7 @@ function computeResumoLoja(loja) {
   const realLoja = fundeDelivery ? realLojaBase + realDelBase : realLojaBase;
   const realDel  = fundeDelivery ? 0 : realDelBase;
 
-  // META ACUM x VENDA MÊS = Venda Realizada Acumulada até o dia de
+  // VENDA MÊS x META ACUM = Venda Realizada Acumulada até o dia de
   // referência ÷ Meta Acumulada até esse mesmo dia (meta do mês
   // proporcional aos dias já passados) — não a meta do mês inteiro,
   // pra não distorcer o resultado nos primeiros dias do mês.
@@ -2803,12 +2776,15 @@ function computeResumoLoja(loja) {
   const vLojaAcumDiaAA = fundeDelivery ? vLojaAcumDiaAABase + vDelAcumDiaAABase : vLojaAcumDiaAABase;
   const vDelAcumDiaAA  = fundeDelivery ? 0 : vDelAcumDiaAABase;
 
-  const pctMetaLoja = vLojaAcumDiaAA > 0 ? ((metaAcumLoja / vLojaAcumDiaAA) - 1) * 100 : null;
-  const pctMetaDel  = vDelAcumDiaAA  > 0 ? ((metaAcumDel  / vDelAcumDiaAA)  - 1) * 100 : null;
+  // VENDA MÊS x META ACUM = (Venda acumulada ÷ Meta acumulada) − 1
+  // → positivo = acima da meta até o dia de referência; negativo = abaixo.
+  const pctMetaLoja = metaAcumLoja > 0 ? ((vLojaAcumDia / metaAcumLoja) - 1) * 100 : null;
+  const pctMetaDel  = metaAcumDel  > 0 ? ((vDelAcumDia  / metaAcumDel)  - 1) * 100 : null;
   // Consolidado (Loja + Delivery) = mesma fórmula, só que somando loja e
   // delivery ANTES de dividir — não é a soma dos dois percentuais prontos.
   const vAcumDiaAATotal = vLojaAcumDiaAA + vDelAcumDiaAA;
-  const pctMetaTotal = vAcumDiaAATotal > 0 ? (((metaAcumLoja + metaAcumDel) / vAcumDiaAATotal) - 1) * 100 : null;
+  const metaAcumTotal = metaAcumLoja + metaAcumDel;
+  const pctMetaTotal = metaAcumTotal > 0 ? (((vLojaAcumDia + vDelAcumDia) / metaAcumTotal) - 1) * 100 : null;
 
   const pctVsAntLoja = vLojaAcumDiaAA > 0 ? ((vLojaAcumDia / vLojaAcumDiaAA) - 1) * 100 : null;
   const pctVsAntDel  = vDelAcumDiaAA  > 0 ? ((vDelAcumDia  / vDelAcumDiaAA)  - 1) * 100 : null;
@@ -2926,7 +2902,7 @@ function buildCardHTMLv1(r) {
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.metaDiaLoja)}</td><td>${R(r.metaDiaDel)}</td><td>${R(r.metaDiaTotal)}</td><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="6"></td></tr>
-      <tr><th colspan="3">META ACUM x VENDA MÊS</th><th colspan="3" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
+      <tr><th colspan="3">VENDA MÊS x META ACUM</th><th colspan="3" class="hi">VENDA ACUM x ANO ANTERIOR</th></tr>
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctMetaTotal)}">${pctTxt(r.pctMetaTotal)}</td><td class="${pctClass(r.pctVsAntLoja)}">${pctTxt(r.pctVsAntLoja)}</td><td class="${pctClass(r.pctVsAntDel)}">${pctTxt(r.pctVsAntDel)}</td><td class="${pctClass(r.pctVsAntTotal)}">${pctTxt(r.pctVsAntTotal)}</td></tr>
     </table>
@@ -2965,7 +2941,7 @@ function buildCardHTMLv2(r) {
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td>${R(r.realLoja)}</td><td>${R(r.realDel)}</td><td>${R(r.realTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
-      <tr><th colspan="3">META ACUM x VENDA MÊS</th></tr>
+      <tr><th colspan="3">VENDA MÊS x META ACUM</th></tr>
       <tr><td class="rd-sub-hd">${r.lojaLabel} LOJA</td><td class="rd-sub-hd">${r.lojaLabel} DELIVERY</td><td class="rd-sub-hd">TOTAL</td></tr>
       <tr><td class="${pctClass(r.pctMetaLoja)}">${pctTxt(r.pctMetaLoja)}</td><td class="${pctClass(r.pctMetaDel)}">${pctTxt(r.pctMetaDel)}</td><td class="${pctClass(r.pctMetaTotal)}">${pctTxt(r.pctMetaTotal)}</td></tr>
       <tr class="rd-tbl-spacer"><td colspan="3"></td></tr>
@@ -3060,7 +3036,7 @@ function textoResumoLoja(r) {
   linhas.push(`*Realizado Diária*`);
   linhas.push(`${r.lojaLabel} Loja: ${R(r.realLoja)}  |  ${r.lojaLabel} Delivery: ${R(r.realDel)}  |  Total: ${R(r.realTotal)}`);
   linhas.push('');
-  linhas.push(`*% Meta Acum x Venda Mês*`);
+  linhas.push(`*% Venda Mês x Meta Acum*`);
   linhas.push(`Loja: ${pctTxt(r.pctMetaLoja)}  |  Delivery: ${pctTxt(r.pctMetaDel)}  |  Total: ${pctTxt(r.pctMetaTotal)}`);
   linhas.push(`*% Venda Acum x Ano Anterior*`);
   linhas.push(`Loja: ${pctTxt(r.pctVsAntLoja)}  |  Delivery: ${pctTxt(r.pctVsAntDel)}  |  Total: ${pctTxt(r.pctVsAntTotal)}`);
@@ -3497,75 +3473,6 @@ window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('acomp
     </div>
   </div>
 </div>
-<!-- ═══ AVISO DE DADOS NOVOS NO GOOGLE DRIVE ═══
-     Ao abrir e a cada 5 min, pergunta ao Apps Script (?tipo=versao) a hora
-     da última alteração dos arquivos da pasta. Se for mais nova que os dados
-     guardados no navegador, mostra a faixa com "Atualizar agora", que faz o
-     mesmo que a Atualização Geral (todas as telas abertas atualizam). -->
-<div id="zappas-aviso-drive" style="display:none;position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:100000;max-width:calc(100% - 32px);background:#fff7e6;border:1px solid #f5c26b;color:#7a4a05;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);padding:10px 14px;font:500 13px/1.35 Inter,'IBM Plex Sans',Arial,sans-serif;align-items:center;gap:12px;flex-wrap:wrap">
-  <span><b>Há dados novos no Google Drive</b> <span id="zappas-aviso-hora"></span></span>
-  <button type="button" id="zappas-aviso-btn" style="background:#b87010;color:#fff;border:0;border-radius:7px;padding:6px 12px;font:700 12px Inter,Arial,sans-serif;cursor:pointer">Atualizar agora</button>
-  <button type="button" id="zappas-aviso-fechar" title="Fechar" style="background:transparent;border:0;color:#7a4a05;font-size:16px;line-height:1;cursor:pointer;padding:0 2px">×</button>
-</div>
-<script>
-(function(){
-  if (window.__SNAP__) return; // relatório exportado: sem consulta ao Drive
-  var GANCHO = window.__ZAPPAS_AVISO || null; // telas com o código dentro de um bloco fechado (ex.: Banco)
-  var URL_BASE = GANCHO && GANCHO.url ? GANCHO.url
-               : (typeof APPS_SCRIPT_URL !== 'undefined') ? APPS_SCRIPT_URL
-               : (typeof APPS_SCRIPT_URL_DRE !== 'undefined') ? APPS_SCRIPT_URL_DRE : null;
-  if (!URL_BASE) return;
-  var INTERVALO = 5 * 60 * 1000;
-  var ignoradoAte = 0; // fechou no "×": não mostra de novo para esta mesma alteração
-  var box = document.getElementById('zappas-aviso-drive');
-  var ehInicio = (typeof resumoLoadCache === 'function') && (typeof gerarResumoMensal === 'function');
-  function globalTs(){ try { return parseInt(localStorage.getItem('zappas_global_refresh_ts') || '0', 10) || 0; } catch(e) { return 0; } }
-  // Hora dos dados que esta tela tem guardados no navegador.
-  async function horaLocal(){
-    if (ehInicio) { var r = await resumoLoadCache(); return Math.max(r && +r.ts || 0, globalTs()); }
-    var ler = (GANCHO && GANCHO.lerCache) ? GANCHO.lerCache : (typeof loadCacheDB === 'function') ? loadCacheDB : (typeof loadCache === 'function') ? loadCache : null;
-    if (!ler) return 0;
-    var c = await ler(); return c && +c.rawTs || 0;
-  }
-  function atualizar(){
-    if (ehInicio) { gerarResumoMensal('drive'); return; }            // tela inicial: roda a Atualização Geral
-    try { localStorage.setItem('zappas_global_refresh_ts', String(Date.now())); } catch(e) {}
-    if (GANCHO && GANCHO.atualizar) GANCHO.atualizar();
-    else if (typeof loadData === 'function') loadData(true);
-    else if (typeof fetchData === 'function') fetchData(true);
-  }
-  function esconder(){ box.style.display = 'none'; }
-  async function verificar(){
-    try {
-      if (document.hidden) return;
-      var r = await fetch(URL_BASE + (URL_BASE.indexOf('?')>=0?'&':'?') + 'tipo=versao&_=' + Date.now(), { cache:'no-store' });
-      if (!r.ok) return;
-      var v; try { v = JSON.parse(await r.text()); } catch(e) { return; } // Apps Script ainda sem ?tipo=versao
-      var drive = +v.ultimaAlteracao || 0;
-      if (drive) { try { localStorage.setItem('zappas_drive_ts', String(drive)); } catch(e) {} }
-      var local = await horaLocal();
-      if (!drive || !local) return;              // sem dados guardados ainda: a própria tela já busca
-      if (drive > local && drive > ignoradoAte) {
-        var d = new Date(drive);
-        document.getElementById('zappas-aviso-hora').textContent =
-          '(alterados em ' + d.toLocaleDateString('pt-BR') + ' às ' + d.toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + ')';
-        box.dataset.drive = drive;
-        box.style.display = 'flex';
-      } else {
-        esconder();
-      }
-    } catch(e) { /* sem conexão: tenta na próxima */ }
-  }
-  document.getElementById('zappas-aviso-btn').addEventListener('click', function(){ esconder(); atualizar(); });
-  document.getElementById('zappas-aviso-fechar').addEventListener('click', function(){
-    ignoradoAte = +box.dataset.drive || Date.now();
-    esconder();
-  });
-  setTimeout(verificar, 8000);
-  setInterval(verificar, INTERVALO);
-  document.addEventListener('visibilitychange', function(){ if (!document.hidden) verificar(); });
-})();
-</script>
 </body>
 
 </html>
