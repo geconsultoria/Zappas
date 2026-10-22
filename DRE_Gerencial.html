@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.22-f">
+<meta name="zappas-versao" content="v2026.10.22-h">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-f</span><span class="sv-short">10.22-f</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-h</span><span class="sv-short">10.22-h</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2054,6 +2054,15 @@ function normJuros(s){
 }
 function isJuros(sub){ const n=normJuros(sub); return JUROS_BANCARIOS.includes(n)||(n.includes('juros')&&n.includes('banc')); }
 
+// CMC do DFC: o que foi PAGO a fornecedores de mercadoria no Contas a
+// Pagar — grupo CMV, subgrupos "Matéria Prima e Insumos" e "Produtos para
+// Revenda" (regime de caixa). O arquivo de Compras (data do pedido) passa a
+// ser só informativo, numa linha abaixo do Resultado Líquido.
+function isCMCPago(r){
+  if(slugFromGrupo(r.grupo)!=='cmv') return false;
+  const s = normKey(r.subgrupo);
+  return s.includes('materia prima') || s.includes('produtos para revenda');
+}
 function fmtBRL(v){ return new Intl.NumberFormat('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}).format(v); }
 function fmtShort(v){
   const a=Math.abs(v);
@@ -4002,7 +4011,7 @@ function renderKPIs(){
     const resOp=lucroBruto-B.despOp;
     return { rec, lucroBruto, resOp, ebitda:resOp+B.juros, resLiq:resOp-B.abaixoOp };
   };
-  const dfc=calc(bP.sl('receita_operacional'), bP.sl('impostos_vendas'), soma(filteredCompras), bP);
+  const dfc=calc(bP.sl('receita_operacional'), bP.sl('impostos_vendas'), soma(filtered.filter(isCMCPago)), bP);
   const dre=calc(soma(filteredVendas), soma(filteredImpostosGer), soma(filteredCusto), bV);
 
   const pctDe=(v,b)=>b?pct(v,b):'—';
@@ -4320,7 +4329,18 @@ function renderDRE(){
   const imp = dreView==='gerencial' ? impostosGerColVals() : slugColVals('impostos_vendas');
   const ded=slugColVals('deducoes_vendas');
   const recLiq={}; cols.forEach(c=>recLiq[c]=rec[c]-imp[c]-ded[c]);
-  const cmv = dreView==='gerencial' ? custoColVals() : comprasColVals();
+  // CMC pago (Contas a Pagar, Matéria Prima e Insumos + Produtos para
+  // Revenda), por coluna — base do CMC no DFC.
+  function cmcPagoColVals(){
+    const out={}; cols.forEach(c=>out[c]=0);
+    filtered.forEach(r=>{
+      if(!isCMCPago(r)) return;
+      const colKey = modoMensal ? r.mes : r.loja;
+      if(colKey in out) out[colKey]+=r.valor;
+    });
+    return out;
+  }
+  const cmv = dreView==='gerencial' ? custoColVals() : cmcPagoColVals();
   const lucroBruto={}; cols.forEach(c=>lucroBruto[c]=recLiq[c]-cmv[c]);
   const despCom=slugColVals('despesas_comerciais');
   const despPes=slugColVals('despesas_pessoal');
@@ -4471,6 +4491,43 @@ function renderDRE(){
        substituiu a classificação via Contas a Pagar + Plano de Contas —
        ver comprasColVals() acima e parseCompras()/COMPRAS_URLS no topo
        do arquivo. */
+    if(slot.slug==='cmv' && dreView!=='gerencial'){
+      // DFC: CMC = pagamentos a fornecedores de mercadoria, expandindo em
+      // subgrupo (Matéria Prima e Insumos / Produtos para Revenda) → conta
+      // → lançamentos.
+      const cmvTot=rowTotal(cmv), totBase=rowTotal(rec);
+      const itensCMC=filtered.filter(isCMCPago);
+      const gId=uid();
+      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+        <td>${CHEVRON}<span class="dre-sign">${slot.sign}</span>CMC — CUSTO MERCADORIA COMPRADA<span class="expand-hint">expandir</span></td>
+        ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
+        <td style="font-weight:700">${cellVal(cmvTot)}</td>
+        ${avCell(cmvTot,totBase)}
+      </tr>`;
+      const porCol=(arr)=>{const o={}; arr.forEach(r=>{const k=modoMensal?r.mes:r.loja; o[k]=(o[k]||0)+r.valor;}); return o;};
+      [...new Set(itensCMC.map(r=>r.subgrupo||'(sem subgrupo)'))].sort().forEach(sub=>{
+        const itS=itensCMC.filter(r=>(r.subgrupo||'(sem subgrupo)')===sub), sV=porCol(itS), sT=rowTotal(sV);
+        const sId=uid();
+        html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+          <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
+          ${cols.map(c=>`<td>${cellVal(sV[c]||0)}</td>${avCell(sV[c]||0,rec[c]||0)}`).join('')}
+          <td style="font-weight:700">${cellVal(sT)}</td>
+          ${avCell(sT,totBase)}
+        </tr>`;
+        [...new Set(itS.map(r=>r.plano||'(sem plano)'))].sort().forEach(plano=>{
+          const itP=itS.filter(r=>(r.plano||'(sem plano)')===plano), pV=porCol(itP), pT=rowTotal(pV);
+          const iId=uid(), lId=registrarLanc(itP);
+          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+            ${cols.map(c=>`<td>${cellVal(pV[c]||0)}</td>${avCell(pV[c]||0,rec[c]||0)}`).join('')}
+            <td>${cellVal(pT)}</td>
+            ${avCell(pT,totBase)}
+          </tr>`;
+          html+=lancDetailRowHTML(iId,lId,totalCols());
+        });
+      });
+      return;
+    }
     if(slot.slug==='cmv'){
       const cmvTot=rowTotal(cmv);
       const cmvLabel = dreView==='gerencial'
@@ -4600,6 +4657,23 @@ function renderDRE(){
       });
     });
   });
+
+  /* DFC: linha informativa, depois do Resultado Líquido e de uma linha em
+     branco — CMC pelo arquivo de Compras (data do pedido). Não entra no
+     cálculo; serve pra comparar compras pedidas × pagas no mês. */
+  if(dreView!=='gerencial'){
+    const comp=comprasColVals(), compTot=rowTotal(comp);
+    html+=`<tr class="row-sep"><td colspan="${totalCols()}"></td></tr>`;
+    html+=`<tr class="row-group" style="cursor:default">
+      <td><span class="dre-sign">(i)</span>CMC — CUSTO MERCADORIA COMPRADA <span style="font-size:10px;font-weight:500;color:var(--ink-4)">(COMPRAS · INFORMATIVO)</span></td>
+      ${cols.map(c=>`<td>${cellVal(comp[c]||0)}</td>${avCell(comp[c]||0,rec[c]||0)}`).join('')}
+      <td style="font-weight:700">${cellVal(compTot)}</td>
+      ${avCell(compTot,rowTotal(rec))}
+    </tr>`;
+    html+=`<tr class="row-nota"><td colspan="${totalCols()}" style="font-size:11px;font-style:italic;color:var(--ink-4);padding:6px 20px 10px 48px;white-space:normal;text-align:left;background:var(--surface)">
+      Referente às compras de mercadoria realizadas no mês (pedidos de compra, pela data do pedido). Valor apenas informativo — não entra no Resultado Líquido; o que foi pago a fornecedores está na linha CMC acima.
+    </td></tr>`;
+  }
 
   /* Grupos não mapeados */
   if(unmapped.length){
@@ -4854,7 +4928,9 @@ function renderDREConsolidado(){
   const impGer = impostosGerColVals();
   const ded    = slugColVals('deducoes_vendas');
   const dedV   = slugColValsV('deducoes_vendas');
-  const cmvDfc = comprasColVals();
+  const cmvDfc = (()=>{ const out={}; cols.forEach(c=>out[c]=0);
+    filtered.forEach(r=>{ if(!isCMCPago(r)) return; const k=modoMensal?r.mes:r.loja; if(k in out) out[k]+=r.valor; });
+    return out; })();
   const cmvGer = custoColVals();
   const despCom= slugColVals('despesas_comerciais');
   const despPes= slugColVals('despesas_pessoal');
@@ -5455,7 +5531,7 @@ function renderLojas(){
   // MESMA regra do card "Performance por loja" do Dashboard (GestaoZappas):
   //   Base: Contas a Pagar classificado (sem a linha de CMV dele) + Recebidos.
   //   DFC  → Entradas = Recebido (Receita Operacional classificada)
-  //          Saídas   = Contas a Pagar − CMV(Contas a Pagar) + CMV pelo CUSTO DA COMPRA (arquivo de Compras)
+  //          Saídas   = Contas a Pagar pago (CMC = Matéria Prima e Insumos + Produtos para Revenda)
   //   DRE  → Receita  = Faturamento (Análise Comercial)
   //          Despesas = Contas a Pagar pelo VENCIMENTO − CMV − Impostos
   //                     + CMV pelo CUSTO DO PRODUTO (Curva ABC) + Impostos por competência
@@ -5465,7 +5541,7 @@ function renderLojas(){
     const slug = sl => rows.reduce((t,r)=> slugFromGrupo(r.grupo)===sl ? t+r.valor : t, 0);
     const entradas = rows.reduce((t,r)=> ehRec(r) ? t+r.valor : t, 0);
     const ctasSemCmv = rows.reduce((t,r)=> ehRec(r) ? t : t+r.valor, 0) - slug('cmv');
-    const saidas     = ctasSemCmv + soma(filteredCompras, loja);
+    const saidas     = ctasSemCmv + rows.filter(isCMCPago).reduce((t,r)=>t+r.valor,0); // CMC pago a fornecedores
     const receitaGer = soma(filteredVendas, loja);
     // DRE: despesas do Contas a Pagar pelo VENCIMENTO (pagas e em aberto).
     const rowsV = despVencRaw.length ? filteredDespVenc.filter(r=>r.loja===loja) : rows;
