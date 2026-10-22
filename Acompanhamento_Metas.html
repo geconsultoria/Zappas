@@ -2356,10 +2356,14 @@ function renderDashboard(f) {
   // % TK Ano Anterior = (média da coluna TKM / média da coluna TKM AA) − 1.
   // Média das duas colunas calculada sobre os mesmos dias (os que já têm
   // TKM lançado no ano atual), pra não puxar a AA com dias "a mais".
-  const diasComTk = rows.filter(r => !r.isFuture && r.tk > 0);
-  const mediaTkAtual = diasComTk.length > 0 ? diasComTk.reduce((s,r)=>s+r.tk, 0) / diasComTk.length : 0;
-  const mediaTkAA = diasComTk.length > 0 ? diasComTk.reduce((s,r)=>s+(r.tkAn||0), 0) / diasComTk.length : 0;
-  const pctTktAA = mediaTkAA > 0 ? (mediaTkAtual / mediaTkAA - 1) * 100 : null;
+  // Agora igual ao Resumo Diário: TKM ponderado do período (venda total ÷
+  // pessoas totais) até o último dia com venda, contra o TKM do ano anterior
+  // no mesmo período. Antes era a média simples dos TKMs de cada dia, o que
+  // dava um número diferente do card do WhatsApp.
+  const cAAcumDia = ultimoDiaVenda > 0 ? queryAteDia(anoA, mes, loja, ultimoDiaVenda, 'cupons') : cA;
+  const tkAcumAtual = cAAcumDia > 0 ? vAAcumDia / cAAcumDia : 0;
+  const tkAcumAA = cAntAcumDiaPess > 0 ? vAntAcumDia / cAntAcumDiaPess : 0;
+  const pctTktAA = tkAcumAA > 0 ? (tkAcumAtual / tkAcumAA - 1) * 100 : null;
 
   const inds = [
     { lbl: '% VENDA × META ACUM.', val: pctMeta,  clr: pctMeta  === null ? 'blue' : pctMeta  >= 0 ? 'green' : 'red', note: metaMes > 0 ? '' : 'Defina a meta', ico: '🎯' },
