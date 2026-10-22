@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.10.22-a">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFC Fluxo de Caixa — Dashboard Executivo</title>
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-a</span><span class="sv-short">10.22-a</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2243,13 +2243,15 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
 
-  // Colunas reais: mes, loja, codpgto, nomepgto, conta, dtentrada
+  // Colunas reais: mes, loja, codpgto, nomepgto, conta, dtpagamento (antes dtentrada)
   const iMes    = findCol(rawHeaders,'mes','mês','month','competencia','data');
   const iAno    = findCol(rawHeaders,'ano','year','exercicio');
   const iLoja   = findCol(rawHeaders,'loja','store','filial','unidade');
   const iCodPgto= findCol(rawHeaders,'codpgto','cod_pgto','cod_pagamento','codigo_pagamento');
   const iConta  = findCol(rawHeaders,'conta','valor','valor_conta','v_conta');
-  const iDtEntrada = findCol(rawHeaders,'dtentrada','dt_entrada','data_entrada');
+  // Data do lançamento: o arquivo passou a chamar a coluna de "dtpagamento"
+  // (antes "dtentrada") — aceita os dois nomes, o novo primeiro.
+  const iDtEntrada = findCol(rawHeaders,'dtpagamento','dt_pagamento','data_pagamento','dtentrada','dt_entrada','data_entrada');
   // Nome/descrição do pagamento (opcional) — usado só pra dar nome aos
   // "títulos" individuais no detalhe do painel de conciliação.
   const iNomePgto = findCol(rawHeaders,'nomepgto','nome_pgto','nome_pagamento','descricaopagamento','nome');
