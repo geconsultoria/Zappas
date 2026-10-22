@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.22-b">
+<meta name="zappas-versao" content="v2026.10.22-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFC Fluxo de Caixa — Dashboard Executivo</title>
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-b</span><span class="sv-short">10.22-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-c</span><span class="sv-short">10.22-c</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2145,7 +2145,9 @@ const CAT_PERMITIDAS = [
   'cartao',
   'cartão',
   'pix',
-  'dinheiro'
+  'dinheiro',
+  // Serviços (SERVIÇOS, SERVICOS, SERVICOS M.O…) entram na linha REEMBOLSO
+  'servic'
 ];
 
 // Mapeamento de categorias normalizadas → slug do DRE
@@ -2171,6 +2173,8 @@ function normCat(s){
 function padronizarDescricaoRecebimento(s){
   const n = normCat(s);
   if(/^convenios? funcion/.test(n)) return 'CONVENIO FUNCIONARIOS';
+  // Tudo que o De-Para classifica como serviço vai para a linha REEMBOLSO do DFC.
+  if(/^servic/.test(n)) return 'REEMBOLSO';
   return s;
 }
 
@@ -2890,7 +2894,7 @@ async function fetchCSV(url, ms){
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
 // Versão da regra do De-Para de recebimentos (2 = por loja, coluna LOJAS).
 // Cache salvo com versão diferente é relido sozinho em segundo plano.
-const DEPARA_VER = 2;
+const DEPARA_VER = 3; // 3 = serviços lançados em REEMBOLSO
 const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11';
 function openDB(){
   return new Promise((resolve,reject)=>{
