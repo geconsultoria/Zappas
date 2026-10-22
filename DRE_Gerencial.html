@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.22-a">
+<meta name="zappas-versao" content="v2026.10.22-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>DFC Fluxo de Caixa — Dashboard Executivo</title>
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-a</span><span class="sv-short">10.22-a</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-b</span><span class="sv-short">10.22-b</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2175,21 +2175,41 @@ function padronizarDescricaoRecebimento(s){
 }
 
 /**
- * Lê o CSV de-para e monta um mapa: cod → descricao
+ * Lê o CSV de-para (colunas COD, RECEBIMENTO e, opcionalmente, LOJAS).
+ * O mesmo código pode ter descrições diferentes por loja (ex.: 34 =
+ * CORTESIA só para MUFFATO, BADY, DAMHA; nas outras lojas o 34 é outra
+ * coisa), por isso o mapa é por loja:
+ *   porLoja: LOJA → (cod → descricao)   — linhas com LOJAS preenchida
+ *   geral:   cod → descricao             — linhas com LOJAS vazia ou "TODAS"
+ *   lojasPorCod: cod → Set(lojas)        — só pra explicar na Conciliação
+ * Na busca (buscarDepara), vale primeiro a linha da loja do lançamento;
+ * se não houver, a linha geral; se não houver nenhuma, fica sem classificar.
  */
+function codVariantes(cod){
+  const c = String(cod||'').trim();
+  // parseInt (não replace(/\D/g,'')): "26.0" vira "26", e não "260".
+  const n = String(parseInt(c,10) || '');
+  return n && n !== c ? [c, n] : [c];
+}
+function lojasDaCelula(txt){
+  const t = String(txt||'').trim();
+  if(!t || /^(todas?|todas as lojas|geral|\*)$/i.test(normKey(t))) return [];
+  return t.split(/\s*(?:[,;\/|+]|\se\s)\s*/i).map(x=>x.trim()).filter(Boolean).map(nomeLojaCorreto);
+}
 function parseDepara(text){
+  const dp = { geral: new Map(), porLoja: new Map(), lojasPorCod: new Map() };
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  if(!lines.length) return new Map();
+  if(!lines.length) return dp;
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iCod   = findCol(rawHeaders,'cod','codigo','code','codpgto');
   const iDesc  = findCol(rawHeaders,'recebimento','descricao','descrição','tipo','categoria','descricao_pagamento');
+  const iLojas = findColExata(rawHeaders,'lojas','loja','empresa','empresas');
 
   if(iCod<0) throw new Error('De-Para — coluna COD não encontrada.');
   if(iDesc<0) throw new Error('De-Para — coluna RECEBIMENTO/DESCRICAO não encontrada. Colunas disponíveis: '+rawHeaders.join(', '));
 
-  const map = new Map();
   for(let i=1;i<lines.length;i++){
     const line=lines[i].trim();
     if(!line) continue;
@@ -2198,14 +2218,26 @@ function parseDepara(text){
     const cod = g(iCod);
     const desc = g(iDesc);
     if(!cod) continue;
-    map.set(String(cod).trim(), desc);
-    // Também mapeia sem zeros à esquerda. parseInt(cod,10) (não .replace(/\D/g,'') antes) — se o
-    // código vier com sufixo decimal da planilha (ex.: "26.0"), o replace juntava os dois lados do
-    // ponto ("26.0" virava "260", código errado); parseInt já para no primeiro caractere não-numérico.
-    const codNum = String(parseInt(cod,10) || '');
-    if(codNum && codNum !== cod) map.set(codNum, desc);
+    const lojas = iLojas>=0 ? lojasDaCelula(g(iLojas)) : [];
+    codVariantes(cod).forEach(c=>{
+      if(!lojas.length){ dp.geral.set(c, desc); return; }
+      lojas.forEach(l=>{
+        if(!dp.porLoja.has(l)) dp.porLoja.set(l, new Map());
+        dp.porLoja.get(l).set(c, desc);
+        if(!dp.lojasPorCod.has(c)) dp.lojasPorCod.set(c, new Set());
+        dp.lojasPorCod.get(c).add(l);
+      });
+    });
   }
-  return map;
+  return dp;
+}
+// Descrição do código para a loja do lançamento ('' = não classificado).
+function buscarDepara(dp, cod, loja){
+  const vs = codVariantes(cod);
+  const m = dp.porLoja.get(nomeLojaCorreto(loja));
+  if(m) for(const v of vs) if(m.has(v)) return m.get(v);
+  for(const v of vs) if(dp.geral.has(v)) return dp.geral.get(v);
+  return '';
 }
 
 /**
@@ -2294,17 +2326,19 @@ function parseRecebidosLoja(text, deparaMap, lojaFallback){
     if(!mes) mes = dt ? dt.mes : null;
     if(!ano) ano = dt ? dt.ano : null;
 
-    let recebimento = deparaMap.get(String(codPgto).trim()) || '';
-    if(!recebimento){
-      const codNum = String(parseInt(codPgto,10) || '');
-      recebimento = deparaMap.get(codNum) || '';
-    }
+    // Classificação pela loja do lançamento (coluna LOJAS do De-Para).
+    let recebimento = buscarDepara(deparaMap, codPgto, loja);
     const nomePgto = iNomePgto>=0 ? g(iNomePgto) : '';
     const dataRaw = iDtEntrada>=0 ? g(iDtEntrada) : '';
 
     if(!recebimento){
       linhas.push({ tipo:'receita', mes, ano, loja, valor, status:'erro',
-        codigo: codPgto, motivo:'Código de pagamento não encontrado no De-Para',
+        codigo: codPgto, motivo: (()=>{
+          const outras = codVariantes(codPgto).map(v=>deparaMap.lojasPorCod.get(v)).find(Boolean);
+          return outras
+            ? 'Código cadastrado no De-Para só para '+[...outras].join(', ')+' — falta a linha para '+nomeLojaCorreto(loja)
+            : 'Código de pagamento não encontrado no De-Para';
+        })(),
         titulo: nomePgto, dataRaw });
       continue;
     }
@@ -2854,6 +2888,9 @@ async function fetchCSV(url, ms){
 ══════════════════════════════════════════════════════════════ */
 // v2: invalida cache salvo antes da correção do bug de código com sufixo decimal (".0") na
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
+// Versão da regra do De-Para de recebimentos (2 = por loja, coluna LOJAS).
+// Cache salvo com versão diferente é relido sozinho em segundo plano.
+const DEPARA_VER = 2;
 const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11';
 function openDB(){
   return new Promise((resolve,reject)=>{
@@ -2868,7 +2905,7 @@ async function saveCache(data,ts,rawTs,recon,vendas,custo,compras){
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo,compras},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo,compras,deparaVer:DEPARA_VER},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -2925,11 +2962,11 @@ async function carregarTudo(){
   // o sistema de PDV usa os mesmos códigos em qualquer loja — buscada direto (sem passar pelo Apps
   // Script/pasta do Drive), então vira 1 busca só.
   const DEPARA_UNICO_URL = 'https://docs.google.com/spreadsheets/d/1B1HK4Ocvx4D_q56gli1hS2CTofbRASkwmX5lyqZHGLY/gviz/tq?tqx=out:csv';
-  const deparaMapGlobal = new Map();
+  let deparaMapGlobal = { geral: new Map(), porLoja: new Map(), lojasPorCod: new Map() };
   const pDePara = (async () => {
     try {
       const text = await fetchCSV(DEPARA_UNICO_URL);
-      parseDepara(text).forEach((v, cod) => deparaMapGlobal.set(cod, v));
+      deparaMapGlobal = parseDepara(text);
     } catch(e) {
       console.warn('De-Para único não carregado:', e.message);
     }
@@ -3232,7 +3269,7 @@ async function loadData(forceRefresh, silent){
         populateFilters();
         applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
-        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || reconAusente || vendasAusente || custoAusente || comprasAusente;
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || cached.deparaVer !== DEPARA_VER || reconAusente || vendasAusente || custoAusente || comprasAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
         if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
         return;
