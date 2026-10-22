@@ -2,10 +2,10 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.22-c">
+<meta name="zappas-versao" content="v2026.10.22-f">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DFC Fluxo de Caixa — Dashboard Executivo</title>
+<title>Demonstrativo de Resultado — Dashboard Executivo</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600;700&family=IBM+Plex+Sans:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-c</span><span class="sv-short">10.22-c</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-f</span><span class="sv-short">10.22-f</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -1542,7 +1542,7 @@ a.side-brand:hover { opacity:.85; }
       </svg>
     </div>
     <div>
-      <div class="logo-text">DFC Fluxo de Caixa</div>
+      <div class="logo-text">Demonstrativo de Resultado</div>
       <div class="logo-sub">Dashboard Executivo</div>
     </div>
   </div>
@@ -1834,6 +1834,11 @@ let impostosGerRaw = [], filteredImpostosGer = [];
 // mesmos filtros Ano/Mês/Loja aplicados a "filtered" (ver applyFilters()).
 let comprasRaw = [], filteredCompras = [];
 
+// Despesas do Contas a Pagar pelo VENCIMENTO (pagas e em aberto) — base das
+// despesas do DRE Gerencial. O DFC continua com "raw" (só pagas, mês do
+// pagamento). Cada item: {loja, ano, mes, valor, grupo, subgrupo, plano, pago}.
+let despVencRaw = [], filteredDespVenc = [];
+
 // Aba ativa da tabela DRE: 'dfc' (Fluxo de Caixa, como sempre foi),
 // 'gerencial' (mesma estrutura, mas Receita = faturamento da Análise
 // Comercial) ou 'consolidado' (comparação DRE Gerencial x DFC lado a
@@ -1943,7 +1948,7 @@ const DRE_STRUCTURE = [
   { slug:'deducoes_vendas',            label:'DEDUÇÕES S/ VENDAS',                    sign:'(-)', type:'group',     style:'' },
   { slug:'__rec_liq__',                label:'RECEITA OPERACIONAL LÍQUIDA',           sign:'(=)', type:'resultado', style:'light' },
   { slug:'sep1', type:'sep' },
-  { slug:'cmv',                        label:'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)', sign:'(-)', type:'group',     style:'' },
+  { slug:'cmv',                        label:'CMC — CUSTO MERCADORIA COMPRADA', sign:'(-)', type:'group',     style:'' },
   { slug:'__lucro_bruto__',            label:'LUCRO BRUTO',                           sign:'(=)', type:'resultado', style:'green' },
   { slug:'sep2', type:'sep' },
   { slug:'despesas_comerciais',        label:'DESPESAS COMERCIAIS',                   sign:'(-)', type:'group',     style:'' },
@@ -2443,24 +2448,26 @@ async function fetchPlanoContas(){
 function parseContasPagar(text, planoMap, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
-  const rows = [];
-  // "linhas": ver comentário equivalente em parseRecebidosLoja — usado pelo
-  // painel "Conciliação do De-Para".
-  const linhas = [];
-  if(!lines.length) return { rows, linhas };
+  // rows     → DFC: só contas PAGAS, no mês do pagamento (regime de caixa).
+  // rowsVenc → DRE Gerencial: todas as contas (pagas ou em aberto), no mês
+  //            do VENCIMENTO. A diferença entre os dois aparece no DRE x DFC
+  //            (conta vencida e não paga = está no DRE e ainda não no DFC).
+  // linhas   → Conferência do De-Para: agora confere também as contas em
+  //            aberto, pra pegar o código errado antes do pagamento.
+  const rows = [], rowsVenc = [], linhas = [];
+  if(!lines.length) return { rows, rowsVenc, linhas };
 
   const rawHeaders = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
   const iLoja   = findCol(rawHeaders,'loja');
   const iCodCtr = findCol(rawHeaders,'codcentro','cod_centro','codigo_centro');
   const iValor  = findCol(rawHeaders,'vparcela','valor_parcela');
   const iDtPgto = findCol(rawHeaders,'dtpagamento','data_pagamento');
-  // Colunas de identificação do lançamento (opcionais — usadas só para dar
-  // nome aos "títulos" individuais no detalhe do painel "Conciliação do
-  // De-Para"; se a planilha não tiver nenhuma dessas, cai no fallback
-  // "Lançamento de dd/mm/aaaa").
-  const iTitulo      = findCol(rawHeaders,'titulo','numtitulo','num_titulo','numerotitulo','numero_titulo','documento','numdoc','num_doc','nrdoc','nr_doc');
-  const iFornecedor  = findCol(rawHeaders,'fornecedor','nomefornecedor','nome_fornecedor','razaosocial','razao_social','credor','nomecredor');
-  const iHistorico   = findCol(rawHeaders,'historico','descricao','observacao','obs');
+  const iDtVenc = findColExata(rawHeaders,'dtvencimento','dt_vencimento','data_vencimento','vencimento');
+  // Identificação do lançamento (só para o detalhe): nº do documento e
+  // código do favorecido, mais título/fornecedor/histórico se existirem.
+  const iDoc    = findColExata(rawHeaders,'ndoc','numdoc','num_doc','documento','titulo','numtitulo');
+  const iFav    = findColExata(rawHeaders,'fornecedor','nomefornecedor','razaosocial','razao_social','credor','codfavorecido');
+  const iHist   = findColExata(rawHeaders,'historico','descricao','observacao','obs');
 
   const missing=[];
   if(iCodCtr<0) missing.push('codcentro');
@@ -2474,42 +2481,48 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const cells = splitLine(line,sep);
     const g = idx => idx>=0 ? (cells[idx]||'').replace(/^"|"$/g,'').trim() : '';
 
-    const dtPgto = g(iDtPgto);
-    if(!dtPgto) continue; // regime de caixa: sem pagamento, não entra no DRE (não conta como "não classificado")
-
-    const mes = parseMes(dtPgto);
-    const ano = parseAno(dtPgto);
-    if(!mes || !ano) continue;
-
     const valor = parseNum(g(iValor));
     if(!valor) continue;
+
+    const dtPgto = g(iDtPgto);
+    const dtVenc = (iDtVenc>=0 ? g(iDtVenc) : '') || dtPgto;
+    const pago = !!(dtPgto && parseMes(dtPgto) && parseAno(dtPgto));
+    const mesP = pago ? parseMes(dtPgto) : null, anoP = pago ? parseAno(dtPgto) : null;
+    const mesV = dtVenc ? parseMes(dtVenc) : null, anoV = dtVenc ? parseAno(dtVenc) : null;
+    if(!pago && !(mesV && anoV)) continue; // sem data nenhuma: não dá pra posicionar
 
     const loja = (iLoja>=0 ? g(iLoja) : '') || lojaFallback;
     const codCentroRaw = g(iCodCtr);
     const codCentroNum = String(parseInt(codCentroRaw,10) || '');
     const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
 
-    // Monta um rótulo identificando o lançamento (pra listar os "títulos"
-    // individuais no detalhe do painel de conciliação) a partir de
-    // qualquer coluna de título/fornecedor/histórico disponível.
     const titulo = [
-      iTitulo>=0 ? g(iTitulo) : '',
-      iFornecedor>=0 ? g(iFornecedor) : '',
-      iHistorico>=0 ? g(iHistorico) : ''
+      iDoc>=0 && g(iDoc) ? 'Doc '+g(iDoc) : '',
+      iFav>=0 && g(iFav) ? (/^\d+$/.test(g(iFav)) ? 'Fav. '+g(iFav) : g(iFav)) : '',
+      iHist>=0 ? g(iHist) : ''
     ].filter(Boolean).join(' — ');
+    const dataRaw = (pago ? 'Pago '+dtPgto : 'Em aberto') + (dtVenc ? ' · venc. '+dtVenc : '');
+    // Conferência: conta paga → mês do pagamento; em aberto → mês do vencimento.
+    const mesC = pago ? mesP : mesV, anoC = pago ? anoP : anoV;
 
     if(!info || !info.grupo){
-      linhas.push({ tipo:'despesa', mes, ano, loja: loja||lojaFallback, valor, status:'erro',
-        codigo: codCentroRaw || '(vazio)', motivo:'Código de centro de custo (codcentro) não encontrado no Plano de Contas',
-        titulo, dataRaw: dtPgto });
+      linhas.push({ tipo:'despesa', mes:mesC, ano:anoC, loja: loja||lojaFallback, valor, status:'erro',
+        codigo: codCentroRaw || '(vazio)',
+        motivo: (info
+          ? 'Conta "'+(info.conta_pl||codCentroRaw)+'" existe no Plano de Contas, mas está sem Grupo'
+          : 'Código de centro de custo (codcentro) não encontrado no Plano de Contas')
+          + (pago ? '' : ' — conta ainda em aberto'),
+        titulo, dataRaw });
       continue;
     }
     if(!loja) continue;
 
-    linhas.push({ tipo:'despesa', mes, ano, loja, valor, status:'ok' });
-    rows.push({ mes, ano, loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo });
+    linhas.push({ tipo:'despesa', mes:mesC, ano:anoC, loja, valor, status:'ok' });
+    const base = { loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo, titulo, dataRaw };
+    if(pago) rows.push({ ...base, mes:mesP, ano:anoP });
+    if(mesV && anoV) rowsVenc.push({ ...base, mes:mesV, ano:anoV, pago });
   }
-  return { rows, linhas };
+  return { rows, rowsVenc, linhas };
 }
 
 // Canais que compõem o Faturamento usado na Análise Comercial: Loja,
@@ -2905,11 +2918,12 @@ function openDB(){
   });
 }
 async function saveCache(data,ts,rawTs,recon,vendas,custo,compras){
+  const despVenc = despVencRaw;
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo,compras,deparaVer:DEPARA_VER},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo,compras,despVenc,deparaVer:DEPARA_VER},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -2991,7 +3005,7 @@ async function carregarTudo(){
   // ══════════════════════════════════════════════════════
   // 3. Contas a Pagar (por loja) — espera só o Plano de Contas
   // ══════════════════════════════════════════════════════
-  let rowsDespesas = [];
+  let rowsDespesas = [], rowsDespVenc = [];
   const naoMapeadosGeral = new Set();
   const BATCH = 2;
   const pCtasPagar = pPlanoContas.then(() => (async () => {
@@ -3004,8 +3018,9 @@ async function carregarTudo(){
         const lojaKey = CTASPAGAR_STORE_KEYS[idx];
         try {
           const text = await fetchCSV(url);
-          const { rows, linhas } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
+          const { rows, rowsVenc, linhas } = parseContasPagar(text, planoMap, lojaKey.toUpperCase());
           rowsDespesas = rowsDespesas.concat(rows);
+          rowsDespVenc = rowsDespVenc.concat(rowsVenc);
           linhas.forEach(l => { if(l.status==='erro') naoMapeadosGeral.add(l.codigo); });
           reconciliacao.linhas.push(...linhas);
         } catch(e) {
@@ -3176,6 +3191,7 @@ async function carregarTudo(){
   });
 
   raw = [...rowsRecebimentos, ...rowsDespSemReceita];
+  despVencRaw = rowsDespVenc.filter(r => slugFromGrupo(r.grupo) !== 'receita_operacional');
   if(!raw.length) throw new Error('Nenhuma linha válida encontrada.');
   corrigirNomesLojas();
   recalcImpostosGer();
@@ -3264,6 +3280,9 @@ async function loadData(forceRefresh, silent){
         // Compras — mesmo raciocínio do custoAusente acima.
         const comprasAusente = !Array.isArray(cached.compras) || !cached.compras.length;
         comprasRaw = cached.compras || [];
+        // Despesas por vencimento (DRE Gerencial) — cache antigo não tem.
+        const vencAusente = !Array.isArray(cached.despVenc);
+        despVencRaw = cached.despVenc || [];
         corrigirNomesLojas();   // cache salvo antes ainda tem "BELVEDER"
         recalcImpostosGer();
         // Mesmo motivo do outro carregamento (ver comentário abaixo, em
@@ -3273,7 +3292,7 @@ async function loadData(forceRefresh, silent){
         populateFilters();
         applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
-        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || cached.deparaVer !== DEPARA_VER || reconAusente || vendasAusente || custoAusente || comprasAusente;
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || cached.deparaVer !== DEPARA_VER || reconAusente || vendasAusente || custoAusente || comprasAusente || vencAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
         if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
         return;
@@ -3552,7 +3571,7 @@ function nomeLojaCorreto(l){
 }
 function corrigirNomesLojas(){
   const fix = arr => (arr||[]).forEach(r => { if(r && r.loja) r.loja = nomeLojaCorreto(r.loja); });
-  [raw, vendasRaw, custoProdutoRaw, comprasRaw].forEach(fix);
+  [raw, vendasRaw, custoProdutoRaw, comprasRaw, despVencRaw].forEach(fix);
   if(reconciliacao && Array.isArray(reconciliacao.linhas)) fix(reconciliacao.linhas);
 }
 
@@ -3581,7 +3600,10 @@ function avisoCmv(){
 }
 
 function recalcImpostosGer(){
-  impostosGerRaw = raw
+  // Competência = mês do VENCIMENTO menos 1 (o imposto que vence no mês N é
+  // das vendas do mês N-1). Usa a base por vencimento, que inclui imposto
+  // ainda não pago; sem ela (cache antigo), cai no mês do pagamento.
+  impostosGerRaw = (despVencRaw.length ? despVencRaw : raw)
     .filter(r=>slugFromGrupo(r.grupo)==='impostos_vendas')
     .map(r=>{
       let mes=r.mes-1, ano=r.ano;
@@ -3589,7 +3611,7 @@ function recalcImpostosGer(){
       // Mantém grupo/subgrupo/plano (não só o total) pra dar pra expandir
       // a linha de Impostos no DRE Gerencial/Consolidado e mostrar de
       // qual imposto vem cada valor, igual ao DFC.
-      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano };
+      return { mes, ano, loja:r.loja, valor:r.valor, grupo:r.grupo, subgrupo:r.subgrupo, plano:r.plano, titulo:r.titulo, dataRaw:r.dataRaw };
     });
 }
 
@@ -3638,6 +3660,12 @@ function applyFilters(){
     return true;
   });
   filteredCompras=comprasRaw.filter(r=>{
+    if(ano&&String(r.ano)!==ano) return false;
+    if(meses.length&&!meses.includes(Number(r.mes))) return false;
+    if(!passaLoja(r.loja)) return false;
+    return true;
+  });
+  filteredDespVenc=despVencRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(!passaLoja(r.loja)) return false;
@@ -3956,25 +3984,26 @@ function buildSlugMap(){
 function renderKPIs(){
   buildSlugMap();
   const soma = arr => (arr||[]).reduce((t,r)=>t+(r.valor||0),0);
-  // Itens comuns às duas visões (mesma fonte nas duas tabelas)
-  const ded=getSlugTotal('deducoes_vendas');
-  const despOp=getSlugTotal('despesas_comerciais')+getSlugTotal('despesas_pessoal')
-    +getSlugTotal('despesas_administrativas')+getSlugTotal('despesas_financeiras')+getSlugTotal('pro_labore');
-  /* EBITDA = Resultado Operacional + Juros Bancários (isJuros compartilhado) */
-  const jurosTotal=filtered.filter(r=>isJuros(r.subgrupo)||isJuros(r.plano)).reduce((t,r)=>t+r.valor,0);
-  const abaixoOp=getSlugTotal('distribuicao_lucro')+getSlugTotal('ir_csll')
-    +getSlugTotal('emprestimos_financiamentos')+getSlugTotal('investimento')+getSlugTotal('parcelamento_impostos');
-
-  // Mesmas regras das tabelas: DFC = Recebido classificado + impostos no
-  // mês pago + CMV (Compra); DRE Gerencial = faturamento da Análise
-  // Comercial (filtro de Canal) + impostos por competência + CMV (Produto).
-  const calc=(rec,imp,cmv)=>{
-    const lucroBruto=rec-imp-ded-cmv;
-    const resOp=lucroBruto-despOp;
-    return { rec, lucroBruto, resOp, ebitda:resOp+jurosTotal, resLiq:resOp-abaixoOp };
+  // Despesas de cada visão: DFC = pagas no mês (filtered); DRE Gerencial =
+  // pelo vencimento, pagas e em aberto (filteredDespVenc).
+  const bases = arr => {
+    const sl = s => (arr||[]).reduce((t,r)=> slugFromGrupo(r.grupo)===s ? t+r.valor : t, 0);
+    return {
+      sl,
+      ded: sl('deducoes_vendas'),
+      despOp: sl('despesas_comerciais')+sl('despesas_pessoal')+sl('despesas_administrativas')+sl('despesas_financeiras')+sl('pro_labore'),
+      juros: (arr||[]).filter(r=>isJuros(r.subgrupo)||isJuros(r.plano)).reduce((t,r)=>t+r.valor,0),
+      abaixoOp: sl('distribuicao_lucro')+sl('ir_csll')+sl('emprestimos_financiamentos')+sl('investimento')+sl('parcelamento_impostos'),
+    };
   };
-  const dfc=calc(getSlugTotal('receita_operacional'), getSlugTotal('impostos_vendas'), soma(filteredCompras));
-  const dre=calc(soma(filteredVendas), soma(filteredImpostosGer), soma(filteredCusto));
+  const bP = bases(filtered), bV = despVencRaw.length ? bases(filteredDespVenc) : bP;
+  const calc=(rec,imp,cmv,B)=>{
+    const lucroBruto=rec-imp-B.ded-cmv;
+    const resOp=lucroBruto-B.despOp;
+    return { rec, lucroBruto, resOp, ebitda:resOp+B.juros, resLiq:resOp-B.abaixoOp };
+  };
+  const dfc=calc(bP.sl('receita_operacional'), bP.sl('impostos_vendas'), soma(filteredCompras), bP);
+  const dre=calc(soma(filteredVendas), soma(filteredImpostosGer), soma(filteredCusto), bV);
 
   const pctDe=(v,b)=>b?pct(v,b):'—';
   const card=(cor,titulo,v,sub,delay)=>`
@@ -4152,6 +4181,16 @@ function renderDRE(){
   // Gerencial / DFC / Diferença, em vez de uma coluna por loja/mês) —
   // tem função própria, ver renderDREConsolidado().
   if(dreView === 'consolidado'){ renderDREConsolidado(); return; }
+
+  // DRE Gerencial: as despesas vêm do Contas a Pagar pelo VENCIMENTO (pagas
+  // e em aberto). Troca a base só durante este desenho e devolve em seguida
+  // (a receita do Gerencial já vem do faturamento, não dessa base).
+  if(dreView === 'gerencial' && despVencRaw.length && !renderDRE._venc){
+    const _f = filtered;
+    filtered = filteredDespVenc; renderDRE._venc = true;
+    try { renderDRE(); } finally { filtered = _f; renderDRE._venc = false; }
+    return;
+  }
 
   buildSlugMap();
 
@@ -4436,7 +4475,7 @@ function renderDRE(){
       const cmvTot=rowTotal(cmv);
       const cmvLabel = dreView==='gerencial'
         ? 'CMV — CUSTO MERCADORIA VENDIDA (PRODUTO)'
-        : 'CMV — CUSTO MERCADORIA VENDIDA (COMPRA)';
+        : 'CMC — CUSTO MERCADORIA COMPRADA';
       html+=`<tr class="row-group" style="cursor:default">
         <td><span class="dre-sign">${slot.sign}</span>${cmvLabel}</td>
         ${cols.map(c=>`<td>${cellVal(cmv[c]||0)}</td>${avCell(cmv[c]||0,rec[c]||0)}`).join('')}
@@ -4611,7 +4650,7 @@ function renderDRE(){
   document.getElementById('dreTbody').innerHTML=html;
   const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
   const subtitleGerencial = dreView==='gerencial'
-    ? ' · Receita = faturamento da Análise Comercial · Despesas ainda por data de pagamento (aguardando planilha por vencimento)'
+    ? ' · Receita = faturamento da Análise Comercial · Despesas pelo vencimento (pagas e em aberto)'
       + ' · Canais: ' + canaisLabel()
       + (canaisIgnorados.size ? ' · Canais desconhecidos ignorados: ' + [...canaisIgnorados].join(', ') : '')
     : '';
@@ -4677,9 +4716,10 @@ function renderDREConsolidado(){
      (loja ou mês) vem triplicada: DRE Gerencial | DFC | Diferença. */
   const fLojaAtiva = document.getElementById('fLoja').value;
   const modoMensal = !!fLojaAtiva && mesesSelecionados.length !== 1;
-  const lojas = ordenarLojas(uniq(filtered.map(r=>r.loja)));
+  const baseGer = despVencRaw.length ? filteredDespVenc : filtered;
+  const lojas = ordenarLojas(uniq([...filtered, ...baseGer].map(r=>r.loja)));
   const mesesPresentes = modoMensal
-    ? uniq(filtered.map(r=>r.mes).filter(Boolean), true)
+    ? uniq([...filtered, ...baseGer].map(r=>r.mes).filter(Boolean), true)
     : [];
   const cols = modoMensal ? mesesPresentes : lojas;
   const colLabel = modoMensal ? m => MES[m] || String(m) : l => l;
@@ -4702,6 +4742,23 @@ function renderDREConsolidado(){
     grupoSum[g][colKey]=(grupoSum[g][colKey]||0)+r.valor;
     subSum[sk][colKey]=(subSum[sk][colKey]||0)+r.valor;
   });
+
+  // Árvore das despesas do lado "DRE Ger." — Contas a Pagar pelo
+  // VENCIMENTO (pagas e em aberto). O lado DFC usa "tree" (só pagas, mês
+  // do pagamento). Conta vencida e não paga aparece só do lado DRE Ger.
+  const treeV={}, grupoSumV={}, subSumV={}, slugMapV={};
+  baseGer.forEach(r=>{
+    const g=r.grupo||'(sem grupo)', s=r.subgrupo||'(sem subgrupo)', p=r.plano||'(sem plano)';
+    const colKey = modoMensal ? r.mes : r.loja;
+    ((treeV[g]=treeV[g]||{})[s]=treeV[g][s]||{});
+    treeV[g][s][p]=treeV[g][s][p]||{};
+    grupoSumV[g]=grupoSumV[g]||{};
+    const sk=g+'|'+s; subSumV[sk]=subSumV[sk]||{};
+    treeV[g][s][p][colKey]=(treeV[g][s][p][colKey]||0)+r.valor;
+    grupoSumV[g][colKey]=(grupoSumV[g][colKey]||0)+r.valor;
+    subSumV[sk][colKey]=(subSumV[sk][colKey]||0)+r.valor;
+  });
+  Object.keys(treeV).forEach(g=>{ const sl=slugFromGrupo(g); if(sl){ (slugMapV[sl]=slugMapV[sl]||[]).push(g); } });
 
   // Árvore paralela dos Impostos sobre Vendas já deslocados (lado "DRE
   // Ger.", regime de competência — ver recalcImpostosGer()), pra poder
@@ -4784,12 +4841,19 @@ function renderDREConsolidado(){
     return out;
   }
   function rowTotal(vals){ return cols.reduce((s,c)=>s+(vals[c]||0),0); }
+  function slugColValsV(slug){
+    const grupos=slugMapV[slug]||[];
+    const out={};
+    cols.forEach(c=>{ out[c]=grupos.reduce((s,g)=>s+(grupoSumV[g]?.[c]||0),0); });
+    return out;
+  }
 
   const recDfc = slugColVals('receita_operacional');
   const recGer = vendasColVals();
   const impDfc = slugColVals('impostos_vendas');
   const impGer = impostosGerColVals();
   const ded    = slugColVals('deducoes_vendas');
+  const dedV   = slugColValsV('deducoes_vendas');
   const cmvDfc = comprasColVals();
   const cmvGer = custoColVals();
   const despCom= slugColVals('despesas_comerciais');
@@ -4802,6 +4866,13 @@ function renderDREConsolidado(){
   const emprest= slugColVals('emprestimos_financiamentos');
   const invest = slugColVals('investimento');
   const parcel = slugColVals('parcelamento_impostos');
+  const V = {
+    ded: dedV, despCom: slugColValsV('despesas_comerciais'), despPes: slugColValsV('despesas_pessoal'),
+    despAdm: slugColValsV('despesas_administrativas'), despFin: slugColValsV('despesas_financeiras'),
+    proLab: slugColValsV('pro_labore'), distLuc: slugColValsV('distribuicao_lucro'), irCsll: slugColValsV('ir_csll'),
+    emprest: slugColValsV('emprestimos_financiamentos'), invest: slugColValsV('investimento'),
+    parcel: slugColValsV('parcelamento_impostos'), juros: {}
+  };
 
   const jurosPorCol={};
   cols.forEach(c=>jurosPorCol[c]=0);
@@ -4812,22 +4883,30 @@ function renderDREConsolidado(){
     }
   });
 
-  function calcResultados(recMap,cmvMap,impMap){
+  cols.forEach(c=>V.juros[c]=0);
+  baseGer.forEach(r=>{
+    if(isJuros(r.subgrupo)||isJuros(r.plano)){
+      const colKey = modoMensal ? r.mes : r.loja;
+      V.juros[colKey]=(V.juros[colKey]||0)+r.valor;
+    }
+  });
+  const P = { ded, despCom, despPes, despAdm, despFin, proLab, distLuc, irCsll, emprest, invest, parcel, juros: jurosPorCol };
+  function calcResultados(recMap,cmvMap,impMap,B){
     const recLiq={}, lucroBruto={}, resOp={}, ebitda={}, resIr={}, resLiq={};
     cols.forEach(c=>{
-      recLiq[c]=recMap[c]-impMap[c]-ded[c];
+      recLiq[c]=recMap[c]-impMap[c]-B.ded[c];
       lucroBruto[c]=recLiq[c]-cmvMap[c];
-      resOp[c]=lucroBruto[c]-despCom[c]-despPes[c]-despAdm[c]-despFin[c]-proLab[c];
-      ebitda[c]=resOp[c]+(jurosPorCol[c]||0);
-      resIr[c]=resOp[c]-distLuc[c]-irCsll[c];
-      resLiq[c]=resIr[c]-emprest[c]-invest[c]-parcel[c];
+      resOp[c]=lucroBruto[c]-B.despCom[c]-B.despPes[c]-B.despAdm[c]-B.despFin[c]-B.proLab[c];
+      ebitda[c]=resOp[c]+(B.juros[c]||0);
+      resIr[c]=resOp[c]-B.distLuc[c]-B.irCsll[c];
+      resLiq[c]=resIr[c]-B.emprest[c]-B.invest[c]-B.parcel[c];
     });
     return { __rec_liq__:recLiq,'__lucro_bruto__':lucroBruto,
       '__resultado_op__':resOp,'__ebitda__':ebitda,
       '__res_ir__':resIr,'__res_liq__':resLiq };
   }
-  const resGer = calcResultados(recGer,cmvGer,impGer);
-  const resDfc = calcResultados(recDfc,cmvDfc,impDfc);
+  const resGer = calcResultados(recGer,cmvGer,impGer,V);
+  const resDfc = calcResultados(recDfc,cmvDfc,impDfc,P);
 
   /* ── Layout: Conta + (Ger/DFC/Dif) por coluna + (Ger/DFC/Dif) do Total ── */
   const totalCols = () => 1 + cols.length*3 + 3;
@@ -4891,7 +4970,7 @@ function renderDREConsolidado(){
 
   let _uid=0;
   const uid=()=>'dre-'+(++_uid);
-  const unmapped=Object.keys(tree).filter(g=>!slugFromGrupo(g));
+  const unmapped=[...new Set([...Object.keys(tree), ...Object.keys(treeV)])].filter(g=>!slugFromGrupo(g));
   let html='';
 
   DRE_STRUCTURE.forEach(slot=>{
@@ -5056,10 +5135,11 @@ function renderDREConsolidado(){
       return;
     }
 
-    /* type === 'group' (despesas etc.) — mesma base nas
-       duas colunas por enquanto (ver comentário no topo da função), então
-       Diferença = 0 até a planilha por vencimento existir. */
-    const grupos=slugToGruposMap[slot.slug]||[];
+    /* type === 'group' (despesas etc.) — lado "DRE Ger." pelo VENCIMENTO
+       (treeV, pagas e em aberto) e lado "DFC" pelo PAGAMENTO (tree). A
+       Diferença mostra o que venceu e não foi pago (ou foi pago em outro
+       mês). */
+    const grupos=[...new Set([...(slugMapV[slot.slug]||[]), ...(slugToGruposMap[slot.slug]||[])])];
     if(!grupos.length){
       html+=`<tr class="row-group row-vazia">
         <td><span class="dre-sign">${slot.sign}</span>${slot.label}</td>
@@ -5068,42 +5148,11 @@ function renderDREConsolidado(){
       </tr>`;
       return;
     }
-
     grupos.forEach((grupoReal,gi)=>{
-      const gVals=grupoSum[grupoReal]||{};
-      const gId=uid();
       const labelCell=gi===0
         ?`${CHEVRON}<span class="dre-sign">${slot.sign}</span>${slot.label}<span class="expand-hint">expandir</span>`
         :`${CHEVRON}<span style="padding-left:4px;opacity:.6;font-size:11px;font-style:italic">${grupoReal}</span><span class="expand-hint">expandir</span>`;
-
-      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
-        <td>${labelCell}</td>
-        ${cols.map(c=>triple(gVals[c]||0,gVals[c]||0,cellVal,true)).join('')}
-        ${triple(rowTotal(gVals),rowTotal(gVals),cellVal,true)}
-      </tr>`;
-
-      Object.keys(tree[grupoReal]).sort().forEach(sub=>{
-        const sk=grupoReal+'|'+sub;
-        const sVals=subSum[sk]||{};
-        const sId=uid();
-        html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
-          <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
-          ${cols.map(c=>triple(sVals[c]||0,sVals[c]||0,cellVal,true)).join('')}
-          ${triple(rowTotal(sVals),rowTotal(sVals),cellVal,true)}
-        </tr>`;
-
-        Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
-          const pVals=tree[grupoReal][sub][plano]||{};
-          const iId=uid();
-          const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
-          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
-            ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
-            ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
-          </tr>`;
-          html+=lancDetailRowHTML(iId,lId,totalCols());
-        });
-      });
+      html+=grupoDuplo(grupoReal,labelCell);
     });
   });
 
@@ -5116,41 +5165,54 @@ function renderDREConsolidado(){
       </td>
     </tr>`;
     unmapped.forEach(g=>{
-      const gVals=grupoSum[g]||{};
-      const gId=uid();
-      html+=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
-        <td>${CHEVRON}<span class="dre-sign">(-)</span>${g}<span class="expand-hint">expandir</span></td>
-        ${cols.map(c=>triple(gVals[c]||0,gVals[c]||0,cellVal)).join('')}
-        ${triple(rowTotal(gVals),rowTotal(gVals),cellVal)}
+      html+=grupoDuplo(g,`${CHEVRON}<span class="dre-sign">(-)</span>${g}<span class="expand-hint">expandir</span>`);
+    });
+  }
+
+  // Um grupo de despesa com os dois lados: DRE Ger. (vencimento) × DFC
+  // (pagamento). Subgrupos e contas = união das duas bases. O detalhe de
+  // cada conta lista os lançamentos dos dois lados, marcados.
+  function grupoDuplo(g,labelCell){
+    const gV=grupoSumV[g]||{}, gP=grupoSum[g]||{};
+    const gId=uid();
+    let h=`<tr class="row-group" data-gid="${gId}" onclick="toggleGroup('${gId}')">
+      <td>${labelCell}</td>
+      ${cols.map(c=>triple(gV[c]||0,gP[c]||0,cellVal,true)).join('')}
+      ${triple(rowTotal(gV),rowTotal(gP),cellVal,true)}
+    </tr>`;
+    const subs=[...new Set([...Object.keys(treeV[g]||{}), ...Object.keys(tree[g]||{})])].sort();
+    subs.forEach(sub=>{
+      const sk=g+'|'+sub, sV=subSumV[sk]||{}, sP=subSum[sk]||{};
+      const sId=uid();
+      h+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
+        <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
+        ${cols.map(c=>triple(sV[c]||0,sP[c]||0,cellVal,true)).join('')}
+        ${triple(rowTotal(sV),rowTotal(sP),cellVal,true)}
       </tr>`;
-      Object.keys(tree[g]).sort().forEach(sub=>{
-        const sk=g+'|'+sub;
-        const sVals=subSum[sk]||{};
-        const sId=uid();
-        html+=`<tr class="row-subgroup" data-parent="${gId}" data-sid="${sId}" onclick="toggleSubgroup('${sId}',event)">
-          <td>${CHEVRON}${sub}<span class="expand-hint">expandir</span></td>
-          ${cols.map(c=>triple(sVals[c]||0,sVals[c]||0,cellVal,true)).join('')}
-          ${triple(rowTotal(sVals),rowTotal(sVals),cellVal,true)}
+      const planos=[...new Set([...Object.keys((treeV[g]||{})[sub]||{}), ...Object.keys((tree[g]||{})[sub]||{})])].sort();
+      planos.forEach(plano=>{
+        const pV=((treeV[g]||{})[sub]||{})[plano]||{}, pP=((tree[g]||{})[sub]||{})[plano]||{};
+        const iId=uid();
+        const marca=(arr,tag)=>arr.map(r=>({...r, titulo:'['+tag+'] '+(r.titulo||'')}));
+        const lId=registrarLanc([
+          ...marca(itensDoPlano(baseGer,g,sub,plano),'DRE · venc.'),
+          ...marca(itensDoPlano(filtered,g,sub,plano),'DFC · pago')
+        ]);
+        h+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
+          <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
+          ${cols.map(c=>triple(pV[c]||0,pP[c]||0,cellVal)).join('')}
+          ${triple(rowTotal(pV),rowTotal(pP),cellVal)}
         </tr>`;
-        Object.keys(tree[g][sub]).sort().forEach(plano=>{
-          const pVals=tree[g][sub][plano]||{};
-          const iId=uid();
-          const lId=registrarLanc(itensDoPlano(filtered,g,sub,plano));
-          html+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
-            <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
-            ${cols.map(c=>triple(pVals[c]||0,pVals[c]||0,cellVal)).join('')}
-            ${triple(rowTotal(pVals),rowTotal(pVals),cellVal)}
-          </tr>`;
-          html+=lancDetailRowHTML(iId,lId,totalCols());
-        });
+        h+=lancDetailRowHTML(iId,lId,totalCols());
       });
     });
+    return h;
   }
 
   document.getElementById('dreTbody').innerHTML=html;
   const subtitleExtra = modoMensal ? ` · ${fLojaAtiva} · Jan–Dez` : ` · ${lojas.length} loja(s)`;
   document.getElementById('dreSubtitle').textContent=
-    `Comparação DRE Gerencial × DFC${subtitleExtra} · Despesas ainda com a mesma base nos dois (aguardando planilha por vencimento) · clique para expandir`;
+    `Comparação DRE Gerencial × DFC${subtitleExtra} · Despesas: DRE Ger. pelo vencimento (pagas e em aberto) × DFC pelo pagamento — a Diferença é o que venceu e não foi pago no mês · clique para expandir`;
 
   if(fixHeaderEnabled){ refreshHeaderCloneContent(); updateHeaderClonePosition(); }
 }
@@ -5388,14 +5450,14 @@ function renderLojas(){
   // Cada card traz, lado a lado, os números da loja no DFC (caixa) e no
   // DRE Gerencial (competência) — regra idêntica à do Dashboard (abaixo).
   const soma = (arr, loja) => (arr||[]).reduce((t,r)=> r.loja===loja ? t+(r.valor||0) : t, 0);
-  const lojas = ordenarLojas(uniq([filtered, filteredVendas, filteredCusto, filteredCompras]
+  const lojas = ordenarLojas(uniq([filtered, filteredVendas, filteredCusto, filteredCompras, filteredDespVenc]
     .flatMap(a=>(a||[]).map(r=>r.loja)).filter(Boolean)));
   // MESMA regra do card "Performance por loja" do Dashboard (GestaoZappas):
   //   Base: Contas a Pagar classificado (sem a linha de CMV dele) + Recebidos.
   //   DFC  → Entradas = Recebido (Receita Operacional classificada)
   //          Saídas   = Contas a Pagar − CMV(Contas a Pagar) + CMV pelo CUSTO DA COMPRA (arquivo de Compras)
   //   DRE  → Receita  = Faturamento (Análise Comercial)
-  //          Despesas = Contas a Pagar − CMV(Contas a Pagar) − Impostos(mês pago)
+  //          Despesas = Contas a Pagar pelo VENCIMENTO − CMV − Impostos
   //                     + CMV pelo CUSTO DO PRODUTO (Curva ABC) + Impostos por competência
   const porLoja = lojas.map(loja => {
     const rows = filtered.filter(r=>r.loja===loja);
@@ -5405,7 +5467,11 @@ function renderLojas(){
     const ctasSemCmv = rows.reduce((t,r)=> ehRec(r) ? t : t+r.valor, 0) - slug('cmv');
     const saidas     = ctasSemCmv + soma(filteredCompras, loja);
     const receitaGer = soma(filteredVendas, loja);
-    const saidasGer  = ctasSemCmv - slug('impostos_vendas') + soma(filteredCusto, loja) + soma(filteredImpostosGer, loja);
+    // DRE: despesas do Contas a Pagar pelo VENCIMENTO (pagas e em aberto).
+    const rowsV = despVencRaw.length ? filteredDespVenc.filter(r=>r.loja===loja) : rows;
+    const slugV = sl => rowsV.reduce((t,r)=> slugFromGrupo(r.grupo)===sl ? t+r.valor : t, 0);
+    const ctasSemCmvV = rowsV.reduce((t,r)=> ehRec(r) ? t : t+r.valor, 0) - slugV('cmv');
+    const saidasGer  = ctasSemCmvV - slugV('impostos_vendas') + soma(filteredCusto, loja) + soma(filteredImpostosGer, loja);
     return {
       loja,
       dfc: { rec: entradas,   desp: saidas,    resLiq: entradas - saidas },
