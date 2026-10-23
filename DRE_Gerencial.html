@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.22-h">
+<meta name="zappas-versao" content="v2026.10.23-a">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.22-h</span><span class="sv-short">10.22-h</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.23-a</span><span class="sv-short">10.23-a</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -1572,6 +1572,12 @@ a.side-brand:hover { opacity:.85; }
 
   <div class="header-right">
     <span class="last-update" id="lastUpdate">—</span>
+    <button class="btn-refresh" id="btnExport" onclick="exportarRelatorio()" style="display:none" title="Gera um arquivo HTML somente leitura com os dados atuais">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 3v10"/><path d="M6 9l4 4 4-4"/><path d="M3 15v2h14v-2"/>
+      </svg>
+      Exportar relatório
+    </button>
     <button class="btn-refresh" id="btnRefresh" onclick="loadData(true)">
       <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
         <path d="M19 4v5h-5"/><path d="M1 16v-5h5"/>
@@ -5981,7 +5987,84 @@ function renderRecomendacoes() {
 /* ══════════════════════════════════════════════════════════════
    INIT
 ══════════════════════════════════════════════════════════════ */
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(){ loadData(); }));
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('dre_gerencial', function(session){
+  // Botão "Exportar relatório" só para administradores (igual à Análise Comercial).
+  if (session && session.role === 'admin' && !window.__SNAP__) { const be = document.getElementById('btnExport'); if (be) be.style.display = ''; }
+  loadData();
+}));
+
+/* ══════════════════════════════════════════════════════════════
+   EXPORTAR RELATÓRIO (somente leitura, sem login/servidor)
+   Gera um único .html com os dados atuais embutidos (Recebidos, Contas a
+   Pagar pago e por vencimento, faturamento, CMV, Compras e a Conferência
+   do De-Para). Quem recebe só consegue ver e navegar — filtros, abas
+   DFC / DRE Gerencial / DRE x DFC, expandir linhas e lançamentos; não há
+   botão de atualizar, login, menu nem acesso ao Apps Script/Drive.
+══════════════════════════════════════════════════════════════ */
+function buildSnapshotHtml(src, dados, chartJs){
+  const A = '<script src="auth-common.js"><' + '/script>';
+  const B = 'async function loadData(forceRefresh, silent){';
+  if (src.indexOf(A) < 0 || src.indexOf(B) < 0) throw new Error('Estrutura da página mudou; não foi possível gerar o relatório.');
+  const json = JSON.stringify(dados).replace(/</g, '\\u003c');
+  const dataScript =
+    '<script>\n' +
+    'window.AuthGuard={requireScreen:function(k,cb){cb({role:"viewer"});},logout:function(){},getSession:function(){return null;}};\n' +
+    'window.__SNAP__=' + json + ';\n' +
+    '<' + '/script>';
+  const novoLoadData =
+    'async function loadData(){\n' +
+    '  const S=window.__SNAP__;\n' +
+    '  raw=S.raw||[]; vendasRaw=S.vendas||[]; custoProdutoRaw=S.custo||[]; comprasRaw=S.compras||[]; despVencRaw=S.despVenc||[];\n' +
+    '  reconciliacao=S.recon||{linhas:[]}; reconciliacaoPronta=true;\n' +
+    '  recalcImpostosGer();\n' +
+    '  document.getElementById("mainArea").style.display="block";\n' +
+    '  populateFilters(); applyFilters(); toggleFixHeader(true);\n' +
+    '  document.getElementById("lastUpdate").textContent=S.rotulo||"";\n' +
+    '  document.getElementById("overlay").classList.add("hidden");\n' +
+    '}\n' +
+    'async function loadData_ORIG(forceRefresh, silent){';
+  const css =
+    '<style>\n' +
+    'html{--side-w:0px !important;--side-w-collapsed:0px !important;}\n' +
+    '.sidebar,.side-toggle,.side-overlay,#btnExport,#btnRefresh,.update-overlay,#zappas-aviso-drive{display:none !important;}\n' +
+    '.page-content{margin-left:0 !important;}\n' +
+    '</style>\n';
+  let out = src;
+  out = out.replace(A, () => dataScript);
+  out = out.replace('<script src="zappas-cache.js"><' + '/script>', () => '');
+  if (chartJs) {
+    const tagChart = '<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"><' + '/script>';
+    out = out.replace(tagChart, () => '<script>' + chartJs.replace(/<\/script/gi, '<\\/script') + '<' + '/script>');
+  }
+  out = out.replace(B, () => novoLoadData);
+  out = out.replace('</head>', () => css + '</head>');
+  return out;
+}
+
+async function exportarRelatorio(){
+  const btn = document.getElementById('btnExport');
+  try{
+    if (!raw.length) { alert('Aguarde os dados carregarem antes de exportar.'); return; }
+    if (btn) btn.classList.add('spin');
+    const src = await (await fetch(location.href.split('#')[0], { cache: 'no-store' })).text();
+    const agora = new Date();
+    const rotulo = 'Relatório · somente leitura · posição de ' + agora.toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' });
+    // Conferência: guarda só o necessário (linhas "ok" sem detalhe) pra reduzir o arquivo.
+    const recon = { ...reconciliacao, linhas: (reconciliacao.linhas||[]).map(l => l.status==='ok'
+      ? { tipo:l.tipo, mes:l.mes, ano:l.ano, loja:l.loja, valor:l.valor, status:'ok' } : l) };
+    const dados = { raw, vendas: vendasRaw, custo: custoProdutoRaw, compras: comprasRaw, despVenc: despVencRaw, recon, rotulo };
+    let chartJs = '';
+    try { chartJs = await (await fetch('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js')).text(); } catch (e) { console.warn('Chart.js não embutido:', e.message); }
+    const html = buildSnapshotHtml(src, dados, chartJs);
+    const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Relatorio_Demonstrativo_Resultado_' + agora.toISOString().slice(0, 10) + '.html';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+  } catch (e) { console.error(e); alert('Não foi possível gerar o relatório: ' + e.message); }
+  finally { if (btn) btn.classList.remove('spin'); }
+}
 
 // Se outra página do painel (ex.: GestaoZappas) disparar uma
 // "Atualização Geral" enquanto esta aba já estiver aberta, esta também
