@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.28-g">
+<meta name="zappas-versao" content="v2026.10.28-h">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -826,6 +826,8 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
 }
 /* Aviso de Reembolso entre lojas */
 .reemb-ic { color:#b87010; font-size:12px; margin-left:6px; cursor:help; }
+.reemb-v { color:#b87010; font-style:italic; }
+.dre-table tr.row-lanc.row-reemb > td { background: #fff7e6; }
 .reemb-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#d99020; margin-left:4px; vertical-align:2px; }
 /* Lançamentos no formato de colunas (DFC e DRE Gerencial): cada
    lançamento é uma linha da própria tabela, com o valor na coluna do
@@ -1532,7 +1534,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-g</span><span class="sv-short">10.28-g</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-h</span><span class="sv-short">10.28-h</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -5655,6 +5657,31 @@ function toggleItem(iId, lId, e){
   }
 }
 
+// Reembolsos entre lojas da conta (mesmo grupo/subgrupo/conta dos
+// lançamentos), como linhas informativas: valor na coluna do mês (ou loja),
+// em laranja e itálico, e NÃO somam no total da conta. No DRE x DFC o valor
+// fica na coluna "DRE Ger." do mês.
+function reembLancRows(iId, lId, ctx){
+  const it=(_lancStore[lId]||[])[0];
+  if(!it || !filteredReemb.length) return '';
+  const lista=filteredReemb.filter(r=>r.grupo===it.grupo && r.subgrupo===it.subgrupo && r.plano===it.plano);
+  if(!lista.length) return '';
+  const ord=r=>{ const m=String(r.data||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m?m[3]+m[2]+m[1]:String(r.ano)+String(r.mes).padStart(2,'0'); };
+  const v=x=>`<span class="reemb-v">${fmtBRL(x)}</span>`;
+  const av=ctx.av && !ctx.dual ? '<td class="av-col"></td>' : '';
+  const cel=(c,r)=>{
+    const tem=String(ctx.modoMensal?r.mes:r.loja)===String(c);
+    return ctx.dual ? `<td>${tem?v(r.valor):''}</td><td class="dfc-col"></td><td class="av-col"></td>` : `<td>${tem?v(r.valor):''}</td>${av}`;
+  };
+  const tot=r=> ctx.dual ? `<td>${v(r.valor)}</td><td class="dfc-col"></td><td class="av-col"></td>` : `<td>${v(r.valor)}</td>${av}`;
+  return lista.slice().sort((a,b)=>ord(a).localeCompare(ord(b))).map(r=>`
+    <tr class="row-lanc row-lanc-col row-reemb" data-parent="${iId}" data-lanc="${lId}">
+      <td><span class="reemb-ic" style="margin-left:0;margin-right:4px">⚠</span>Reembolso entre lojas · ${r.data||(String(r.mes).padStart(2,'0')+'/'+r.ano)}<span class="lanc-tit">${(r.nome||'').trim()}${r.cod?' — Cód. conta '+r.cod:''} · informativo, não soma no total</span></td>
+      ${ctx.cols.map(c=>cel(c,r)).join('')}
+      ${tot(r)}
+    </tr>`).join('');
+}
+
 // Monta (uma vez) e mostra os lançamentos de uma conta como linhas da
 // tabela: data + documento/favorecido, valor na coluna do mês (ou da loja)
 // e no Total; colunas de %AV vazias quando estiverem ligadas.
@@ -5689,7 +5716,7 @@ function abrirLancColunas(tbody, iId, lId, marker, ctx){
         ${tri(tG,tD)}
       </tr>`;
     }).join('') : `<tr class="row-lanc row-lanc-col" data-parent="${iId}" data-lanc="${lId}"><td colspan="${1+(ctx.cols.length+1)*3}" style="text-align:center">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
-    marker.insertAdjacentHTML('afterend', html);
+    marker.insertAdjacentHTML('afterend', html + reembLancRows(iId, lId, ctx));
     marker.dataset.built='1';
   }
   if(!marker.dataset.built){
@@ -5707,7 +5734,7 @@ function abrirLancColunas(tbody, iId, lId, marker, ctx){
         <td><span class="lanc-v">${fmtBRL(it.valor||0)}</span></td>${av}
       </tr>`;
     }).join('') : `<tr class="row-lanc row-lanc-col" data-parent="${iId}" data-lanc="${lId}"><td colspan="${1+(ctx.cols.length+1)*(ctx.av?2:1)}" style="text-align:center">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
-    marker.insertAdjacentHTML('afterend', html);
+    marker.insertAdjacentHTML('afterend', html + reembLancRows(iId, lId, ctx));
     marker.dataset.built='1';
   }
   tbody.querySelectorAll(`tr[data-lanc="${lId}"]`).forEach(r=>r.classList.add('visible'));
