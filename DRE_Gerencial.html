@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.28-c">
+<meta name="zappas-versao" content="v2026.10.28-e">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -1529,7 +1529,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-c</span><span class="sv-short">10.28-c</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-e</span><span class="sv-short">10.28-e</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2440,6 +2440,13 @@ function detectSepExt(txt){
 //   Cod_PL  ->  { conta_pl, cod_grupo, grupo, sub_grupo }
 // Guarda cada código em algumas variações (com/sem zeros à esquerda)
 // pra aumentar a chance de bater com o codcentro do Contas a Pagar.
+// Códigos que aparecem mais de uma vez no Plano de Contas e qual linha vale.
+// 2007 = GNRE/GARE (Despesas Administrativas), não ICMS — confirmado em
+// 28/10/2026. A chave é o código; o valor, parte do nome da conta (normKey).
+const PLANO_CODIGO_FORCADO = { '2007': 'gnre gare' };
+// Preenchido por fetchPlanoContas(): códigos repetidos com grupo/subgrupo
+// diferentes — mostrado na Conferência de Classificação.
+let planoDuplicadosGlobal = [];
 async function fetchPlanoContas(){
   const text = await fetchCSV(PLANO_CONTAS_URL);
   const sep = detectSepExt(text);
@@ -2455,6 +2462,7 @@ async function fetchPlanoContas(){
   const iSubGrp  = findCol(rawHeaders,'sub_grupo','subgrupo','sub grupo');
 
   if(iCodPL<0) throw new Error('Plano de Contas — coluna Cod_PL não encontrada.');
+  const todasPorCod = {};
 
   for(let i=1;i<lines.length;i++){
     const line = lines[i].trim();
@@ -2470,6 +2478,10 @@ async function fetchPlanoContas(){
       grupo:     g(iGrupo),
       sub_grupo: g(iSubGrp),
     };
+    const codKey = String(parseInt(codPLraw,10) || codPLraw);
+    (todasPorCod[codKey] = todasPorCod[codKey] || []).push({ ...entry });
+    const forcada = PLANO_CODIGO_FORCADO[codKey];
+    if(forcada && !normKey(entry.conta_pl).includes(forcada)) continue; // linha descartada para esse código
     // Reclassificação gerencial (28/10/2026): a conta "Utensílios" (2.22.03,
     // códigos 70118 e 20022) sai de INVESTIMENTOS e vai para DESPESAS
     // ADMINISTRATIVAS E OPERACIONAIS. "Móveis" continua em Investimentos.
@@ -2481,6 +2493,15 @@ async function fetchPlanoContas(){
     const codPLnum = String(parseInt(codPLraw,10) || '');
     if(codPLnum) map.set(codPLnum, entry);
   }
+  // Códigos repetidos com classificação diferente (grupo ou subgrupo).
+  planoDuplicadosGlobal = Object.entries(todasPorCod)
+    .filter(([,arr]) => new Set(arr.map(e=>normKey(e.grupo)+'|'+normKey(e.sub_grupo))).size > 1)
+    .map(([codigo,arr]) => {
+      const usada = map.get(codigo) || {};
+      return { codigo, forcado: !!PLANO_CODIGO_FORCADO[codigo],
+        opcoes: arr.map(e=>({ conta:e.conta_pl, grupo:e.grupo, sub:e.sub_grupo })),
+        usada: { conta:usada.conta_pl, grupo:usada.grupo, sub:usada.sub_grupo } };
+    });
   return map;
 }
 
@@ -2543,6 +2564,7 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const titulo = [
       iDoc>=0 && g(iDoc) ? 'Doc '+g(iDoc) : '',
       iFav>=0 && g(iFav) ? (/^\d+$/.test(g(iFav)) ? 'Fav. '+g(iFav) : g(iFav)) : '',
+      codCentroRaw ? 'Cód. conta '+codCentroRaw : '',
       iHist>=0 ? g(iHist) : ''
     ].filter(Boolean).join(' — ');
     const dataRaw = (pago ? 'Pago '+dtPgto : 'Em aberto') + (dtVenc ? ' · venc. '+dtVenc : '');
@@ -2576,9 +2598,10 @@ const CANAIS_FATURAMENTO = ['loja','delivery','central'];
 // Todos os canais possíveis (mesmos da Análise Comercial), na ordem em
 // que aparecem no filtro e nas linhas do DRE.
 const CANAIS_TODOS = [['loja','Loja'],['delivery','Delivery'],['central','Central'],['distribuicao','Distribuição'],['reembolso','Reembolso']];
-// Filtro de Canal (multi-select). Padrão SEMPRE Loja + Delivery + Central
-// — ao abrir a página e ao clicar em "Limpar".
-let canaisSelecionados = [...CANAIS_FATURAMENTO];
+// Filtro de Canal (multi-select). Padrão: TODOS os canais selecionados —
+// ao abrir a página e ao clicar em "Limpar" (decisão de 28/10/2026). O
+// botão "Só faturamento" do painel volta para Loja + Delivery + Central.
+let canaisSelecionados = CANAIS_TODOS.map(([k])=>k);
 // Canais exibidos nas linhas da Receita (Gerencial / DRE x DFC).
 function canaisVisiveis(){
   const sel = canaisSelecionados.length ? canaisSelecionados : CANAIS_TODOS.map(([k])=>k);
@@ -2951,7 +2974,9 @@ async function fetchCSV(url, ms){
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
 // Versão da regra do De-Para de recebimentos (2 = por loja, coluna LOJAS).
 // Cache salvo com versão diferente é relido sozinho em segundo plano.
-const DEPARA_VER = 5; // 5 = Utensílios em Despesas Administrativas
+const DEPARA_VER = 7; // 7 = código 2007 = GNRE/GARE; repetidos do Plano na Conferência
+// (6 = código da conta no detalhe do lançamento)
+// (5 = Utensílios em Despesas Administrativas)
 // (4 = releitura após a coluna "plano" nos Recebidos)
 const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11';
 function openDB(){
@@ -3042,6 +3067,7 @@ async function carregarTudo(){
   const pPlanoContas = (async () => {
     try {
       planoMap = await fetchPlanoContas();
+      reconciliacao.planoDup = planoDuplicadosGlobal;
     } catch(e) {
       console.warn('Plano de Contas não carregado:', e.message);
     }
@@ -3480,7 +3506,7 @@ function renderCanalPanel(){
   if(!panel) return;
   panel.innerHTML = `
     <div class="ig-fmulti-actions">
-      <button type="button" onclick="canaisPadrao()">Padrão</button>
+      <button type="button" onclick="canaisPadrao()" title="Loja + Delivery + Central">Só faturamento</button>
       <button type="button" onclick="selecionarTodosCanais()">Todos</button>
     </div>
     ${CANAIS_TODOS.map(([k,l])=>`<label class="ig-fmulti-opt"><input type="checkbox" value="${k}" ${canaisSelecionados.includes(k)?'checked':''} onchange="toggleCanal('${k}')">${l}</label>`).join('')}`;
@@ -3726,7 +3752,7 @@ function clearFilters(){
   document.getElementById('fLoja').value='';
   lojasSelecionadas=[];
   renderLojaPanel();
-  canaisSelecionados=[...CANAIS_FATURAMENTO];
+  canaisSelecionados=CANAIS_TODOS.map(([k])=>k);
   renderCanalPanel();
   applyFilters();
 }
@@ -3859,9 +3885,24 @@ function renderConciliacao(){
   // Detalhe: tudo que não entrou classificado no DFC no escopo atual,
   // agrupado por tipo/loja/código/motivo — ordenado por valor (maiores
   // primeiro), pra facilitar priorizar o que corrigir na planilha de de-para.
+  const dups = reconciliacao.planoDup || [];
+  const dupHtml = !dups.length ? '' : `
+    <div style="border:1px solid #f5c26b;background:#fff7e6;color:#7a4a05;border-radius:10px;padding:12px 14px;margin-bottom:14px;font-size:12px;line-height:1.5">
+      <div style="font-weight:700;margin-bottom:6px">⚠ Plano de Contas: ${dups.length} código(s) repetido(s) com classificação diferente</div>
+      <div style="margin-bottom:8px">O mesmo código aparece em mais de uma linha da planilha, com grupo ou subgrupo diferente. O painel usa só uma delas (coluna "Valendo no painel"). Corrija na planilha do Plano de Contas, deixando cada código em uma única linha.</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+        <thead><tr style="text-align:left"><th style="padding:4px 6px;border-bottom:1px solid #f5c26b">Código</th><th style="padding:4px 6px;border-bottom:1px solid #f5c26b">Linhas na planilha</th><th style="padding:4px 6px;border-bottom:1px solid #f5c26b">Valendo no painel</th></tr></thead>
+        <tbody>${dups.map(d=>`<tr>
+          <td style="padding:4px 6px;vertical-align:top;font-weight:600">${d.codigo}</td>
+          <td style="padding:4px 6px;vertical-align:top">${d.opcoes.map(o=>`${o.conta||'(sem nome)'} — ${o.grupo||'(sem grupo)'} / ${o.sub||'—'}`).join('<br>')}</td>
+          <td style="padding:4px 6px;vertical-align:top">${d.usada.conta||'—'} — ${d.usada.grupo||'(sem grupo)'}${d.forcado?' <em>(definido no painel)</em>':''}</td>
+        </tr>`).join('')}</tbody>
+      </table>
+    </div>`;
+
   const pendentes = [...erro, ...info];
   if(!pendentes.length){
-    wrapEl.innerHTML = `<div class="recon-empty"><strong>✓ Nenhuma pendência encontrada</strong>Todos os lançamentos do período/loja selecionados foram classificados com sucesso pelo De-Para.</div>`;
+    wrapEl.innerHTML = dupHtml + `<div class="recon-empty"><strong>✓ Nenhuma pendência encontrada</strong>Todos os lançamentos do período/loja selecionados foram classificados com sucesso pelo De-Para.</div>`;
     return;
   }
 
@@ -3906,7 +3947,7 @@ function renderConciliacao(){
     </tr>`;
   }).join('');
 
-  wrapEl.innerHTML = `
+  wrapEl.innerHTML = dupHtml + `
     <table class="recon-table">
       <thead><tr>${reconTh('tipo','Tipo')}${reconTh('loja','Loja')}${reconTh('codigo','Código')}${reconTh('motivo','Motivo')}${reconTh('qtd','Lançamentos',true)}${reconTh('valor','Valor (R$)',true)}</tr></thead>
       <tbody>${rowsHtml}</tbody>
