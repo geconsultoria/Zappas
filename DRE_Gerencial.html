@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.28-a">
+<meta name="zappas-versao" content="v2026.10.28-b">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -1510,7 +1510,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-a</span><span class="sv-short">10.28-a</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-b</span><span class="sv-short">10.28-b</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2451,6 +2451,13 @@ async function fetchPlanoContas(){
       grupo:     g(iGrupo),
       sub_grupo: g(iSubGrp),
     };
+    // Reclassificação gerencial (28/10/2026): a conta "Utensílios" (2.22.03,
+    // códigos 70118 e 20022) sai de INVESTIMENTOS e vai para DESPESAS
+    // ADMINISTRATIVAS E OPERACIONAIS. "Móveis" continua em Investimentos.
+    if(normKey(entry.conta_pl)==='utensilios' && /investiment/i.test(normKey(entry.grupo))){
+      entry.grupo = '(-) DESPESAS ADMINISTRATIVAS E OPERACIONAIS';
+      entry.sub_grupo = 'Despesas Administrativas';
+    }
     map.set(codPLraw, entry);
     const codPLnum = String(parseInt(codPLraw,10) || '');
     if(codPLnum) map.set(codPLnum, entry);
@@ -2925,7 +2932,8 @@ async function fetchCSV(url, ms){
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
 // Versão da regra do De-Para de recebimentos (2 = por loja, coluna LOJAS).
 // Cache salvo com versão diferente é relido sozinho em segundo plano.
-const DEPARA_VER = 4; // 4 = releitura após a coluna "plano" nos Recebidos
+const DEPARA_VER = 5; // 5 = Utensílios em Despesas Administrativas
+// (4 = releitura após a coluna "plano" nos Recebidos)
 const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='dreGerencial_data_v11';
 function openDB(){
   return new Promise((resolve,reject)=>{
