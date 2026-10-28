@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.28-b">
+<meta name="zappas-versao" content="v2026.10.28-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -824,6 +824,25 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
   display: table-row;
   animation: rowIn .18s ease forwards;
 }
+/* Lançamentos no formato de colunas (DFC e DRE Gerencial): cada
+   lançamento é uma linha da própria tabela, com o valor na coluna do
+   mês (ou da loja) e no Total. */
+.dre-table tr.row-lanc.row-lanc-col > td {
+  background: var(--surface-tint);
+  padding: 5px 10px !important;
+  font-size: 10.5px;
+  color: var(--ink-3);
+  white-space: nowrap;
+  text-align: right;
+  border-bottom: 1px dashed var(--border);
+}
+.dre-table tr.row-lanc.row-lanc-col > td:first-child {
+  padding-left: 68px !important;
+  text-align: left;
+  white-space: normal;
+}
+.dre-table tr.row-lanc.row-lanc-col .lanc-tit { display:block; font-size:10px; color:var(--ink-4); }
+.dre-table tr.row-lanc.row-lanc-col .lanc-v { color: var(--ink-2); }
 /* Linha de detalhe com os lançamentos individuais (Data/Título/Valor) que
    compõem a conta clicada — mesmo padrão visual/subtable já usado no
    painel de Conciliação do De-Para (.recon-subtable), só reaproveitado
@@ -1510,7 +1529,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-b</span><span class="sv-short">10.28-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-c</span><span class="sv-short">10.28-c</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -4201,7 +4220,7 @@ function renderDRE(){
   // filtro/loja/mês) — o conteúdo antigo não corresponde mais às linhas
   // que vão ser desenhadas agora, e cada "conta" ganha um id novo (uid())
   // de qualquer forma, então não tem por que manter o que ficou pra trás.
-  _lancStore = {};
+  _lancStore = {}; _lancCtxStore = {}; _lancCtx = null;
 
   // "DRE Consolidado" tem estrutura de colunas totalmente diferente (DRE
   // Gerencial / DFC / Diferença, em vez de uma coluna por loja/mês) —
@@ -4232,6 +4251,7 @@ function renderDRE(){
     ? uniq(filtered.map(r=>r.mes).filter(Boolean), true)   /* numérico ordenado */
     : [];
   const cols = modoMensal ? mesesPresentes : lojas;         /* chave de cada coluna */
+  _lancCtx = { cols, modoMensal, av: avVisible };
   const colLabel = modoMensal
     ? m => MES[m] || String(m)
     : l => l;
@@ -5470,12 +5490,20 @@ function fecharDescendentes(tbody, parentId){
    aqui dentro da própria tabela do DRE. Montado sob demanda (só quando o
    usuário abre a conta) pra não gerar HTML de tudo de uma vez. */
 let _lancStore = {};
+// Layout de colunas da tabela atual (DFC / DRE Gerencial) — quando
+// preenchido, os lançamentos abrem em colunas (mês ou loja). No DRE x DFC
+// fica null e o detalhe continua na lista Data/Título/Valor.
+let _lancCtx = null, _lancCtxStore = {};
 function registrarLanc(itens){
   const lId = 'lanc-'+Object.keys(_lancStore).length+'-'+Math.random().toString(36).slice(2,7);
   _lancStore[lId] = itens || [];
   return lId;
 }
 function lancDetailRowHTML(iId, lId, colCount){
+  if(_lancCtx){
+    _lancCtxStore[lId] = _lancCtx;
+    return `<tr class="row-lanc-mark" id="lancRow_${lId}" data-parent="${iId}" style="display:none"></tr>`;
+  }
   return `<tr class="row-lanc" data-parent="${iId}" id="lancRow_${lId}">
     <td colspan="${colCount}">
       <div class="dre-lanc-wrap">
@@ -5497,8 +5525,11 @@ function toggleItem(iId, lId, e){
   if(isOpen){
     itemRow.classList.remove('is-open');
     lancRow.classList.remove('visible');
+    tbody.querySelectorAll(`tr[data-lanc="${lId}"]`).forEach(r=>r.classList.remove('visible'));
   } else {
     itemRow.classList.add('is-open');
+    const ctx=_lancCtxStore[lId];
+    if(ctx){ abrirLancColunas(tbody, iId, lId, lancRow, ctx); return; }
     lancRow.classList.add('visible');
     const body=document.getElementById('lancBody_'+lId);
     if(body && !body.dataset.built){
@@ -5514,6 +5545,31 @@ function toggleItem(iId, lId, e){
       body.dataset.built='1';
     }
   }
+}
+
+// Monta (uma vez) e mostra os lançamentos de uma conta como linhas da
+// tabela: data + documento/favorecido, valor na coluna do mês (ou da loja)
+// e no Total; colunas de %AV vazias quando estiverem ligadas.
+function abrirLancColunas(tbody, iId, lId, marker, ctx){
+  if(!marker.dataset.built){
+    const chave = it => ctx.modoMensal ? it.mes : it.loja;
+    const dataOrd = it => { const m=String(it.dataRaw||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3]+m[2]+m[1] : String(it.ano||0)+String(it.mes||0).padStart(2,'0')+'00'; };
+    const itens=(_lancStore[lId]||[]).slice().sort((a,b)=>dataOrd(a).localeCompare(dataOrd(b)) || (b.valor||0)-(a.valor||0));
+    const av = ctx.av ? '<td class="av-col"></td>' : '';
+    const html = itens.length ? itens.map(it=>{
+      const k=chave(it);
+      const data = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
+      const tit = it.titulo || '';
+      return `<tr class="row-lanc row-lanc-col" data-parent="${iId}" data-lanc="${lId}">
+        <td>${data}${tit?`<span class="lanc-tit">${tit}</span>`:''}</td>
+        ${ctx.cols.map(c=>`<td>${String(c)===String(k)?`<span class="lanc-v">${fmtBRL(it.valor||0)}</span>`:''}</td>${av}`).join('')}
+        <td><span class="lanc-v">${fmtBRL(it.valor||0)}</span></td>${av}
+      </tr>`;
+    }).join('') : `<tr class="row-lanc row-lanc-col" data-parent="${iId}" data-lanc="${lId}"><td colspan="${1+(ctx.cols.length+1)*(ctx.av?2:1)}" style="text-align:center">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
+    marker.insertAdjacentHTML('afterend', html);
+    marker.dataset.built='1';
+  }
+  tbody.querySelectorAll(`tr[data-lanc="${lId}"]`).forEach(r=>r.classList.add('visible'));
 }
 
 function toggleAll(open){
