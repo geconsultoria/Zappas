@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.28-e">
+<meta name="zappas-versao" content="v2026.10.28-f">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -1529,7 +1529,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-e</span><span class="sv-short">10.28-e</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-f</span><span class="sv-short">10.28-f</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -2531,6 +2531,7 @@ function parseContasPagar(text, planoMap, lojaFallback){
   // Identificação do lançamento (só para o detalhe): nº do documento e
   // código do favorecido, mais título/fornecedor/histórico se existirem.
   const iDoc    = findColExata(rawHeaders,'ndoc','numdoc','num_doc','documento','titulo','numtitulo');
+  const iTitId  = findColExata(rawHeaders,'codigo','codtitulo','idtitulo'); // nº do título no sistema
   const iFav    = findColExata(rawHeaders,'fornecedor','nomefornecedor','razaosocial','razao_social','credor','codfavorecido');
   const iHist   = findColExata(rawHeaders,'historico','descricao','observacao','obs');
 
@@ -2561,7 +2562,9 @@ function parseContasPagar(text, planoMap, lojaFallback){
     const codCentroNum = String(parseInt(codCentroRaw,10) || '');
     const info = planoMap.get(codCentroRaw) || planoMap.get(codCentroNum);
 
+    const titId = iTitId>=0 ? g(iTitId) : '';
     const titulo = [
+      titId ? 'Título '+titId : '',
       iDoc>=0 && g(iDoc) ? 'Doc '+g(iDoc) : '',
       iFav>=0 && g(iFav) ? (/^\d+$/.test(g(iFav)) ? 'Fav. '+g(iFav) : g(iFav)) : '',
       codCentroRaw ? 'Cód. conta '+codCentroRaw : '',
@@ -2584,7 +2587,7 @@ function parseContasPagar(text, planoMap, lojaFallback){
     if(!loja) continue;
 
     linhas.push({ tipo:'despesa', mes:mesC, ano:anoC, loja, valor, status:'ok' });
-    const base = { loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo, titulo, dataRaw };
+    const base = { loja, valor, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl, cod_grupo: info.cod_grupo, titulo, dataRaw, id: titId ? loja+'#'+titId : '' };
     if(pago) rows.push({ ...base, mes:mesP, ano:anoP });
     if(mesV && anoV) rowsVenc.push({ ...base, mes:mesV, ano:anoV, pago });
   }
@@ -2974,7 +2977,8 @@ async function fetchCSV(url, ms){
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
 // Versão da regra do De-Para de recebimentos (2 = por loja, coluna LOJAS).
 // Cache salvo com versão diferente é relido sozinho em segundo plano.
-const DEPARA_VER = 7; // 7 = código 2007 = GNRE/GARE; repetidos do Plano na Conferência
+const DEPARA_VER = 8; // 8 = nº do título nos lançamentos (DRE x DFC por título)
+// (7 = código 2007 = GNRE/GARE; repetidos do Plano na Conferência)
 // (6 = código da conta no detalhe do lançamento)
 // (5 = Utensílios em Despesas Administrativas)
 // (4 = releitura após a coluna "plano" nos Recebidos)
@@ -4859,6 +4863,7 @@ function setDreView(view){
 ══════════════════════════════════════════════════════════════ */
 function renderDREConsolidado(){
   buildSlugMap();
+  const lado = (arr,l) => (arr||[]).map(r=>({...r,_lado:l}));
 
   /* Mesma detecção de modo/colunas do DFC e do DRE Gerencial (loja
      selecionada + "Todos os Meses" → uma coluna por mês; senão, uma
@@ -4874,6 +4879,7 @@ function renderDREConsolidado(){
     ? uniq([...filtered, ...baseGer].map(r=>r.mes).filter(Boolean), true)
     : [];
   const cols = modoMensal ? mesesPresentes : lojas;
+  _lancCtx = { dual:true, cols, modoMensal };
   const colLabel = modoMensal ? m => MES[m] || String(m) : l => l;
 
   /* ── Árvore de despesas, por coluna (basis-independent, ver comentário
@@ -5169,7 +5175,7 @@ function renderDREConsolidado(){
       canaisVisiveis().map(([k,l])=>[k,l.charAt(0)+l.slice(1).toLowerCase()]).forEach(([canalKey,canalLabel])=>{
         const cVals=vendasCanalColVals(canalKey);
         const iId=uid();
-        const lId=registrarLanc(itensDoCanal(filteredVendas,canalKey));
+        const lId=registrarLanc(lado(itensDoCanal(filteredVendas,canalKey),'ger'));
         html+=`<tr class="row-item has-lanc" data-parent="${sIdReceita}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
           <td>${CHEVRON}${canalLabel}<span class="expand-hint">expandir</span></td>
           ${cols.map(c=>triple(cVals[c]||0,0,cellVal)).join('')}
@@ -5199,7 +5205,7 @@ function renderDREConsolidado(){
       Object.keys(planoValsDfc).sort().forEach(plano=>{
         const pVals=planoValsDfc[plano];
         const iId=uid();
-        const lId=registrarLanc(itensDoPlanoEmGrupos(filtered,slugToGruposMap['receita_operacional']||[],plano));
+        const lId=registrarLanc(lado(itensDoPlanoEmGrupos(filtered,slugToGruposMap['receita_operacional']||[],plano),'dfc'));
         html+=`<tr class="row-item has-lanc" data-parent="${sIdRecebimento}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
           <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
           ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
@@ -5253,7 +5259,7 @@ function renderDREConsolidado(){
           Object.keys(treeImpGer[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=treeImpGer[grupoReal][sub][plano]||{};
             const iId=uid();
-            const lId=registrarLanc(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano));
+            const lId=registrarLanc(lado(itensDoPlano(filteredImpostosGer,grupoReal,sub,plano),'ger'));
             html+=`<tr class="row-item has-lanc" data-parent="${sIdGer}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
               <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(pVals[c]||0,0,cellVal)).join('')}
@@ -5276,7 +5282,7 @@ function renderDREConsolidado(){
           Object.keys(tree[grupoReal][sub]).sort().forEach(plano=>{
             const pVals=tree[grupoReal][sub][plano]||{};
             const iId=uid();
-            const lId=registrarLanc(itensDoPlano(filtered,grupoReal,sub,plano));
+            const lId=registrarLanc(lado(itensDoPlano(filtered,grupoReal,sub,plano),'dfc'));
             html+=`<tr class="row-item has-lanc" data-parent="${sIdDfc}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
               <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
               ${cols.map(c=>triple(0,pVals[c]||0,cellVal)).join('')}
@@ -5347,10 +5353,9 @@ function renderDREConsolidado(){
       planos.forEach(plano=>{
         const pV=((treeV[g]||{})[sub]||{})[plano]||{}, pP=((tree[g]||{})[sub]||{})[plano]||{};
         const iId=uid();
-        const marca=(arr,tag)=>arr.map(r=>({...r, titulo:'['+tag+'] '+(r.titulo||'')}));
         const lId=registrarLanc([
-          ...marca(itensDoPlano(baseGer,g,sub,plano),'DRE · venc.'),
-          ...marca(itensDoPlano(filtered,g,sub,plano),'DFC · pago')
+          ...lado(itensDoPlano(baseGer,g,sub,plano),'ger'),
+          ...lado(itensDoPlano(filtered,g,sub,plano),'dfc')
         ]);
         h+=`<tr class="row-item has-lanc" data-parent="${sId}" data-iid="${iId}" onclick="toggleItem('${iId}','${lId}',event)">
           <td>${CHEVRON}${plano}<span class="expand-hint">expandir</span></td>
@@ -5592,6 +5597,39 @@ function toggleItem(iId, lId, e){
 // tabela: data + documento/favorecido, valor na coluna do mês (ou da loja)
 // e no Total; colunas de %AV vazias quando estiverem ligadas.
 function abrirLancColunas(tbody, iId, lId, marker, ctx){
+  if(!marker.dataset.built && ctx.dual){
+    // DRE x DFC: um título por linha — valor na coluna "DRE" do mês do
+    // lado DRE (vencimento/competência) e na "DFC" do mês do pagamento;
+    // "Dif." = DRE − DFC do título naquele mês.
+    const chave = it => ctx.modoMensal ? it.mes : it.loja;
+    const dataOrd = it => { const m=String(it.dataRaw||'').match(/(\d{2})\/(\d{2})\/(\d{4})/g); const d=m?m[m.length-1].split('/'):null; return d ? d[2]+d[1]+d[0] : String(it.ano||0)+String(it.mes||0).padStart(2,'0')+'00'; };
+    const grupos = new Map(); let n=0;
+    (_lancStore[lId]||[]).forEach(it=>{
+      const k = it.id || ('u'+(n++));
+      const g = grupos.get(k) || { ger:{}, dfc:{}, it, ord:dataOrd(it) };
+      const col = chave(it);
+      g[it._lado==='dfc'?'dfc':'ger'][col] = (g[it._lado==='dfc'?'dfc':'ger'][col]||0) + (it.valor||0);
+      if(it._lado==='dfc') g.it = it; // rótulo "Pago ..." quando houver pagamento
+      grupos.set(k,g);
+    });
+    const dif = v => Math.abs(v)<0.005 ? '' : `<span class="${v<0?'val-neg':'val-pos'}">${v>0?'+':''}${fmtBRL(v)}</span>`;
+    const val = v => v ? `<span class="lanc-v">${fmtBRL(v)}</span>` : '';
+    const tri = (a,b) => `<td>${val(a)}</td><td class="dfc-col">${val(b)}</td><td class="av-col">${dif(a-b)}</td>`;
+    const lista=[...grupos.values()].sort((a,b)=>a.ord.localeCompare(b.ord));
+    const html = lista.length ? lista.map(g=>{
+      const it=g.it, temDfc=Object.keys(g.dfc).length, soGer=!temDfc && it._lado!=='dfc';
+      let data = it.dataRaw || (it.mes && it.ano ? String(it.mes).padStart(2,'0')+'/'+it.ano : '—');
+      if(soGer && /^Em aberto/.test(data)) data = data.replace(/^Em aberto/,'<strong style="color:var(--crimson,#b42318)">Em aberto</strong>');
+      const tG=ctx.cols.reduce((t,c)=>t+(g.ger[c]||0),0), tD=ctx.cols.reduce((t,c)=>t+(g.dfc[c]||0),0);
+      return `<tr class="row-lanc row-lanc-col" data-parent="${iId}" data-lanc="${lId}">
+        <td>${data}${it.titulo?`<span class="lanc-tit">${it.titulo}</span>`:''}</td>
+        ${ctx.cols.map(c=>tri(g.ger[c]||0,g.dfc[c]||0)).join('')}
+        ${tri(tG,tD)}
+      </tr>`;
+    }).join('') : `<tr class="row-lanc row-lanc-col" data-parent="${iId}" data-lanc="${lId}"><td colspan="${1+(ctx.cols.length+1)*3}" style="text-align:center">Nenhum lançamento encontrado pro filtro atual.</td></tr>`;
+    marker.insertAdjacentHTML('afterend', html);
+    marker.dataset.built='1';
+  }
   if(!marker.dataset.built){
     const chave = it => ctx.modoMensal ? it.mes : it.loja;
     const dataOrd = it => { const m=String(it.dataRaw||'').match(/(\d{2})\/(\d{2})\/(\d{4})/); return m ? m[3]+m[2]+m[1] : String(it.ano||0)+String(it.mes||0).padStart(2,'0')+'00'; };
