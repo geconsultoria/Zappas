@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.28-f">
+<meta name="zappas-versao" content="v2026.10.28-g">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Demonstrativo de Resultado — Dashboard Executivo</title>
@@ -824,6 +824,9 @@ tr.is-open > td:first-child .row-chevron { transform: rotate(90deg); opacity: .9
   display: table-row;
   animation: rowIn .18s ease forwards;
 }
+/* Aviso de Reembolso entre lojas */
+.reemb-ic { color:#b87010; font-size:12px; margin-left:6px; cursor:help; }
+.reemb-dot { display:inline-block; width:6px; height:6px; border-radius:50%; background:#d99020; margin-left:4px; vertical-align:2px; }
 /* Lançamentos no formato de colunas (DFC e DRE Gerencial): cada
    lançamento é uma linha da própria tabela, com o valor na coluna do
    mês (ou da loja) e no Total. */
@@ -1529,7 +1532,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-f</span><span class="sv-short">10.28-f</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.28-g</span><span class="sv-short">10.28-g</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -1821,6 +1824,11 @@ const CURVAABC_URLS = CURVAABC_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=
 // substitui a classificação via Contas a Pagar + Plano de Contas.
 const COMPRAS_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
 const COMPRAS_URLS = COMPRAS_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=compras&loja=${k}`);
+// Reembolso entre lojas (arquivos FATURAMENTO_RE_<loja>) — só para AVISAR
+// (ícone de atenção) nas contas do demonstrativo que tiveram reembolso;
+// não muda nenhum valor. A conta vem da coluna cod_pl (Plano de Contas).
+const REEMB_STORE_KEYS = ['anisio','bady','belvedere','damha','havan','muffato'];
+const REEMB_URLS = REEMB_STORE_KEYS.map(k => `${APPS_SCRIPT_URL_DRE}?tipo=reembolso&loja=${k}`);
 /* ══════════════════════════════════════════════════════════════ */
 
 /* ─── Paleta ─── */
@@ -1858,6 +1866,8 @@ let impostosGerRaw = [], filteredImpostosGer = [];
 // item: {loja, ano, mes, valor, titulo}. filteredCompras segue os
 // mesmos filtros Ano/Mês/Loja aplicados a "filtered" (ver applyFilters()).
 let comprasRaw = [], filteredCompras = [];
+// Reembolso entre lojas (aviso nas contas). Item: {ano, mes, loja, valor, nome, data, cod, grupo, subgrupo, plano}
+let reembRaw = [], filteredReemb = [];
 
 // Despesas do Contas a Pagar pelo VENCIMENTO (pagas e em aberto) — base das
 // despesas do DRE Gerencial. O DFC continua com "raw" (só pagas, mês do
@@ -2510,6 +2520,35 @@ async function fetchPlanoContas(){
 // valor, e classifica cada linha via o de-para (codcentro → Cod_PL).
 // Linhas cujo codcentro não é encontrado no Plano de Contas ficam de
 // fora do DRE (não dá pra classificar) e são reportadas em naoMapeados.
+function parseReembolso(text, planoMap, lojaFallback){
+  const sep = detectSepExt(text);
+  const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
+  const rows = [], linhas = [];
+  if(lines.length < 2) return { rows, linhas };
+  const H = splitLine(lines[0],sep).map(h=>h.replace(/^"|"$/g,'').trim());
+  const iAno=findColExata(H,'ano'), iMes=findColExata(H,'mes'), iLoja=findColExata(H,'loja'), iData=findColExata(H,'data');
+  const iTot=findColExata(H,'total','valor'), iNome=findColExata(H,'pnome','nome','descricao'), iCod=findColExata(H,'cod_pl','codpl','cod pl');
+  if(iTot<0) return { rows, linhas };
+  for(let i=1;i<lines.length;i++){
+    const line=lines[i].trim(); if(!line) continue;
+    const c=splitLine(line,sep); const g=k=>k>=0?(c[k]||'').replace(/^"|"$/g,'').trim():'';
+    const valor=parseNum(g(iTot)); if(!valor) continue;
+    const data=g(iData);
+    const ano=parseInt(g(iAno),10) || parseAno(data), mes=parseInt(g(iMes),10) || parseMes(data);
+    if(!ano || !mes) continue;
+    const loja=g(iLoja) || lojaFallback, nome=g(iNome), cod=g(iCod);
+    const info = cod ? (planoMap.get(cod) || planoMap.get(String(parseInt(cod,10)||''))) : null;
+    if(!info || !info.grupo){
+      linhas.push({ tipo:'despesa', mes, ano, loja, valor, status:'info', codigo: cod || '(vazio)',
+        motivo: 'Reembolso entre lojas ' + (cod ? 'com conta (cod_pl) fora do Plano de Contas' : 'sem conta (cod_pl vazio)') + ' — não aparece em nenhuma conta do demonstrativo',
+        titulo: nome, dataRaw: data });
+      continue;
+    }
+    rows.push({ ano, mes, loja, valor, nome, data, cod, grupo: info.grupo, subgrupo: info.sub_grupo, plano: info.conta_pl });
+  }
+  return { rows, linhas };
+}
+
 function parseContasPagar(text, planoMap, lojaFallback){
   const sep = detectSepExt(text);
   const lines = text.replace(/\r\n/g,'\n').replace(/\r/g,'\n').split('\n');
@@ -2977,7 +3016,8 @@ async function fetchCSV(url, ms){
 // comparação com De-Para/Plano de Contas (sem isso, o cache antigo continuaria com os números errados).
 // Versão da regra do De-Para de recebimentos (2 = por loja, coluna LOJAS).
 // Cache salvo com versão diferente é relido sozinho em segundo plano.
-const DEPARA_VER = 8; // 8 = nº do título nos lançamentos (DRE x DFC por título)
+const DEPARA_VER = 9; // 9 = Reembolso entre lojas (aviso)
+// (8 = nº do título nos lançamentos (DRE x DFC por título))
 // (7 = código 2007 = GNRE/GARE; repetidos do Plano na Conferência)
 // (6 = código da conta no detalhe do lançamento)
 // (5 = Utensílios em Despesas Administrativas)
@@ -2992,12 +3032,12 @@ function openDB(){
   });
 }
 async function saveCache(data,ts,rawTs,recon,vendas,custo,compras){
-  const despVenc = despVencRaw;
+  const despVenc = despVencRaw, reemb = reembRaw;
   try{
     const db=await openDB();
     await new Promise((resolve,reject)=>{
       const tx=db.transaction(DB_STORE,'readwrite');
-      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo,compras,despVenc,deparaVer:DEPARA_VER},DB_KEY);
+      tx.objectStore(DB_STORE).put({data,ts,rawTs,recon,vendas,custo,compras,despVenc,reemb,deparaVer:DEPARA_VER},DB_KEY);
       tx.oncomplete=resolve; tx.onerror=()=>reject(tx.error);
     });
   }catch(e){ console.warn('Não foi possível salvar cache local:',e); }
@@ -3251,7 +3291,20 @@ async function carregarTudo(){
     comprasRaw = porLoja.flat();
   })();
 
-  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento]);
+  // Reembolso entre lojas (só aviso) — depois do Plano de Contas.
+  let rowsReemb = [];
+  const pReemb = pPlanoContas.then(() => Promise.all(REEMB_URLS.map(async (url, idx) => {
+    const lojaKey = REEMB_STORE_KEYS[idx];
+    try {
+      const text = await fetchCSV(url, 60000);
+      const { rows, linhas } = parseReembolso(text, planoMap, lojaKey.toUpperCase());
+      rowsReemb = rowsReemb.concat(rows);
+      reconciliacao.linhas.push(...linhas);
+    } catch(e) { console.warn('Reembolso indisponível (' + lojaKey + '):', e.message); }
+  })));
+
+  await Promise.all([pDePara, pPlanoContas, pCtasPagar, pRecebidos, pFaturamento, pReemb]);
+  reembRaw = rowsReemb;
   // Custo (Curva ABC) e Compras continuam carregando em segundo plano —
   // a tela já aparece, e o CMV é preenchido assim que terminarem.
   cmvCarregando = true;
@@ -3358,6 +3411,8 @@ async function loadData(forceRefresh, silent){
         // Despesas por vencimento (DRE Gerencial) — cache antigo não tem.
         const vencAusente = !Array.isArray(cached.despVenc);
         despVencRaw = cached.despVenc || [];
+        const reembAusente = !Array.isArray(cached.reemb);
+        reembRaw = cached.reemb || [];
         corrigirNomesLojas();   // cache salvo antes ainda tem "BELVEDER"
         recalcImpostosGer();
         // Mesmo motivo do outro carregamento (ver comentário abaixo, em
@@ -3367,7 +3422,7 @@ async function loadData(forceRefresh, silent){
         populateFilters();
         applyFilters(); // aciona render() -> renderConciliacao() (mostra "calculando…" se reconAusente)
         toggleFixHeader(true);
-        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || cached.deparaVer !== DEPARA_VER || reconAusente || vendasAusente || custoAusente || comprasAusente || vencAusente;
+        const stale = existeAtualizacaoMaisRecenteZappas(cached.rawTs) || cached.deparaVer !== DEPARA_VER || reconAusente || vendasAusente || custoAusente || comprasAusente || vencAusente || reembAusente;
         document.getElementById('lastUpdate').textContent = cached.ts + ' (dados salvos)' + (stale ? ' — Atualização Disponível, atualizando…' : '');
         if(stale) loadData(true, true); // dado novo disponível (ou conciliação ausente): atualiza sozinho, em segundo plano, sem esconder a tela
         return;
@@ -3646,7 +3701,7 @@ function nomeLojaCorreto(l){
 }
 function corrigirNomesLojas(){
   const fix = arr => (arr||[]).forEach(r => { if(r && r.loja) r.loja = nomeLojaCorreto(r.loja); });
-  [raw, vendasRaw, custoProdutoRaw, comprasRaw, despVencRaw].forEach(fix);
+  [raw, vendasRaw, custoProdutoRaw, comprasRaw, despVencRaw, reembRaw].forEach(fix);
   if(reconciliacao && Array.isArray(reconciliacao.linhas)) fix(reconciliacao.linhas);
 }
 
@@ -3741,6 +3796,12 @@ function applyFilters(){
     return true;
   });
   filteredDespVenc=despVencRaw.filter(r=>{
+    if(ano&&String(r.ano)!==ano) return false;
+    if(meses.length&&!meses.includes(Number(r.mes))) return false;
+    if(!passaLoja(r.loja)) return false;
+    return true;
+  });
+  filteredReemb=reembRaw.filter(r=>{
     if(ano&&String(r.ano)!==ano) return false;
     if(meses.length&&!meses.includes(Number(r.mes))) return false;
     if(!passaLoja(r.loja)) return false;
@@ -4270,7 +4331,7 @@ function renderDRE(){
   // "DRE Consolidado" tem estrutura de colunas totalmente diferente (DRE
   // Gerencial / DFC / Diferença, em vez de uma coluna por loja/mês) —
   // tem função própria, ver renderDREConsolidado().
-  if(dreView === 'consolidado'){ renderDREConsolidado(); return; }
+  if(dreView === 'consolidado'){ renderDREConsolidado(); marcarReembolsos(); return; }
 
   // DRE Gerencial: as despesas vêm do Contas a Pagar pelo VENCIMENTO (pagas
   // e em aberto). Troca a base só durante este desenho e devolve em seguida
@@ -4812,6 +4873,7 @@ function renderDRE(){
     : '';
   document.getElementById('dreSubtitle').textContent=
     `${Object.keys(tree).length} grupo(s)${subtitleExtra} · clique para expandir${subtitleGerencial}${avisoCmv()}`;
+  marcarReembolsos();
 
   /* Só agora o <thead> e o <tbody> novos estão os dois no DOM, então as
      larguras de coluna medidas pra montar o clone do cabeçalho fixo
@@ -5651,6 +5713,47 @@ function abrirLancColunas(tbody, iId, lId, marker, ctx){
   tbody.querySelectorAll(`tr[data-lanc="${lId}"]`).forEach(r=>r.classList.add('visible'));
 }
 
+// Ícone de atenção nas contas (e no subgrupo/grupo acima) que tiveram
+// Reembolso entre lojas no período/loja filtrados, e um ponto no valor de
+// cada mês (ou loja) com reembolso. Passar o mouse mostra os lançamentos.
+// Só aviso: não altera valores.
+function marcarReembolsos(){
+  const tbody=document.getElementById('dreTbody');
+  const ctx=_lancCtx;
+  if(!tbody || !ctx || !filteredReemb.length) return;
+  const porConta={};
+  filteredReemb.forEach(r=>{ const k=(r.grupo||'')+'|'+(r.subgrupo||'')+'|'+(r.plano||''); (porConta[k]=porConta[k]||[]).push(r); });
+  const passo = ctx.dual ? 3 : (ctx.av ? 2 : 1);
+  const ICON = t => `<span class="reemb-ic" title="${t}">⚠</span>`;
+  const marcados=new Set();
+  const marcarPai = (row, txt) => {
+    if(!row || marcados.has(row)) return; marcados.add(row);
+    const td=row.cells[0], hint=td.querySelector('.expand-hint');
+    if(hint) hint.insertAdjacentHTML('beforebegin', ICON(txt)); else td.insertAdjacentHTML('beforeend', ICON(txt));
+  };
+  tbody.querySelectorAll('tr.row-item.has-lanc').forEach(tr=>{
+    const m=(tr.getAttribute('onclick')||'').match(/toggleItem\('[^']*','([^']*)'/); if(!m) return;
+    const it=(_lancStore[m[1]]||[])[0]; if(!it || !it.plano) return;
+    const lista=porConta[(it.grupo||'')+'|'+(it.subgrupo||'')+'|'+(it.plano||'')]; if(!lista) return;
+    const totR=lista.reduce((t,r)=>t+r.valor,0);
+    const txt='Reembolso entre lojas nesta conta: R$ '+fmtBRL(totR)+' no período (passe o mouse nos valores marcados para ver por '+(ctx.modoMensal?'mês':'loja')+')';
+    const td0=tr.cells[0], hint=td0.querySelector('.expand-hint');
+    hint ? hint.insertAdjacentHTML('beforebegin', ICON(txt)) : td0.insertAdjacentHTML('beforeend', ICON(txt));
+    ctx.cols.forEach((c,i)=>{
+      const doCol=lista.filter(r=>String(ctx.modoMensal?r.mes:r.loja)===String(c)); if(!doCol.length) return;
+      const cell=tr.cells[1+i*passo]; if(!cell) return;
+      const porNome={}; doCol.forEach(r=>porNome[r.nome||'(sem descrição)']=(porNome[r.nome||'(sem descrição)']||0)+r.valor);
+      const tc=doCol.reduce((t,r)=>t+r.valor,0);
+      cell.title='Reembolso entre lojas — '+(ctx.modoMensal?(MES[c]||c):c)+'\n'+Object.entries(porNome).map(([n,v])=>n.trim()+': R$ '+fmtBRL(v)).join('\n')+'\nTotal: R$ '+fmtBRL(tc);
+      cell.insertAdjacentHTML('beforeend','<span class="reemb-dot" aria-hidden="true"></span>');
+    });
+    const sub=tbody.querySelector(`tr[data-sid="${tr.dataset.parent}"]`);
+    marcarPai(sub,'Há contas com reembolso entre lojas neste subgrupo');
+    const grp=sub ? tbody.querySelector(`tr[data-gid="${sub.dataset.parent}"]`) : null;
+    marcarPai(grp,'Há contas com reembolso entre lojas neste grupo');
+  });
+}
+
 function toggleAll(open){
   const tbody=document.getElementById('dreTbody');
   if(open){
@@ -6160,7 +6263,7 @@ function buildSnapshotHtml(src, dados, chartJs){
   const novoLoadData =
     'async function loadData(){\n' +
     '  const S=window.__SNAP__;\n' +
-    '  raw=S.raw||[]; vendasRaw=S.vendas||[]; custoProdutoRaw=S.custo||[]; comprasRaw=S.compras||[]; despVencRaw=S.despVenc||[];\n' +
+    '  raw=S.raw||[]; vendasRaw=S.vendas||[]; custoProdutoRaw=S.custo||[]; comprasRaw=S.compras||[]; despVencRaw=S.despVenc||[]; reembRaw=S.reemb||[];\n' +
     '  reconciliacao=S.recon||{linhas:[]}; reconciliacaoPronta=true;\n' +
     '  recalcImpostosGer();\n' +
     '  document.getElementById("mainArea").style.display="block";\n' +
@@ -6198,7 +6301,7 @@ async function exportarRelatorio(){
     // Conferência: guarda só o necessário (linhas "ok" sem detalhe) pra reduzir o arquivo.
     const recon = { ...reconciliacao, linhas: (reconciliacao.linhas||[]).map(l => l.status==='ok'
       ? { tipo:l.tipo, mes:l.mes, ano:l.ano, loja:l.loja, valor:l.valor, status:'ok' } : l) };
-    const dados = { raw, vendas: vendasRaw, custo: custoProdutoRaw, compras: comprasRaw, despVenc: despVencRaw, recon, rotulo };
+    const dados = { raw, vendas: vendasRaw, custo: custoProdutoRaw, compras: comprasRaw, despVenc: despVencRaw, reemb: reembRaw, recon, rotulo };
     let chartJs = '';
     try { chartJs = await (await fetch('https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js')).text(); } catch (e) { console.warn('Chart.js não embutido:', e.message); }
     const html = buildSnapshotHtml(src, dados, chartJs);
