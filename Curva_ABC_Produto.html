@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.11.04-a">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Curva ABC Produto</title>
@@ -794,7 +794,7 @@ a.side-brand:hover { opacity:.85; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.04-a</span><span class="sv-short">11.04-a</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -891,6 +891,13 @@ a.side-brand:hover { opacity:.85; }
           <div class="grp-dd-list" id="cnl-dd-list"></div>
         </div>
       </div>
+    </div>
+    <div class="ig-fgroup"><span class="ig-flabel">Origem</span>
+      <select class="ig-fselect" id="f-origem" title="Coluna Fabrica da planilha de produtos: TRUE = produção própria, FALSE = revenda">
+        <option value="">Todas</option>
+        <option value="propria">Produção própria</option>
+        <option value="revenda">Revenda</option>
+      </select>
     </div>
     <div class="ig-fgroup"><span class="ig-flabel">Classe</span>
       <select class="ig-fselect" id="f-classe">
@@ -1234,6 +1241,8 @@ function parseCurvaABC(text, lojaFallback){
     //   DISTRIBUICAO + VS=True  + Fabrica=True  → descartada
     //   DISTRIBUICAO + VS=True  + Fabrica=False → REEMBOLSO
     //   DISTRIBUICAO + VS=False + Fabrica=True  → CENTRAL
+    // Origem do produto: coluna Fabrica TRUE = produção própria; FALSE/vazio = revenda.
+    const fabItem = ehVerdade(g(iFab));
     let canal = iCanal>=0 ? g(iCanal) : '';
     if(normTxt(canal)==='distribuicao'){
       const vs  = ehVerdade(g(iVs));
@@ -1255,6 +1264,7 @@ function parseCurvaABC(text, lojaFallback){
       canalKey: normTxt(canal),
       custofinal: iCusto>=0 ? parseNum(g(iCusto)) : 0,
       qtd, total,
+      fab: fabItem,
     });
   }
   return rows;
@@ -1293,7 +1303,7 @@ function unificarNomesGrupo(rows){
 /* ══════════════════════════════════════════════════════════════
    CACHE (IndexedDB) — mesmo padrão das demais páginas
 ══════════════════════════════════════════════════════════════ */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v8';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='curvaAbcProduto_data_v9';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req = indexedDB.open(DB_NAME, 1);
@@ -1322,7 +1332,7 @@ async function loadCacheDB(){
       // anteriores (marcada como "antiga" pra forçar atualização em segundo
       // plano). Assim a tela abre na hora com os dados que já existiam, em
       // vez de ficar parada esperando as 6 lojas carregarem do zero.
-      const chaves = [DB_KEY, 'curvaAbcProduto_data_v4','curvaAbcProduto_data_v3','curvaAbcProduto_data_v2','curvaAbcProduto_data_v1'];
+      const chaves = [DB_KEY, 'curvaAbcProduto_data_v8', 'curvaAbcProduto_data_v4','curvaAbcProduto_data_v3','curvaAbcProduto_data_v2','curvaAbcProduto_data_v1'];
       const tenta = i => {
         if(i >= chaves.length) return resolve(null);
         const req = store.get(chaves[i]);
@@ -1845,6 +1855,12 @@ function toggleCanalDropdown(e){
 function passaCanal(r){
   return !(r.canalKey && selectedCanais.size && !selectedCanais.has(r.canalKey));
 }
+/* Origem (Produção própria × Revenda) pela coluna Fabrica, item a item. */
+function passaOrigem(r){
+  const o = $('f-origem') ? $('f-origem').value : '';
+  if(!o) return true;
+  return o === 'propria' ? !!r.fab : !r.fab;
+}
 
 /* Filtros que definem o universo usado para calcular a curva
    (ano/mês/loja/grupo) — mudar qualquer um deles recalcula o
@@ -1858,6 +1874,7 @@ function getBaseFiltered(){
     if(!passaLoja(r)) return false;
     if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
     if(!passaCanal(r)) return false;
+    if(!passaOrigem(r)) return false;
     return true;
   });
 }
@@ -2096,7 +2113,7 @@ function setMensalDisplayMode(mode){
   applyFilters();
 }
 
-['f-ano','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
+['f-ano','f-origem','f-classe'].forEach(id => $(id).addEventListener('change', applyFilters));
 $('f-busca').addEventListener('input', () => { clearTimeout(window._buscaTimer); window._buscaTimer = setTimeout(applyFilters, 200); });
 
 /* ══════════════════════════════════════════════════════════════
@@ -2115,6 +2132,7 @@ function atualizarGruposDoPeriodo(){
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return;
     if(!passaLoja(r)) return;
     if(!passaCanal(r)) return;
+    if(!passaOrigem(r)) return;
     if(r.nomegrupo) set.add(r.nomegrupo);
   });
   const grupos = [...set].sort();
@@ -2127,7 +2145,7 @@ function atualizarGruposDoPeriodo(){
 function applyFilters(){
   atualizarGruposDoPeriodo();
   // Destaca em âmbar os selects com valor escolhido (Ano/Loja/Classe).
-  ['f-ano','f-classe'].forEach(id => { const el=$(id); if(el) el.classList.toggle('has-sel', !!el.value); });
+  ['f-ano','f-origem','f-classe'].forEach(id => { const el=$(id); if(el) el.classList.toggle('has-sel', !!el.value); });
   atualizarDisponibilidadeMensal();
   const { base, calc, metric, exibicao } = getFiltrados();
   renderKPIs(calc.porValor);
@@ -2151,6 +2169,7 @@ function getBaseFiltradoSemLoja(){
     if(selectedMeses.size && !selectedMeses.has(r.mes)) return false;
     if(selectedGrupos.size && !selectedGrupos.has(r.nomegrupo)) return false;
     if(!passaCanal(r)) return false;
+    if(!passaOrigem(r)) return false;
     return true;
   });
 }

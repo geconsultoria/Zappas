@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.11.04-a">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard · Faturamento & Lucro</title>
@@ -180,6 +180,8 @@
   .kpi-header{display:flex;align-items:center;gap:8px;margin-bottom:8px}
   .kpi-label{font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.6px}
   .kpi-value{font-family:'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;font-size:22px;font-weight:700;letter-spacing:-0.8px;line-height:1;text-align:center;width:100%;margin-bottom:4px}
+  .kpi-split{display:flex;flex-direction:column;align-items:flex-end;gap:1px;margin-top:4px;padding-top:4px;border-top:1px dashed var(--border);color:var(--text-secondary)}
+  .kpi-split b{color:var(--text-primary);font-weight:700}
   .kpi-sub{font-family:'Inter', system-ui, -apple-system, 'Segoe UI', Arial, sans-serif;font-size:11px;color:var(--text-muted);text-align:right}
 
   .charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:28px}
@@ -484,7 +486,7 @@ function ZAPPAS_CANAIS_EXTRAS(lista){
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.04-a</span><span class="sv-short">11.04-a</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -629,12 +631,14 @@ let rawFat = [], rawCmv = [], chartInstances = {}, debugLog = [];
 // Total vendido pela base de produtos (Curva ABC), por ano×loja×mês×canal —
 // usado só no quadro de Conciliação Faturamento × Curva ABC.
 let rawProdTot = [];
+// Se a base de produtos trouxe a coluna Fabrica/Montagem (divisão do CMV).
+let cmvTemFab = false;
 
 // ─── CACHE LOCAL (IndexedDB)
 // Ao abrir a página, usa os dados já salvos no navegador (carregamento
 // instantâneo). Só busca dados novos do Drive quando o usuário clicar
 // no botão de atualizar.
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v11';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='faturamentoLucro_data_v12';
 function openDB(){
   return new Promise((resolve,reject)=>{
     const req=indexedDB.open(DB_NAME,1);
@@ -1116,6 +1120,7 @@ function abcAgregar(text, lojaFallback, out){
   const ehVerdade = v => /^(true|verdadeiro|1|1\.0|sim|s|x|yes)$/i.test(String(v||'').trim());
   const missing=[]; if(iNome<0) missing.push('nome'); if(iQtd<0) missing.push('qtd'); if(iTotal<0) missing.push('total');
   if(missing.length) throw new Error('colunas não encontradas: '+missing.join(', '));
+  if(iFab>=0) out.__temFab = true;
   let n = 0;
   for(let i=1;i<lines.length;i++){
     const line=lines[i].trim(); if(!line) continue;
@@ -1148,6 +1153,8 @@ function abcAgregar(text, lojaFallback, out){
       cod: abcNormCodGrupo(iGrupo>=0 ? g(iGrupo) : ''), nomegrupo,
       nome: out.__comNome ? g(iNome) : undefined, qtd: out.__comNome ? qtd : undefined,
       total, custo: (iCusto>=0 ? abcParseNum(g(iCusto)) : 0) * (qtd||0),
+      // Produção própria = coluna Fabrica/Montagem verdadeira; senão, revenda.
+      prop: iFab>=0 && ehVerdade(g(iFab)),
     });
     n++;
   }
@@ -1167,8 +1174,8 @@ function abcConsolidar(rows){
     const nome = u ? u.nome : r.nomegrupo;
     if(ABC_GRUPOS_EXCLUIDOS.includes(abcNormTxt(nome))){ excl++; return; }
     const k = r.ano+'|'+r.lojaRaw+'|'+r.mes+'|'+r.dia+'|'+r.canalRaw;
-    const a = acc[k] || (acc[k] = { ano: r.ano, lojaRaw: r.lojaRaw, mes: r.mes, dia: r.dia, canalRaw: r.canalRaw, total: 0, custo: 0 });
-    a.total += r.total; a.custo += r.custo;
+    const a = acc[k] || (acc[k] = { ano: r.ano, lojaRaw: r.lojaRaw, mes: r.mes, dia: r.dia, canalRaw: r.canalRaw, total: 0, custo: 0, custoProp: 0 });
+    a.total += r.total; a.custo += r.custo; if(r.prop) a.custoProp += r.custo;
   });
   debugLog.push(`CMV produto: ${excl} linha(s) excluídas por grupo renomeado para grupo excluído.`);
   return Object.values(acc);
@@ -1196,6 +1203,8 @@ async function loadCmvProduto(){
     } finally { progresso(); }
   });
   porLoja.forEach(a => { for (const r of a) linhas.push(r); });
+  cmvTemFab = porLoja.some(a => a.__temFab);
+  if(!cmvTemFab) debugLog.push('<span class="warn">⚠ CMV produto: coluna Fabrica/Montagem não encontrada — sem divisão produção própria × revenda.</span>');
   return { linhas: abcConsolidar(linhas), falharam };
 }
 // Casa loja/canal da base de produtos com os rótulos do faturamento
@@ -1214,8 +1223,8 @@ function mapearProdutos(prod, fat){
     const canal = p.canalRaw ? (canalMap[abcNormTxt(p.canalRaw)] || p.canalRaw) : '';
     // CMV: por mês (não precisa do dia). Total vendido: por dia (Conciliação).
     const k = p.ano+'|'+loja+'|'+p.mes+'|'+canal;
-    const c = cmvAcc[k] || (cmvAcc[k] = { ano: p.ano, loja, mes: p.mes, canal, valor: 0 });
-    c.valor += p.custo;
+    const c = cmvAcc[k] || (cmvAcc[k] = { ano: p.ano, loja, mes: p.mes, canal, valor: 0, valorProp: 0, valorRev: 0 });
+    c.valor += p.custo; c.valorProp += p.custoProp || 0; c.valorRev += p.custo - (p.custoProp || 0);
     tot.push({ ano: p.ano, loja, mes: p.mes, dia: p.dia, canal, total: p.total });
   });
   return { cmv: Object.values(cmvAcc), tot };
@@ -1253,6 +1262,7 @@ async function loadData(forceRefresh, silent = false) {
       rawFat = cached.data.rawFat;
       rawCmv = cached.data.rawCmv || [];
       rawProdTot = cached.data.rawProdTot || [];
+      cmvTemFab = !!cached.data.cmvTemFab;
       populateFilters();
       renderDashboard();
       if (cached.data.cmvUnavailable) {
@@ -1357,7 +1367,7 @@ async function loadData(forceRefresh, silent = false) {
       + (lojasSemDados.size ? ' ⚠️ Sem dados de: ' + [...lojasSemDados].join(', ') : '')
       + (lojasMantidas.size ? ' ⚠️ Não atualizou (mantido o dado anterior): ' + [...lojasMantidas].join(', ') : '');
 
-    saveCache({ rawFat, rawCmv, rawProdTot, cmvUnavailable }, ts, tsDate.getTime(), inicioTs).then(ok => {
+    saveCache({ rawFat, rawCmv, rawProdTot, cmvUnavailable, cmvTemFab }, ts, tsDate.getTime(), inicioTs).then(ok => {
       if (!ok) document.getElementById('fb-ts').textContent += ' ⚠️ não foi possível guardar no navegador (vai recarregar na próxima vez)';
     });
     if (isRefresh) hideUpdateOverlay(false, '✓ Dados atualizados.');
@@ -1697,6 +1707,12 @@ function _renderDashboard() {
 
   const tFat   = sumBy(fatF, 'total_venda');
   const tCmv   = sumBy(cmvF, 'valor');
+  const tCmvProp = sumBy(cmvF, 'valorProp'), tCmvRev = sumBy(cmvF, 'valorRev');
+  const pCmv = v => fmtPct(tCmv ? v / tCmv * 100 : 0);
+  const cmvSub = `${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`
+    + (cmvTemFab
+      ? `<div class="kpi-split"><span>Produção própria <b>${fmt(tCmvProp)}</b> (${pCmv(tCmvProp)})</span><span>Revenda <b>${fmt(tCmvRev)}</b> (${pCmv(tCmvRev)})</span></div>`
+      : `<div class="kpi-split"><span>Sem coluna Fabrica/Montagem na base de produtos</span></div>`);
   const tLucro = tFat - tCmv;
   const pctLB  = tFat > 0 ? (tLucro/tFat)*100 : 0;
 
@@ -1725,7 +1741,7 @@ function _renderDashboard() {
   kpiWrap.innerHTML = `<div class="section-title">Indicadores Gerais</div>
   <div class="kpi-grid">
     ${kpi('blue','M11.8 10.9c-2.27-.59-3-1.2-3-2.15 0-1.09 1.01-1.85 2.7-1.85 1.78 0 2.44.85 2.5 2.1h2.21c-.07-1.72-1.12-3.3-3.21-3.81V3h-3v2.16c-1.94.42-3.5 1.68-3.5 3.61 0 2.31 1.91 3.46 4.7 4.13 2.5.6 3 1.48 3 2.41 0 .69-.49 1.79-2.7 1.79-2.06 0-2.87-.92-2.98-2.1h-2.2c.12 2.19 1.76 3.42 3.68 3.83V21h3v-2.15c1.95-.37 3.5-1.5 3.5-3.55 0-2.84-2.43-3.81-4.7-4.4z','Faturamento Total',fmt(tFat),`${fatF.length} registros`)}
-    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total (Produto)',fmt(tCmv),`${fmtPct(tFat>0?(tCmv/tFat)*100:0)} do faturamento`)}
+    ${kpi('orange','M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 3c1.93 0 3.5 1.57 3.5 3.5S13.93 13 12 13s-3.5-1.57-3.5-3.5S10.07 6 12 6zm7 13H5v-.23c0-.62.28-1.2.76-1.58C7.47 15.82 9.64 15 12 15s4.53.82 6.24 2.19c.48.38.76.97.76 1.58V19z','CMV Total (Produto)',fmt(tCmv),cmvSub)}
     ${kpi('green','M16 6l2.29 2.29-4.88 4.88-4-4L2 16.59 3.41 18l6-6 4 4 6.3-6.29L22 12V6z','Lucro Bruto',fmt(tLucro),`Margem de ${fmtPct(pctLB)}`)}
     ${kpi('indigo','M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-4h2v4zm0-6h-2V7h2v4z','% Lucro Bruto',fmtPct(pctLB),pctLB>=30?'✓ Acima do esperado':pctLB>=15?'→ Dentro do esperado':'↓ Abaixo do esperado')}
   </div>`;
