@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.11.07-a">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Dashboard de Metas</title>
@@ -1074,7 +1074,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.07-a</span><span class="sv-short">11.07-a</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -1132,6 +1132,10 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
   </div>
 
   <div class="header-right">
+    <button class="btn-auditoria" id="btnAuditoria" type="button" onclick="Auditoria.abrir()" style="display:none" title="Histórico de alterações de Meta e Ponto de Equilíbrio (só administrador)">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><path d="M9 13l2 2 4-4"/></svg>
+      Auditoria
+    </button>
     <div class="last-update">
       Última atualização<br>
       <strong id="lastUpdateTime">—</strong>
@@ -2240,7 +2244,7 @@ function splitLojaCanal(loja) {
 // Retorna { ok: true } se a planilha confirmou, ou { ok: false, error }
 // se algo falhou — quem chama usa isso pra dar feedback visual real,
 // em vez de assumir que "salvou" só porque não deu erro no console.
-function saveMetaToSheet(ano, mes, loja, tipo, valor) {
+function saveMetaToSheet(ano, mes, loja, tipo, valor, extra) {
   if (!METAS_APPS_SCRIPT_URL || METAS_APPS_SCRIPT_URL.startsWith('COLE_AQUI')) {
     return Promise.resolve({ ok: false, error: 'URL do Apps Script não configurada' });
   }
@@ -2253,6 +2257,12 @@ function saveMetaToSheet(ano, mes, loja, tipo, valor) {
       token: METAS_TOKEN,
       ano, mes, loja: lojaBase, canal,
       campo: tipo, valor,
+      // Auditoria: quem alterou e o valor que estava na tela antes.
+      // O Apps Script grava isso na aba AUDITORIA_METAS.
+      valor_anterior: extra && extra.anterior,
+      usuario: extra && extra.usuario,
+      email: extra && extra.email,
+      origem: 'Elaboração de Metas',
     }),
   })
     .then(r => {
@@ -2769,6 +2779,11 @@ function onMetaChange(loja, mes, type) {
   const input = document.getElementById(key);
   if (!input) return;
   const val = parseInput(input.value);
+  // Valor que estava valendo antes (digitado neste navegador ou o da planilha).
+  // onchange e onblur chamam esta função: sem mudança de valor não grava nem
+  // registra na auditoria (antes, só sair do campo já enviava de novo).
+  const anterior = loadSaved(type === 'meta' ? metaKey(loja, mes) : peKey(loja, mes)) || getMetasValue(loja, mes, type) || 0;
+  if (Math.abs(val - anterior) < 0.005) return;
   savePersist(type === 'meta' ? metaKey(loja, mes) : peKey(loja, mes), val);
 
   input.classList.remove('saved', 'sync-error');
@@ -2785,8 +2800,10 @@ function onMetaChange(loja, mes, type) {
 
   if (mesSel) {
     input.classList.add('saving');
-    saveMetaToSheet(anoParaSalvar, mesSel, loja, type, val).then(res => {
+    const quem = Auditoria.usuario();
+    saveMetaToSheet(anoParaSalvar, mesSel, loja, type, val, { anterior, usuario: quem.nome, email: quem.email }).then(res => {
       input.classList.remove('saving');
+      Auditoria.registrarLocal({ ano: anoParaSalvar, mes: mesSel, loja, campo: type, anterior, valor: val, sincronizado: res.ok, erro: res.ok ? '' : res.error });
       if (res.ok) {
         input.classList.add('saved');
         setTimeout(() => input.classList.remove('saved'), 1200);
@@ -2804,6 +2821,7 @@ function onMetaChange(loja, mes, type) {
   } else {
     // Sem mês específico selecionado ("Todos") não dá pra saber em qual
     // linha da planilha gravar — fica só no localStorage deste navegador.
+    Auditoria.registrarLocal({ ano: anoParaSalvar, mes: 0, loja, campo: type, anterior, valor: val, sincronizado: false, erro: 'Mês "Todos": salvo só neste navegador' });
     input.classList.add('saved');
     input.title = 'Salvo só neste navegador — selecione um mês específico para sincronizar com a planilha.';
     setTimeout(() => input.classList.remove('saved'), 1200);
@@ -2887,7 +2905,7 @@ function computeMetaRowV2(loja, mesKey, prevKey, currR25, prevR25, metaPrevReal)
 /* =========================================================
    INIT
    ========================================================= */
-window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('elaboracao_metas', function(){ loadData(); }));
+window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('elaboracao_metas', function(){ Auditoria.iniciar(arguments); loadData(); }));
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">
@@ -2969,6 +2987,303 @@ window.addEventListener('DOMContentLoaded', () => AuthGuard.requireScreen('elabo
   document.addEventListener('visibilitychange', function(){ if (!document.hidden) verificar(); });
 })();
 </script>
+<!-- ═══ AUDITORIA DE METAS (v2026.11.07-a) ═══
+     Registra cada alteração de Meta e Ponto de Equilíbrio: quem, quando,
+     loja/mês, valor anterior e novo. O registro oficial fica na aba
+     AUDITORIA_METAS da planilha (gravado pelo Apps Script no mesmo POST que
+     salva a meta). A consulta ?tipo=auditoria lê essa aba.
+     Botão e janela só aparecem para administrador. -->
+<style>
+.btn-auditoria{display:flex;align-items:center;gap:7px;padding:8px 14px;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.28);border-radius:var(--radius-sm);font:600 13px var(--font-body);cursor:pointer;white-space:nowrap;transition:var(--transition)}
+.btn-auditoria:hover{background:rgba(255,255,255,.18)}
+.aud-veu{position:fixed;inset:0;z-index:600;background:rgba(10,20,40,.45);display:none;align-items:flex-start;justify-content:center;padding:4vh 16px}
+.aud-veu.show{display:flex}
+.aud-janela{background:var(--surface);border-radius:var(--radius);box-shadow:var(--shadow-lg);width:min(1280px,100%);max-height:92vh;display:flex;flex-direction:column;overflow:hidden}
+.aud-cab{display:flex;align-items:center;gap:12px;padding:16px 20px;border-bottom:1px solid var(--border);background:var(--surface2)}
+.aud-cab h2{font-size:16px;font-weight:700}
+.aud-cab .sub{font-size:12px;color:var(--text-muted)}
+.aud-fechar{margin-left:auto;background:none;border:0;font-size:22px;line-height:1;color:var(--text-secondary);cursor:pointer;padding:2px 6px}
+.aud-filtros{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;padding:12px 20px;border-bottom:1px solid var(--border)}
+.aud-filtros label{display:flex;flex-direction:column;gap:3px;font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.aud-filtros input,.aud-filtros select{font:500 12.5px var(--font-body);color:var(--text-primary);border:1px solid var(--border-strong);border-radius:var(--radius-sm);padding:6px 8px;background:#fff}
+.aud-kpis{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;padding:12px 20px 0}
+.aud-kpis .kpi{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:8px 12px;display:flex;flex-direction:column}
+.aud-kpis .kpi-lbl{font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--text-muted)}
+.aud-kpis .kpi-val{font-size:18px;font-weight:700;text-align:center;margin:2px 0}
+.aud-kpis .kpi-foot{font-size:11px;color:var(--text-secondary);text-align:right}
+.aud-aviso{margin:12px 20px 0;padding:9px 12px;border-radius:var(--radius-sm);background:var(--warning-soft);color:#7a4a05;font-size:12px;display:none}
+.aud-corpo{overflow:auto;padding:12px 20px 4px;flex:1}
+.aud-tab{width:100%;border-collapse:collapse;font-size:12.5px}
+.aud-tab th{position:sticky;top:0;background:var(--surface2);text-align:left;font-size:10.5px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:var(--text-muted);padding:8px;border-bottom:2px solid var(--border);white-space:nowrap}
+.aud-tab td{padding:7px 8px;border-bottom:1px solid var(--border);white-space:nowrap}
+.aud-tab td.n,.aud-tab th.n{text-align:right}
+.aud-tab .up{color:var(--accent2);font-weight:600}
+.aud-tab .dn{color:var(--danger);font-weight:600}
+.aud-tag{display:inline-block;padding:1px 7px;border-radius:20px;font-size:10.5px;font-weight:700}
+.aud-tag.meta{background:var(--accent-soft);color:var(--accent)}
+.aud-tag.pe{background:#F0F2F6;color:#5A6378}
+.aud-tag.err{background:var(--danger-soft);color:var(--danger)}
+.aud-vazio{text-align:center;color:var(--text-muted);padding:30px}
+.aud-rod{display:flex;align-items:center;gap:10px;padding:12px 20px;border-top:1px solid var(--border)}
+.aud-rod .info{font-size:12px;color:var(--text-muted)}
+.aud-btn{margin-left:auto;padding:7px 14px;border-radius:var(--radius-sm);border:1px solid var(--accent);background:var(--accent);color:#fff;font:600 12.5px var(--font-body);cursor:pointer}
+.aud-btn.sec{margin-left:0;background:#fff;color:var(--accent)}
+@media (max-width:700px){.aud-kpis{grid-template-columns:repeat(2,1fr)}.aud-veu{padding:0}.aud-janela{max-height:100vh;border-radius:0}}
+</style>
+
+<div class="aud-veu" id="aud-veu" onclick="if(event.target===this)Auditoria.fechar()">
+  <div class="aud-janela" role="dialog" aria-label="Auditoria de Metas">
+    <div class="aud-cab">
+      <div>
+        <h2>Auditoria — alterações de Meta e Ponto de Equilíbrio</h2>
+        <div class="sub">Quem alterou, quando, e o valor antes e depois · visível só para administrador</div>
+      </div>
+      <button class="aud-fechar" type="button" onclick="Auditoria.fechar()" aria-label="Fechar">×</button>
+    </div>
+    <div class="aud-filtros">
+      <label>De <input type="date" id="aud-de"></label>
+      <label>Até <input type="date" id="aud-ate"></label>
+      <label>Usuário <select id="aud-usuario"><option value="">Todos</option></select></label>
+      <label>Loja <select id="aud-loja"><option value="">Todas</option></select></label>
+      <label>Campo <select id="aud-campo"><option value="">Meta e PE</option><option value="meta">Meta</option><option value="pe">Ponto de Equilíbrio</option></select></label>
+      <label>Mês da meta <select id="aud-mes"><option value="">Todos</option></select></label>
+    </div>
+    <div class="aud-kpis">
+      <div class="kpi"><div class="kpi-lbl">Alterações</div><div class="kpi-val" id="aud-k-qtd">—</div><div class="kpi-foot">no filtro</div></div>
+      <div class="kpi"><div class="kpi-lbl">Usuários</div><div class="kpi-val" id="aud-k-usu">—</div><div class="kpi-foot">diferentes</div></div>
+      <div class="kpi"><div class="kpi-lbl">Última alteração</div><div class="kpi-val" id="aud-k-ult" style="font-size:14px">—</div><div class="kpi-foot" id="aud-k-ult-quem">—</div></div>
+      <div class="kpi"><div class="kpi-lbl">Não sincronizadas</div><div class="kpi-val" id="aud-k-err">—</div><div class="kpi-foot">só no navegador</div></div>
+    </div>
+    <div class="aud-aviso" id="aud-aviso"></div>
+    <div class="aud-corpo">
+      <table class="aud-tab">
+        <thead><tr>
+          <th>Data/hora</th><th>Usuário</th><th>Loja</th><th>Canal</th><th>Ano/Mês</th><th>Campo</th>
+          <th class="n">Anterior</th><th class="n">Novo</th><th class="n">Variação</th><th>Situação</th>
+        </tr></thead>
+        <tbody id="aud-tbody"><tr><td colspan="10" class="aud-vazio">Carregando…</td></tr></tbody>
+      </table>
+    </div>
+    <div class="aud-rod">
+      <span class="info" id="aud-info"></span>
+      <button class="aud-btn sec" type="button" onclick="Auditoria.carregar()">Recarregar</button>
+      <button class="aud-btn" type="button" onclick="Auditoria.exportar()">Exportar Excel (CSV)</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const Auditoria = (function(){
+  const CHAVE_LOCAL = 'zappas_auditoria_metas_local';
+  const MAX_LOCAL = 500;
+  let argsAuth = [];       // o que o AuthGuard passou para a tela (se passar o usuário)
+  let registros = [];      // linhas carregadas (planilha ou, na falta, deste navegador)
+  let fonte = '';
+
+  /* ── Quem está usando a tela ──
+     O auth-common.js é compartilhado por todas as telas; aqui procuramos o
+     usuário logado nas formas mais comuns, sem depender de um nome só. */
+  function objUsuario(){
+    const cands = [];
+    argsAuth.forEach(a => { if (a && typeof a === 'object') cands.push(a, a.user, a.usuario, a.session && a.session.user); });
+    const G = window.AuthGuard || {};
+    ['getUser','getUsuario','currentUser','getSession','usuarioAtual'].forEach(f => {
+      try { if (typeof G[f] === 'function') { const r = G[f](); cands.push(r, r && r.user, r && r.usuario); } } catch(e){}
+    });
+    cands.push(G.user, G.usuario, G.session && G.session.user, window.ZAPPAS_USER, window.currentUser);
+    [sessionStorage, localStorage].forEach(st => {
+      try {
+        for (let i = 0; i < st.length; i++) {
+          const k = st.key(i);
+          if (!/user|usuario|auth|sess/i.test(k) || /auditoria/i.test(k)) continue;
+          try { const v = JSON.parse(st.getItem(k)); cands.push(v, v && v.user, v && v.usuario); } catch(e){}
+        }
+      } catch(e){}
+    });
+    return cands.find(c => c && typeof c === 'object' && (c.email || c.nome || c.name || c.login || c.usuario)) || null;
+  }
+
+  function usuario(){
+    const u = objUsuario() || {};
+    const email = u.email || u.mail || u.login || '';
+    const nome = u.nome || u.name || u.displayName || (typeof u.usuario === 'string' ? u.usuario : '') || email || 'Não identificado';
+    return { nome: String(nome), email: String(email), papel: String(u.role || u.papel || u.perfil || u.tipo || u.nivel || '') };
+  }
+
+  function ehAdmin(){
+    const G = window.AuthGuard || {};
+    for (const f of ['isAdmin','ehAdmin','souAdmin']) {
+      try { if (typeof G[f] === 'function') return !!G[f](); } catch(e){}
+    }
+    const u = objUsuario() || {};
+    if (u.admin === true || u.isAdmin === true) return true;
+    return /^(admin|administrador|adm)$/i.test(usuario().papel.trim());
+  }
+
+  function iniciar(args){
+    argsAuth = Array.prototype.slice.call(args || []);
+    const btn = document.getElementById('btnAuditoria');
+    if (btn) btn.style.display = ehAdmin() ? 'flex' : 'none';
+  }
+
+  /* Cópia deste navegador: serve de reserva se o Apps Script ainda não
+     tiver a aba de auditoria, e mostra o que não sincronizou. */
+  function registrarLocal(r){
+    try {
+      const quem = usuario();
+      const lista = JSON.parse(localStorage.getItem(CHAVE_LOCAL) || '[]');
+      const { loja, canal } = splitLojaCanal(r.loja);
+      lista.unshift({ data: new Date().toISOString(), usuario: quem.nome, email: quem.email,
+        ano: r.ano, mes: r.mes, loja, canal, campo: r.campo, anterior: r.anterior, valor: r.valor,
+        sincronizado: !!r.sincronizado, erro: r.erro || '' });
+      localStorage.setItem(CHAVE_LOCAL, JSON.stringify(lista.slice(0, MAX_LOCAL)));
+    } catch(e){}
+  }
+
+  function normalizar(r){
+    const n = k => { const v = r[k]; return typeof v === 'number' ? v : (parseNumber(v) || 0); };
+    return {
+      data: r.data || r.data_hora || r.datahora || '',
+      usuario: r.usuario || r.email || 'Não identificado',
+      email: r.email || '',
+      ano: parseInt(r.ano) || '',
+      mes: parseInt(r.mes) || parseMesFromName(r.mes) || 0,
+      loja: String(r.loja || '').toUpperCase(),
+      canal: String(r.canal || '').toUpperCase(),
+      campo: String(r.campo || '').toLowerCase() === 'pe' ? 'pe' : 'meta',
+      anterior: n('anterior') || n('valor_anterior'),
+      valor: n('valor') || n('valor_novo'),
+      sincronizado: r.sincronizado === undefined ? true : !!r.sincronizado,
+      erro: r.erro || ''
+    };
+  }
+
+  async function carregar(){
+    const tb = document.getElementById('aud-tbody');
+    const aviso = document.getElementById('aud-aviso');
+    tb.innerHTML = '<tr><td colspan="10" class="aud-vazio">Carregando…</td></tr>';
+    aviso.style.display = 'none';
+    let locais = [];
+    try { locais = JSON.parse(localStorage.getItem(CHAVE_LOCAL) || '[]').map(normalizar); } catch(e){}
+    try {
+      const u = METAS_APPS_SCRIPT_URL + '?tipo=auditoria&token=' + encodeURIComponent(METAS_TOKEN) + '&_cb=' + Date.now();
+      const r = await fetch(u, { cache: 'no-store' });
+      if (!r.ok) throw new Error('HTTP ' + r.status);
+      const j = JSON.parse(await r.text());
+      if (!j || j.ok !== true || !Array.isArray(j.linhas)) throw new Error((j && j.error) || 'resposta inesperada');
+      registros = j.linhas.map(normalizar);
+      // O que não chegou na planilha só existe neste navegador: acrescenta.
+      registros = registros.concat(locais.filter(l => !l.sincronizado));
+      fonte = 'planilha';
+    } catch(e) {
+      registros = locais;
+      fonte = 'local';
+      aviso.innerHTML = '<b>Mostrando só as alterações feitas neste navegador.</b> A planilha ainda não respondeu à consulta de auditoria (' + (e.message || '') + '). Confira se o Apps Script de Metas foi atualizado com a aba AUDITORIA_METAS.';
+      aviso.style.display = 'block';
+    }
+    registros.sort((a, b) => String(b.data).localeCompare(String(a.data)));
+    montarFiltros();
+    render();
+  }
+
+  function preencher(id, vals, rot){
+    const sel = document.getElementById(id), atual = sel.value, primeiro = sel.options[0].outerHTML;
+    sel.innerHTML = primeiro + vals.map(v => `<option value="${String(v).replace(/"/g,'&quot;')}">${rot ? rot(v) : v}</option>`).join('');
+    if (vals.map(String).includes(atual)) sel.value = atual;
+  }
+  function montarFiltros(){
+    preencher('aud-usuario', [...new Set(registros.map(r => r.usuario))].sort());
+    preencher('aud-loja', [...new Set(registros.map(r => r.loja + (r.canal ? ' ' + r.canal : '')))].sort(), v => v === 'BELVEDER' ? 'BELVEDERE' : v);
+    preencher('aud-mes', [...new Set(registros.map(r => r.ano + '-' + String(r.mes).padStart(2,'0')))].sort().reverse(),
+      v => { const [a, m] = v.split('-'); return +m ? MESES_ABREV[+m - 1] + '/' + a : 'Sem mês/' + a; });
+  }
+
+  function filtrados(){
+    const g = id => document.getElementById(id).value;
+    const de = g('aud-de'), ate = g('aud-ate'), us = g('aud-usuario'), lj = g('aud-loja'), cp = g('aud-campo'), ms = g('aud-mes');
+    return registros.filter(r => {
+      const d = String(r.data).slice(0, 10);
+      if (de && d < de) return false;
+      if (ate && d > ate) return false;
+      if (us && r.usuario !== us) return false;
+      if (lj && (r.loja + (r.canal ? ' ' + r.canal : '')) !== lj) return false;
+      if (cp && r.campo !== cp) return false;
+      if (ms && (r.ano + '-' + String(r.mes).padStart(2,'0')) !== ms) return false;
+      return true;
+    });
+  }
+
+  function dataBR(iso){
+    const d = new Date(iso);
+    if (isNaN(d)) return String(iso || '—');
+    return d.toLocaleDateString('pt-BR') + ' ' + d.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  }
+  const moeda = v => (v || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const esc = t => String(t == null ? '' : t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+
+  function render(){
+    const lin = filtrados();
+    const tb = document.getElementById('aud-tbody');
+    if (!lin.length) {
+      tb.innerHTML = '<tr><td colspan="10" class="aud-vazio">' + (registros.length ? 'Nenhuma alteração no filtro.' : 'Nenhuma alteração registrada ainda.') + '</td></tr>';
+    } else {
+      tb.innerHTML = lin.map(r => {
+        const dif = r.valor - r.anterior;
+        const pct = r.anterior ? ' (' + (dif >= 0 ? '+' : '') + (dif / r.anterior * 100).toFixed(1).replace('.', ',') + '%)' : '';
+        return `<tr>
+          <td>${dataBR(r.data)}</td>
+          <td title="${esc(r.email)}">${esc(r.usuario)}</td>
+          <td>${esc(r.loja === 'BELVEDER' ? 'BELVEDERE' : r.loja)}</td>
+          <td>${esc(r.canal || '—')}</td>
+          <td>${r.mes ? MESES_ABREV[r.mes - 1] + '/' + r.ano : '—'}</td>
+          <td><span class="aud-tag ${r.campo}">${r.campo === 'pe' ? 'Ponto de Equilíbrio' : 'Meta'}</span></td>
+          <td class="n">${r.anterior ? moeda(r.anterior) : '—'}</td>
+          <td class="n"><b>${r.valor ? moeda(r.valor) : 'apagado'}</b></td>
+          <td class="n ${dif >= 0 ? 'up' : 'dn'}">${(dif >= 0 ? '+' : '') + moeda(dif)}${pct}</td>
+          <td>${r.sincronizado ? 'Gravado na planilha' : '<span class="aud-tag err" title="' + esc(r.erro) + '">Só neste navegador</span>'}</td>
+        </tr>`;
+      }).join('');
+    }
+    document.getElementById('aud-k-qtd').textContent = lin.length;
+    document.getElementById('aud-k-usu').textContent = new Set(lin.map(r => r.usuario)).size;
+    document.getElementById('aud-k-ult').textContent = lin[0] ? dataBR(lin[0].data) : '—';
+    document.getElementById('aud-k-ult-quem').textContent = lin[0] ? lin[0].usuario : '—';
+    document.getElementById('aud-k-err').textContent = lin.filter(r => !r.sincronizado).length;
+    document.getElementById('aud-info').textContent = lin.length + ' de ' + registros.length + ' registro(s) · fonte: ' + (fonte === 'planilha' ? 'aba AUDITORIA_METAS da planilha' : 'este navegador');
+  }
+
+  function exportar(){
+    const lin = filtrados();
+    const cab = ['Data/hora','Usuário','E-mail','Loja','Canal','Ano','Mês','Campo','Valor anterior','Valor novo','Variação','Situação'];
+    const num = v => (v || 0).toFixed(2).replace('.', ',');
+    const cel = v => '"' + String(v == null ? '' : v).replace(/"/g, '""') + '"';
+    const linhas = lin.map(r => [dataBR(r.data), r.usuario, r.email, r.loja, r.canal, r.ano, r.mes ? MESES_NOME[r.mes - 1] : '',
+      r.campo === 'pe' ? 'Ponto de Equilíbrio' : 'Meta', num(r.anterior), num(r.valor), num(r.valor - r.anterior),
+      r.sincronizado ? 'Gravado na planilha' : 'Só no navegador' + (r.erro ? ' — ' + r.erro : '')].map(cel).join(';'));
+    const csv = '﻿' + [cab.map(cel).join(';')].concat(linhas).join('\r\n');
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
+    a.download = 'auditoria_metas_' + new Date().toISOString().slice(0, 10) + '.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+  }
+
+  function abrir(){
+    if (!ehAdmin()) { alert('A auditoria é restrita ao administrador.'); return; }
+    document.getElementById('aud-veu').classList.add('show');
+    carregar();
+  }
+  function fechar(){ document.getElementById('aud-veu').classList.remove('show'); }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    ['aud-de','aud-ate','aud-usuario','aud-loja','aud-campo','aud-mes'].forEach(id => document.getElementById(id).addEventListener('change', render));
+  });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') fechar(); });
+
+  return { iniciar, usuario, ehAdmin, registrarLocal, abrir, fechar, carregar, exportar };
+})();
+</script>
+
 </body>
 
 </html>
