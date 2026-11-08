@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.10.16-b">
+<meta name="zappas-versao" content="v2026.11.08-a">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Ciclo Financeiro</title>
@@ -388,7 +388,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
   <div class="ld-txt" id="ld-txt">Conectando…</div>
 </div>
 
-<button class="side-toggle" id="side-toggle" onclick="document.body.classList.toggle('side-open')">
+<button class="side-toggle" id="side-toggle">
   <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"/></svg>
 </button>
 <div class="side-overlay" id="side-overlay" onclick="document.body.classList.remove('side-open')"></div>
@@ -494,7 +494,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.10.16-b</span><span class="sv-short">10.16-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.08-a</span><span class="sv-short">11.08-a</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -978,16 +978,92 @@ function applyFilters(){
     (geral && geral.pmp!==null ? `<tr class="total-row"><td>Geral (${loja?lojaLabel(loja):'todas as lojas'})</td><td class="num">${fBRL(geral.saldoAberto)}</td><td class="num">${fBRL(geral.totalPago)}</td><td class="num">${fD(geral.pmp)} dias</td></tr>` : '');
 }
 
-document.querySelectorAll('.side-item > .side-link').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const item = btn.closest('.side-item');
-    const wasOpen = item.classList.contains('open');
-    document.querySelectorAll('.side-item.open').forEach(i => i.classList.remove('open'));
-    if(!wasOpen) item.classList.add('open');
-  });
-});
 
 AuthGuard.requireScreen('ciclo_financeiro', function(){ loadData(false); });
+</script>
+<script>
+// ── SIDEBAR: recolher/expandir ──
+let lastOpenMenu = 'financeiro';
+function expandSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  if(!sidebar.classList.contains('collapsed')) return;
+  sidebar.classList.remove('collapsed');
+  document.documentElement.style.setProperty('--side-w', '232px');
+  if(lastOpenMenu){
+    const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+    if(item) item.classList.add('open');
+  }
+}
+function collapseSidebar(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.classList.add('collapsed');
+  document.documentElement.style.setProperty('--side-w', 'var(--side-w-collapsed)');
+  const openItem = document.querySelector('.side-item.open');
+  lastOpenMenu = openItem ? openItem.getAttribute('data-menu') : lastOpenMenu;
+  document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+}
+(function(){
+  const sidebar = document.getElementById('sidebar');
+  sidebar.addEventListener('mouseenter', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      sidebar.classList.add('peek');
+      if(lastOpenMenu){
+        const item = document.querySelector(`.side-item[data-menu="${lastOpenMenu}"]`);
+        if(item) item.classList.add('open');
+      }
+    }
+  });
+  sidebar.addEventListener('mouseleave', ()=>{
+    if(sidebar.classList.contains('collapsed')){
+      document.querySelectorAll('.side-item.open').forEach(i=>i.classList.remove('open'));
+    }
+    sidebar.classList.remove('peek');
+  });
+})();
+
+// ── SIDEBAR: abrir/fechar submenus e botão mobile ──
+(function(){
+  const items = document.querySelectorAll('.side-item');
+  items.forEach(item=>{
+    const btn = item.querySelector('.side-link');
+    btn.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      const wasOpen = item.classList.contains('open');
+      items.forEach(i=>{ if(i!==item) i.classList.remove('open'); });
+      item.classList.toggle('open', !wasOpen);
+      // Enquanto a sidebar estiver só "espiando" (peek, por causa do
+      // hover), clicar num item apenas abre/fecha o submenu — não fixa
+      // a sidebar expandida. Assim, ao tirar o mouse de cima ela volta
+      // a recolher normalmente (o mouseleave cuida disso).
+      if(sidebar.classList.contains('collapsed')){
+        lastOpenMenu = item.classList.contains('open') ? item.getAttribute('data-menu') : lastOpenMenu;
+      }
+    });
+  });
+
+  const toggle = document.getElementById('side-toggle');
+  if(toggle){
+    toggle.addEventListener('click', ()=>{
+      const sidebar = document.getElementById('sidebar');
+      if(window.innerWidth <= 900){
+        document.body.classList.toggle('side-open');
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        }
+      } else {
+        if(sidebar.classList.contains('collapsed')){
+          expandSidebar();
+        } else {
+          collapseSidebar();
+        }
+      }
+    });
+  }
+})();
+
+// Recolhe o menu automaticamente no desktop ao abrir este dashboard,
+// igual nos demais dashboards do painel.
+if(window.innerWidth > 900) collapseSidebar();
 </script>
 <div class="update-overlay" id="update-overlay">
   <div class="update-card">
