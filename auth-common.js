@@ -57,6 +57,7 @@
     dre_gerencial: { label: "Demonstrativo de Resultado", href: "DRE_Gerencial.html" },
     orcamento_2027: { label: "Orçamento 2027", href: "Orcamento_2027.html" },
     contas_a_pagar: { label: "Contas a Pagar", href: "Contas_a_Pagar.html" },
+    fluxo_caixa: { label: "Fluxo de Caixa", href: "Fluxo_Caixa.html" },
     banco_declaracao: { label: "Banco", href: "Banco_Declaracao.html" },
     reembolso: { label: "Reembolso entre Lojas", href: "Reembolso.html" },
     ciclo_financeiro: { label: "Ciclo Financeiro", href: "Ciclo_Financeiro.html" },
