@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.11.08-d">
+<meta name="zappas-versao" content="v2026.11.08-g">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo de Caixa</title>
@@ -455,6 +455,34 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 .tag-v { display: inline-block; font-size: 9.5px; font-weight: 800; letter-spacing: .05em; text-transform: uppercase; padding: 2px 6px; border-radius: 10px; margin-left: 6px; }
 .tag-v.venc { background: var(--rust-lt); color: var(--rust-mid); }
 .tag-v.est { background: var(--amber-lt); color: var(--amber); }
+/* Posição do dia */
+.btn-pdf { margin-left:auto; display:inline-flex; align-items:center; gap:7px; background:var(--blue); color:#fff; border:0; border-radius:9px; padding:8px 14px; font:700 12px Inter,sans-serif; cursor:pointer; }
+.btn-pdf:hover { background:var(--blue-mid); }
+.btn-pdf svg { width:15px; height:15px; }
+.alc-box summary { cursor:pointer; font-weight:600; color:var(--blue); }
+.alc-box[open] { background:#fff; border:1px solid var(--border); border-radius:10px; padding:8px 10px; }
+.alc-grid { display:grid; grid-template-columns:auto 110px 190px; gap:6px 8px; align-items:center; margin-top:8px; }
+.alc-grid input { font:600 12px Inter,sans-serif; padding:5px 8px; border:1px solid var(--border-2); border-radius:7px; background:#fff; color:var(--ink); width:100%; }
+.dia-grid { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; padding:14px 18px; }
+@media (max-width:1100px){ .dia-grid { grid-template-columns:minmax(0,1fr); } }
+@media (max-width:1500px){ .sem-grid { grid-template-columns:minmax(0,1fr); } }
+.dia-h { font-size:12.5px; font-weight:700; color:var(--ink); margin:0 0 6px; display:flex; align-items:center; gap:8px; }
+.dia-h span:not(.tag-v) { font-weight:500; color:var(--ink-4); font-size:11px; }
+.dia-grid .comp-table td { padding:6px 10px; }
+.dia-grid .comp-table td.sub { color:var(--ink-4); font-size:11px; }
+.confere { list-style:none; display:flex; flex-direction:column; gap:6px; font-size:12px; }
+.confere li { display:flex; gap:8px; align-items:flex-start; padding:7px 10px; border-radius:8px; background:var(--surf-2); border:1px solid var(--border); line-height:1.45; }
+.confere li b { color:var(--ink); }
+.confere li .ic { flex-shrink:0; width:18px; height:18px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; font-size:11px; font-weight:800; color:#fff; margin-top:1px; }
+.confere li.ok .ic { background:var(--olive-mid); }
+.confere li.av .ic { background:var(--amber-mid); }
+.confere li.er .ic { background:var(--rust-mid); }
+.alc { display:inline-block; font-size:10.5px; font-weight:700; padding:2px 8px; border-radius:10px; white-space:nowrap; }
+.alc.a1 { background:var(--olive-lt); color:var(--olive); }
+.alc.a2 { background:var(--amber-lt); color:var(--amber); }
+.alc.a3 { background:var(--rust-lt); color:var(--rust-mid); }
+.tag-v.dup { background:#EDE3FA; color:#5B2E91; }
+
 
 /* Memorial de cálculo */
 .memo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); box-shadow: var(--sh); padding: 6px 18px 14px; margin-bottom: 16px; }
@@ -601,7 +629,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.08-d</span><span class="sv-short">11.08-d</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.08-g</span><span class="sv-short">11.08-g</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -634,6 +662,86 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
 
 <div class="content hidden" id="content">
   <div class="err-banner" id="err-banner">⚠️ <span id="err-msg"></span></div>
+
+  <!-- ═══ POSIÇÃO DO DIA (rotina diária do financeiro) ═══ -->
+  <div class="sec" id="sec-dia"><span class="sec-title">Posição do dia — <span id="dia-lbl">—</span></span><span class="sec-line"></span><span class="sec-count" id="dia-aviso">—</span></div>
+  <div class="comp-card" style="margin-bottom:16px">
+    <div class="proj-ctrl">
+      <label>Data <input type="date" id="dia-data" style="font:600 13px Inter,sans-serif;padding:5px 8px;border:1px solid var(--border-2);border-radius:8px;color:var(--ink)"></label>
+      <label title="Saldo em bancos e caixa no início do dia. Fica guardado só neste navegador.">Saldo no início do dia
+        <input type="text" id="dia-saldo" inputmode="decimal" placeholder="0,00"></label>
+      <details class="alc-box"><summary>Alçadas de aprovação</summary>
+        <div class="alc-grid">
+          <span>Até R$</span><input type="text" id="alc-v1" inputmode="decimal"><input type="text" id="alc-n1">
+          <span>Até R$</span><input type="text" id="alc-v2" inputmode="decimal"><input type="text" id="alc-n2">
+          <span>Acima</span><span></span><input type="text" id="alc-n3">
+        </div>
+        <div class="hint" style="margin-top:6px">Valor do título que cada nível pode aprovar. Fica guardado neste navegador.</div>
+      </details>
+      <button class="btn-pdf" onclick="gerarRelatorioDia()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M12 18v-6m-3 3l3 3 3-3"/></svg>
+        Relatório do dia (PDF)</button>
+    </div>
+    <div class="kpi-row k5" style="padding:14px 18px 0;margin-bottom:0">
+      <div class="kpi" data-memo="m-dia"><div class="kpi-accent ac-gray"></div><div class="kpi-lbl">Saldo inicial</div><div class="kpi-val" id="dv-ini">—</div><div class="kpi-foot">informado acima</div></div>
+      <div class="kpi" data-memo="m-ent"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Entradas do dia</div><div class="kpi-val" id="dv-ent">—</div><div class="kpi-foot" id="df-ent">—</div></div>
+      <div class="kpi" data-memo="m-sai"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Saídas do dia</div><div class="kpi-val" id="dv-sai">—</div><div class="kpi-foot" id="df-sai">—</div></div>
+      <div class="kpi" data-memo="m-dia"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Saldo final do dia</div><div class="kpi-val" id="dv-fim">—</div><div class="kpi-foot">inicial + entradas − saídas</div></div>
+      <div class="kpi" data-memo="m-apr"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">A aprovar hoje</div><div class="kpi-val" id="dv-apr">—</div><div class="kpi-foot" id="df-apr">—</div></div>
+    </div>
+    <div class="dia-grid">
+      <div>
+        <div class="dia-h">Entradas do dia <span id="dh-ent"></span></div>
+        <table class="comp-table"><tbody id="tb-dia-ent"></tbody></table>
+        <div class="dia-h" style="margin-top:14px">Saídas do dia <span id="dh-sai"></span></div>
+        <table class="comp-table"><tbody id="tb-dia-sai"></tbody></table>
+      </div>
+      <div>
+        <div class="dia-h">Projeção dos próximos 7 dias <span class="tag-v est">estimativa de entradas</span></div>
+        <table class="comp-table"><thead><tr><th>Dia</th><th class="num">Entradas est.</th><th class="num">Saídas a vencer</th><th class="num">Saldo</th></tr></thead><tbody id="tb-dia-7"></tbody></table>
+        <div class="dia-h" style="margin-top:14px">Conferência dos lançamentos</div>
+        <ul class="confere" id="ul-confere"></ul>
+      </div>
+    </div>
+    <div style="padding:0 18px 14px">
+      <div class="dia-h">Pagamentos para aprovação <span id="dh-apr"></span></div>
+      <div class="comp-scroll" style="max-height:420px;border:1px solid var(--border);border-radius:10px">
+        <table class="comp-table"><thead><tr><th>Vencimento</th><th>Loja</th><th>Conta</th><th>Título</th><th class="num">Valor</th><th>Alçada</th></tr></thead><tbody id="tb-apr"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ SEMANA — REALIZADO x PREVISTO (comitê de segunda / fechamento de sexta) ═══ -->
+  <div class="sec" id="sec-sem"><span class="sec-title">Semana — realizado × previsto · <span id="sem-lbl">—</span></span><span class="sec-line"></span><span class="sec-count" id="sem-aviso">—</span></div>
+  <div class="comp-card" style="margin-bottom:16px">
+    <div class="proj-ctrl">
+      <div class="seg"><button type="button" onclick="mudarSemana(-1)">◀ Anterior</button><button type="button" onclick="mudarSemana(0)">Semana atual</button><button type="button" onclick="mudarSemana(1)">Próxima ▶</button></div>
+      <label>Semana de <input type="date" id="sem-data" style="font:600 13px Inter,sans-serif;padding:5px 8px;border:1px solid var(--border-2);border-radius:8px;color:var(--ink)"></label>
+      <span class="hint" title="Os próximos 30 dias do relatório partem de hoje e do saldo informado na Projeção.">segunda a domingo</span>
+      <button class="btn-pdf" onclick="gerarRelatorioSemana()">
+        <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6z"/><path stroke-linecap="round" stroke-linejoin="round" d="M14 2v6h6M12 18v-6m-3 3l3 3 3-3"/></svg>
+        Relatório semanal (PDF)</button>
+    </div>
+    <div class="kpi-row k5" style="padding:14px 18px 0;margin-bottom:0">
+      <div class="kpi" data-memo="m-sem"><div class="kpi-accent ac-olive"></div><div class="kpi-lbl">Entradas</div><div class="kpi-val" id="sv-ent">—</div><div class="kpi-foot" id="sf-ent">—</div></div>
+      <div class="kpi" data-memo="m-sem"><div class="kpi-accent ac-rust"></div><div class="kpi-lbl">Saídas</div><div class="kpi-val" id="sv-sai">—</div><div class="kpi-foot" id="sf-sai">—</div></div>
+      <div class="kpi" data-memo="m-sem"><div class="kpi-accent ac-blue"></div><div class="kpi-lbl">Geração de caixa</div><div class="kpi-val" id="sv-ger">—</div><div class="kpi-foot" id="sf-ger">—</div></div>
+      <div class="kpi" data-memo="m-sem"><div class="kpi-accent ac-amber"></div><div class="kpi-lbl">Previsto e não pago</div><div class="kpi-val" id="sv-np">—</div><div class="kpi-foot" id="sf-np">—</div></div>
+      <div class="kpi" data-memo="m-sem"><div class="kpi-accent ac-gray"></div><div class="kpi-lbl">Pago fora da semana prevista</div><div class="kpi-val" id="sv-fora">—</div><div class="kpi-foot" id="sf-fora">—</div></div>
+    </div>
+    <div class="dia-grid sem-grid">
+      <div>
+        <div class="dia-h">Saídas por grupo — previsto × realizado</div>
+        <table class="comp-table"><thead><tr><th>Grupo</th><th class="num">Previsto</th><th class="num">Realizado</th><th class="num">Diferença</th></tr></thead><tbody id="tb-sem-grp"></tbody></table>
+      </div>
+      <div>
+        <div class="dia-h">Por loja</div>
+        <table class="comp-table"><thead><tr><th>Loja</th><th class="num">Entradas prev.</th><th class="num">Entradas real.</th><th class="num">Saídas prev.</th><th class="num">Saídas real.</th></tr></thead><tbody id="tb-sem-loja"></tbody></table>
+        <div class="dia-h" style="margin-top:14px">Dia a dia</div>
+        <table class="comp-table"><thead><tr><th>Dia</th><th class="num">Entradas</th><th class="num">Saídas previstas</th><th class="num">Saídas pagas</th></tr></thead><tbody id="tb-sem-dia"></tbody></table>
+      </div>
+    </div>
+  </div>
 
   <!-- ═══ REALIZADO ═══ -->
   <div class="sec"><span class="sec-title">Realizado — <span id="lbl-periodo">—</span></span><span class="sec-line"></span><span class="sec-count" id="sec-dados">—</span></div>
@@ -746,6 +854,9 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
   <!-- ═══ MEMORIAL ═══ -->
   <div class="sec" id="memorial"><span class="sec-title">Como os números são calculados</span><span class="sec-line"></span></div>
   <div class="memo">
+    <div class="memo-item" id="m-dia"><div class="mf">Posição do dia</div><div>Saldo no início do dia (digitado, guardado neste navegador por loja e data) + recebimentos com data do dia − pagamentos baixados no dia = saldo final. A projeção de 7 dias parte do saldo final, soma a média diária de recebimentos e desconta os títulos em aberto de cada vencimento.</div></div>
+    <div class="memo-item" id="m-apr"><div class="mf">Pagamentos para aprovação</div><div>Títulos em aberto que vencem no dia escolhido mais os vencidos há até 30 dias. A alçada vem do valor de cada título (faixas em "Alçadas de aprovação"). "Repetido?" marca título com outro igual em aberto: mesmo documento, favorecido, conta, valor e vencimento. O botão <b>Relatório do dia (PDF)</b> monta a posição de caixa, a lista para aprovação com campo de visto, a conferência dos lançamentos e a projeção de 7 dias.</div></div>
+    <div class="memo-item" id="m-sem"><div class="mf">Semana — realizado × previsto</div><div>Semana de segunda a domingo. <b>Saídas previstas</b> = títulos com vencimento na semana; <b>realizadas</b> = títulos pagos na semana. A diferença se abre em: pago na semana, pago antes, não pago, e pagos fora do previsto (atrasados e antecipados). <b>Entradas previstas</b> = média diária dos recebimentos dos 90 dias com dados antes da semana × 7, por loja; <b>realizadas</b> = recebido na semana. O botão <b>Relatório semanal (PDF)</b> junta esse quadro, os próximos 30 dias (a partir de hoje e do saldo da Projeção), os maiores títulos para decisão (pagar, adiar, negociar) com alçada, os alertas e o espaço para as decisões do comitê.</div></div>
     <div class="memo-item" id="m-ent"><div class="mf">Entradas</div><div>Arquivo de <b>Recebidos</b> de cada loja, classificado pelo <b>De-Para</b> (mesma regra do DFC no Demonstrativo de Resultado): entram Cartão/PIX, Dinheiro, Boleto/Convênio, Convênio Funcionários e Reembolso (serviços). Cortesia, Baixas e Quebras e códigos sem De-Para ficam fora e aparecem na nota abaixo da tabela. Data: coluna <code>dtpagamento</code>; mês pela coluna <code>mes</code>.</div></div>
     <div class="memo-item" id="m-sai"><div class="mf">Saídas</div><div><b>Contas a Pagar pagas</b> (<code>vparcela</code>), no dia do pagamento (<code>dtpagamento</code>), agrupadas pelo <b>Plano de Contas</b> (<code>codcentro</code> → <code>Cod_PL</code>), com as mesmas reclassificações do Demonstrativo (Utensílios em Despesas Administrativas; código 2007 = GNRE/GARE; contas "RECLASSIFICAR" nos grupos 2.22.05, 2.22.19, 2.10.17 e 2.15.05, sem o "RECLASSIFICAR" no nome). Diferente do DFC, o que foi pago com código fora do Plano de Contas <b>também entra</b>, na linha "Sem classificação", porque o dinheiro saiu do caixa.</div></div>
     <div class="memo-item" id="m-ger"><div class="mf">Geração de caixa</div><div>Entradas − Saídas do período. O <b>Acumulado</b> soma a geração mês a mês (ou dia a dia) desde o início do ano (ou do mês). Não é o saldo bancário: o painel ainda não recebe extrato.</div></div>
@@ -1038,6 +1149,7 @@ function parseCtasPagar(text, plano, lojaFb){
   const iPaga=findColExata(H,'paga');
   const iDoc=findColExata(H,'ndoc','numdoc','documento'), iFavN=findColExata(H,'nfavorecido','nomefavorecido','favorecidonome','fornecedor','nomefornecedor','razaosocial');
   const iFav=findColExata(H,'codfavorecido'), iHist=findColExata(H,'historico','descricao','observacao');
+  const iTit=findColExata(H,'codigo','codtitulo','idtitulo'), iNp=findColExata(H,'nparcela','parcela');
   if(iVal<0 || iPg<0) throw new Error('Contas a Pagar — colunas vparcela/dtpagamento não encontradas.');
   for(let i=1;i<L.length;i++){
     const line=L[i].trim(); if(!line) continue;
@@ -1060,7 +1172,8 @@ function parseCtasPagar(text, plano, lojaFb){
       g: info && info.grupo ? info.grupo.replace(/^\(?[\-\+=]\)?\s*/,'') : 'Código '+(codRaw||'vazio'),
       sb: info && info.sub ? info.sub : (info ? 'Sem subgrupo' : 'Código '+(codRaw||'vazio')+' fora do Plano'),
       ct: info && info.conta ? info.conta : (codRaw ? 'Cód. '+codRaw : 'Sem código'),
-      t: tit
+      t: tit,
+      dc: iDoc>=0 ? g(iDoc) : '', fv: iFav>=0 ? g(iFav) : '', cc: codRaw, id: iTit>=0 ? g(iTit) : '', np: iNp>=0 ? g(iNp) : ''
     });
   }
   return out;
@@ -1078,7 +1191,7 @@ async function fetchCSV(url){
 }
 
 /* ── Cache local (IndexedDB) — mesmo esquema das outras telas ── */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='fluxo_caixa_data_v3';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='fluxo_caixa_data_v4';
 function openDB(){ return new Promise((res,rej)=>{ const q=indexedDB.open(DB_NAME,1); q.onupgradeneeded=()=>{ if(!q.result.objectStoreNames.contains(DB_STORE)) q.result.createObjectStore(DB_STORE); }; q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 async function saveCache(data, ts, rawTs){ try{ const db=await openDB(); await new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readwrite'); tx.objectStore(DB_STORE).put({data,ts,rawTs},DB_KEY); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }catch(e){ console.warn('Cache local não salvo:', e); } }
 async function loadCacheDB(){ try{ const db=await openDB(); return await new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readonly'); const q=tx.objectStore(DB_STORE).get(DB_KEY); q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error); }); }catch(e){ return null; } }
@@ -1250,7 +1363,7 @@ function render(){
     b.style.opacity = b.disabled ? .45 : 1;
   });
   if(visao==='diario' && !mes) visao='mensal';
-  renderKPIs(); const M = montarMatriz(); renderMatriz(M); desenharRealizado(M); renderProjecao();
+  renderKPIs(); const M = montarMatriz(); renderMatriz(M); desenharRealizado(M); renderProjecao(); renderDia(); renderSemana();
 }
 
 function setKpi(id, v, cls){ const el=$(id); el.textContent = fBRL(v); el.className = 'kpi-val' + (cls?' '+cls:''); }
@@ -1495,6 +1608,554 @@ function renderProjecao(){
     : '<tr><td colspan="3" class="nd">Nenhuma conta a pagar em aberto no período.</td></tr>';
 }
 
+
+/* ══════════════════════════════════════════════════════════════
+   POSIÇÃO DO DIA — rotina diária do financeiro
+   • Posição de caixa: saldo, entradas e saídas do dia, contas a pagar
+     e a receber (estimativa)
+   • Pagamentos para aprovação, conforme as alçadas definidas
+   • Conferência dos lançamentos do dia e projeção dos próximos 7 dias
+══════════════════════════════════════════════════════════════ */
+const DIA = 86400000;
+let sessaoAtual = null;
+function lsGet(k, d){ try{ const v = localStorage.getItem(k); return v==null ? d : v; }catch(e){ return d; } }
+function lsSet(k, v){ try{ localStorage.setItem(k, v); }catch(e){} }
+const ALC_PADRAO = { v1:'5.000,00', n1:'Gerente financeiro', v2:'20.000,00', n2:'Diretoria', n3:'Sócios' };
+function alcadas(){
+  const g = k => lsGet('zappas_fc_alc_'+k, ALC_PADRAO[k]);
+  return { v1: parseNum(g('v1')), n1: g('n1'), v2: parseNum(g('v2')), n2: g('n2'), n3: g('n3') };
+}
+function nivelAlcada(v, A){ A = A || alcadas(); return v <= A.v1 ? {n:1, nome:A.n1} : v <= A.v2 ? {n:2, nome:A.n2} : {n:3, nome:A.n3}; }
+function dataDia(){
+  const v = $('dia-data').value; if(!v) return hoje0();
+  const [a,m,d] = v.split('-').map(Number); return tsDe(a,m,d);
+}
+function isoDe(ts){ const d=new Date(ts); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function chaveSaldoDia(){ return 'zappas_fc_saldodia_' + ($('f-loja').value || 'todas') + '_' + isoDe(dataDia()); }
+
+// Títulos em aberto repetidos: mesma loja, documento, favorecido, conta, valor e vencimento.
+function chaveDup(r){ return [r.l, r.dc||'', r.fv||'', r.cc||'', r.v.toFixed(2), r.vc].join('|'); }
+function mapaDuplicados(lista){
+  const c = new Map(); lista.forEach(r => { const k = chaveDup(r); c.set(k, (c.get(k)||0)+1); });
+  return c;
+}
+
+function calcularDia(){
+  const loja = $('f-loja').value || null, okL = l => !loja || l===loja;
+  const d0 = dataDia(), d1 = d0 + DIA - 1;
+  const dd = new Date(d0), a = dd.getFullYear(), m = dd.getMonth()+1, d = dd.getDate();
+  // Entradas do dia (Recebidos com data do dia)
+  const entCat = {}; let ent = 0, entN = 0;
+  D.ent.forEach(r => { if(okL(r.l) && r.a===a && r.m===m && r.d===d){ ent += r.v; entN++; entCat[r.c] = (entCat[r.c]||0) + r.v; } });
+  // Saídas do dia (pagos no dia)
+  const pagos = D.cp.filter(r => okL(r.l) && r.p >= d0 && r.p <= d1);
+  const sai = pagos.reduce((s,r)=>s+r.v,0);
+  const saiGrp = {}; pagos.forEach(r => { const k = SAIDA_LABEL[r.s] || r.g; (saiGrp[k] = saiGrp[k] || {v:0,n:0}); saiGrp[k].v += r.v; saiGrp[k].n++; });
+  // Em aberto
+  const abertos = D.cp.filter(r => okL(r.l) && !r.p && !r.pf && r.vc);
+  const dup = mapaDuplicados(abertos);
+  const venceHoje = abertos.filter(r => r.vc === d0);
+  const vencidos = abertos.filter(r => r.vc < d0);
+  const vencRec = vencidos.filter(r => r.vc >= d0 - 30*DIA), vencAnt = vencidos.filter(r => r.vc < d0 - 30*DIA);
+  const aprovar = [...vencRec, ...venceHoje].sort((x,y)=> x.vc-y.vc || y.v-x.v);
+  // Saldo
+  const ini = parseNum($('dia-saldo').value);
+  const fim = ini + ent - sai;
+  // Entradas estimadas: média diária dos 90 dias com dados até a véspera
+  const ents = D.ent.filter(r => okL(r.l) && r.d).map(r => ({ ts:tsDe(r.a,r.m,r.d), v:r.v })).filter(r => r.ts < d0);
+  let media = 0, ultDia = null;
+  if(ents.length){ ultDia = ents.reduce((x,r)=>r.ts>x?r.ts:x, 0); media = ents.filter(r => r.ts > ultDia - 90*DIA).reduce((s,r)=>s+r.v,0) / 90; }
+  const ultEnt = D.ent.filter(r => okL(r.l) && r.d).reduce((x,r)=>{ const t=tsDe(r.a,r.m,r.d); return t>x?t:x; }, 0);
+  const ultPg = D.cp.filter(r => okL(r.l) && r.p).reduce((x,r)=> r.p>x?r.p:x, 0);
+  // Projeção D+1 … D+7 (a partir do saldo final do dia)
+  const proj = []; let s = fim;
+  for(let i=1;i<=7;i++){
+    const t = d0 + i*DIA, saiD = abertos.filter(r => r.vc === t).reduce((x,r)=>x+r.v,0);
+    s += media - saiD; proj.push({ t, ent: media, sai: saiD, saldo: s });
+  }
+  const prox7 = abertos.filter(r => r.vc > d0 && r.vc <= d0 + 7*DIA);
+  // Conferência
+  const conf = [];
+  const atrasoEnt = ultEnt ? Math.round((d0 - ultEnt)/DIA) : null;
+  if(!ultEnt) conf.push(['er','Nenhum recebimento com data no arquivo de Recebidos.']);
+  else if(ultEnt < d0) conf.push([atrasoEnt>2?'er':'av', `Recebidos lançados até <b>${dmy(ultEnt)}</b> — o dia ${dmy(d0)} ainda não está no arquivo${atrasoEnt>1?' ('+atrasoEnt+' dias de atraso)':''}.`]);
+  else conf.push(['ok', `Recebidos do dia lançados: <b>${entN}</b> lançamento${entN===1?'':'s'}, ${fBRL(ent)}.`]);
+  if(!ultPg) conf.push(['er','Nenhum pagamento com data no arquivo de Contas a Pagar.']);
+  else if(ultPg < d0) conf.push(['av', `Último pagamento baixado em <b>${dmy(ultPg)}</b> — nenhum pagamento baixado em ${dmy(d0)}.`]);
+  else conf.push(['ok', `Pagamentos baixados no dia: <b>${pagos.length}</b> título${pagos.length===1?'':'s'}, ${fBRL(sai)}.`]);
+  const semClassDia = pagos.filter(r => r.s==='sem_class');
+  if(semClassDia.length) conf.push(['er', `<b>${semClassDia.length}</b> pagamento${semClassDia.length===1?'':'s'} do dia com código fora do Plano de Contas (${fBRL(semClassDia.reduce((x,r)=>x+r.v,0))}).`]);
+  else if(pagos.length) conf.push(['ok','Todos os pagamentos do dia estão classificados no Plano de Contas.']);
+  const dupProx = [...venceHoje, ...prox7, ...vencRec].filter(r => (dup.get(chaveDup(r))||0) > 1);
+  const dupGrupos = new Set(dupProx.map(chaveDup)).size;
+  if(dupGrupos){
+    const excesso = [...new Set(dupProx.map(chaveDup))].reduce((x,k)=>{ const r = dupProx.find(y=>chaveDup(y)===k); return x + r.v*((dup.get(k)||1)-1); }, 0);
+    conf.push(['er', `<b>${dupGrupos}</b> título${dupGrupos===1?'':'s'} em aberto (vencidos há até 30 dias, hoje ou nos próximos 7 dias) lançado${dupGrupos===1?'':'s'} mais de uma vez — mesmo documento, favorecido, conta, valor e vencimento. Valor a mais: <b>${fBRL(excesso)}</b>.`]);
+  } else conf.push(['ok','Nenhum título repetido entre os vencidos, os de hoje e os dos próximos 7 dias.']);
+  if(vencAnt.length) conf.push(['av', `<b>${vencAnt.length}</b> título${vencAnt.length===1?'':'s'} vencido${vencAnt.length===1?'':'s'} há mais de 30 dias e ainda em aberto (${fBRL(vencAnt.reduce((x,r)=>x+r.v,0))}) — provável baixa pendente no sistema.`]);
+  if(!ini) conf.push(['av','Saldo do início do dia não informado — o saldo final e a projeção partem de zero.']);
+  return { d0, loja, ent, entN, entCat, pagos, sai, saiGrp, ini, fim, venceHoje, vencRec, vencAnt, aprovar, dup, media, ultDia, proj, prox7, conf };
+}
+
+function renderDia(){
+  if(!D || !D.cp) return;
+  const R = calcularDia(), A = alcadas();
+  $('dia-lbl').textContent = DIA_SEM[new Date(R.d0).getDay()] + ', ' + dmy(R.d0) + (R.loja ? ' · '+R.loja : ' · todas as lojas');
+  $('dia-aviso').textContent = R.ultDia ? 'Recebidos até ' + dmy(R.ultDia) : '—';
+  $('dv-ini').textContent = fBRL(R.ini);
+  $('dv-ent').textContent = fBRL(R.ent); $('df-ent').textContent = R.entN + ' lançamento' + (R.entN===1?'':'s');
+  $('dv-sai').textContent = fBRL(R.sai); $('df-sai').textContent = R.pagos.length + ' título' + (R.pagos.length===1?'':'s') + ' pago' + (R.pagos.length===1?'':'s');
+  $('dv-fim').textContent = fBRL(R.fim); $('dv-fim').className = 'kpi-val ' + (R.fim<0?'neg':'');
+  const totApr = R.aprovar.reduce((x,r)=>x+r.v,0);
+  $('dv-apr').textContent = fBRL(totApr);
+  $('df-apr').textContent = R.venceHoje.length + ' vence' + (R.venceHoje.length===1?'':'m') + ' hoje · ' + R.vencRec.length + ' vencido' + (R.vencRec.length===1?'':'s');
+
+  const cats = Object.keys(R.entCat).sort((a,b)=>{ const ia=ENTRADA_ORDEM.indexOf(a), ib=ENTRADA_ORDEM.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
+  $('dh-ent').textContent = fBRL(R.ent);
+  $('tb-dia-ent').innerHTML = cats.length ? cats.map(c => `<tr><td>${esc(c)}</td><td class="num">${fBRL(R.entCat[c])}</td></tr>`).join('')
+    : `<tr><td colspan="2" class="nd" style="padding:14px">Nenhum recebimento com data de ${dmy(R.d0)}.</td></tr>`;
+  $('dh-sai').textContent = fBRL(R.sai);
+  const grps = Object.entries(R.saiGrp).sort((a,b)=>b[1].v-a[1].v);
+  $('tb-dia-sai').innerHTML = grps.length ? grps.map(([g,o]) => `<tr><td>${esc(g)} <span class="sub">· ${o.n}</span></td><td class="num">${fBRL(o.v)}</td></tr>`).join('')
+    : `<tr><td colspan="2" class="nd" style="padding:14px">Nenhum pagamento baixado em ${dmy(R.d0)}.</td></tr>`;
+  $('tb-dia-7').innerHTML = R.proj.map(p => `<tr><td>${DIA_SEM[new Date(p.t).getDay()]} ${dm(p.t)}</td><td class="num">${fBRL(p.ent)}</td><td class="num">${fBRL(p.sai)}</td><td class="num" style="${p.saldo<0?'color:var(--rust-mid)':''}">${fBRL(p.saldo)}</td></tr>`).join('');
+  $('ul-confere').innerHTML = R.conf.map(([t,txt]) => `<li class="${t}"><span class="ic">${t==='ok'?'✓':'!'}</span><span>${txt}</span></li>`).join('');
+  $('dh-apr').textContent = R.aprovar.length ? R.aprovar.length + ' títulos · ' + fBRL(totApr) + ' (vencidos há até 30 dias e vencendo hoje)' : '';
+  $('tb-apr').innerHTML = R.aprovar.length ? R.aprovar.map(r => {
+    const n = nivelAlcada(r.v, A), dp = (R.dup.get(chaveDup(r))||0) > 1;
+    return `<tr><td>${dmy(r.vc)}${r.vc<R.d0?' <span class="tag-v venc">vencido</span>':''}</td><td>${esc(r.l)}</td><td>${esc(r.ct)}</td><td style="max-width:280px;overflow:hidden;text-overflow:ellipsis">${esc(r.t||'—')}${dp?' <span class="tag-v dup">repetido?</span>':''}</td><td class="num">${fBRL(r.v)}</td><td><span class="alc a${n.n}">${esc(n.nome)}</span></td></tr>`;
+  }).join('') : `<tr><td colspan="6" class="nd">Nenhum pagamento vencido ou vencendo em ${dmy(R.d0)}.</td></tr>`;
+}
+
+/* ── Relatório do dia (PDF pela janela de impressão do navegador) ── */
+function htmlRelatorioDia(R){
+  const A = alcadas(), N = v => fNum(v), titulo = 'Posicao_Caixa_' + isoDe(R.d0) + (R.loja?'_'+R.loja:'');
+  const kpi = (l,v,s,cor) => `<div class="kpi"><i style="background:${cor}"></i><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${s}</div></div>`;
+  const cats = Object.keys(R.entCat).sort((a,b)=>{ const ia=ENTRADA_ORDEM.indexOf(a), ib=ENTRADA_ORDEM.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
+  const totApr = R.aprovar.reduce((x,r)=>x+r.v,0);
+  const porNivel = [1,2,3].map(n => { const it = R.aprovar.filter(r => nivelAlcada(r.v,A).n===n); return { n, nome: n===1?A.n1:n===2?A.n2:A.n3, q: it.length, v: it.reduce((x,r)=>x+r.v,0) }; });
+  const faixa = n => n===1 ? 'até R$ '+N(A.v1) : n===2 ? 'de R$ '+N(A.v1)+' até R$ '+N(A.v2) : 'acima de R$ '+N(A.v2);
+  const linhasApr = R.aprovar.map(r => { const n = nivelAlcada(r.v,A), dp=(R.dup.get(chaveDup(r))||0)>1;
+    return `<tr class="${r.vc<R.d0?'atr':''}"><td style="white-space:nowrap">${dmy(r.vc)}${r.vc<R.d0?'<div class="sm">vencido</div>':''}</td><td>${esc(r.l)}</td><td>${esc(r.ct)}<div class="sm">${esc(r.sb)}</div></td><td>${esc(r.t||'—')}${dp?'<div class="sm dupl">possível lançamento repetido</div>':''}</td><td class="n">${N(r.v)}</td><td>${esc(n.nome)}</td><td class="chk"><span></span></td></tr>`; }).join('');
+  const saiDet = R.pagos.slice().sort((a,b)=>b.v-a.v).map(r => `<tr><td>${esc(r.l)}</td><td>${esc(SAIDA_LABEL[r.s]||r.g)}<div class="sm">${esc(r.ct)}</div></td><td>${esc(r.t||'—')}</td><td class="n">${N(r.v)}</td></tr>`).join('');
+  const est = R.proj.reduce((x,p)=>x+p.ent,0), sai7 = R.proj.reduce((x,p)=>x+p.sai,0);
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${titulo}</title>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    var obs=document.getElementById('obs'), box=document.getElementById('obsBox');
+    function ajusta(){ box.className=obs.textContent.trim()?'':'obs-vazia'; }
+    obs.addEventListener('input', ajusta); window.addEventListener('beforeprint', ajusta);
+    Promise.race([document.fonts?document.fonts.ready:Promise.resolve(), new Promise(function(r){setTimeout(r,2500);})])
+      .then(function(){ setTimeout(function(){ window.print(); }, 400); });
+  });
+<\/script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+@page { size:A4; margin:13mm 12mm 15mm; @bottom-left { content:"Gestão Zappas · Posição de Caixa · ${dmy(R.d0)}"; font:8pt Inter,sans-serif; color:#8a8a7c; } @bottom-right { content:"Página " counter(page) " de " counter(pages); font:8pt Inter,sans-serif; color:#8a8a7c; } }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:Inter,system-ui,sans-serif;color:#16160F;font-size:9.5pt;line-height:1.45;background:#e9e8e3;font-variant-numeric:tabular-nums;}
+.folha{background:#fff;max-width:210mm;margin:16px auto;padding:13mm 12mm;box-shadow:0 4px 24px rgba(0,0,0,.12);}
+.barra{position:sticky;top:0;z-index:5;background:#16283F;color:#fff;display:flex;align-items:center;gap:12px;padding:10px 18px;font-size:12.5px;}
+.barra b{font-size:15px;margin-right:auto;} .barra span{opacity:.7;}
+.barra button{background:#C8961A;color:#16160F;border:0;border-radius:8px;padding:8px 16px;font:700 12.5px Inter,sans-serif;cursor:pointer;}
+@media print{ body{background:#fff;} .barra{display:none;} .folha{margin:0;padding:0;box-shadow:none;max-width:none;} .obs-vazia{display:none;} .obs{border:0;padding:0;min-height:0;} }
+.cab{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #16283F;padding-bottom:10px;margin-bottom:12px;}
+.cab h1{font-size:20pt;line-height:1.1;color:#16283F;} .cab .sub{font-size:9.5pt;color:#5d5d50;margin-top:3px;}
+.cab .dir{text-align:right;font-size:8.5pt;color:#5d5d50;} .cab .dir b{display:block;font-size:10pt;color:#16283F;}
+h2{font-size:12pt;color:#16283F;margin:16px 0 7px;display:flex;align-items:center;gap:10px;break-after:avoid;}
+h2::after{content:"";flex:1;height:1px;background:#D8D5CC;}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:7px;}
+.kpi{border:1px solid #E3E1D9;border-radius:8px;padding:8px 9px 7px;position:relative;overflow:hidden;break-inside:avoid;min-width:0;}
+.kpi i{position:absolute;left:0;top:0;right:0;height:3px;}
+.kl{font-size:7.5pt;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b6b5e;}
+.kv{font-weight:700;font-size:12pt;margin-top:3px;letter-spacing:-.02em;white-space:nowrap;text-align:center;}
+.ks{font-size:7.5pt;color:#7d7d70;margin-top:1px;text-align:right;}
+.duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+table{width:100%;border-collapse:collapse;font-size:8pt;}
+th{background:#16283F;color:#fff;font-weight:600;text-align:left;padding:5px;font-size:6.6pt;text-transform:uppercase;letter-spacing:.02em;vertical-align:bottom;}
+td{padding:4px 5px;border-bottom:1px solid #ECEAE3;vertical-align:top;overflow-wrap:anywhere;}
+td.n,th.n{text-align:right;white-space:nowrap;} tr{break-inside:avoid;} thead{display:table-header-group;}
+tbody tr:nth-child(even) td{background:#FAFAF7;}
+tr.tot td{background:#EEF3FD !important;font-weight:700;border-top:2px solid #16283F;}
+tr.atr td{color:#A23B2E;}
+.sm{font-size:6.8pt;color:#7d7d70;margin-top:1px;} .dupl{color:#5B2E91;font-weight:700;}
+td.chk{text-align:center;} td.chk span{display:inline-block;width:11px;height:11px;border:1.2px solid #16283F;border-radius:2px;}
+.vazio{color:#9a9a8c;font-size:8.5pt;padding:8px 0;}
+.conf{list-style:none;display:flex;flex-direction:column;gap:4px;}
+.conf li{display:flex;gap:7px;font-size:8.5pt;padding:5px 8px;border-radius:6px;background:#F6F5F0;break-inside:avoid;}
+.conf li i{flex-shrink:0;width:13px;height:13px;border-radius:50%;color:#fff;font:800 8pt Inter;font-style:normal;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;}
+.conf li.ok i{background:#5A7A22;} .conf li.av i{background:#B87010;} .conf li.er i{background:#A83218;}
+.ass{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:34px;break-inside:avoid;}
+.ass div{border-top:1px solid #16160F;padding-top:5px;font-size:8pt;text-align:center;color:#3A3A2E;}
+.ass div small{display:block;color:#7d7d70;font-size:7pt;}
+.nota{font-size:7.3pt;color:#7d7d70;margin-top:14px;border-top:1px solid #E3E1D9;padding-top:8px;}
+.obs{border:1px dashed #C8C5BA;border-radius:8px;padding:10px 12px;min-height:50px;font-size:9pt;outline:none;}
+.obs:empty::before{content:"Clique aqui para escrever observações do dia (opcional). Se ficar em branco, este quadro não sai no PDF.";color:#9a9a8c;}
+</style></head><body>
+<div class="barra"><b>Posição de Caixa do dia</b><span>Confira e clique em “Salvar em PDF” (na janela, escolha o destino <i>Salvar como PDF</i>).</span><button onclick="window.print()">Salvar em PDF</button></div>
+<div class="folha">
+  <div class="cab">
+    <div><h1>Posição de Caixa</h1><div class="sub">${DIA_SEM[new Date(R.d0).getDay()]}, ${dmy(R.d0)} · ${R.loja ? 'Loja '+esc(R.loja) : 'Todas as lojas'}</div></div>
+    <div class="dir"><b>Gestão Zappas</b>Emitido em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}${sessaoAtual && sessaoAtual.name ? '<br>por '+esc(sessaoAtual.name) : ''}</div>
+  </div>
+
+  <h2>1. Posição de caixa</h2>
+  <div class="kpis">
+    ${kpi('Saldo no início do dia', 'R$ '+N(R.ini), 'informado no painel', '#AEADA0')}
+    ${kpi('Entradas do dia', 'R$ '+N(R.ent), R.entN+' lançamento'+(R.entN===1?'':'s'), '#5A7A22')}
+    ${kpi('Saídas do dia', 'R$ '+N(R.sai), R.pagos.length+' título'+(R.pagos.length===1?'':'s')+' pago'+(R.pagos.length===1?'':'s'), '#A83218')}
+    ${kpi('Saldo final do dia', 'R$ '+N(R.fim), 'inicial + entradas − saídas', '#1B3D6E')}
+  </div>
+  <div class="kpis">
+    ${kpi('A pagar hoje', 'R$ '+N(R.venceHoje.reduce((x,r)=>x+r.v,0)), R.venceHoje.length+' título'+(R.venceHoje.length===1?'':'s'), '#B87010')}
+    ${kpi('Vencidos (até 30 dias)', 'R$ '+N(R.vencRec.reduce((x,r)=>x+r.v,0)), R.vencRec.length+' título'+(R.vencRec.length===1?'':'s')+' em aberto', '#A83218')}
+    ${kpi('A pagar nos próximos 7 dias', 'R$ '+N(sai7), R.prox7.length+' título'+(R.prox7.length===1?'':'s'), '#B87010')}
+    ${kpi('A receber nos próximos 7 dias', 'R$ '+N(est), 'estimativa: média diária', '#5A7A22')}
+  </div>
+  <div class="duas">
+    <div><table><thead><tr><th>Entradas do dia por forma</th><th class="n">Valor (R$)</th></tr></thead><tbody>
+      ${cats.map(c=>`<tr><td>${esc(c)}</td><td class="n">${N(R.entCat[c])}</td></tr>`).join('') || '<tr><td colspan="2" class="vazio">Nenhum recebimento com data do dia.</td></tr>'}
+      ${cats.length?`<tr class="tot"><td>Total</td><td class="n">${N(R.ent)}</td></tr>`:''}</tbody></table></div>
+    <div><table><thead><tr><th>Saídas do dia por grupo</th><th class="n">Valor (R$)</th></tr></thead><tbody>
+      ${Object.entries(R.saiGrp).sort((a,b)=>b[1].v-a[1].v).map(([g,o])=>`<tr><td>${esc(g)} <span class="sm">(${o.n})</span></td><td class="n">${N(o.v)}</td></tr>`).join('') || '<tr><td colspan="2" class="vazio">Nenhum pagamento baixado no dia.</td></tr>'}
+      ${R.pagos.length?`<tr class="tot"><td>Total</td><td class="n">${N(R.sai)}</td></tr>`:''}</tbody></table></div>
+  </div>
+
+  <h2>2. Pagamentos para aprovação</h2>
+  <table style="margin-bottom:8px"><thead><tr><th>Alçada</th><th>Faixa de valor por título</th><th class="n">Títulos</th><th class="n">Valor (R$)</th></tr></thead><tbody>
+    ${porNivel.map(p=>`<tr><td>${esc(p.nome)}</td><td>${faixa(p.n)}</td><td class="n">${p.q}</td><td class="n">${N(p.v)}</td></tr>`).join('')}
+    <tr class="tot"><td colspan="2">Total para aprovação</td><td class="n">${R.aprovar.length}</td><td class="n">${N(totApr)}</td></tr></tbody></table>
+  <table style="table-layout:fixed"><colgroup><col style="width:12%"><col style="width:11%"><col style="width:19%"><col style="width:25%"><col style="width:12%"><col style="width:14%"><col style="width:7%"></colgroup>
+    <thead><tr><th>Vencimento</th><th>Loja</th><th>Conta</th><th>Título</th><th class="n">Valor (R$)</th><th>Alçada</th><th>Aprov.</th></tr></thead>
+    <tbody>${linhasApr || '<tr><td colspan="7" class="vazio">Nenhum pagamento vencido ou vencendo no dia.</td></tr>'}</tbody></table>
+  ${R.vencAnt.length ? `<p class="sm" style="margin-top:5px">Fora da lista: ${R.vencAnt.length} título(s) vencido(s) há mais de 30 dias, R$ ${N(R.vencAnt.reduce((x,r)=>x+r.v,0))} — provável baixa pendente no sistema.</p>` : ''}
+
+  <h2>3. Conferência dos lançamentos do dia</h2>
+  <ul class="conf">${R.conf.map(([t,txt])=>`<li class="${t}"><i>${t==='ok'?'✓':'!'}</i><span>${txt}</span></li>`).join('')}</ul>
+
+  <h2>4. Projeção dos próximos 7 dias</h2>
+  <table><thead><tr><th>Dia</th><th class="n">Entradas estimadas (R$)</th><th class="n">Saídas a vencer (R$)</th><th class="n">Saldo projetado (R$)</th></tr></thead><tbody>
+    <tr><td>${DIA_SEM[new Date(R.d0).getDay()]} ${dm(R.d0)} — saldo final do dia</td><td class="n"></td><td class="n"></td><td class="n">${N(R.fim)}</td></tr>
+    ${R.proj.map(p=>`<tr><td>${DIA_SEM[new Date(p.t).getDay()]} ${dm(p.t)}</td><td class="n">${N(p.ent)}</td><td class="n">${N(p.sai)}</td><td class="n" style="${p.saldo<0?'color:#A23B2E;font-weight:700':''}">${N(p.saldo)}</td></tr>`).join('')}
+    <tr class="tot"><td>Total da semana</td><td class="n">${N(est)}</td><td class="n">${N(sai7)}</td><td class="n">${N(R.proj[6].saldo)}</td></tr></tbody></table>
+
+  ${R.pagos.length ? `<h2>5. Pagamentos baixados no dia</h2>
+  <table><colgroup><col style="width:11%"><col style="width:32%"><col style="width:42%"><col style="width:15%"></colgroup><thead><tr><th>Loja</th><th>Grupo / conta</th><th>Título</th><th class="n">Valor (R$)</th></tr></thead>
+  <tbody>${saiDet}<tr class="tot"><td colspan="3">Total</td><td class="n">${N(R.sai)}</td></tr></tbody></table>` : ''}
+
+  <div id="obsBox" class="obs-vazia"><h2>Observações</h2><div class="obs" id="obs" contenteditable="true"></div></div>
+
+  <div class="ass">
+    <div>Responsável financeiro<small>conferiu os lançamentos</small></div>
+    <div>${esc(A.n1)} / ${esc(A.n2)}<small>aprovação de pagamentos</small></div>
+    <div>${esc(A.n3)}<small>aprovação acima de R$ ${N(A.v2)}</small></div>
+  </div>
+
+  <div class="nota"><b>Fontes:</b> Recebidos (classificados pelo De-Para, mesma regra do DFC) e Contas a Pagar, conforme a última atualização do painel. <b>Saldo no início do dia</b>: informado manualmente (o painel ainda não recebe extrato bancário). <b>A receber</b>: não há arquivo de Contas a Receber; a estimativa usa a média diária dos recebimentos dos últimos 90 dias com dados${R.ultDia?' (até '+dmy(R.ultDia)+')':''}. <b>Aprovação</b>: títulos em aberto vencidos há até 30 dias e com vencimento no dia; alçada pelo valor de cada título. <b>Possível lançamento repetido</b>: outro título em aberto com o mesmo documento, favorecido, conta, valor e vencimento.</div>
+</div>
+</body></html>`;
+}
+function gerarRelatorioDia(){
+  if(!D || !D.cp || !D.cp.length){ alertaSimples('Os dados ainda não carregaram.'); return; }
+  const html = htmlRelatorioDia(calcularDia());
+  const w = window.open('', '_blank');
+  if(w){ w.document.open(); w.document.write(html); w.document.close(); return; }
+  const f = document.createElement('iframe');
+  f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(f); f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+  setTimeout(() => f.remove(), 60000);
+}
+function alertaSimples(msg){ $('err-msg').textContent = msg; $('err-banner').classList.add('show'); setTimeout(()=>$('err-banner').classList.remove('show'), 4000); }
+
+/* ── Eventos da Posição do dia ── */
+(function(){
+  const q = new URLSearchParams(location.search).get('dia');
+  $('dia-data').value = /^\d{4}-\d{2}-\d{2}$/.test(q||'') ? q : isoDe(hoje0());
+  $('dia-data').max = isoDe(hoje0());
+  const carregarSaldoDia = () => { $('dia-saldo').value = lsGet(chaveSaldoDia(), ''); };
+  carregarSaldoDia();
+  $('dia-data').addEventListener('change', () => { carregarSaldoDia(); renderDia(); });
+  $('f-loja').addEventListener('change', () => { carregarSaldoDia(); renderDia(); });
+  $('dia-saldo').addEventListener('change', () => {
+    const v = parseNum($('dia-saldo').value); $('dia-saldo').value = v ? nf2.format(v) : '';
+    lsSet(chaveSaldoDia(), $('dia-saldo').value);
+    // o saldo de hoje também alimenta a projeção de 30/60/90 dias
+    if(dataDia() === hoje0() && !$('in-saldo').value){ $('in-saldo').value = $('dia-saldo').value; lsSet(chaveSaldo(), $('in-saldo').value); renderProjecao(); }
+    renderDia();
+  });
+  $('dia-saldo').addEventListener('keydown', e => { if(e.key==='Enter') e.target.blur(); });
+  ['v1','n1','v2','n2','n3'].forEach(k => {
+    const el = $('alc-'+k); el.value = lsGet('zappas_fc_alc_'+k, ALC_PADRAO[k]);
+    el.addEventListener('change', () => {
+      if(k[0]==='v'){ const v = parseNum(el.value); el.value = v ? nf2.format(v) : ''; }
+      lsSet('zappas_fc_alc_'+k, el.value); renderDia();
+    });
+  });
+})();
+
+/* ══════════════════════════════════════════════════════════════
+   SEMANA — realizado × previsto (comitê de caixa de segunda e
+   fechamento semanal de sexta) + relatório semanal em PDF
+   Previsto de saídas = títulos com vencimento na semana.
+   Realizado de saídas = títulos pagos na semana.
+   Previsto de entradas = média diária dos recebimentos dos 90 dias
+   com dados antes da semana × 7.  Realizado = recebido na semana.
+══════════════════════════════════════════════════════════════ */
+function segundaDe(ts){ const d = new Date(ts); d.setHours(0,0,0,0); const w = (d.getDay()+6)%7; return d.getTime() - w*DIA; }
+function semanaIni(){ const v = $('sem-data').value; if(!v) return segundaDe(hoje0()); const [a,m,d] = v.split('-').map(Number); return segundaDe(tsDe(a,m,d)); }
+function mudarSemana(n){ const s = n===0 ? segundaDe(hoje0()) : semanaIni() + n*7*DIA; $('sem-data').value = isoDe(s); renderSemana(); }
+function mediaEntradas(okL, antesDe){
+  const ents = D.ent.filter(r => okL(r.l) && r.d).map(r => ({ ts:tsDe(r.a,r.m,r.d), v:r.v })).filter(r => r.ts < antesDe);
+  if(!ents.length) return { media:0, ult:null };
+  const ult = ents.reduce((x,r)=>r.ts>x?r.ts:x, 0);
+  return { media: ents.filter(r => r.ts > ult - 90*DIA).reduce((s,r)=>s+r.v,0) / 90, ult };
+}
+
+function calcularSemana(){
+  const loja = $('f-loja').value || null, okL = l => !loja || l===loja;
+  const s0 = semanaIni(), s1 = s0 + 7*DIA - 1, h = hoje0();
+  const emAndamento = s1 >= h && s0 <= h, futura = s0 > h;
+  const lojas = [...new Set([...D.ent.map(r=>r.l), ...D.cp.map(r=>r.l)])].filter(l => l && okL(l))
+    .sort((a,b)=>{ const ia=ORDEM_LOJAS.indexOf(a), ib=ORDEM_LOJAS.indexOf(b); return (ia<0?99:ia)-(ib<0?99:ib); });
+  const z7 = () => new Array(7).fill(0);
+  const PL = {}; lojas.forEach(l => PL[l] = { entP:0, entR:0, saiP:0, saiR:0 });
+  // Entradas
+  let entR = 0; const entDia = z7();
+  D.ent.forEach(r => { if(!okL(r.l) || !r.d) return; const t = tsDe(r.a,r.m,r.d); if(t<s0 || t>s1) return; entR += r.v; entDia[Math.round((t-s0)/DIA)] += r.v; if(PL[r.l]) PL[r.l].entR += r.v; });
+  let entP = 0, ultEnt = null;
+  lojas.forEach(l => { const m = mediaEntradas(x => x===l, s0); PL[l].entP = m.media*7; entP += m.media*7; if(m.ult && (!ultEnt || m.ult>ultEnt)) ultEnt = m.ult; });
+  // Saídas
+  const G = {}, gk = r => SAIDA_LABEL[r.s] || r.g;
+  const saiPDia = z7(), saiRDia = z7();
+  let saiP=0, saiR=0, noPrazo=0, antes=0, naoPago=0, atrasados=0, antecip=0;
+  const naoPagos = [], foraLista = [], semClass = [];
+  D.cp.forEach(r => {
+    if(!okL(r.l)) return;
+    const prev = r.vc && r.vc>=s0 && r.vc<=s1, pagoSem = r.p && r.p>=s0 && r.p<=s1;
+    if(prev){ saiP += r.v; saiPDia[Math.round((r.vc-s0)/DIA)] += r.v; (G[gk(r)] = G[gk(r)]||{p:0,r:0}).p += r.v; if(PL[r.l]) PL[r.l].saiP += r.v;
+      if(pagoSem) noPrazo += r.v; else if(r.p && r.p < s0) antes += r.v; else if(!r.pf){ naoPago += r.v; naoPagos.push(r); } }
+    if(pagoSem){ saiR += r.v; saiRDia[Math.round((r.p-s0)/DIA)] += r.v; (G[gk(r)] = G[gk(r)]||{p:0,r:0}).r += r.v; if(PL[r.l]) PL[r.l].saiR += r.v;
+      if(r.s==='sem_class') semClass.push(r);
+      if(r.vc && r.vc < s0){ atrasados += r.v; foraLista.push(r); } else if(r.vc && r.vc > s1){ antecip += r.v; foraLista.push(r); } }
+  });
+  // Próximos 30 dias, a partir de hoje (saldo da Projeção)
+  const ini30 = parseNum($('in-saldo').value), usaVenc = $('ck-venc').checked;
+  const m30 = mediaEntradas(okL, h).media;
+  const abertos = D.cp.filter(r => okL(r.l) && !r.p && !r.pf && r.vc);
+  const dup = mapaDuplicados(abertos);
+  const vencidos = abertos.filter(r => r.vc < h), vencTot = vencidos.reduce((x,r)=>x+r.v,0);
+  const vencRec = vencidos.filter(r => r.vc >= h - 30*DIA), vencAnt = vencidos.filter(r => r.vc < h - 30*DIA);
+  const prox = abertos.filter(r => r.vc >= h && r.vc < h + 30*DIA);
+  const semanas30 = []; let saldo = ini30 - (usaVenc ? vencTot : 0);
+  for(let i=0;i<30;i+=7){
+    const a = h + i*DIA, b = h + Math.min(i+6, 29)*DIA, nd = Math.round((b-a)/DIA)+1;
+    const sa = prox.filter(r => r.vc>=a && r.vc<=b).reduce((x,r)=>x+r.v,0), en = m30*nd;
+    saldo += en - sa; semanas30.push({ a, b, en, sa, saldo });
+  }
+  const decidir = [...vencRec, ...prox].sort((a,b)=>b.v-a.v).slice(0,30).sort((a,b)=>a.vc-b.vc || b.v-a.v);
+  const dupProx = [...vencRec, ...prox].filter(r => (dup.get(chaveDup(r))||0) > 1);
+  const dupKeys = [...new Set(dupProx.map(chaveDup))];
+  const dupExc = dupKeys.reduce((x,k)=>{ const r = dupProx.find(y=>chaveDup(y)===k); return x + r.v*((dup.get(k)||1)-1); }, 0);
+  // Alertas
+  const alertas = [];
+  if(ultEnt && ultEnt < Math.min(s1, h - DIA)) alertas.push(['av', `Recebidos lançados só até <b>${dmy(ultEnt)}</b> — o realizado de entradas da semana pode estar incompleto.`]);
+  if(naoPagos.length) alertas.push(['er', `<b>${naoPagos.length}</b> título${naoPagos.length===1?'':'s'} previsto${naoPagos.length===1?'':'s'} para a semana e não pago${naoPagos.length===1?'':'s'}: <b>${fBRL(naoPago)}</b>.`]);
+  if(atrasados) alertas.push(['av', `Pagos na semana com vencimento anterior (atrasados): <b>${fBRL(atrasados)}</b>.`]);
+  if(antecip) alertas.push(['av', `Pagos na semana com vencimento posterior (antecipados): <b>${fBRL(antecip)}</b>.`]);
+  if(semClass.length) alertas.push(['er', `<b>${semClass.length}</b> pagamento${semClass.length===1?'':'s'} da semana com código fora do Plano de Contas (${fBRL(semClass.reduce((x,r)=>x+r.v,0))}).`]);
+  if(dupKeys.length) alertas.push(['er', `<b>${dupKeys.length}</b> título${dupKeys.length===1?'':'s'} em aberto nos próximos 30 dias (ou vencidos há até 30) lançado${dupKeys.length===1?'':'s'} mais de uma vez — valor a mais: <b>${fBRL(dupExc)}</b>.`]);
+  if(vencAnt.length) alertas.push(['av', `<b>${vencAnt.length}</b> título${vencAnt.length===1?'':'s'} vencido${vencAnt.length===1?'':'s'} há mais de 30 dias ainda em aberto (${fBRL(vencAnt.reduce((x,r)=>x+r.v,0))}) — provável baixa pendente.`]);
+  const minSem = semanas30.reduce((m,s)=> s.saldo<m.saldo ? s : m, semanas30[0]);
+  if(minSem && minSem.saldo < 0) alertas.push(['er', `Saldo projetado fica negativo na semana de ${dm(minSem.a)} a ${dm(minSem.b)} (${fBRL(minSem.saldo)}).`]);
+  if(!ini30) alertas.push(['av','Saldo atual não informado na Projeção — os próximos 30 dias partem de zero.']);
+  if(!alertas.length) alertas.push(['ok','Nenhum alerta para a semana.']);
+  return { s0, s1, h, loja, emAndamento, futura, lojas, PL, entP, entR, entDia, saiP, saiR, saiPDia, saiRDia, noPrazo, antes, naoPago, naoPagos, atrasados, antecip, foraLista, G, ultEnt,
+           ini30, usaVenc, vencTot, vencidos, m30, semanas30, decidir, dup, alertas, prox };
+}
+
+function pctCump(r, p){ return p ? (r/p*100).toFixed(0)+'%' : '—'; }
+function renderSemana(){
+  if(!D || !D.cp) return;
+  const S = calcularSemana();
+  $('sem-lbl').textContent = dm(S.s0) + ' a ' + dmy(S.s1) + (S.loja ? ' · '+S.loja : ' · todas as lojas');
+  $('sem-aviso').textContent = S.futura ? 'semana futura — só previsto' : S.emAndamento ? 'semana em andamento — realizado até hoje' : 'semana fechada';
+  $('sv-ent').textContent = fBRL(S.entR); $('sf-ent').textContent = 'previsto ' + fBRL(S.entP) + ' · ' + pctCump(S.entR, S.entP);
+  $('sv-sai').textContent = fBRL(S.saiR); $('sf-sai').textContent = 'previsto ' + fBRL(S.saiP) + ' · ' + pctCump(S.saiR, S.saiP);
+  const ger = S.entR - S.saiR; $('sv-ger').textContent = fBRL(ger); $('sv-ger').className = 'kpi-val ' + (ger<0?'neg':'pos');
+  $('sf-ger').textContent = 'previsto ' + fBRL(S.entP - S.saiP);
+  $('sv-np').textContent = fBRL(S.naoPago); $('sv-np').className = 'kpi-val ' + (S.naoPago?'neg':'');
+  $('sf-np').textContent = S.naoPagos.length + ' título' + (S.naoPagos.length===1?'':'s') + ' venceram e estão em aberto';
+  $('sv-fora').textContent = fBRL(S.atrasados + S.antecip);
+  $('sf-fora').textContent = 'atrasados ' + fBRL(S.atrasados) + ' · antecipados ' + fBRL(S.antecip);
+  const ordem = SAIDA_LINHAS.map(x=>x[1]);
+  const gs = Object.entries(S.G).sort((a,b)=>{ const ia=ordem.indexOf(a[0]), ib=ordem.indexOf(b[0]); return (ia<0?99:ia)-(ib<0?99:ib); });
+  const dif = (r,p) => { const d = r-p; return `<td class="num" style="color:${Math.abs(d)<0.005?'var(--ink-4)':d>0?'var(--rust-mid)':'var(--olive)'}">${fBRL(d)}</td>`; };
+  $('tb-sem-grp').innerHTML = gs.length ? gs.map(([g,o]) => `<tr><td>${esc(g)}</td><td class="num">${fBRL(o.p)}</td><td class="num">${fBRL(o.r)}</td>${dif(o.r,o.p)}</tr>`).join('')
+    + `<tr class="total-row"><td>Total</td><td class="num">${fBRL(S.saiP)}</td><td class="num">${fBRL(S.saiR)}</td><td class="num">${fBRL(S.saiR-S.saiP)}</td></tr>`
+    : '<tr><td colspan="4" class="nd" style="padding:14px">Sem títulos previstos ou pagos na semana.</td></tr>';
+  $('tb-sem-loja').innerHTML = S.lojas.map(l => { const o=S.PL[l]; return `<tr><td>${esc(l)}</td><td class="num">${fBRL(o.entP)}</td><td class="num">${fBRL(o.entR)}</td><td class="num">${fBRL(o.saiP)}</td><td class="num">${fBRL(o.saiR)}</td></tr>`; }).join('');
+  $('tb-sem-dia').innerHTML = S.entDia.map((e,i) => { const t = S.s0 + i*DIA; return `<tr class="${t===S.h?'r-hoje':''}"><td>${DIA_SEM[new Date(t).getDay()]} ${dm(t)}</td><td class="num">${fBRL(e)}</td><td class="num">${fBRL(S.saiPDia[i])}</td><td class="num">${fBRL(S.saiRDia[i])}</td></tr>`; }).join('');
+}
+
+function htmlRelatorioSemana(S){
+  const A = alcadas(), N = v => fNum(v), titulo = 'Caixa_Semanal_' + isoDe(S.s0) + (S.loja?'_'+S.loja:'');
+  const kpi = (l,v,s,cor) => `<div class="kpi"><i style="background:${cor}"></i><div class="kl">${l}</div><div class="kv">${v}</div><div class="ks">${s}</div></div>`;
+  const ordem = SAIDA_LINHAS.map(x=>x[1]);
+  const gs = Object.entries(S.G).sort((a,b)=>{ const ia=ordem.indexOf(a[0]), ib=ordem.indexOf(b[0]); return (ia<0?99:ia)-(ib<0?99:ib); });
+  const d = (r,p) => { const x=r-p; return `<td class="n" style="color:${Math.abs(x)<0.005?'#9a9a8c':x>0?'#A23B2E':'#3D5416'}">${N(x)}</td>`; };
+  const ger = S.entR - S.saiR, gerP = S.entP - S.saiP;
+  const situ = S.futura ? 'Semana futura — só previsto' : S.emAndamento ? 'Semana em andamento — realizado até '+dmy(S.h) : 'Semana fechada';
+  const np = S.naoPagos.slice().sort((a,b)=>b.v-a.v);
+  const fora = S.foraLista.slice().sort((a,b)=>b.v-a.v).slice(0,15);
+  const fim30 = S.semanas30.length ? S.semanas30[S.semanas30.length-1].saldo : 0;
+  const tot30sai = S.semanas30.reduce((x,s)=>x+s.sa,0) + (S.usaVenc?S.vencTot:0), tot30ent = S.semanas30.reduce((x,s)=>x+s.en,0);
+  const linhasDec = S.decidir.map(r => { const n = nivelAlcada(r.v,A), dp=(S.dup.get(chaveDup(r))||0)>1;
+    return `<tr class="${r.vc<S.h?'atr':''}"><td style="white-space:nowrap">${dmy(r.vc)}${r.vc<S.h?'<div class="sm">vencido</div>':''}</td><td>${esc(r.l)}</td><td>${esc(r.ct)}<div class="sm">${esc(r.sb)}</div></td><td>${esc(r.t||'—')}${dp?'<div class="sm dupl">possível lançamento repetido</div>':''}</td><td class="n">${N(r.v)}</td><td>${esc(n.nome)}</td><td class="chk"><span></span></td><td class="chk"><span></span></td><td class="chk"><span></span></td></tr>`; }).join('');
+  return `<!DOCTYPE html><html lang="pt-BR"><head><meta charset="UTF-8"><title>${titulo}</title>
+<script>
+  document.addEventListener('DOMContentLoaded', function(){
+    Promise.race([document.fonts?document.fonts.ready:Promise.resolve(), new Promise(function(r){setTimeout(r,2500);})])
+      .then(function(){ setTimeout(function(){ window.print(); }, 400); });
+  });
+<\/script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+<style>
+@page { size:A4; margin:13mm 12mm 15mm; @bottom-left { content:"Gestão Zappas · Caixa semanal · ${dm(S.s0)} a ${dmy(S.s1)}"; font:8pt Inter,sans-serif; color:#8a8a7c; } @bottom-right { content:"Página " counter(page) " de " counter(pages); font:8pt Inter,sans-serif; color:#8a8a7c; } }
+*{box-sizing:border-box;margin:0;padding:0;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+body{font-family:Inter,system-ui,sans-serif;color:#16160F;font-size:9.5pt;line-height:1.45;background:#e9e8e3;font-variant-numeric:tabular-nums;}
+.folha{background:#fff;max-width:210mm;margin:16px auto;padding:13mm 12mm;box-shadow:0 4px 24px rgba(0,0,0,.12);}
+.barra{position:sticky;top:0;z-index:5;background:#16283F;color:#fff;display:flex;align-items:center;gap:12px;padding:10px 18px;font-size:12.5px;}
+.barra b{font-size:15px;margin-right:auto;} .barra span{opacity:.7;}
+.barra button{background:#C8961A;color:#16160F;border:0;border-radius:8px;padding:8px 16px;font:700 12.5px Inter,sans-serif;cursor:pointer;}
+@media print{ body{background:#fff;} .barra{display:none;} .folha{margin:0;padding:0;box-shadow:none;max-width:none;} .dec{border:1px solid #C8C5BA;} }
+.cab{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:3px solid #16283F;padding-bottom:10px;margin-bottom:12px;}
+.cab h1{font-size:20pt;line-height:1.1;color:#16283F;} .cab .sub{font-size:9.5pt;color:#5d5d50;margin-top:3px;}
+.cab .dir{text-align:right;font-size:8.5pt;color:#5d5d50;} .cab .dir b{display:block;font-size:10pt;color:#16283F;}
+h2{font-size:12pt;color:#16283F;margin:16px 0 7px;display:flex;align-items:center;gap:10px;break-after:avoid;}
+h2::after{content:"";flex:1;height:1px;background:#D8D5CC;}
+h3{font-size:9pt;color:#3A3A2E;margin:0 0 5px;}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:7px;margin-bottom:7px;}
+.kpi{border:1px solid #E3E1D9;border-radius:8px;padding:8px 9px 7px;position:relative;overflow:hidden;break-inside:avoid;min-width:0;}
+.kpi i{position:absolute;left:0;top:0;right:0;height:3px;}
+.kl{font-size:7.5pt;font-weight:600;text-transform:uppercase;letter-spacing:.05em;color:#6b6b5e;}
+.kv{font-weight:700;font-size:12pt;margin-top:3px;letter-spacing:-.02em;white-space:nowrap;text-align:center;}
+.ks{font-size:7.3pt;color:#7d7d70;margin-top:1px;text-align:right;}
+.duas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;}
+table{width:100%;border-collapse:collapse;font-size:8pt;}
+th{background:#16283F;color:#fff;font-weight:600;text-align:left;padding:5px;font-size:6.6pt;text-transform:uppercase;letter-spacing:.02em;vertical-align:bottom;}
+td{padding:4px 5px;border-bottom:1px solid #ECEAE3;vertical-align:top;overflow-wrap:anywhere;}
+td.n,th.n{text-align:right;white-space:nowrap;} tr{break-inside:avoid;} thead{display:table-header-group;}
+tbody tr:nth-child(even) td{background:#FAFAF7;}
+tr.tot td{background:#EEF3FD !important;font-weight:700;border-top:2px solid #16283F;}
+tr.atr td{color:#A23B2E;}
+.sm{font-size:6.8pt;color:#7d7d70;margin-top:1px;} .dupl{color:#5B2E91;font-weight:700;}
+td.chk,th.chk{text-align:center;} td.chk span{display:inline-block;width:11px;height:11px;border:1.2px solid #16283F;border-radius:2px;}
+.vazio{color:#9a9a8c;font-size:8.5pt;padding:8px 0;}
+.conf{list-style:none;display:flex;flex-direction:column;gap:4px;}
+.conf li{display:flex;gap:7px;font-size:8.5pt;padding:5px 8px;border-radius:6px;background:#F6F5F0;break-inside:avoid;}
+.conf li i{flex-shrink:0;width:13px;height:13px;border-radius:50%;color:#fff;font:800 8pt Inter;font-style:normal;display:inline-flex;align-items:center;justify-content:center;margin-top:1px;}
+.conf li.ok i{background:#5A7A22;} .conf li.av i{background:#B87010;} .conf li.er i{background:#A83218;}
+.dec{border:1px dashed #C8C5BA;border-radius:8px;padding:10px 12px;min-height:90px;font-size:9pt;outline:none;break-inside:avoid;}
+.dec:empty::before{content:"Clique aqui para registrar as decisões do comitê (o que pagar, adiar ou negociar, responsáveis e prazos).";color:#9a9a8c;}
+@media print{ .dec:empty::before{content:"";} }
+.ass{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:22px;margin-top:34px;break-inside:avoid;}
+.ass div{border-top:1px solid #16160F;padding-top:5px;font-size:8pt;text-align:center;color:#3A3A2E;}
+.ass div small{display:block;color:#7d7d70;font-size:7pt;}
+.nota{font-size:7.3pt;color:#7d7d70;margin-top:14px;border-top:1px solid #E3E1D9;padding-top:8px;}
+</style></head><body>
+<div class="barra"><b>Caixa semanal</b><span>Confira, registre as decisões e clique em “Salvar em PDF” (na janela, escolha o destino <i>Salvar como PDF</i>).</span><button onclick="window.print()">Salvar em PDF</button></div>
+<div class="folha">
+  <div class="cab">
+    <div><h1>Caixa semanal — realizado × previsto</h1><div class="sub">Semana de ${DIA_SEM[new Date(S.s0).getDay()]} ${dmy(S.s0)} a ${DIA_SEM[new Date(S.s1).getDay()]} ${dmy(S.s1)} · ${S.loja ? 'Loja '+esc(S.loja) : 'Todas as lojas'} · ${situ}</div></div>
+    <div class="dir"><b>Gestão Zappas</b>Comitê semanal de caixa<br>Emitido em ${new Date().toLocaleString('pt-BR',{dateStyle:'short',timeStyle:'short'})}${sessaoAtual && sessaoAtual.name ? '<br>por '+esc(sessaoAtual.name) : ''}</div>
+  </div>
+
+  <h2>1. Resumo da semana</h2>
+  <div class="kpis">
+    ${kpi('Entradas', 'R$ '+N(S.entR), 'previsto R$ '+N(S.entP)+' · '+pctCump(S.entR,S.entP), '#5A7A22')}
+    ${kpi('Saídas', 'R$ '+N(S.saiR), 'previsto R$ '+N(S.saiP)+' · '+pctCump(S.saiR,S.saiP), '#A83218')}
+    ${kpi('Geração de caixa', 'R$ '+N(ger), 'prevista R$ '+N(gerP), '#1B3D6E')}
+    ${kpi('Previsto e não pago', 'R$ '+N(S.naoPago), S.naoPagos.length+' título(s) em aberto', '#B87010')}
+  </div>
+  <table style="margin-top:4px"><thead><tr><th>Saídas da semana — como o previsto foi cumprido</th><th class="n">Valor (R$)</th></tr></thead><tbody>
+    <tr><td>Previsto (vencimento na semana)</td><td class="n">${N(S.saiP)}</td></tr>
+    <tr><td>&nbsp;&nbsp;pago na semana</td><td class="n">${N(S.noPrazo)}</td></tr>
+    <tr><td>&nbsp;&nbsp;pago antes da semana (antecipado)</td><td class="n">${N(S.antes)}</td></tr>
+    <tr><td>&nbsp;&nbsp;não pago (em aberto)</td><td class="n" style="color:#A23B2E">${N(S.naoPago)}</td></tr>
+    <tr><td>Pago na semana fora do previsto — atrasados de semanas anteriores</td><td class="n">${N(S.atrasados)}</td></tr>
+    <tr><td>Pago na semana fora do previsto — antecipados de semanas seguintes</td><td class="n">${N(S.antecip)}</td></tr>
+    <tr class="tot"><td>Realizado (pago na semana)</td><td class="n">${N(S.saiR)}</td></tr></tbody></table>
+
+  <h2>2. Realizado × previsto por grupo e por loja</h2>
+  <table><thead><tr><th>Grupo de saída</th><th class="n">Previsto (R$)</th><th class="n">Realizado (R$)</th><th class="n">Diferença (R$)</th></tr></thead><tbody>
+    ${gs.map(([g,o])=>`<tr><td>${esc(g)}</td><td class="n">${N(o.p)}</td><td class="n">${N(o.r)}</td>${d(o.r,o.p)}</tr>`).join('') || '<tr><td colspan="4" class="vazio">Sem títulos previstos ou pagos na semana.</td></tr>'}
+    <tr class="tot"><td>Total</td><td class="n">${N(S.saiP)}</td><td class="n">${N(S.saiR)}</td><td class="n">${N(S.saiR-S.saiP)}</td></tr></tbody></table>
+  <table style="margin-top:8px"><thead><tr><th>Loja</th><th class="n">Entradas prev.</th><th class="n">Entradas real.</th><th class="n">Saídas prev.</th><th class="n">Saídas real.</th><th class="n">Geração real.</th></tr></thead><tbody>
+    ${S.lojas.map(l=>{const o=S.PL[l]; return `<tr><td>${esc(l)}</td><td class="n">${N(o.entP)}</td><td class="n">${N(o.entR)}</td><td class="n">${N(o.saiP)}</td><td class="n">${N(o.saiR)}</td><td class="n" style="${o.entR-o.saiR<0?'color:#A23B2E':''}">${N(o.entR-o.saiR)}</td></tr>`;}).join('')}
+    <tr class="tot"><td>Total</td><td class="n">${N(S.entP)}</td><td class="n">${N(S.entR)}</td><td class="n">${N(S.saiP)}</td><td class="n">${N(S.saiR)}</td><td class="n">${N(ger)}</td></tr></tbody></table>
+  <table style="margin-top:8px"><thead><tr><th>Dia</th><th class="n">Entradas (R$)</th><th class="n">Saídas previstas (R$)</th><th class="n">Saídas pagas (R$)</th></tr></thead><tbody>
+    ${S.entDia.map((e,i)=>{const t=S.s0+i*DIA; return `<tr><td>${DIA_SEM[new Date(t).getDay()]} ${dm(t)}</td><td class="n">${N(e)}</td><td class="n">${N(S.saiPDia[i])}</td><td class="n">${N(S.saiRDia[i])}</td></tr>`;}).join('')}</tbody></table>
+
+  ${np.length ? `<h2>3. Previstos para a semana e não pagos</h2>
+  <table style="table-layout:fixed"><colgroup><col style="width:12%"><col style="width:12%"><col style="width:26%"><col style="width:34%"><col style="width:16%"></colgroup><thead><tr><th>Vencimento</th><th>Loja</th><th>Conta</th><th>Título</th><th class="n">Valor (R$)</th></tr></thead>
+  <tbody>${np.slice(0,40).map(r=>`<tr><td>${dmy(r.vc)}</td><td>${esc(r.l)}</td><td>${esc(r.ct)}</td><td>${esc(r.t||'—')}</td><td class="n">${N(r.v)}</td></tr>`).join('')}
+  ${np.length>40?`<tr><td colspan="5" class="sm">… e mais ${np.length-40} título(s).</td></tr>`:''}<tr class="tot"><td colspan="4">Total</td><td class="n">${N(S.naoPago)}</td></tr></tbody></table>` : ''}
+
+  ${fora.length ? `<h2>${np.length?'4':'3'}. Pagos na semana fora do vencimento</h2>
+  <table style="table-layout:fixed"><colgroup><col style="width:12%"><col style="width:12%"><col style="width:12%"><col style="width:24%"><col style="width:26%"><col style="width:14%"></colgroup><thead><tr><th>Vencimento</th><th>Pago em</th><th>Loja</th><th>Conta</th><th>Título</th><th class="n">Valor (R$)</th></tr></thead>
+  <tbody>${fora.map(r=>`<tr><td>${dmy(r.vc)}<div class="sm">${r.vc<S.s0?'atrasado':'antecipado'}</div></td><td>${dmy(r.p)}</td><td>${esc(r.l)}</td><td>${esc(r.ct)}</td><td>${esc(r.t||'—')}</td><td class="n">${N(r.v)}</td></tr>`).join('')}</tbody></table>` : ''}
+
+  <h2 style="break-before:page">Próximos 30 dias (a partir de ${dmy(S.h)})</h2>
+  <div class="kpis">
+    ${kpi('Saldo atual informado', 'R$ '+N(S.ini30), 'campo da Projeção', '#AEADA0')}
+    ${kpi('Entradas estimadas', 'R$ '+N(tot30ent), 'R$ '+N(S.m30)+'/dia', '#5A7A22')}
+    ${kpi('Saídas a vencer', 'R$ '+N(tot30sai), S.prox.length+' títulos'+(S.usaVenc&&S.vencidos.length?' + '+S.vencidos.length+' vencidos':''), '#A83218')}
+    ${kpi('Saldo projetado em 30 dias', 'R$ '+N(fim30), 'em '+dmy(S.h+29*DIA), '#1B3D6E')}
+  </div>
+  <table><thead><tr><th>Semana</th><th class="n">Entradas est. (R$)</th><th class="n">Saídas a vencer (R$)</th><th class="n">Saldo da semana (R$)</th><th class="n">Saldo projetado (R$)</th></tr></thead><tbody>
+    ${S.usaVenc && S.vencTot ? `<tr class="atr"><td>Vencidos em aberto (descontados no início)</td><td class="n">—</td><td class="n">${N(S.vencTot)}</td><td class="n">${N(-S.vencTot)}</td><td class="n">${N(S.ini30-S.vencTot)}</td></tr>` : ''}
+    ${S.semanas30.map(s=>`<tr><td>${dm(s.a)} a ${dm(s.b)}</td><td class="n">${N(s.en)}</td><td class="n">${N(s.sa)}</td><td class="n" style="color:${s.en-s.sa<0?'#A23B2E':'#3D5416'}">${N(s.en-s.sa)}</td><td class="n" style="${s.saldo<0?'color:#A23B2E;font-weight:700':''}">${N(s.saldo)}</td></tr>`).join('')}
+    <tr class="tot"><td>Total 30 dias</td><td class="n">${N(tot30ent)}</td><td class="n">${N(tot30sai)}</td><td class="n">${N(tot30ent-tot30sai)}</td><td class="n">${N(fim30)}</td></tr></tbody></table>
+
+  <h2>Decisões de pagamento — maiores títulos (vencidos há até 30 dias e próximos 30 dias)</h2>
+  <table style="table-layout:fixed"><colgroup><col style="width:11%"><col style="width:10%"><col style="width:18%"><col style="width:22%"><col style="width:11%"><col style="width:13%"><col style="width:5%"><col style="width:5%"><col style="width:5%"></colgroup>
+    <thead><tr><th>Vencimento</th><th>Loja</th><th>Conta</th><th>Título</th><th class="n">Valor (R$)</th><th>Alçada</th><th class="chk">Pagar</th><th class="chk">Adiar</th><th class="chk">Negoc.</th></tr></thead>
+    <tbody>${linhasDec || '<tr><td colspan="9" class="vazio">Nenhum título em aberto no período.</td></tr>'}</tbody></table>
+
+  <h2>Alertas</h2>
+  <ul class="conf">${S.alertas.map(([t,txt])=>`<li class="${t}"><i>${t==='ok'?'✓':'!'}</i><span>${txt}</span></li>`).join('')}</ul>
+
+  <h2>Decisões do comitê</h2>
+  <div class="dec" contenteditable="true"></div>
+
+  <div class="ass">
+    <div>Responsável financeiro<small>preparou o relatório</small></div>
+    <div>Sócio<small>comitê de caixa</small></div>
+    <div>Sócio<small>comitê de caixa</small></div>
+  </div>
+
+  <div class="nota"><b>Previsto de saídas</b>: títulos do Contas a Pagar com vencimento na semana (pagos ou não). <b>Realizado</b>: títulos pagos na semana. <b>Previsto de entradas</b>: não há arquivo de Contas a Receber; usa a média diária dos recebimentos dos 90 dias com dados antes da semana × 7, por loja. <b>Realizado de entradas</b>: Recebidos classificados pelo De-Para (mesma regra do DFC)${S.ultEnt?', lançados até '+dmy(S.ultEnt):''}. <b>Próximos 30 dias</b>: saldo informado na Projeção do painel + entradas estimadas − títulos a vencer${S.usaVenc?' − vencidos em aberto':''}. Alçada pelo valor de cada título (até R$ ${N(A.v1)}: ${esc(A.n1)}; até R$ ${N(A.v2)}: ${esc(A.n2)}; acima: ${esc(A.n3)}). Observação: em parte da exportação do Contas a Pagar, o vencimento dos títulos pagos vem igual à data do pagamento, o que reduz a diferença entre previsto e realizado.</div>
+</div>
+</body></html>`;
+}
+function gerarRelatorioSemana(){
+  if(!D || !D.cp || !D.cp.length){ alertaSimples('Os dados ainda não carregaram.'); return; }
+  const html = htmlRelatorioSemana(calcularSemana());
+  const w = window.open('', '_blank');
+  if(w){ w.document.open(); w.document.write(html); w.document.close(); return; }
+  const f = document.createElement('iframe');
+  f.style.cssText = 'position:fixed;right:0;bottom:0;width:0;height:0;border:0;';
+  document.body.appendChild(f); f.contentDocument.open(); f.contentDocument.write(html); f.contentDocument.close();
+  setTimeout(() => f.remove(), 60000);
+}
+(function(){
+  const q = new URLSearchParams(location.search).get('semana');
+  $('sem-data').value = isoDe(/^\d{4}-\d{2}-\d{2}$/.test(q||'') ? segundaDe(new Date(q+'T00:00').getTime()) : segundaDe(hoje0()));
+  $('sem-data').addEventListener('change', () => { $('sem-data').value = isoDe(semanaIni()); renderSemana(); });
+  $('f-loja').addEventListener('change', renderSemana);
+  ['in-saldo','ck-venc'].forEach(id => $(id).addEventListener('change', renderSemana));
+})();
+
 /* ══ Eventos ══ */
 document.querySelectorAll('#seg-visao button').forEach(b => b.addEventListener('click', () => { if(b.disabled) return; visao = b.dataset.v; render(); }));
 document.querySelectorAll('#seg-hor button').forEach(b => b.addEventListener('click', () => {
@@ -1516,7 +2177,7 @@ document.querySelectorAll('.kpi[data-memo]').forEach(k => k.addEventListener('cl
 let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(() => { if(ultimoM){ desenharRealizado(); renderProjecao(); } }, 150); });
 
 
-if(window.AuthGuard) AuthGuard.requireScreen('fluxo_caixa', function(){ loadData(false); });
+if(window.AuthGuard) AuthGuard.requireScreen('fluxo_caixa', function(s){ sessaoAtual = s || null; loadData(false); });
 </script>
 
 <script>
