@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
 <script src="zappas-cache.js"></script>
-<meta name="zappas-versao" content="v2026.11.08-b">
+<meta name="zappas-versao" content="v2026.11.08-c">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Fluxo de Caixa</title>
@@ -601,7 +601,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
     </div>
   </nav>
   <!-- Versão do arquivo publicado (rodapé do menu) -->
-  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.08-b</span><span class="sv-short">11.08-b</span></div>
+  <div class="side-versao" title="Versão do arquivo publicado"><span class="sv-full">Versão v2026.11.08-c</span><span class="sv-short">11.08-c</span></div>
   <style>
     .side-versao{flex-shrink:0;padding:10px 18px 12px;border-top:1px solid rgba(255,255,255,.08);font:500 10px/1.2 Inter,'IBM Plex Sans',Arial,sans-serif;color:rgba(255,255,255,.42);letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
     .side-versao .sv-short{display:none}
@@ -747,7 +747,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
   <div class="sec" id="memorial"><span class="sec-title">Como os números são calculados</span><span class="sec-line"></span></div>
   <div class="memo">
     <div class="memo-item" id="m-ent"><div class="mf">Entradas</div><div>Arquivo de <b>Recebidos</b> de cada loja, classificado pelo <b>De-Para</b> (mesma regra do DFC no Demonstrativo de Resultado): entram Cartão/PIX, Dinheiro, Boleto/Convênio, Convênio Funcionários e Reembolso (serviços). Cortesia, Baixas e Quebras e códigos sem De-Para ficam fora e aparecem na nota abaixo da tabela. Data: coluna <code>dtpagamento</code>; mês pela coluna <code>mes</code>.</div></div>
-    <div class="memo-item" id="m-sai"><div class="mf">Saídas</div><div><b>Contas a Pagar pagas</b> (<code>vparcela</code>), no dia do pagamento (<code>dtpagamento</code>), agrupadas pelo <b>Plano de Contas</b> (<code>codcentro</code> → <code>Cod_PL</code>), com as mesmas reclassificações do Demonstrativo (Utensílios em Despesas Administrativas; código 2007 = GNRE/GARE). Diferente do DFC, o que foi pago com código fora do Plano de Contas <b>também entra</b>, na linha "Sem classificação", porque o dinheiro saiu do caixa.</div></div>
+    <div class="memo-item" id="m-sai"><div class="mf">Saídas</div><div><b>Contas a Pagar pagas</b> (<code>vparcela</code>), no dia do pagamento (<code>dtpagamento</code>), agrupadas pelo <b>Plano de Contas</b> (<code>codcentro</code> → <code>Cod_PL</code>), com as mesmas reclassificações do Demonstrativo (Utensílios em Despesas Administrativas; código 2007 = GNRE/GARE; contas "RECLASSIFICAR" nos grupos 2.22.05, 2.22.19, 2.10.17 e 2.15.05). Diferente do DFC, o que foi pago com código fora do Plano de Contas <b>também entra</b>, na linha "Sem classificação", porque o dinheiro saiu do caixa.</div></div>
     <div class="memo-item" id="m-ger"><div class="mf">Geração de caixa</div><div>Entradas − Saídas do período. O <b>Acumulado</b> soma a geração mês a mês (ou dia a dia) desde o início do ano (ou do mês). Não é o saldo bancário: o painel ainda não recebe extrato.</div></div>
     <div class="memo-item" id="m-ab"><div class="mf">A pagar no período</div><div>Contas a Pagar <b>sem data de pagamento</b> com vencimento dentro do período escolhido.</div></div>
     <div class="memo-item" id="m-venc"><div class="mf">Vencido em aberto</div><div>Contas a Pagar sem data de pagamento com vencimento <b>antes de hoje</b> (todas as datas, da loja escolhida). Pode ser conta já paga e ainda não baixada no sistema — vale conferir.</div></div>
@@ -963,6 +963,19 @@ function buscarDepara(dp, cod, loja){
 
 /* ── Plano de Contas (mesmas correções do Demonstrativo) ── */
 const PLANO_CODIGO_FORCADO = { '2007': 'gnre gare' };
+// Contas provisórias "RECLASSIFICAR…" do Plano de Contas (sem Grupo) — decisão de
+// 08/11/2026: cada uma vai para o grupo indicado. Busca pelo nome da conta.
+const PLANO_RECLASSIFICAR = [
+  { chave:'maquinas',   cod_grupo:'2.22.05', grupo:'(-) INVESTIMENTOS', sub_grupo:'Máquinas e Equipamentos' },
+  { chave:'mov',        cod_grupo:'2.22.19', grupo:'(-) INVESTIMENTOS', sub_grupo:'Móveis e Utensilios' },
+  { chave:'impostos municipais', cod_grupo:'2.10.17', grupo:'(-) DESPESAS ADMINISTRATIVAS E OPERACIONAIS', sub_grupo:'Despesas Administrativas' },
+  { chave:'consultoria', cod_grupo:'2.15.05', grupo:'(-) DESPESAS ADMINISTRATIVAS E OPERACIONAIS', sub_grupo:'Despesas com Prestadores de Serviços' },
+];
+function destinoReclassificar(conta){
+  const n = normKey(conta);
+  if(!n.startsWith('reclassificar')) return null;
+  return PLANO_RECLASSIFICAR.find(r => n.includes(r.chave)) || null;
+}
 function parsePlano(text){
   const map = new Map(), sep = detectSepExt(text), L = linhasCSV(text); if(!L.length) return map;
   const H = splitLine(L[0],sep).map(tira);
@@ -977,6 +990,7 @@ function parsePlano(text){
     const forc = PLANO_CODIGO_FORCADO[key];
     if(forc && !normKey(e.conta).includes(forc)) continue;
     if(normKey(e.conta)==='utensilios' && /investiment/i.test(normKey(e.grupo))){ e.grupo='(-) DESPESAS ADMINISTRATIVAS E OPERACIONAIS'; e.sub='Despesas Administrativas'; }
+    const rc = destinoReclassificar(e.conta); if(rc){ e.grupo=rc.grupo; e.sub=rc.sub_grupo; }
     map.set(raw, e); if(key) map.set(key, e);
   }
   return map;
@@ -1063,7 +1077,7 @@ async function fetchCSV(url){
 }
 
 /* ── Cache local (IndexedDB) — mesmo esquema das outras telas ── */
-const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='fluxo_caixa_data_v1';
+const DB_NAME='zappasCacheDB', DB_STORE='cache', DB_KEY='fluxo_caixa_data_v2';
 function openDB(){ return new Promise((res,rej)=>{ const q=indexedDB.open(DB_NAME,1); q.onupgradeneeded=()=>{ if(!q.result.objectStoreNames.contains(DB_STORE)) q.result.createObjectStore(DB_STORE); }; q.onsuccess=()=>res(q.result); q.onerror=()=>rej(q.error); }); }
 async function saveCache(data, ts, rawTs){ try{ const db=await openDB(); await new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readwrite'); tx.objectStore(DB_STORE).put({data,ts,rawTs},DB_KEY); tx.oncomplete=res; tx.onerror=()=>rej(tx.error); }); }catch(e){ console.warn('Cache local não salvo:', e); } }
 async function loadCacheDB(){ try{ const db=await openDB(); return await new Promise((res,rej)=>{ const tx=db.transaction(DB_STORE,'readonly'); const q=tx.objectStore(DB_STORE).get(DB_KEY); q.onsuccess=()=>res(q.result||null); q.onerror=()=>rej(q.error); }); }catch(e){ return null; } }
