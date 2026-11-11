@@ -670,6 +670,7 @@ body { font-variant-numeric: tabular-nums; font-feature-settings: "tnum" 1; }
           <label>Até<input type="month" id="periodEnd"></label>
         </div>
         <p class="period-modal-hint">Os dados são consolidados por mês (não por dia), então o relatório traz o total de cada mês dentro do intervalo escolhido.</p>
+        <label style="display:flex;align-items:center;gap:8px;font-size:12.5px;margin:0 0 14px;cursor:pointer;"><input type="checkbox" id="periodConsolidado" checked style="accent-color:#B8893E"> Incluir 2 relatórios consolidados (Anísio + Bady + Damha + Belvedere e Havan + Muffato)</label>
         <p class="period-modal-error" id="periodModalError"></p>
         <div class="period-modal-actions">
           <button type="button" class="btn btn-line" id="periodCancel">Cancelar</button>
@@ -1173,7 +1174,7 @@ function render(){
 
   $("scopeLabel").textContent = selLabel + " · " + MESES_DISPLAY[f.mes] + " de " + f.ano;
   $("printScopeNote").textContent = ranking.length > 1
-    ? ("O relatório será gerado em " + ranking.length + " página(s), uma por loja.")
+    ? ("O relatório será gerado em " + ranking.length + " página(s), uma por loja, mais os 2 consolidados.")
     : ("O relatório será gerado para " + selLabel + ".");
 
   $("btnPrint").disabled = monthRows.length === 0;
@@ -1450,7 +1451,7 @@ function monthsInPeriodRange(startAno, startMes, endAno, endMes){
   return out;
 }
 
-function generatePDF(startAno, startMes, endAno, endMes){
+function generatePDF(startAno, startMes, endAno, endMes, incluirConsolidado){
   const f = state.filters;
 
   var scopeKeys = STORE_ORDER.filter(function(k){
@@ -1549,6 +1550,56 @@ function generatePDF(startAno, startMes, endAno, endMes){
       '</div></section>';
   });
 
+  // ── Relatórios CONSOLIDADOS (um por grupo de lojas) ──
+  var GRUPOS_CONSOLIDADO = [
+    { titulo:"Anísio, Bady, Damha e Belvedere", razaoSocial:"PRATIC LOJA DE CONVENIENCIA LTDA.",
+      lojas:["ANISIO","BADY","DAMHA","BELVEDER"] },
+    { titulo:"Havan e Muffato", razaoSocial:"CASARAO PADARIA ARTESANAL LTDA.",
+      lojas:["HAVAN","MUFFATO"] }
+  ];
+  if (incluirConsolidado !== false) {
+    GRUPOS_CONSOLIDADO.forEach(function(g){
+      var keys = g.lojas.slice();
+      var rowsGrupo = state.rows.filter(function(r){
+        return keys.indexOf(r.lojaKey) > -1 && inPeriodRange(r, startAno, startMes, endAno, endMes) && matchFilter(r, f.canal);
+      });
+      if (!rowsGrupo.length) return; // sem dados no período: não gera a página
+      var mesesG = [], totalG = 0;
+      meses.forEach(function(per){
+        var rm = rowsGrupo.filter(function(r){ return r.ano === per.ano && r.mesIndex === per.mi; });
+        if (rm.length) {
+          var t = rm.reduce(function(sum,r){ return sum + r.total; }, 0);
+          totalG += t;
+          mesesG.push({ nome: MESES_DISPLAY[per.mi] + (multiAno ? "/" + per.ano : ""), total: t });
+        }
+      });
+      var trsG = mesesG.map(function(m){
+        var v = (m.total || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        return '<tr><td>' + m.nome + '</td><td class="num"><span class="rSym">R$</span><span class="rVal">' + v + "</span></td></tr>";
+      }).join("");
+      var unidades = keys.map(function(k){
+        var i = STORES[k] || {};
+        return '<div class="doc-field"><span class="doc-label">' + escapeHtml(i.nome || storeLabel(k)) + '</span><span class="doc-val">CNPJ ' + escapeHtml(i.cnpj || "—") + "</span></div>";
+      }).join("");
+      html += '<section class="doc-page">' +
+        '<div style="text-align:center;margin-bottom:16px;">' +
+        '<h1 style="font-family:Inter,serif;font-size:20px;margin:0;color:#0E1B2E;">DECLARAÇÃO DE FATURAMENTO CONSOLIDADO</h1>' +
+        '</div>' +
+        '<p class="doc-declaration">Declaramos pela presente que o faturamento consolidado das unidades abaixo identificadas, conforme análise gerencial, apresenta os valores a seguir demonstrados.</p>' +
+        '<div class="doc-firma">' + escapeHtml(g.razaoSocial) + '</div>' +
+        '<div class="doc-fields">' + unidades + '</div>' +
+        '<div class="doc-period"><h2>Período de Referência</h2><p>' + dataInicio + " a " + dataFim + "</p></div>" +
+        '<table class="doc-table"><thead><tr><th>Mês</th><th class="num">Faturamento</th></tr></thead><tbody>' +
+        trsG + '</tbody><tfoot><tr><td>TOTAL DO PERÍODO</td><td class="num"><span class="rSym">R$</span><span class="rVal">' + (totalG || 0).toLocaleString("pt-BR", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + "</span></td></tr></tfoot></table>" +
+        '<div class="doc-local">São José do Rio Preto-SP, ' + dataEmissao + '.</div>' +
+        '<div class="doc-assinatura">' +
+        '<p class="nome">GELSON MASCARO ZAPATERRA DE SOUZA</p>' +
+        '<p>Qualificação.:  Sócio-Diretor</p>' +
+        '<p>CPF.: 025.937.728-75</p>' +
+        '</div></section>';
+    });
+  }
+
   html += '</body></html>';
 
   var printWin = window.open("", "_blank", "width=900,height=700,scrollbars=yes");
@@ -1604,7 +1655,7 @@ $("periodConfirm").addEventListener("click", function(){
 
   errBox.classList.remove("show");
   $("periodModalOverlay").classList.remove("open");
-  generatePDF(startAno, startMes, endAno, endMes);
+  generatePDF(startAno, startMes, endAno, endMes, $("periodConsolidado").checked);
 });
 
 /* ---------------------------------------------------------------------
